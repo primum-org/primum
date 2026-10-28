@@ -1,0 +1,93 @@
+# Workspace root. It is not a package itself: it ties the packages under
+# packages/ together and holds the shared tooling configuration.
+
+[project]
+name = "primum-workspace"
+version = "0.0.0"
+description = "Development workspace for Primum (not published)."
+requires-python = ">=3.13"
+dependencies = ["primum-core", "primum-runtime"]
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.1",
+    "pre-commit>=4.7.0",
+    "pyright>=1.1.400",
+    "pytest>=8.3",
+    "pytest-watcher>=0.4",
+    "ruff>=0.11",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+primum-core = { workspace = true }
+primum-runtime = { workspace = true }
+
+# --- ruff -------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["packages/*/src", "packages/*/tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # pyflakes
+    "I",       # import sorting
+    "N",       # naming
+    "B",       # bugbear
+    "UP",      # pyupgrade
+    "SIM",     # simplify
+    "PTH",     # pathlib over os.path
+    "T20",     # no print(): use logging
+    "S",       # security (bandit)
+    "RUF",     # ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+"packages/*/tests/**" = ["S101"]  # assert is how pytest works
+
+# --- pyright ----------------------------------------------------------------
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.13"
+include = ["packages"]
+venvPath = "."
+venv = ".venv"
+
+# --- pytest -----------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["packages"]
+addopts = ["-ra", "--strict-markers", "--import-mode=importlib"]
+markers = [
+    "hw: needs real hardware; runs only on the Pi (just pi-test)",
+]
+
+# --- import-linter: architecture rules --------------------------------------
+
+[tool.importlinter]
+root_packages = ["primum_core", "primum_runtime"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "core does not depend on runtime"
+type = "forbidden"
+source_modules = ["primum_core"]
+forbidden_modules = ["primum_runtime"]
+
+[[tool.importlinter.contracts]]
+name = "core is pure: no hardware, network, storage or web frameworks"
+type = "forbidden"
+source_modules = ["primum_core"]
+forbidden_modules = [
+    "gpiod", "smbus2", "serial", "socket", "ssl", "http", "urllib", "sqlite3",
+    "subprocess", "asyncio", "fastapi", "starlette", "uvicorn", "httpx", "requests",
+]
