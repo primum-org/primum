@@ -16,6 +16,7 @@ dev = [
     "pytest>=8.3",
     "pytest-watcher>=0.4",
     "ruff>=0.11",
+    "rust-just>=1.59.0",
 ]
 
 [tool.uv]
@@ -87,10 +88,18 @@ source_modules = ["primum_core"]
 forbidden_modules = ["primum_runtime"]
 
 [[tool.importlinter.contracts]]
-name = "core is pure: no hardware, network, storage or web frameworks"
+name = "core is pure: no hardware, network, storage, clock, randomness, concurrency or web frameworks"
 type = "forbidden"
 source_modules = ["primum_core"]
+# uuid, datetime and pathlib stay allowed: parsing ids, dates and pure paths is pure.
+# Calls such as datetime.now() or uuid4() are not caught here; see .claude/rules/core.md.
 forbidden_modules = [
+    # hardware, network and storage
     "gpiod", "smbus2", "serial", "socket", "ssl", "http", "urllib", "sqlite3",
-    "subprocess", "asyncio", "fastapi", "starlette", "uvicorn", "httpx", "requests",
+    # operating system, processes and concurrency
+    "os", "subprocess", "asyncio", "threading", "concurrent", "multiprocessing",
+    # clock and randomness
+    "time", "random", "secrets",
+    # web frameworks and clients
+    "fastapi", "starlette", "uvicorn", "httpx", "requests",
 ]

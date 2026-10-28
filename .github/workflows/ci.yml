@@ -26,19 +26,6 @@ jobs:
       - name: Install
         run: uv sync --locked
 
-      - name: Lint
-        run: |
-          uv run ruff check
-          uv run ruff format --check
-
-      - name: Types
-        run: uv run pyright
-
-      - name: Architecture rules
-        run: uv run lint-imports
-
-      - name: Generated files are up to date
-        run: uv run python tools/gen_tokens.py --check
-
-      - name: Tests
-        run: uv run pytest
+      # The same command contributors run: lint, types, architecture, generated files, tests.
+      - name: just check
+        run: uv run just check

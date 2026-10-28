@@ -5,8 +5,8 @@ Every leaf becomes a CSS custom property named after its path (``font.size.md`` 
 and ``[data-theme="light"]``, dark on ``[data-theme="dark"]`` and, when no theme is set,
 following ``prefers-color-scheme``.
 
-    uv run python tools/gen_tokens.py           # write tokens.css
-    uv run python tools/gen_tokens.py --check   # fail if tokens.css is out of date (CI)
+    uv run just gen         # write tokens.css
+    uv run just gen-check   # fail if tokens.css is out of date (part of `just check`)
 """
 
 import argparse
@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         if not TARGET.exists() or TARGET.read_text(encoding="utf-8") != css:
             sys.stderr.write(
-                f"{TARGET.relative_to(ROOT)} is out of date: run `just gen` and commit it.\n"
+                f"{TARGET.relative_to(ROOT)} is out of date: run `uv run just gen` and commit it.\n"
             )
             return 1
         return 0

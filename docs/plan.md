@@ -43,7 +43,7 @@ when a phase starts or finishes.
 ## Phase 2 · Project model and `core`
 
 1. Schemas (pydantic → JSON Schema in `schemas/`): project manifest and the file types
-   `.sec`, `.auto`, `.evt`, `.prog`, `.vars`, `.hw`; `schemaVersion` and UUIDs everywhere.
+   `.sec`, `.auto`, `.evt`, `.sched`, `.vars`, `.hw`; `schemaVersion` and UUIDs everywhere.
 2. Workspace loader, id references, scopes (folder visibility, export/import, redefinition
    is an error), components with parameters, cycle detection.
 3. `boards/rpi4b.json`: 40 pins, alternate functions, buses, reserved pins.
@@ -65,7 +65,7 @@ when a phase starts or finishes.
 ## Phase 4 · Engine and deployment packages
 
 1. Sequence engine (monotonic clock, components flattened by the compiler).
-2. Events (`.evt`), schedules (`.prog`), automations (`.auto`), runtime variables with atomic
+2. Events (`.evt`), schedules (`.sched`), automations (`.auto`), runtime variables with atomic
    operations and a small, safe expression language for conditions.
 3. Arbiter per element: layers by priority, latest command wins, exclusive elements,
    exclusive groups, re-trigger policy, safety on top.

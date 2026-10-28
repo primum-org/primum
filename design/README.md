@@ -73,5 +73,5 @@ Source: the Claude Design system <https://claude.ai/artifact/4qZ3u7SrWZZ6gg3gTmy
 - Logotype (symbol + "Primum") outlined to curves: the sheets set it live in Fraunces.
 - App icon set (1024 → 16 px) and favicon, as described in the brandbook (§2).
 - Font files (woff2, Latin + Latin Extended) bundled for offline use: phase 5.
-- Icons for the project file types (`.sec`, `.auto`, `.evt`, `.prog`, `.vars`, `.hw`) and for the
+- Icons for the project file types (`.sec`, `.auto`, `.evt`, `.sched`, `.vars`, `.hw`) and for the
   file explorer.

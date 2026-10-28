@@ -27,8 +27,11 @@
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-Layers 2–5 are `primum-core` (pure). Layer 7 for Linux is `primum-runtime`. Version 1
-implements one target (Raspberry Pi 4B) with this structure already in place.
+Layers 2–4 and the **data** of layer 5 (driver manifests: capabilities, configuration, safe
+state, limits, conflict policy) are `primum-core`, which stays pure. Driver **implementations**
+touch hardware, so they live in the runtimes: `primum-runtime` for Linux (layer 7) and, later,
+the microcontroller firmware. Version 1 implements one target (Raspberry Pi 4B) with this
+structure already in place.
 
 ## Packages and where they run
 

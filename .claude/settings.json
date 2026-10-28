@@ -3,6 +3,7 @@
   "permissions": {
     "allow": [
       "Bash(just:*)",
+      "Bash(uv run just:*)",
       "Bash(uv run pytest:*)",
       "Bash(uv run ruff:*)",
       "Bash(uv run pyright:*)",

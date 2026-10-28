@@ -9,7 +9,7 @@ and keep things in folders.
 
 ## Decision
 - A project is a **folder of files** with a `project.json` manifest.
-- Internal file types: `.sec` (sequence), `.auto` (automation), `.evt` (event), `.prog`
+- Internal file types: `.sec` (sequence), `.auto` (automation), `.evt` (event), `.sched`
   (schedule), `.vars` (variables and constants), `.hw` (boards and elements).
 - Files are JSON text with their own extension. Each has an `id` (UUID), a `kind` and a
   `schemaVersion`. **Files reference each other by id**, never by path.

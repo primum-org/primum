@@ -14,7 +14,7 @@ and docs; the Spanish term is the one shown by the Spanish UI.
 | Parameter | Parámetro | An input of a component; exists only inside that use (instance) |
 | Automation (`.auto`) | Automatización | When an event happens → if conditions hold → do something (start/stop a sequence, change a variable) |
 | Event (`.evt`) | Evento | A named thing that happened in the outside world: a sensor, a button, a phone button, an external message. Sequences never emit events |
-| Schedule (`.prog`) | Programación | Time events ("every day at 20:30") and time windows used as conditions ("Mon–Sat 10:00–20:30"). Runs as an automation underneath |
+| Schedule (`.sched`) | Programación | Time events ("every day at 20:30") and time windows used as conditions ("Mon–Sat 10:00–20:30"). Runs as an automation underneath |
 | Variables file (`.vars`) | Variables | Constants and variables of the folder it is in |
 | Hardware file (`.hw`) | Hardware | Boards and elements of the project |
 | Constant | Constante | A value fixed while the show runs; resolved at compile time |

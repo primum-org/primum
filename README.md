@@ -21,12 +21,13 @@ all the others in motion.
 
 ## Development
 
-Requirements: [uv](https://docs.astral.sh/uv/) and [just](https://just.systems/).
+Requirement: [uv](https://docs.astral.sh/uv/). It installs everything else, including
+[just](https://just.systems/), into the project environment.
 
 ```bash
-just sync     # install the Python environment
-just check    # lint, types, architecture rules and tests (same as CI)
-just watch    # re-run tests on every save
+uv sync              # install the environment (Python 3.13 and dev tools)
+uv run just check    # lint, types, architecture rules, generated files and tests (what CI runs)
+uv run just watch    # re-run tests on every save
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow.

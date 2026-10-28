@@ -5,9 +5,8 @@ to open an issue with ideas, use cases or questions.
 
 ## Setup
 
-1. Install [uv](https://docs.astral.sh/uv/) and [just](https://just.systems/)
-   (`uv tool install rust-just` works too).
-2. `just sync` to install the environment.
+1. Install [uv](https://docs.astral.sh/uv/).
+2. `uv sync` to install the environment, including `just`. Run tasks with `uv run just <task>`.
 3. `uv run pre-commit install` to run the formatters on every commit.
 
 ## Workflow
@@ -17,7 +16,7 @@ to open an issue with ideas, use cases or questions.
    humans too.
 3. Add or update tests. Update `docs/specs/` if behaviour changes, `CHANGELOG.md` if users
    would notice, and add a note in `docs/decisions/` for design choices.
-4. Run `just check`. It runs exactly what CI runs.
+4. Run `uv run just check`. CI runs exactly this command.
 5. Open a pull request using the template.
 
 ## Commit messages
