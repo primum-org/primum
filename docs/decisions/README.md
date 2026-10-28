@@ -14,6 +14,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0004](0004-project-workspace-and-file-types.md) | A project is a workspace of files with internal extensions; `.primum` to save it | Accepted |
 | [0005](0005-variable-scopes.md) | Variables are scoped by folder; redefinition is an error | Accepted |
 | [0006](0006-events-and-output-arbitration.md) | Events come from outside only; outputs are arbitrated by priority layers | Accepted |
+| [0007](0007-brand-and-design-tokens.md) | Brand "Brass automaton · compact"; design tokens are the single source | Accepted |
 
 ## Template
 

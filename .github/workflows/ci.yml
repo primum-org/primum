@@ -37,5 +37,8 @@ jobs:
       - name: Architecture rules
         run: uv run lint-imports
 
+      - name: Generated files are up to date
+        run: uv run python tools/gen_tokens.py --check
+
       - name: Tests
         run: uv run pytest

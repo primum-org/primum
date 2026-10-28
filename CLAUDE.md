@@ -25,6 +25,8 @@ Read first: `docs/vision.md` (scope) · `docs/glossary.md` (vocabulary) ·
 - Variables change only through atomic operations (set, increment), never read-modify-write.
 - AI (MCP or chat) never deploys or moves hardware without the user confirming it.
 - A breaking change to a file format bumps `schemaVersion` and ships a migration with a test.
+- Colors, fonts, sizes, radii, spacing and motion come only from `design/tokens/tokens.json`;
+  `tokens.css` is generated from it (`just gen`).
 
 ## Layout
 
@@ -34,6 +36,7 @@ packages/runtime   primum-runtime: engine, HAL, drivers, safety, local API (Linu
 apps/webui         local web UI (Vue 3 + TypeScript), from phase 5
 schemas/           JSON Schemas: single source of the formats
 boards/            board profiles (pins, peripherals, resources)
+design/            brand: brandbook, tokens (single source), logo, icons
 image/             Primum OS image (rpi-image-gen), from phase 7
 tools/             developer scripts
 docs/              vision, glossary, architecture, plan, specs/, decisions/
@@ -42,8 +45,9 @@ docs/              vision, glossary, architecture, plan, specs/, decisions/
 ## Commands
 
 `just` lists every task. Main ones: `just check` (everything CI runs: lint, types,
-architecture, tests) · `just test` · `just watch` (tests on save) · `just fmt` ·
-`just sync` (install from `uv.lock`). Dependencies: `uv add <pkg> --package primum-core`.
+architecture, generated files, tests) · `just test` · `just watch` (tests on save) ·
+`just fmt` · `just gen` (regenerate generated files) · `just sync` (install from `uv.lock`).
+Dependencies: `uv add <pkg> --package primum-core`.
 
 ## Before you…
 
@@ -51,6 +55,7 @@ architecture, tests) · `just test` · `just watch` (tests on save) · `just fmt
   decisions in `docs/decisions/`.
 - make a design choice that others will rely on → add a note in `docs/decisions/`.
 - add a dependency to `core` → don't, unless it is pure and small; ask first.
+- build or style UI → read `design/README.md` (tokens, reserved colors, type, icons, voice).
 
 ## Conventions
 

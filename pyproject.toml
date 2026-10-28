@@ -33,7 +33,7 @@ primum-runtime = { workspace = true }
 [tool.ruff]
 line-length = 100
 target-version = "py313"
-src = ["packages/*/src", "packages/*/tests"]
+src = ["packages/*/src", "packages/*/tests", "tools"]
 
 [tool.ruff.lint]
 select = [
@@ -52,20 +52,23 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 "packages/*/tests/**" = ["S101"]  # assert is how pytest works
+"tools/tests/**" = ["S101"]
 
 # --- pyright ----------------------------------------------------------------
 
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.13"
-include = ["packages"]
+include = ["packages", "tools"]
+extraPaths = ["tools"]
 venvPath = "."
 venv = ".venv"
 
 # --- pytest -----------------------------------------------------------------
 
 [tool.pytest.ini_options]
-testpaths = ["packages"]
+testpaths = ["packages", "tools"]
+pythonpath = ["tools"]
 addopts = ["-ra", "--strict-markers", "--import-mode=importlib"]
 markers = [
     "hw: needs real hardware; runs only on the Pi (just pi-test)",

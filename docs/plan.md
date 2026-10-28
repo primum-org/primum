@@ -23,6 +23,7 @@ when a phase starts or finishes.
 - [x] CI on GitHub Actions
 - [x] Claude Code: `CLAUDE.md`, rules, hooks, permissions
 - [x] Docs: vision, glossary, architecture, plan, decisions
+- [x] Brand in `design/`: brandbook, tokens (single source) with generated CSS, logo, icons
 - [ ] Development Pi with Raspberry Pi OS Lite 64-bit reachable over SSH
 
 **Done when:** CI is green, `just check` passes locally and the development Pi is reachable.

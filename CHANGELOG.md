@@ -10,3 +10,5 @@ All notable changes to this project are documented here. The format follows
 
 - Repository skeleton: uv workspace with `primum-core` and `primum-runtime`, strict tooling,
   CI, Claude Code configuration and initial documentation.
+- Brand "Brass automaton · compact" in `design/`: brandbook, design tokens with generated CSS,
+  logo symbol and 56 icons.

@@ -37,5 +37,13 @@ typecheck:
 arch:
     uv run lint-imports
 
-# Everything CI runs: lint, types, architecture and tests
-check: lint typecheck arch test
+# Regenerate generated files (design tokens CSS)
+gen:
+    uv run python tools/gen_tokens.py
+
+# Fail if a generated file is out of date
+gen-check:
+    uv run python tools/gen_tokens.py --check
+
+# Everything CI runs: lint, types, architecture, generated files and tests
+check: lint typecheck arch gen-check test
