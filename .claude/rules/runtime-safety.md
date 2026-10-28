@@ -16,4 +16,4 @@ paths:
 - Monotonic clock for durations; wall-clock only for schedules and only when reliable.
 - Writable paths are configurable and default to `/data`. Only the hardware manager writes
   to `/boot/firmware`, and always through the tryboot flow.
-- Tests that need a real board are marked `@pytest.mark.hw`.
+- Tests that need a real board are marked `@pytest.mark.hw` (`just test-hw` on the Pi).

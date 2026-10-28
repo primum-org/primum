@@ -70,9 +70,9 @@ venv = ".venv"
 [tool.pytest.ini_options]
 testpaths = ["packages", "tools"]
 pythonpath = ["tools"]
-addopts = ["-ra", "--strict-markers", "--import-mode=importlib"]
+addopts = ["-ra", "--strict-markers", "--import-mode=importlib", "-m", "not hw"]
 markers = [
-    "hw: needs real hardware; runs only on the Pi (just pi-test)",
+    "hw: needs a real board; skipped by default, run on the Pi with `just test-hw`",
 ]
 
 # --- import-linter: architecture rules --------------------------------------
@@ -92,7 +92,7 @@ name = "core is pure: no hardware, network, storage, clock, randomness, concurre
 type = "forbidden"
 source_modules = ["primum_core"]
 # uuid, datetime and pathlib stay allowed: parsing ids, dates and pure paths is pure.
-# Calls such as datetime.now() or uuid4() are not caught here; see .claude/rules/core.md.
+# Calls such as datetime.now() or uuid4() are not caught here: packages/core/tests/test_purity.py.
 forbidden_modules = [
     # hardware, network and storage
     "gpiod", "smbus2", "serial", "socket", "ssl", "http", "urllib", "sqlite3",

@@ -23,6 +23,9 @@ Source: the Claude Design system <https://claude.ai/artifact/4qZ3u7SrWZZ6gg3gTmy
 
 - Load `tokens/tokens.css`. The theme follows `prefers-color-scheme` unless
   `<html data-theme="light|dark">` is set.
+- `color.neutral.*` is an **absolute** scale, identical in light and dark: it does not follow the
+  theme. For anything that must adapt (backgrounds, text, borders) use `color.surface.*` and
+  `color.text.*`; use `neutral` only where a fixed value is meant (e.g. text on a track block).
 - Property names follow the token path: `color.semantic.danger` → `--color-semantic-danger`,
   `font.size.md` → `--font-size-md`, `radius.md` → `--radius-md`, `space.3` → `--space-3`.
 - **Never hard-code a HEX value, font or size** in the UI: use the properties.

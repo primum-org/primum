@@ -7,6 +7,10 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 default:
     @just --list
 
+# First time after cloning: environment and git hooks
+setup: sync
+    uv run pre-commit install
+
 # Install or update the Python environment from uv.lock
 sync:
     uv sync
@@ -14,6 +18,10 @@ sync:
 # Run every test (pass extra pytest arguments after the task name)
 test *args:
     uv run pytest {{args}}
+
+# Run only the tests that need a real board (on the Pi); none collected yet is not a failure
+test-hw *args:
+    uv run pytest -m hw {{args}} || test $? -eq 5
 
 # Re-run the tests every time a file is saved
 watch:

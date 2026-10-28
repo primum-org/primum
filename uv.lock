@@ -231,12 +231,10 @@ wheels = [
 
 [[package]]
 name = "primum-core"
-version = "0.0.1"
 source = { editable = "packages/core" }
 
 [[package]]
 name = "primum-runtime"
-version = "0.0.1"
 source = { editable = "packages/runtime" }
 dependencies = [
     { name = "primum-core" },

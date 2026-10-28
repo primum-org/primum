@@ -1,6 +1,6 @@
 [project]
 name = "primum-runtime"
-version = "0.0.1"
+dynamic = ["version"]
 description = "Primum runtime for Linux boards (Raspberry Pi): engine, hardware abstraction, drivers and local API."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -13,6 +13,9 @@ primum-core = { workspace = true }
 [build-system]
 requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/primum_runtime/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/primum_runtime"]

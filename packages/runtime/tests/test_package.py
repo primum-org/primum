@@ -1,9 +1,11 @@
+from importlib.metadata import version
+
 import primum_core
 import primum_runtime
 
 
-def test_runtime_exposes_its_version() -> None:
-    assert primum_runtime.__version__
+def test_version_has_a_single_source() -> None:
+    assert primum_runtime.__version__ == version("primum-runtime")
 
 
 def test_runtime_can_use_core() -> None:

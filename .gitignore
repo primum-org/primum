@@ -32,7 +32,6 @@ Thumbs.db
 
 # Local runtime data (simulated runs on the laptop)
 /data/
-*.primum
 
 # Claude Code personal files (shared settings stay in .claude/settings.json)
 .claude/settings.local.json

@@ -6,8 +6,8 @@ to open an issue with ideas, use cases or questions.
 ## Setup
 
 1. Install [uv](https://docs.astral.sh/uv/).
-2. `uv sync` to install the environment, including `just`. Run tasks with `uv run just <task>`.
-3. `uv run pre-commit install` to run the formatters on every commit.
+2. `uv sync`, then `uv run just setup`: installs the environment (including `just`) and the
+   git hooks that format and check every commit. Run tasks with `uv run just <task>`.
 
 ## Workflow
 

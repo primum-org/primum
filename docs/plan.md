@@ -34,7 +34,8 @@ when a phase starts or finishes.
 2. GPIO through `gpiod` (libgpiod v2): toggle one LED.
 3. WebSocket with live state.
 4. Minimal page served by the service, with a button.
-5. systemd unit; `tools/` script to sync to the development Pi and restart it.
+5. systemd unit; `tools/` script to sync to the development Pi and restart it; `just pi-test`
+   (sync, then `just test-hw` on the Pi).
 6. Provisioning script in `image/` for everything installed on the Pi (nothing is set up by hand).
 7. Half-day spike: build the minimal rpi-image-gen image in CI and boot it.
 
