@@ -97,7 +97,13 @@ forbidden_modules = [
     # hardware, network and storage
     "gpiod", "smbus2", "serial", "socket", "ssl", "http", "urllib", "sqlite3",
     # operating system, processes and concurrency
-    "os", "subprocess", "asyncio", "threading", "concurrent", "multiprocessing",
+    "os", "subprocess", "asyncio", "threading", "concurrent", "multiprocessing", "signal",
+    # files, streams and loading code or data at runtime
+    "io", "shutil", "tempfile", "glob", "fileinput", "mmap", "pickle", "shelve", "importlib",
+    # interpreter, platform and environment-dependent results
+    "sys", "platform", "locale", "ctypes",
+    # side effects: core returns diagnostics as values instead of logging them
+    "logging",
     # clock and randomness
     "time", "random", "secrets",
     # web frameworks and clients

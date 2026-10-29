@@ -5,9 +5,10 @@ paths:
 
 # primum-core rules
 
-- Pure and deterministic: no hardware, network, storage, OS, processes, threads, clock,
-  randomness or web frameworks (`just arch` enforces the imports). Time, ids and randomness are
-  parameters.
+- Pure and deterministic: no hardware, network, storage, files, OS, interpreter state, locale,
+  processes, threads, clock, randomness, logging or web frameworks (`just arch` enforces the
+  imports). Time, ids, randomness and any data from disk (board profiles, manifests) are
+  parameters: callers load them.
 - `uuid`, `datetime` and `pathlib` are allowed for parsing and pure paths only. Never call
   `datetime.now()`, `date.today()` or `uuid.uuid4()`, and never use the concrete `Path` class
   (use `PurePosixPath`). The import check cannot see those names;

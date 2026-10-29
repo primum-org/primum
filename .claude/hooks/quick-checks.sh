@@ -3,7 +3,7 @@
 #
 # The Edit/Write hooks (protect-generated.sh, format.sh) do not see edits made through Bash
 # (sed, heredocs, cp...). This hook runs on every stop, so it also catches those: lint, format,
-# stale generated files, types and tests. CI (`just check`) remains the final net.
+# stale generated files, architecture rules, types and tests. CI (`just check`) remains the final net.
 set -euo pipefail
 
 # Already continuing because of this hook: do not loop forever.
@@ -30,6 +30,7 @@ run() {
 run "ruff check" uv run --quiet ruff check
 run "ruff format --check (run: uv run just fmt)" uv run --quiet ruff format --check
 run "Generated files check (run: uv run just gen)" uv run --quiet python tools/gen_tokens.py --check
+run "Architecture rules (lint-imports)" uv run --quiet lint-imports
 run "pyright" uv run --quiet pyright
 run "Tests" uv run --quiet pytest -q -x
 exit 0
