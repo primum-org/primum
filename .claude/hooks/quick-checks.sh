@@ -11,10 +11,11 @@ set -euo pipefail
 
 cd "${CLAUDE_PROJECT_DIR:-$PWD}"
 # Run when relevant files are uncommitted, or committed but not pushed yet (commits made
-# before stopping would otherwise skip the checks).
+# before stopping would otherwise skip the checks). Without an upstream, compare with origin/main.
 watched=('*.py' 'pyproject.toml' 'uv.lock' 'design/tokens/')
 uncommitted=$(git status --porcelain -- "${watched[@]}")
-unpushed=$(git diff --name-only '@{upstream}' -- "${watched[@]}" 2>/dev/null || true)
+base=$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null || echo origin/main)
+unpushed=$(git diff --name-only "$base" -- "${watched[@]}" 2>/dev/null || true)
 [[ -n "$uncommitted$unpushed" ]] || exit 0
 
 run() {

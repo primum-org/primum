@@ -53,9 +53,11 @@ gen:
 gen-check:
     uv run python tools/gen_tokens.py --check
 
-# Repository hygiene hooks (whitespace, YAML/TOML/JSON, large files) on every file
+# Repository hygiene hooks (whitespace, YAML/TOML/JSON, large files) on every file. Ruff is
+# skipped here because `lint` checks it without writing. The whitespace hooks still fix files
+# and fail when they do: commit their fixes.
 hooks:
-    uv run pre-commit run --all-files
+    SKIP=ruff-check,ruff-format uv run pre-commit run --all-files
 
 # Everything CI runs: hygiene, lint, types, architecture, generated files and tests
 check: hooks lint typecheck arch gen-check test

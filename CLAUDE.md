@@ -11,16 +11,17 @@ Read first: `docs/vision.md` (scope) · `docs/glossary.md` (vocabulary) ·
 ## Invariants (never break these)
 
 - `primum-core` is pure: no hardware, network, storage, subprocesses or system clock.
-  Time, randomness and ids enter as parameters. Enforced by `just arch`.
+  Time, randomness and ids enter as parameters. Enforced by `just arch` (imports) and
+  `packages/core/tests/test_purity.py` (clock, random ids, `Path`).
 - Every project edit is a `core` operation: takes a project, returns a new project or errors.
   APIs, the MCP server and the UI call operations; they never edit project data themselves.
 - Files of a project reference each other by **id**, never by path.
 - The runtime never sees folders or scopes: it receives a flat, validated deployment package.
 - Hand-written JSON Schemas in `schemas/` are the single source of every format; Python and
-  TypeScript types are generated (decision 0008).
+  TypeScript types are generated (decision 0008). Generated files are never edited by hand
+  (a hook blocks it).
 - `core` errors are `code` + `params` + `location`, never text. All user-visible text lives in
   the `i18n/` catalogs (English default, Spanish), keyed by code for errors (decision 0009).
-  Generated files are never edited by hand (a hook blocks it).
 - No driver without a safe state, limits and a test against the simulated HAL.
 - Each output has a single arbiter, on the board it is wired to. Safety (panic, safe state,
   driver limits) is above any priority.
