@@ -88,6 +88,13 @@ source_modules = ["primum_core"]
 forbidden_modules = ["primum_runtime"]
 
 [[tool.importlinter.contracts]]
+name = "hardware only through the HAL: gpiod is imported by primum_runtime.hal.gpiod_hal alone"
+type = "forbidden"
+source_modules = ["primum_runtime"]
+forbidden_modules = ["gpiod"]
+ignore_imports = ["primum_runtime.hal.gpiod_hal -> gpiod"]
+
+[[tool.importlinter.contracts]]
 name = "core is pure: no hardware, network, storage, clock, randomness, concurrency or web frameworks"
 type = "forbidden"
 source_modules = ["primum_core"]

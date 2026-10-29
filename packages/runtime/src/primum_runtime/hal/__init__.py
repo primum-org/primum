@@ -1,0 +1,28 @@
+"""Hardware abstraction layer: the only way the runtime reaches hardware.
+
+Use ``create_hal`` to get the real HAL on a board or the simulated one anywhere else, and keep it
+in a ``with`` block so the safe state is applied when the runtime stops.
+"""
+
+from primum_runtime.hal.base import DigitalOutput, Hal, LineDriver, OutputSpec
+from primum_runtime.hal.simulated import SimulatedHal, SimulatedLine
+
+__all__ = [
+    "DigitalOutput",
+    "Hal",
+    "LineDriver",
+    "OutputSpec",
+    "SimulatedHal",
+    "SimulatedLine",
+    "create_hal",
+]
+
+
+def create_hal(*, simulate: bool, chip: str | None = None) -> Hal:
+    """Return a simulated HAL, or the GPIO HAL for ``chip`` (default ``/dev/gpiochip0``)."""
+    if simulate:
+        return SimulatedHal()
+    # Imported here so that gpiod is only needed when driving real hardware.
+    from primum_runtime.hal.gpiod_hal import DEFAULT_CHIP, GpiodHal
+
+    return GpiodHal(chip or DEFAULT_CHIP)

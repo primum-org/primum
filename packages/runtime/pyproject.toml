@@ -5,7 +5,10 @@ description = "Primum runtime for Linux boards (Raspberry Pi): engine, hardware 
 readme = "README.md"
 requires-python = ">=3.13"
 license = "Apache-2.0"
-dependencies = ["primum-core"]
+dependencies = [
+    "gpiod>=2.2 ; sys_platform == 'linux'",
+    "primum-core",
+]
 
 [tool.uv.sources]
 primum-core = { workspace = true }

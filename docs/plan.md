@@ -6,7 +6,7 @@ when a phase starts or finishes.
 | Phase | Goal | Status |
 |---|---|---|
 | 0 | Repository skeleton: structure, docs, rules, tooling, CI | In progress |
-| 1 | End-to-end skeleton: toggle an LED from a phone | Not started |
+| 1 | End-to-end skeleton: toggle an LED from a phone | In progress (1.1 done) |
 | 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Not started |
 | 3 | HAL, basic drivers and safety | Not started |
 | 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Not started |
@@ -30,16 +30,67 @@ when a phase starts or finishes.
 
 ## Phase 1 · End-to-end skeleton
 
-1. Minimal FastAPI service in `primum-runtime`: `GET /api/status`, `POST /api/output`.
-2. GPIO through `gpiod` (libgpiod v2): toggle one LED.
-3. WebSocket with live state.
-4. Minimal page served by the service, with a button.
-5. systemd unit; `tools/` script to sync to the development Pi and restart it; `just pi-test`
-   (sync, then `just test-hw` on the Pi).
-6. Provisioning script in `image/` for everything installed on the Pi (nothing is set up by hand).
-7. Half-day spike: build the minimal rpi-image-gen image in CI and boot it.
+The whole path, small: phone → page → API → runtime → HAL → GPIO → LED, keeping the repository's
+rules from the first line. Blocks 1.1–1.3 need no Pi (simulated HAL); 1.4–1.5 need the
+development Pi. One pull request per block.
 
-**Done when:** a phone on the same Wi-Fi turns the LED on, and it still works after a reboot.
+**1.1 · Minimal HAL and safe state** · *no Pi* · **done**
+- `primum_runtime.hal`: `Hal`, `DigitalOutput`, `OutputSpec`; `SimulatedHal` (tests,
+  `--simulate`) and `GpiodHal` (libgpiod v2), chosen by `create_hal`.
+- Safe state (off) when an output is created, on `apply_safe_state` and on `close`, also when
+  leaving the `with` block on an exception (Ctrl+C). Crash safety (watchdog) stays in phase 3.
+- `gpiod` is a Linux-only dependency, imported lazily and only by `hal/gpiod_hal.py` (an
+  import contract enforces it); its own type hints pass pyright strict (decision 0010).
+- Errors with codes: `hal.pin_in_use`, `hal.pin_unavailable`, `hal.closed` (catalog entries in 1.3).
+- A `hw` test for the real HAL, run on the Pi with `just test-hw`.
+
+**1.2 · Service, API and WebSocket** · *no Pi*
+- FastAPI + uvicorn (pydantic at this edge only, decision 0008): `GET /api/status`,
+  `PUT /api/outputs/{name}` (`{"on": true}`), `POST /api/panic`, WebSocket `/api/ws` pushing
+  every state change.
+- Configuration by CLI or environment: `--simulate`, pin, `active_low`, port (8080), data
+  directory (default `/data`). The HAL lives in the app's lifespan, so stopping the service
+  applies the safe state.
+- API errors carry codes (decision 0009), for example `output.unknown`.
+- `uv run just dev`: the simulated service on the laptop. Tests with the test client.
+
+**Done when:** `uv run just dev` and `curl` or a browser toggle the simulated LED, and the
+WebSocket reports every change.
+
+**1.3 · Minimal page and i18n** · *no Pi*
+- `i18n/en.json` and `es.json` created now (from phase 2): `ui.*` keys for the page and
+  `errors.*` for every code so far; consistency test (same keys and placeholders in both
+  catalogs, every code raised has an entry).
+- A minimal page served by the runtime (HTML and a little JavaScript, no build step; Vue
+  arrives in phase 5): `tokens.css`, icons from `design/`, mobile first (≥ 44 px targets),
+  panic button, language from the browser, "Offline" when the service is unreachable.
+  Fonts fall back to system fonts until the woff2 files arrive (phase 5).
+
+**Done when:** from the laptop's browser the page toggles the simulated LED in English and
+in Spanish.
+
+**1.4 · Deployment to the development Pi** · *needs the Pi*
+- `image/provision.sh` (idempotent): packages, `uv`, user `primum` in group `gpio`, `/data`,
+  systemd unit `primum.service` (restart on failure). Nothing is set up by hand on the Pi.
+- `tools/pi-sync.sh` and `just pi-sync`, `just pi-test`, `just pi-logs`, `just pi-watch`;
+  host from `PRIMUM_PI_HOST` (default `dev-pi`). Claude Code permissions allow
+  `uv run just pi-*` only, not raw `ssh`/`rsync`.
+- Check that `gpiod` installs on Raspberry Pi OS (PyPI wheel, piwheels or build); otherwise
+  fall back to the system package.
+
+**Done when:** a phone on the same Wi-Fi opens `http://dev-pi.local:8080`, turns the LED on,
+and it still works after a reboot.
+
+**1.5 · Image spike** · *needs the Pi, half a day*
+- CI builds the minimal rpi-image-gen image on an ARM runner; boot it on the Pi. Only a check
+  that the tool works: the real image is phase 7.
+
+**Watch during phase 1**
+- Only LEDs, no relays: a released GPIO line may float, so relays wait for the watchdog
+  (phase 3) and safe boot levels in `config.txt` (phase 6).
+- Cost of the Stop hook: measure it at the end of each block; above ~10 s, limit it to the
+  tests of the packages that changed.
+- Scope: no sequences, automations or editor here.
 
 ## Phase 2 · Project model and `core`
 
@@ -47,8 +98,8 @@ when a phase starts or finishes.
    the file types `.sec`, `.auto`, `.evt`, `.sched`, `.vars`, `.hw`; `schemaVersion` and UUIDs
    everywhere. Generated frozen dataclasses for `core`; structural validation with
    `fastjsonschema`; `just gen` and `just check` cover the generated types.
-2. Error model (decision 0009): codes, params and location; `i18n/en.json` and `es.json` with
-   the first codes; consistency test between `core` codes and the catalogs.
+2. Error model in `core` (decision 0009): codes, params and location, added to the `i18n/`
+   catalogs and to the consistency test started in phase 1.
 3. Workspace loader (receives the files' contents from the caller: `core` reads no files), id references, scopes (folder visibility, export/import, redefinition
    is an error), components with parameters, cycle detection.
 4. `boards/rpi4b.json`: 40 pins, alternate functions, buses, reserved pins.
@@ -60,7 +111,7 @@ when a phase starts or finishes.
 
 ## Phase 3 · HAL, basic drivers and safety
 
-1. HAL interface with real (`gpiod`, PWM) and simulated implementations.
+1. Extend the HAL started in phase 1: digital inputs, hardware PWM, crash safety.
 2. Driver manifest (capabilities, config, platforms, safe state, limits, conflict policy).
 3. Drivers: digital output, digital input (debounce, pull), hardware PWM.
 4. Safe state on start/stop/crash, panic, test mode with expiring commands, systemd watchdog.

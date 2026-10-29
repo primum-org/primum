@@ -17,6 +17,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0007](0007-brand-and-design-tokens.md) | Brand "Brass automaton · compact"; design tokens are the single source | Accepted |
 | [0008](0008-json-schema-as-the-source-of-formats.md) | Hand-written JSON Schema is the source of every format | Accepted |
 | [0009](0009-error-codes-and-message-catalogs.md) | Errors are codes with parameters; text lives in translation catalogs | Accepted |
+| [0010](0010-hal-from-phase-1-and-gpiod.md) | The HAL exists from phase 1; gpiod is a Linux-only dependency behind it | Accepted |
 
 ## Template
 
