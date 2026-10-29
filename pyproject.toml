@@ -1,0 +1,111 @@
+# Workspace root. It is not a package itself: it ties the packages under
+# packages/ together and holds the shared tooling configuration.
+
+[project]
+name = "primum-workspace"
+version = "0.0.0"
+description = "Development workspace for Primum (not published)."
+requires-python = ">=3.13"
+dependencies = ["primum-core", "primum-runtime"]
+
+[dependency-groups]
+dev = [
+    "import-linter>=2.1",
+    "pre-commit>=4.7.0",
+    "pyright>=1.1.400",
+    "pytest>=8.3",
+    "pytest-watcher>=0.4",
+    "ruff>=0.11",
+    "rust-just>=1.59.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+primum-core = { workspace = true }
+primum-runtime = { workspace = true }
+
+# --- ruff -------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["packages/*/src", "packages/*/tests", "tools"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # pyflakes
+    "I",       # import sorting
+    "N",       # naming
+    "B",       # bugbear
+    "UP",      # pyupgrade
+    "SIM",     # simplify
+    "PTH",     # pathlib over os.path
+    "T20",     # no print(): use logging
+    "S",       # security (bandit)
+    "RUF",     # ruff-specific
+]
+
+[tool.ruff.lint.per-file-ignores]
+"packages/*/tests/**" = ["S101"]  # assert is how pytest works
+"tools/tests/**" = ["S101"]
+
+# --- pyright ----------------------------------------------------------------
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.13"
+include = ["packages", "tools"]
+extraPaths = ["tools"]
+venvPath = "."
+venv = ".venv"
+
+# --- pytest -----------------------------------------------------------------
+
+[tool.pytest.ini_options]
+testpaths = ["packages", "tools"]
+pythonpath = ["tools"]
+addopts = ["-ra", "--strict-markers", "--import-mode=importlib", "-m", "not hw"]
+markers = [
+    "hw: needs a real board; skipped by default, run on the Pi with `just test-hw`",
+]
+
+# --- import-linter: architecture rules --------------------------------------
+
+[tool.importlinter]
+root_packages = ["primum_core", "primum_runtime"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "core does not depend on runtime"
+type = "forbidden"
+source_modules = ["primum_core"]
+forbidden_modules = ["primum_runtime"]
+
+[[tool.importlinter.contracts]]
+name = "core is pure: no hardware, network, storage, clock, randomness, concurrency or web frameworks"
+type = "forbidden"
+source_modules = ["primum_core"]
+# uuid, datetime and pathlib stay allowed: parsing ids, dates and pure paths is pure.
+# Calls such as datetime.now() or uuid4() are not caught here: packages/core/tests/test_purity.py.
+forbidden_modules = [
+    # hardware, network and storage
+    "gpiod", "smbus2", "serial", "socket", "ssl", "http", "urllib", "sqlite3",
+    # operating system, processes and concurrency
+    "os", "subprocess", "asyncio", "threading", "concurrent", "multiprocessing", "signal",
+    # files, streams and loading code or data at runtime
+    "io", "shutil", "tempfile", "glob", "fileinput", "mmap", "pickle", "shelve", "importlib",
+    # interpreter, platform and environment-dependent results
+    "sys", "platform", "locale", "ctypes",
+    # side effects: core returns diagnostics as values instead of logging them
+    "logging",
+    # clock and randomness
+    "time", "random", "secrets",
+    # web frameworks and clients
+    "fastapi", "starlette", "uvicorn", "httpx", "requests",
+]

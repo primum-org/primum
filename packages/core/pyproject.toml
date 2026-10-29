@@ -1,0 +1,18 @@
+[project]
+name = "primum-core"
+dynamic = ["version"]
+description = "Primum core: project model, validation, compiler and simulator. Pure: no hardware, network or storage."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+dependencies = []
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/primum_core/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/primum_core"]
