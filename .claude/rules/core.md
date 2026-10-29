@@ -9,8 +9,9 @@ paths:
   randomness or web frameworks (`just arch` enforces the imports). Time, ids and randomness are
   parameters.
 - `uuid`, `datetime` and `pathlib` are allowed for parsing and pure paths only. Never call
-  `datetime.now()`, `date.today()`, `uuid.uuid4()` or `Path` I/O in `core`. The import check
-  cannot see those calls; `packages/core/tests/test_purity.py` scans the source for them.
+  `datetime.now()`, `date.today()` or `uuid.uuid4()`, and never use the concrete `Path` class
+  (use `PurePosixPath`). The import check cannot see those names;
+  `packages/core/tests/test_purity.py` resolves imports (aliases included) and rejects them.
 - Operations take a project and return a new project or a list of errors; they never mutate
   their input.
 - Project files reference each other by id. Paths are only for display.

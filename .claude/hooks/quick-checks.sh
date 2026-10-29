@@ -10,7 +10,12 @@ set -euo pipefail
 [[ "$(python3 "$(dirname "$0")/_input.py" stop_hook_active)" == "True" ]] && exit 0
 
 cd "${CLAUDE_PROJECT_DIR:-$PWD}"
-git status --porcelain -- '*.py' 'pyproject.toml' 'uv.lock' 'design/tokens/' | grep -q . || exit 0
+# Run when relevant files are uncommitted, or committed but not pushed yet (commits made
+# before stopping would otherwise skip the checks).
+watched=('*.py' 'pyproject.toml' 'uv.lock' 'design/tokens/')
+uncommitted=$(git status --porcelain -- "${watched[@]}")
+unpushed=$(git diff --name-only '@{upstream}' -- "${watched[@]}" 2>/dev/null || true)
+[[ -n "$uncommitted$unpushed" ]] || exit 0
 
 run() {
   local what=$1

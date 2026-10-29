@@ -24,8 +24,7 @@ apps/*/.vite/
 .env.*
 
 # Editors and OS
-.vscode/*
-!.vscode/extensions.json
+.vscode/
 .idea/
 .DS_Store
 Thumbs.db

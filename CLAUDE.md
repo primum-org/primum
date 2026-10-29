@@ -45,8 +45,8 @@ docs/              vision, glossary, architecture, plan, specs/, decisions/
 ## Commands
 
 Run tasks as `uv run just <task>` (`just` is a dev dependency, installed by `uv sync`; it may not
-be on the PATH). `uv run just` lists them. Main ones: `just check` (exactly what CI runs: lint,
-types, architecture, generated files, tests) · `just test` · `just watch` (tests on save) ·
+be on the PATH). `uv run just` lists them. Main ones: `just check` (exactly what CI runs: hygiene hooks,
+lint, types, architecture, generated files, tests) · `just test` · `just watch` (tests on save) ·
 `just fmt` · `just gen` (regenerate generated files) · `just sync` (install from `uv.lock`).
 Dependencies: `uv add <pkg> --package primum-core`.
 

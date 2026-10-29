@@ -53,5 +53,9 @@ gen:
 gen-check:
     uv run python tools/gen_tokens.py --check
 
-# Everything CI runs: lint, types, architecture, generated files and tests
-check: lint typecheck arch gen-check test
+# Repository hygiene hooks (whitespace, YAML/TOML/JSON, large files) on every file
+hooks:
+    uv run pre-commit run --all-files
+
+# Everything CI runs: hygiene, lint, types, architecture, generated files and tests
+check: hooks lint typecheck arch gen-check test

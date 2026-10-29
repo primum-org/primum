@@ -16,6 +16,7 @@ jobs:
   python:
     name: Python checks
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
