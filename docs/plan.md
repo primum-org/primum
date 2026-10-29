@@ -43,14 +43,18 @@ when a phase starts or finishes.
 
 ## Phase 2 · Project model and `core`
 
-1. Schemas (pydantic → JSON Schema in `schemas/`): project manifest and the file types
-   `.sec`, `.auto`, `.evt`, `.sched`, `.vars`, `.hw`; `schemaVersion` and UUIDs everywhere.
-2. Workspace loader, id references, scopes (folder visibility, export/import, redefinition
+1. Hand-written JSON Schemas in `schemas/` (the source, decision 0008): project manifest and
+   the file types `.sec`, `.auto`, `.evt`, `.sched`, `.vars`, `.hw`; `schemaVersion` and UUIDs
+   everywhere. Generated frozen dataclasses for `core`; structural validation with
+   `fastjsonschema`; `just gen` and `just check` cover the generated types.
+2. Error model (decision 0009): codes, params and location; `i18n/en.json` and `es.json` with
+   the first codes; consistency test between `core` codes and the catalogs.
+3. Workspace loader (receives the files' contents from the caller: `core` reads no files), id references, scopes (folder visibility, export/import, redefinition
    is an error), components with parameters, cycle detection.
-3. `boards/rpi4b.json`: 40 pins, alternate functions, buses, reserved pins.
-4. Resource allocation and pin conflicts with clear messages.
-5. Detection of sequences that may overlap on the same element.
-6. CLI: `primum validate <project>`.
+4. `boards/rpi4b.json`: 40 pins, alternate functions, buses, reserved pins.
+5. Resource allocation and pin conflicts, reported as error codes with clear catalog messages.
+6. Detection of sequences that may overlap on the same element.
+7. CLI: `primum validate <project>`.
 
 **Done when:** example projects validate, and typical conflicts are reported clearly, without the Pi.
 

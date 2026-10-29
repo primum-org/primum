@@ -8,5 +8,6 @@ The pure library shared by the runtime, the desktop app (Primum Studio) and the 
   parameters, never read from the system.
 - Public API stays small and stable: it may later be reimplemented in Rust (PyO3/WASM)
   without changing callers.
-- Errors are values with a stable `code`, a human message and a `hint` (users and AI read them).
+- Errors are values with a stable `code`, `params` and a `location`, never text; messages and
+  hints live in `i18n/` (decision 0009).
 - Everything here is tested without the Pi.

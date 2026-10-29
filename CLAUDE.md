@@ -16,7 +16,10 @@ Read first: `docs/vision.md` (scope) · `docs/glossary.md` (vocabulary) ·
   APIs, the MCP server and the UI call operations; they never edit project data themselves.
 - Files of a project reference each other by **id**, never by path.
 - The runtime never sees folders or scopes: it receives a flat, validated deployment package.
-- Schemas in `schemas/` are the single source; Python and TypeScript types are generated.
+- Hand-written JSON Schemas in `schemas/` are the single source of every format; Python and
+  TypeScript types are generated (decision 0008).
+- `core` errors are `code` + `params` + `location`, never text. All user-visible text lives in
+  the `i18n/` catalogs (English default, Spanish), keyed by code for errors (decision 0009).
   Generated files are never edited by hand (a hook blocks it).
 - No driver without a safe state, limits and a test against the simulated HAL.
 - Each output has a single arbiter, on the board it is wired to. Safety (panic, safe state,
@@ -37,6 +40,7 @@ apps/webui         local web UI (Vue 3 + TypeScript), from phase 5
 schemas/           JSON Schemas: single source of the formats
 boards/            board profiles (pins, peripherals, resources)
 design/            brand: brandbook, tokens (single source), logo, icons
+i18n/              message catalogs (en, es): every user-visible text, error messages by code
 image/             Primum OS image (rpi-image-gen), from phase 7
 tools/             developer scripts
 docs/              vision, glossary, architecture, plan, specs/, decisions/

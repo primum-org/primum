@@ -15,6 +15,8 @@ A decision is never edited to say something else: write a new one that supersede
 | [0005](0005-variable-scopes.md) | Variables are scoped by folder; redefinition is an error | Accepted |
 | [0006](0006-events-and-output-arbitration.md) | Events come from outside only; outputs are arbitrated by priority layers | Accepted |
 | [0007](0007-brand-and-design-tokens.md) | Brand "Brass automaton · compact"; design tokens are the single source | Accepted |
+| [0008](0008-json-schema-as-the-source-of-formats.md) | Hand-written JSON Schema is the source of every format | Accepted |
+| [0009](0009-error-codes-and-message-catalogs.md) | Errors are codes with parameters; text lives in translation catalogs | Accepted |
 
 ## Template
 

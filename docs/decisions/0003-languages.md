@@ -9,7 +9,7 @@ speak Spanish.
 
 ## Decision
 - Code, identifiers, comments, commit messages and everything in `docs/` are in **English**.
-- The UI is translated through i18n. **English is the default locale; Spanish is the second.**
+- The UI is translated through the catalogs in `i18n/` (decision 0009). **English is the default locale; Spanish is the second.**
   No other locale for now.
 - `docs/glossary.md` maps each English term to the Spanish one shown in the UI.
 
