@@ -5,7 +5,7 @@ when a phase starts or finishes.
 
 | Phase | Goal | Status |
 |---|---|---|
-| 0 | Repository skeleton: structure, docs, rules, tooling, CI | In progress |
+| 0 | Repository skeleton: structure, docs, rules, tooling, CI | In progress (dev Pi pending) |
 | 1 | End-to-end skeleton: toggle an LED from a phone | In progress (1.1 done) |
 | 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Not started |
 | 3 | HAL, basic drivers and safety | Not started |
@@ -49,6 +49,8 @@ development Pi. One pull request per block.
   are tuples, never pre-joined text.
 - A `hw` test for the real HAL, run on the Pi with `just test-hw`: it checks what the kernel
   reports for the line, not the LED itself.
+- `GpiodHal` is also tested without a Pi (in CI), with a fake `gpiod.request_lines`: requested
+  configuration, values written, release on close, error mapping and `create_hal`.
 
 **1.2 · Service, API and WebSocket** · *no Pi*
 - FastAPI + uvicorn (pydantic at this edge only, decision 0008): `GET /api/status`,
@@ -66,7 +68,8 @@ WebSocket reports every change.
 
 **1.3 · Minimal page and i18n** · *no Pi*
 - `i18n/en.json` and `es.json` created now (from phase 2): `ui.*` keys for the page and
-  `errors.*` for every code so far; consistency test (same keys and placeholders in both
+  `errors.*` for every code so far, including the five from 1.1 (`hal.pin_in_use`,
+  `hal.pin_unavailable`, `hal.closed`, `hal.safe_state_incomplete`, `hal.release_incomplete`); consistency test (same keys and placeholders in both
   catalogs, every code raised has an entry). Parameters named `detail` carry technical text
   from the system (for example `strerror`): the UI shows them apart, as a technical detail, never
   as the message. Tuple params (lists of pins) are formatted for the user's language.
@@ -76,7 +79,8 @@ WebSocket reports every change.
   Fonts fall back to system fonts until the woff2 files arrive (phase 5).
 
 **Done when:** from the laptop's browser the page toggles the simulated LED in English and
-in Spanish.
+in Spanish, and the consistency test exists and passes (every code the runtime raises has an
+entry in both catalogs).
 
 **1.4 · Deployment to the development Pi** · *needs the Pi*
 - First, check that `gpiod` installs on Raspberry Pi OS. The PyPI package builds its own copy
@@ -125,7 +129,9 @@ and it still works after a reboot.
 ## Phase 3 · HAL, basic drivers and safety
 
 1. Extend the HAL started in phase 1: digital inputs, hardware PWM, crash safety; one line
-   request per chip instead of one per output, for the per-board arbiter.
+   request per chip instead of one per output, for the per-board arbiter; verify after write:
+   the safe state re-reads each line with `read()` and reports any that did not turn off
+   (needed before relays).
 2. Driver manifest (capabilities, config, platforms, safe state, limits, conflict policy).
 3. Drivers: digital output, digital input (debounce, pull), hardware PWM.
 4. Safe state on start/stop/crash, panic, test mode with expiring commands, systemd watchdog.
