@@ -38,9 +38,11 @@ function render() {
   for (const output of state?.outputs ?? []) {
     const button = rowFor(output.name).querySelector(".switch");
     button.setAttribute("aria-pressed", String(output.on));
-    // Offline the last state may be stale (stopping the service turns outputs off): no word.
+    // Offline the last state may be stale (stopping the service turns outputs off): no word,
+    // and the thumb waits in the middle (data-stale).
     const word = output.on ? catalog.t("output.on") : catalog.t("output.off");
     button.querySelector(".switch-state").textContent = online ? word : "";
+    button.toggleAttribute("data-stale", !online);
     button.disabled = !online || state.panic;
   }
 }

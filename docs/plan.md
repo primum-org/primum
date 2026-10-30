@@ -94,7 +94,7 @@ WebSocket reports every change.
   woff2 files arrive (phase 5). Sizes come from the new `size.*` tokens (touch target,
   controls, rows, transport, panic and its chamfer, icons, focus ring, rules, content width),
   taken from the brandbook's density table: `app.css` has no literal pixel value. Offline, the
-  switches hide their state word: the last state may be stale.
+  switches hide their state word and the thumb waits in the middle: the last state may be stale.
 - `just test-js` (part of `just check`, Node 22 or later; CI installs Node 24): Node's built-in
   runner tests `i18n.js` with the real catalogs (language choice, placeholders, lists, unknown
   codes, technical params).
