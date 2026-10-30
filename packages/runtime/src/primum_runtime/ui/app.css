@@ -161,9 +161,8 @@ main {
 }
 .switch-state { min-width: 6em; text-align: start; }
 .switch:disabled { cursor: not-allowed; opacity: 0.45; }
-/* Offline the last state may be stale: the thumb waits in the middle, neither on nor off. */
-.switch[data-stale] .switch-track { background: var(--color-surface-raised); }
-.switch[data-stale] .switch-thumb {
+/* Offline the last state may be stale: "mixed" puts the thumb in the middle, neither on nor off. */
+.switch[aria-pressed="mixed"] .switch-thumb {
   transform: translateX(calc((var(--switch-width) - var(--size-control-sm)) / 2));
   background: var(--color-text-secondary);
 }

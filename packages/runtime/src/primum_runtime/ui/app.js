@@ -37,12 +37,11 @@ function render() {
   page.panicActive.hidden = !state?.panic;
   for (const output of state?.outputs ?? []) {
     const button = rowFor(output.name).querySelector(".switch");
-    button.setAttribute("aria-pressed", String(output.on));
-    // Offline the last state may be stale (stopping the service turns outputs off): no word,
-    // and the thumb waits in the middle (data-stale).
+    // Offline the last state may be stale (stopping the service turns outputs off): the switch
+    // is "mixed" (neither on nor off), with no word and the thumb in the middle.
+    button.setAttribute("aria-pressed", online ? String(output.on) : "mixed");
     const word = output.on ? catalog.t("output.on") : catalog.t("output.off");
     button.querySelector(".switch-state").textContent = online ? word : "";
-    button.toggleAttribute("data-stale", !online);
     button.disabled = !online || state.panic;
   }
 }
