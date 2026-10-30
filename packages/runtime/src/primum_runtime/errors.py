@@ -21,6 +21,7 @@ class ErrorCode(StrEnum):
     HAL_CHIP_UNAVAILABLE = "hal.chip_unavailable"
     HAL_CHIP_ACCESS_DENIED = "hal.chip_access_denied"
     HAL_UNSUPPORTED_PLATFORM = "hal.unsupported_platform"
+    HAL_GPIO_LIBRARY_BROKEN = "hal.gpio_library_broken"
     HAL_CLOSED = "hal.closed"
     HAL_SAFE_STATE_INCOMPLETE = "hal.safe_state_incomplete"
     HAL_RELEASE_INCOMPLETE = "hal.release_incomplete"

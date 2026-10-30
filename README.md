@@ -29,6 +29,7 @@ Requirements: [uv](https://docs.astral.sh/uv/), which installs everything else (
 uv sync              # install the environment (Python 3.13 and dev tools)
 uv run just check    # lint, types, architecture rules, generated files and tests (what CI runs)
 uv run just watch    # re-run tests on every save
+uv run just pi-sync  # install this working tree on the development Pi (see image/README.md)
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow.

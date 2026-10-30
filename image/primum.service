@@ -1,0 +1,27 @@
+# The Primum runtime. Installed by image/provision.sh; configured by /etc/primum/runtime.env.
+[Unit]
+Description=Primum runtime
+Documentation=https://github.com/primum-org/primum
+
+[Service]
+Type=exec
+User=primum
+Group=primum
+SupplementaryGroups=gpio
+EnvironmentFile=/etc/primum/runtime.env
+WorkingDirectory=/data
+ExecStart=/opt/primum/venv/bin/primum-runtime
+# SIGTERM makes uvicorn close the HAL, which applies the safe state (decision 0011).
+TimeoutStopSec=10
+Restart=on-failure
+RestartSec=2
+
+# Hardening: the runtime writes only /data.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/data
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

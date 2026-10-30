@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import types
 
 import pytest
 
@@ -128,6 +129,21 @@ def test_create_hal_without_gpiod_raises_unsupported_platform(
 
     assert raised.value.code == "hal.unsupported_platform"
     assert raised.value.params == {"platform": sys.platform}
+
+
+def test_create_hal_with_a_broken_gpiod_raises_gpio_library_broken(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # gpiod is there but part of it is missing, as when its C extension did not build.
+    monkeypatch.setitem(sys.modules, "gpiod", types.ModuleType("gpiod"))
+    monkeypatch.setitem(sys.modules, "gpiod.line", None)
+    monkeypatch.delitem(sys.modules, "primum_runtime.hal.gpiod_hal", raising=False)
+
+    with pytest.raises(PrimumError) as raised:
+        create_hal(simulate=False)
+
+    assert raised.value.code == "hal.gpio_library_broken"
+    assert "gpiod.line" in str(raised.value.params["detail"])
 
 
 def test_simulated_hal_does_not_import_gpiod() -> None:
