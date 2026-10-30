@@ -98,6 +98,8 @@ class Hal(ABC):
 
     def __init__(self) -> None:
         self._outputs: dict[int, DigitalOutput] = {}
+        # Kept apart from the outputs: from phase 3 one driver (a request per chip) will serve
+        # several outputs, and close() releases drivers, not outputs.
         self._drivers: dict[int, LineDriver] = {}
         self._closed = False
 
@@ -133,6 +135,10 @@ class Hal(ABC):
         fails. At the end it raises ``hal.safe_state_incomplete`` (params ``pins`` and, if
         releases failed too, ``release_pins``) or ``hal.release_incomplete`` (param ``pins``),
         chained to every original exception. Closing twice does nothing.
+
+        When a ``with`` block is left because of an exception and the safe state fails, the
+        HAL's error replaces it; the original stays in ``__context__``. The failed safe state
+        is what matters most then.
 
         Known limit: a second Ctrl+C while closing interrupts it (only ``Exception`` is
         collected). Phase 1 drives LEDs only; the watchdog of phase 3 covers crashes.

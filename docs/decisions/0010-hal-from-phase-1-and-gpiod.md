@@ -30,8 +30,11 @@ had to pass pyright in strict mode.
 - HAL failures are `PrimumError`s with codes, per decision 0009:
   - `hal.pin_invalid`: a negative pin (`OutputSpec`) or one the chip does not have (`lines`);
   - `hal.pin_in_use`: already claimed through this HAL;
-  - `hal.pin_unavailable`: held by another consumer (`consumer`) or refused by the kernel
-    (`detail`);
+  - `hal.pin_unavailable`: held by another consumer or refused by the kernel (`detail`).
+    `consumer` is added only when the holder has a name: lines held by kernel drivers (I2C,
+    SPI) report none (`gpioinfo` prints "kernel" as a placeholder), and neither does an
+    unlabelled request, so it is never guessed. The catalog message does not use it;
+    like `detail`, it is shown as a technical detail;
   - `hal.chip_unavailable` and `hal.chip_access_denied` (fix: the user joins group `gpio`),
     when `GpiodHal` is created;
   - `hal.unsupported_platform`: the GPIO HAL asked for where `gpiod` is not installed;
@@ -63,6 +66,8 @@ had to pass pyright in strict mode.
 - Known limit: a second Ctrl+C while the HAL is closing interrupts it (only `Exception` is
   collected), and lines may stay active. Acceptable with LEDs only; the watchdog of phase 3
   covers crashes.
+- If a `with` block is left because of an exception and the safe state then fails, the HAL's
+  error replaces the original, which stays in `__context__`: a failed safe state matters more.
 - Known limit: the safe state on stop needs the process to close the HAL. Measured on the
   same Pi 4 (2026-10-30) on GPIO 17, with nothing wired to it, by reading the line after
   driving it active: after `SIGINT` it is low; after `SIGTERM` and `SIGKILL` it stays high, because Python dies without running `__exit__`. Phase 1.2 fixes

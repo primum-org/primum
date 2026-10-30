@@ -8,7 +8,7 @@ installed (macOS, Windows, CI jobs without it).
 import gpiod
 from gpiod.line import Direction, Value
 
-from primum_runtime.errors import PrimumError
+from primum_runtime.errors import ErrorParam, PrimumError
 from primum_runtime.hal.base import Hal, OutputSpec
 
 DEFAULT_CHIP = "/dev/gpiochip0"
@@ -46,8 +46,7 @@ class GpiodHal(Hal):
     def __init__(self, chip: str = DEFAULT_CHIP) -> None:
         super().__init__()
         self._path = chip
-        self._chip = _open_chip(chip)
-        self._num_lines = self._chip.get_info().num_lines
+        self._chip, self._num_lines = _open_chip(chip)
         self._chip_open = True
 
     def close(self) -> None:
@@ -82,24 +81,36 @@ class GpiodHal(Hal):
                 "hal.pin_invalid", {"pin": pin, "chip": self._path, "lines": self._num_lines}
             )
         info = self._chip.get_line_info(pin)
-        if info.used:
-            raise PrimumError(
-                "hal.pin_unavailable",
-                {"pin": pin, "chip": self._path, "consumer": info.consumer or ""},
-            )
+        if not info.used:
+            return
+        params: dict[str, ErrorParam] = {"pin": pin, "chip": self._path}
+        # Lines held by kernel drivers (I2C, SPI…) report no consumer; gpioinfo prints "kernel"
+        # for them, but an unlabelled userspace request looks the same, so nothing is guessed.
+        if info.consumer:
+            params["consumer"] = info.consumer
+        raise PrimumError("hal.pin_unavailable", params)
 
 
-def _open_chip(path: str) -> gpiod.Chip:
+def _open_chip(path: str) -> tuple[gpiod.Chip, int]:
+    """Open the chip and read its number of lines; on failure, nothing is left open."""
     try:
-        return gpiod.Chip(path)
-    except PermissionError as error:
-        raise PrimumError(
-            "hal.chip_access_denied", {"chip": path, "detail": _detail(error)}
-        ) from error
+        chip = gpiod.Chip(path)
     except OSError as error:
-        raise PrimumError(
-            "hal.chip_unavailable", {"chip": path, "detail": _detail(error)}
-        ) from error
+        raise _chip_error(path, error) from error
+    try:
+        return chip, chip.get_info().num_lines
+    except OSError as error:
+        chip.close()
+        raise _chip_error(path, error) from error
+
+
+def _chip_error(path: str, error: OSError) -> PrimumError:
+    """No permission is its own code: the fix (joining group ``gpio``) differs."""
+    if isinstance(error, PermissionError):
+        code = "hal.chip_access_denied"
+    else:
+        code = "hal.chip_unavailable"
+    return PrimumError(code, {"chip": path, "detail": _detail(error)})
 
 
 def _detail(error: Exception) -> str:

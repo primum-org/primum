@@ -210,6 +210,19 @@ def test_close_releases_the_other_lines_when_one_release_fails() -> None:
         hal.ensure_open()
 
 
+def test_failed_safe_state_on_leaving_with_replaces_the_original_exception() -> None:
+    hal = SimulatedHal()
+    original = KeyboardInterrupt()
+
+    with pytest.raises(PrimumError) as raised, hal:
+        hal.digital_output(LED).set(True)
+        hal.lines[17].fail_writes(OSError(5, "I/O error"))
+        raise original
+
+    assert raised.value.code == "hal.safe_state_incomplete"
+    assert raised.value.__context__ is original
+
+
 def test_close_reports_safe_state_and_release_failures_together() -> None:
     hal = SimulatedHal()
     hal.digital_output(LED).set(True)

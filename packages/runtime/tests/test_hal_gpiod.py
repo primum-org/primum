@@ -53,15 +53,21 @@ class FakeLineInfo:
 
 @dataclass
 class FakeChip:
-    """Stands in for `gpiod.Chip`: lines in `owners` are used by another consumer."""
+    """Stands in for `gpiod.Chip`: lines in `owners` are used, by the consumer named there.
+
+    Lines held by kernel drivers report an empty consumer, as the real API does.
+    """
 
     path: str
     owners: dict[int, str] = field(default_factory=dict[int, str])
     request_error: Exception | None = None
+    info_error: Exception | None = None
     requests: list[FakeRequest] = field(default_factory=list[FakeRequest])
     closed: bool = False
 
     def get_info(self) -> ChipInfo:
+        if self.info_error is not None:
+            raise self.info_error
         return ChipInfo(name="gpiochip7", label="fake", num_lines=NUM_LINES)
 
     def get_line_info(self, line: int) -> "FakeLineInfo":
@@ -139,16 +145,27 @@ def test_offset_the_chip_does_not_have_raises_pin_invalid(chip: FakeChip) -> Non
     assert chip.requests == []
 
 
-def test_line_used_by_another_consumer_raises_pin_unavailable_without_requesting_it(
+def test_line_held_by_a_kernel_driver_raises_pin_unavailable_without_consumer(
     chip: FakeChip,
 ) -> None:
-    chip.owners[2] = "kernel"  # GPIO 2 is I2C SDA on a Pi 4 with I2C enabled
+    # GPIO 2 is I2C SDA on a Pi 4 with I2C on: gpioinfo prints "kernel", the API returns "".
+    chip.owners[2] = ""
 
     with GpiodHal(CHIP) as hal, pytest.raises(PrimumError) as raised:
         hal.digital_output(OutputSpec(pin=2))
 
     assert raised.value.code == "hal.pin_unavailable"
-    assert raised.value.params == {"pin": 2, "chip": CHIP, "consumer": "kernel"}
+    assert raised.value.params == {"pin": 2, "chip": CHIP}
+    assert chip.requests == []
+
+
+def test_line_held_by_a_named_consumer_raises_pin_unavailable_with_it(chip: FakeChip) -> None:
+    chip.owners[17] = "belen"
+
+    with GpiodHal(CHIP) as hal, pytest.raises(PrimumError) as raised:
+        hal.digital_output(OutputSpec(pin=17))
+
+    assert raised.value.params == {"pin": 17, "chip": CHIP, "consumer": "belen"}
     assert chip.requests == []
 
 
@@ -185,6 +202,17 @@ def test_missing_chip_raises_chip_unavailable_when_the_hal_is_created() -> None:
         "chip": "/dev/gpiochip-missing",
         "detail": "No such file or directory",
     }
+
+
+def test_failing_chip_info_raises_chip_unavailable_and_closes_the_chip(chip: FakeChip) -> None:
+    chip.info_error = OSError(errno.EIO, "Input/output error")
+
+    with pytest.raises(PrimumError) as raised:
+        GpiodHal(CHIP)
+
+    assert raised.value.code == "hal.chip_unavailable"
+    assert raised.value.params == {"chip": CHIP, "detail": "Input/output error"}
+    assert chip.closed
 
 
 def test_chip_without_permission_raises_chip_access_denied(

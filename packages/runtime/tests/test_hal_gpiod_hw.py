@@ -24,6 +24,8 @@ def _test_pin() -> int:
     if value is None:
         # A failure, not a skip: `just test-hw` must never pass without driving a line.
         pytest.fail(f"set {PIN_VARIABLE} to a GPIO with nothing wired to it, or only an LED")
+    if not value.isdigit():
+        pytest.fail(f"{PIN_VARIABLE} must be a GPIO number, not {value!r}")
     return int(value)
 
 

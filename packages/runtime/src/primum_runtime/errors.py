@@ -19,3 +19,10 @@ class PrimumError(Exception):
         self.code = code
         self.params: Mapping[str, ErrorParam] = MappingProxyType(dict(params or {}))
         super().__init__(code, dict(self.params))
+
+    def __str__(self) -> str:
+        """``code (name=value, ...)`` for logs and tracebacks; users read the catalogs."""
+        if not self.params:
+            return self.code
+        params = ", ".join(f"{name}={value}" for name, value in self.params.items())
+        return f"{self.code} ({params})"
