@@ -10,6 +10,7 @@ dependencies = ["primum-core", "primum-runtime"]
 
 [dependency-groups]
 dev = [
+    "httpx2>=2.16.0",
     "import-linter>=2.1",
     "pre-commit>=4.7.0",
     "pyright>=1.1.400",
@@ -93,6 +94,29 @@ type = "forbidden"
 source_modules = ["primum_runtime"]
 forbidden_modules = ["gpiod"]
 ignore_imports = ["primum_runtime.hal.gpiod_hal -> gpiod"]
+
+[[tool.importlinter.contracts]]
+name = "runtime layers: each one imports only the ones below it"
+type = "layers"
+layers = [
+    "primum_runtime.cli",
+    "primum_runtime.api",
+    "primum_runtime.config",
+    "primum_runtime.control",
+    "primum_runtime.hal",
+    "primum_runtime.errors",
+]
+
+[[tool.importlinter.contracts]]
+name = "web frameworks only at the edge: api and cli"
+type = "forbidden"
+source_modules = [
+    "primum_runtime.config",
+    "primum_runtime.control",
+    "primum_runtime.hal",
+    "primum_runtime.errors",
+]
+forbidden_modules = ["fastapi", "starlette", "uvicorn", "pydantic"]
 
 [[tool.importlinter.contracts]]
 name = "core is pure: no hardware, network, storage, clock, randomness, concurrency or web frameworks"

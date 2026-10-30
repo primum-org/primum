@@ -12,3 +12,5 @@ All notable changes to this project are documented here. The format follows
   CI, Claude Code configuration and initial documentation.
 - Brand "Brass automaton · compact" in `design/`: brandbook, design tokens with generated CSS,
   logo symbol and 56 icons.
+- `primum-runtime`: a local HTTP API and WebSocket to turn an LED on and off, with a panic
+  button, on a Raspberry Pi or simulated (`uv run just dev`).

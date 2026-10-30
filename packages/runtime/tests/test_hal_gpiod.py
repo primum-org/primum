@@ -48,18 +48,19 @@ class FakeLineInfo:
     """The two fields of `gpiod.LineInfo` the HAL reads."""
 
     used: bool
-    consumer: str
+    consumer: str | None
 
 
 @dataclass
 class FakeChip:
     """Stands in for `gpiod.Chip`: lines in `owners` are used, by the consumer named there.
 
-    Lines held by kernel drivers report an empty consumer, as the real API does.
+    Lines held by kernel drivers report ``None`` as consumer, as the real API does (verified on
+    a Pi 4 with gpiod 2.2.0).
     """
 
     path: str
-    owners: dict[int, str] = field(default_factory=dict[int, str])
+    owners: dict[int, str | None] = field(default_factory=dict[int, str | None])
     request_error: Exception | None = None
     info_error: Exception | None = None
     requests: list[FakeRequest] = field(default_factory=list[FakeRequest])
@@ -70,9 +71,8 @@ class FakeChip:
             raise self.info_error
         return ChipInfo(name="gpiochip7", label="fake", num_lines=NUM_LINES)
 
-    def get_line_info(self, line: int) -> "FakeLineInfo":
-        consumer = self.owners.get(line)
-        return FakeLineInfo(used=consumer is not None, consumer=consumer or "")
+    def get_line_info(self, line: int) -> FakeLineInfo:
+        return FakeLineInfo(used=line in self.owners, consumer=self.owners.get(line))
 
     def request_lines(
         self, config: dict[int, LineSettings], consumer: str | None = None
@@ -148,8 +148,8 @@ def test_offset_the_chip_does_not_have_raises_pin_invalid(chip: FakeChip) -> Non
 def test_line_held_by_a_kernel_driver_raises_pin_unavailable_without_consumer(
     chip: FakeChip,
 ) -> None:
-    # GPIO 2 is I2C SDA on a Pi 4 with I2C on: gpioinfo prints "kernel", the API returns "".
-    chip.owners[2] = ""
+    # GPIO 2 is I2C SDA on a Pi 4 with I2C on: gpioinfo prints "kernel", the API returns None.
+    chip.owners[2] = None
 
     with GpiodHal(CHIP) as hal, pytest.raises(PrimumError) as raised:
         hal.digital_output(OutputSpec(pin=2))

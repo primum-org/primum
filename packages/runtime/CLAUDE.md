@@ -6,6 +6,10 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   `create_hal(simulate=...)` and keep it in a `with` block. Every HAL has a simulated
   implementation, and tests use it; tests that need a real board are marked `@pytest.mark.hw`.
 - `gpiod` is imported only by `hal/gpiod_hal.py` (`just arch` enforces it).
+- Layers: `cli` → `api` → `config` → `control` → `hal` → `errors`; each imports only the ones
+  below it, and FastAPI, uvicorn and pydantic stay in `api` and `cli` (`just arch`, decision 0011).
+  The API commands outputs through `control.Controller`, never through the HAL.
+- API handlers are `async`: they all run on the event loop's thread, so `control` needs no locks.
 - Never run `hw` tests or drive lines on a Pi that runs other GPIO software, such as the belén's
   Pi (`rpi4b`): the kernel does not see lines driven through `/dev/gpiomem` (decision 0010).
 - Errors are `PrimumError(code, params)` (decision 0009), never text. System text (for example
