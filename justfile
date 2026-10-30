@@ -31,14 +31,35 @@ test-hw *args:
 dev *args:
     uv run primum-runtime --simulate --pin 17 {{args}}
 
+# Provision the development Pi (host in PRIMUM_PI_HOST) with the LED on GPIO `pin`
+pi-provision pin:
+    bash tools/pi.sh provision {{pin}}
+
+# Copy this working tree to the Pi, install it and restart the service
+pi-sync:
+    bash tools/pi.sh sync
+
+# Run the `hw` tests on the Pi, on the LED's pin (the service is stopped meanwhile)
+pi-test:
+    bash tools/pi.sh test
+
+# Follow the service's log on the Pi
+pi-logs:
+    bash tools/pi.sh logs
+
+# Sync to the Pi every time a file is saved
+pi-watch:
+    uv run watchfiles --target-type command "bash tools/pi.sh sync" packages i18n design image
+
 # Re-run the tests every time a file is saved
 watch:
     uv run ptw . --now
 
-# Lint without changing files
+# Lint without changing files (Python and the shell scripts)
 lint:
     uv run ruff check
     uv run ruff format --check
+    uv run shellcheck image/*.sh tools/*.sh
 
 # Fix lint issues and format the code
 fmt:

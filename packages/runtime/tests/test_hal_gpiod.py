@@ -45,10 +45,11 @@ class FakeRequest:
 
 @dataclass(frozen=True)
 class FakeLineInfo:
-    """The two fields of `gpiod.LineInfo` the HAL reads."""
+    """The fields of `gpiod.LineInfo` the HAL reads."""
 
     used: bool
     consumer: str | None
+    direction: Direction
 
 
 @dataclass
@@ -61,6 +62,8 @@ class FakeChip:
 
     path: str
     owners: dict[int, str | None] = field(default_factory=dict[int, str | None])
+    # Free lines left as outputs (by a process that ended); the others are inputs.
+    outputs: set[int] = field(default_factory=set[int])
     request_error: Exception | None = None
     info_error: Exception | None = None
     requests: list[FakeRequest] = field(default_factory=list[FakeRequest])
@@ -72,7 +75,8 @@ class FakeChip:
         return ChipInfo(name="gpiochip7", label="fake", num_lines=NUM_LINES)
 
     def get_line_info(self, line: int) -> FakeLineInfo:
-        return FakeLineInfo(used=line in self.owners, consumer=self.owners.get(line))
+        direction = Direction.OUTPUT if line in self.outputs else Direction.INPUT
+        return FakeLineInfo(line in self.owners, self.owners.get(line), direction)
 
     def request_lines(
         self, config: dict[int, LineSettings], consumer: str | None = None
@@ -167,6 +171,28 @@ def test_line_held_by_a_named_consumer_raises_pin_unavailable_with_it(chip: Fake
 
     assert raised.value.params == {"pin": 17, "chip": CHIP, "consumer": "belen"}
     assert chip.requests == []
+
+
+def test_free_line_already_an_output_is_requested_with_a_warning(
+    chip: FakeChip, caplog: pytest.LogCaptureFixture
+) -> None:
+    chip.outputs.add(17)  # as RPi.GPIO leaves it on the belén's Pi
+
+    with GpiodHal(CHIP) as hal:
+        hal.digital_output(OutputSpec(pin=17))
+
+    assert chip.requests
+    assert "pin 17" in caplog.text
+    assert "already an output" in caplog.text
+
+
+def test_free_input_line_is_requested_without_a_warning(
+    chip: FakeChip, caplog: pytest.LogCaptureFixture
+) -> None:
+    with GpiodHal(CHIP) as hal:
+        hal.digital_output(OutputSpec(pin=17))
+
+    assert caplog.text == ""
 
 
 def test_einval_from_the_request_raises_pin_unavailable(chip: FakeChip) -> None:

@@ -5,11 +5,15 @@ it is imported lazily by ``create_hal``, so the rest of the runtime runs where `
 installed (macOS, Windows, CI jobs without it).
 """
 
+import logging
+
 import gpiod
 from gpiod.line import Direction, Value
 
 from primum_runtime.errors import ErrorCode, ErrorParam, PrimumError
 from primum_runtime.hal.base import Hal, OutputSpec
+
+log = logging.getLogger(__name__)
 
 DEFAULT_CHIP = "/dev/gpiochip0"
 CONSUMER = "primum"
@@ -83,6 +87,16 @@ class GpiodHal(Hal):
             )
         info = self._chip.get_line_info(pin)
         if not info.used:
+            if info.direction == Direction.OUTPUT:
+                # Free lines are inputs on a clean Pi. An output nobody holds was left so by a
+                # process that ended, by Primum itself, or by software driving /dev/gpiomem,
+                # which the kernel cannot see (decision 0010). Only a hint, so not an error.
+                log.warning(
+                    "pin %s on %s is free but already an output: "
+                    "check that no other software drives GPIO on this board",
+                    pin,
+                    self._path,
+                )
             return
         params: dict[str, ErrorParam] = {"pin": pin, "chip": self._path}
         # Lines held by kernel drivers (I2C, SPI…) report no consumer; gpioinfo prints "kernel"

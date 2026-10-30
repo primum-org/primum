@@ -39,6 +39,10 @@
       "message": "Real hardware cannot be used on this system ({platform}).",
       "hint": "Run Primum on a Raspberry Pi, or start it in simulation mode."
     },
+    "hal.gpio_library_broken": {
+      "message": "The GPIO library is installed but incomplete, so real hardware cannot be used.",
+      "hint": "Reinstall Primum on this board; if it happens again, report it with the technical detail."
+    },
     "hal.closed": {
       "message": "The connection to the hardware is closed.",
       "hint": "Restart the service."
