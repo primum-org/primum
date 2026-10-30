@@ -38,10 +38,14 @@ development Pi. One pull request per block.
 - `primum_runtime.hal`: `Hal`, `DigitalOutput`, `OutputSpec`; `SimulatedHal` (tests,
   `--simulate`) and `GpiodHal` (libgpiod v2), chosen by `create_hal`.
 - Safe state (off) when an output is created, on `apply_safe_state` and on `close`, also when
-  leaving the `with` block on an exception (Ctrl+C). Crash safety (watchdog) stays in phase 3.
+  leaving the `with` block on an exception (Ctrl+C). Best-effort across outputs: one failing
+  line never stops the others from going safe or being released. Crash safety (watchdog) stays
+  in phase 3.
+- `DigitalOutput.read()` reads the hardware; `is_on` is the last state commanded.
 - `gpiod` is a Linux-only dependency, imported lazily and only by `hal/gpiod_hal.py` (an
   import contract enforces it); its own type hints pass pyright strict (decision 0010).
-- Errors with codes: `hal.pin_in_use`, `hal.pin_unavailable`, `hal.closed` (catalog entries in 1.3).
+- Errors with codes: `hal.pin_in_use`, `hal.pin_unavailable`, `hal.closed`,
+  `hal.safe_state_incomplete`, `hal.release_incomplete` (catalog entries in 1.3).
 - A `hw` test for the real HAL, run on the Pi with `just test-hw`.
 
 **1.2 · Service, API and WebSocket** · *no Pi*
@@ -50,7 +54,8 @@ development Pi. One pull request per block.
   every state change.
 - Configuration by CLI or environment: `--simulate`, pin, `active_low`, port (8080), data
   directory (default `/data`). The HAL lives in the app's lifespan, so stopping the service
-  applies the safe state.
+  applies the safe state; a test checks that ending the lifespan (what `SIGTERM` from systemd
+  triggers) leaves every output in its safe state.
 - API errors carry codes (decision 0009), for example `output.unknown`.
 - `uv run just dev`: the simulated service on the laptop. Tests with the test client.
 
@@ -60,7 +65,9 @@ WebSocket reports every change.
 **1.3 · Minimal page and i18n** · *no Pi*
 - `i18n/en.json` and `es.json` created now (from phase 2): `ui.*` keys for the page and
   `errors.*` for every code so far; consistency test (same keys and placeholders in both
-  catalogs, every code raised has an entry).
+  catalogs, every code raised has an entry). Parameters named `detail` carry technical text
+  from the system (for example `strerror`): the UI shows them apart, as a technical detail, never
+  as the message.
 - A minimal page served by the runtime (HTML and a little JavaScript, no build step; Vue
   arrives in phase 5): `tokens.css`, icons from `design/`, mobile first (≥ 44 px targets),
   panic button, language from the browser, "Offline" when the service is unreachable.
@@ -70,13 +77,14 @@ WebSocket reports every change.
 in Spanish.
 
 **1.4 · Deployment to the development Pi** · *needs the Pi*
+- First, check that `gpiod` installs on Raspberry Pi OS. The PyPI package builds its own copy
+  of libgpiod (the system version does not matter), so without a ready wheel (PyPI or
+  piwheels) the Pi needs `gcc` and `python3-dev`; provisioning installs them if so.
 - `image/provision.sh` (idempotent): packages, `uv`, user `primum` in group `gpio`, `/data`,
   systemd unit `primum.service` (restart on failure). Nothing is set up by hand on the Pi.
 - `tools/pi-sync.sh` and `just pi-sync`, `just pi-test`, `just pi-logs`, `just pi-watch`;
   host from `PRIMUM_PI_HOST` (default `dev-pi`). Claude Code permissions allow
   `uv run just pi-*` only, not raw `ssh`/`rsync`.
-- Check that `gpiod` installs on Raspberry Pi OS (PyPI wheel, piwheels or build); otherwise
-  fall back to the system package.
 
 **Done when:** a phone on the same Wi-Fi opens `http://dev-pi.local:8080`, turns the LED on,
 and it still works after a reboot.

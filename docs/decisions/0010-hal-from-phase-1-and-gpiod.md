@@ -15,12 +15,15 @@ had to pass pyright in strict mode.
   Phase 3 extends it (inputs, PWM, crash safety) instead of introducing it.
 - The safe state of a digital output is *off*. It applies when the output is created, on
   `apply_safe_state` and on `close`, including when leaving a `with` block on an exception.
+- Safety is best-effort across outputs: if one line fails, the others are still put in the
+  safe state and released, and the failures are raised together at the end.
 - `gpiod` is a dependency of `primum-runtime` with the marker `sys_platform == 'linux'`. Its
   own type hints (`py.typed`) pass pyright strict, so no local stubs are needed.
 - `gpiod` is imported only by `primum_runtime/hal/gpiod_hal.py`, and that module is imported
   lazily by `create_hal`. An import-linter contract forbids `gpiod` anywhere else in the runtime.
 - HAL failures are `PrimumError`s with codes (`hal.pin_in_use`, `hal.pin_unavailable`,
-  `hal.closed`), per decision 0009.
+  `hal.closed`, `hal.safe_state_incomplete`, `hal.release_incomplete`), per decision 0009.
+  System text such as `strerror` goes in a `detail` parameter, shown as a technical detail.
 
 ## Alternatives considered
 - `gpiod` used directly in phase 1, HAL in phase 3: breaks the rule from the first commit and
@@ -31,5 +34,6 @@ had to pass pyright in strict mode.
 ## Consequences
 - The simulated runtime works on any OS; real-hardware tests are marked `hw` and run on the Pi.
 - Linux CI builds `gpiod` and type-checks the real HAL against its real types.
-- On the Pi, `gpiod` must install from a wheel or build from source (checked in block 1.4).
+- On the Pi, `gpiod` must install from a wheel or build from source with its bundled libgpiod
+  (checked first thing in block 1.4).
 - A released line may float, so phase 1 drives LEDs only, never relays.

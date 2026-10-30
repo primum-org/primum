@@ -52,6 +52,6 @@ class GpiodHal(Hal):
         except OSError as error:
             raise PrimumError(
                 "hal.pin_unavailable",
-                {"pin": spec.pin, "chip": self._chip, "reason": error.strerror or str(error)},
+                {"pin": spec.pin, "chip": self._chip, "detail": error.strerror or str(error)},
             ) from error
         return GpiodLine(request, spec.pin)

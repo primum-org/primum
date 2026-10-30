@@ -15,16 +15,14 @@ PIN = int(os.environ.get("PRIMUM_HW_TEST_PIN", "17"))
 
 
 def test_gpiod_output_starts_off_and_reads_back_what_is_written() -> None:
-    from primum_runtime.hal.gpiod_hal import GpiodHal, GpiodLine
+    from primum_runtime.hal.gpiod_hal import GpiodHal
 
     with GpiodHal() as hal:
         output = hal.digital_output(OutputSpec(pin=PIN))
-        line = hal._drivers[0]  # pyright: ignore[reportPrivateUsage]  # test reads the line back
-        assert isinstance(line, GpiodLine)
-        assert not line.read()
+        assert not output.read()
 
         output.set(True)
-        assert line.read()
+        assert output.read()
 
         output.set(False)
-        assert not line.read()
+        assert not output.read()

@@ -115,3 +115,74 @@ def test_simulated_hal_does_not_import_gpiod() -> None:
     result = subprocess.run([sys.executable, "-c", code], check=False)  # noqa: S603 (fixed code)
 
     assert result.returncode == 0
+
+
+def test_read_reports_the_state_of_the_line() -> None:
+    with SimulatedHal() as hal:
+        output = hal.digital_output(LED)
+
+        output.set(True)
+
+        assert output.read()
+
+
+def test_failed_write_keeps_the_last_commanded_state() -> None:
+    with SimulatedHal() as hal:
+        output = hal.digital_output(LED)
+        hal.lines[17].fail_writes(OSError(5, "I/O error"))
+
+        with pytest.raises(OSError):
+            output.set(True)
+
+        assert not output.is_on
+        hal.lines[17].fail_writes(None)
+
+
+def test_apply_safe_state_turns_off_the_other_outputs_when_one_fails() -> None:
+    hal = SimulatedHal()
+    led = hal.digital_output(LED)
+    relay = hal.digital_output(RELAY)
+    led.set(True)
+    relay.set(True)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+
+    with pytest.raises(PrimumError) as raised:
+        hal.apply_safe_state()
+
+    assert raised.value.code == "hal.safe_state_incomplete"
+    assert raised.value.params == {"pins": "17"}
+    assert isinstance(raised.value.__cause__, ExceptionGroup)
+    assert not hal.lines[27].active
+
+
+def test_close_releases_every_line_even_if_the_safe_state_fails() -> None:
+    hal = SimulatedHal()
+    hal.digital_output(LED).set(True)
+    hal.digital_output(RELAY).set(True)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+
+    with pytest.raises(PrimumError) as raised:
+        hal.close()
+
+    assert raised.value.code == "hal.safe_state_incomplete"
+    assert not hal.lines[27].active
+    assert hal.lines[17].released
+    assert hal.lines[27].released
+    with pytest.raises(PrimumError):
+        hal.ensure_open()
+
+
+def test_close_releases_the_other_lines_when_one_release_fails() -> None:
+    hal = SimulatedHal()
+    hal.digital_output(LED)
+    hal.digital_output(RELAY)
+    hal.lines[17].fail_release(OSError(5, "I/O error"))
+
+    with pytest.raises(PrimumError) as raised:
+        hal.close()
+
+    assert raised.value.code == "hal.release_incomplete"
+    assert raised.value.params == {"pins": "17"}
+    assert hal.lines[27].released
+    with pytest.raises(PrimumError):
+        hal.ensure_open()

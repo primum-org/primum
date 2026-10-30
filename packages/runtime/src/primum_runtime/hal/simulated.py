@@ -7,13 +7,19 @@ from primum_runtime.hal.base import Hal, OutputSpec
 
 
 class SimulatedLine:
-    """A simulated output line that remembers every value written to it."""
+    """A simulated output line that remembers every value written to it.
+
+    Faults can be injected (``fail_writes``, ``fail_release``) to test what happens when the
+    hardware misbehaves.
+    """
 
     def __init__(self, spec: OutputSpec) -> None:
         self._spec = spec
         self._active = False
         self._released = False
         self._history: list[bool] = []
+        self._write_error: Exception | None = None
+        self._release_error: Exception | None = None
 
     @property
     def active(self) -> bool:
@@ -34,11 +40,26 @@ class SimulatedLine:
         """Every logical value written, in order (the initial safe state is not a write)."""
         return tuple(self._history)
 
+    def fail_writes(self, error: Exception | None) -> None:
+        """From now on every write raises ``error`` (``None`` makes writes work again)."""
+        self._write_error = error
+
+    def fail_release(self, error: Exception | None) -> None:
+        """Make ``release`` raise ``error`` (``None`` makes it work again)."""
+        self._release_error = error
+
     def write(self, active: bool) -> None:
+        if self._write_error is not None:
+            raise self._write_error
         self._active = active
         self._history.append(active)
 
+    def read(self) -> bool:
+        return self._active
+
     def release(self) -> None:
+        if self._release_error is not None:
+            raise self._release_error
         self._released = True
 
 
