@@ -19,10 +19,17 @@ from primum_runtime.errors import PrimumError
 
 @dataclass(frozen=True)
 class OutputSpec:
-    """How a digital output is wired: the GPIO line number and whether it is active low."""
+    """How a digital output is wired: the GPIO line number and whether it is active low.
+
+    A negative pin fails with ``hal.pin_invalid``, before any HAL sees it.
+    """
 
     pin: int
     active_low: bool = False
+
+    def __post_init__(self) -> None:
+        if self.pin < 0:
+            raise PrimumError("hal.pin_invalid", {"pin": self.pin})
 
 
 class LineDriver(Protocol):

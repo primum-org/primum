@@ -44,9 +44,9 @@ development Pi. One pull request per block.
 - `DigitalOutput.read()` reads the hardware; `is_on` is the last state commanded.
 - `gpiod` is a Linux-only dependency, imported lazily and only by `hal/gpiod_hal.py` (an
   import contract enforces it); its own type hints pass pyright strict (decision 0010).
-- Errors with codes: `hal.pin_in_use`, `hal.pin_invalid`, `hal.pin_unavailable`, `hal.closed`,
-  `hal.safe_state_incomplete`, `hal.release_incomplete` (catalog entries in 1.3). Lists of pins
-  are tuples, never pre-joined text.
+- Errors with codes: `hal.pin_in_use`, `hal.pin_invalid`, `hal.pin_unavailable`,
+  `hal.chip_unavailable`, `hal.closed`, `hal.safe_state_incomplete`, `hal.release_incomplete`
+  (catalog entries in 1.3). Lists of pins are tuples, never pre-joined text.
 - A `hw` test for the real HAL, run on the Pi with `just test-hw`: it checks what the kernel
   reports for the line, not the LED itself.
 - `GpiodHal` is also tested without a Pi (in CI), with a fake `gpiod.request_lines`: requested
@@ -58,8 +58,10 @@ development Pi. One pull request per block.
   every state change.
 - Configuration by CLI or environment: `--simulate`, pin, `active_low`, port (8080), data
   directory (default `/data`). The HAL lives in the app's lifespan, so stopping the service
-  applies the safe state; a test checks that ending the lifespan (what `SIGTERM` from systemd
-  triggers) leaves every output in its safe state.
+  applies the safe state. Today `SIGTERM` leaves the line on (measured on the Pi, decision
+  0010), so the test starts the simulated service as a real process, sends it `SIGTERM` and
+  checks that every output ends in its safe state (the state is reported by the process before
+  it exits); a second test ends the lifespan with the test client.
 - API errors carry codes (decision 0009), for example `output.unknown`.
 - `uv run just dev`: the simulated service on the laptop. Tests with the test client.
 
@@ -68,9 +70,9 @@ WebSocket reports every change.
 
 **1.3 · Minimal page and i18n** · *no Pi*
 - `i18n/en.json` and `es.json` created now (from phase 2): `ui.*` keys for the page and
-  `errors.*` for every code so far, including the six from 1.1 (`hal.pin_in_use`,
-  `hal.pin_invalid`, `hal.pin_unavailable`, `hal.closed`, `hal.safe_state_incomplete`,
-  `hal.release_incomplete`); consistency test (same keys and placeholders in both
+  `errors.*` for every code so far, including the seven from 1.1 (`hal.pin_in_use`,
+  `hal.pin_invalid`, `hal.pin_unavailable`, `hal.chip_unavailable`, `hal.closed`,
+  `hal.safe_state_incomplete`, `hal.release_incomplete`); consistency test (same keys and placeholders in both
   catalogs, every code raised has an entry). Parameters named `detail` carry technical text
   from the system (for example `strerror`): the UI shows them apart, as a technical detail, never
   as the message. Tuple params (lists of pins) are formatted for the user's language.
@@ -120,7 +122,9 @@ and it still works after a reboot.
 3. Workspace loader (receives the files' contents from the caller: `core` reads no files), id references, scopes (folder visibility, export/import, redefinition
    is an error), components with parameters, cycle detection.
 4. `boards/rpi4b.json`: 40 pins, alternate functions, buses, reserved pins, and the GPIO chip
-   and line numbering (on a Pi 5 they change with the kernel: never hard-code them).
+   and line numbering (on a Pi 5 they change with the kernel: never hard-code them). The
+   simulated HAL takes the board profile and rejects pins the board does not have with
+   `hal.pin_invalid`, so `--simulate` fails where the Pi would (today it accepts any pin).
 5. Resource allocation and pin conflicts, reported as error codes with clear catalog messages.
 6. Detection of sequences that may overlap on the same element.
 7. CLI: `primum validate <project>`.

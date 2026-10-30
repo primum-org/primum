@@ -22,8 +22,10 @@ had to pass pyright in strict mode.
 - `gpiod` is imported only by `primum_runtime/hal/gpiod_hal.py`, and that module is imported
   lazily by `create_hal`. An import-linter contract forbids `gpiod` anywhere else in the runtime.
 - HAL failures are `PrimumError`s with codes (`hal.pin_in_use`, `hal.pin_unavailable`,
-  `hal.closed`, `hal.safe_state_incomplete`, `hal.release_incomplete`, and `hal.pin_invalid`
-  for an offset the chip does not have, which gpiod reports as `ValueError`), per decision 0009.
+  `hal.closed`, `hal.safe_state_incomplete`, `hal.release_incomplete`; `hal.pin_invalid` for a
+  negative pin, checked by `OutputSpec`, or an offset the chip does not have, which gpiod
+  reports as `ValueError`; `hal.chip_unavailable` when the chip is not a GPIO chip device,
+  checked when `GpiodHal` is created), per decision 0009.
   No raw exception from gpiod leaves the HAL.
   System text such as `strerror` goes in a `detail` parameter, shown as a technical detail.
 
@@ -46,6 +48,14 @@ had to pass pyright in strict mode.
 - Known limit: a second Ctrl+C while the HAL is closing interrupts it (only `Exception` is
   collected), and lines may stay active. Acceptable with LEDs only; the watchdog of phase 3
   covers crashes.
+- Known limit: the safe state on stop needs the process to close the HAL. Measured on the
+  development Pi 4 (2026-10-30) with an LED on: after `SIGINT` the line is low; after `SIGTERM`
+  and `SIGKILL` it stays high, because Python dies without running `__exit__`. Phase 1.2 fixes
+  `SIGTERM` (uvicorn runs the lifespan shutdown) and tests it by killing a real process;
+  `SIGKILL` cannot be handled, so it is left to the watchdog (phase 3) and safe boot levels
+  (phase 6).
+- The simulated HAL accepts any non-negative pin, so `--simulate` can accept a pin the board
+  does not have. It checks pins against the board profile from phase 2.
 - `GpiodHal` requests one line per output. When the per-board arbiter arrives (phase 3), one
   request per chip is likely better.
 - Line offsets equal BCM numbers on a Pi 4 with `/dev/gpiochip0`. On a Pi 5 the chip and the

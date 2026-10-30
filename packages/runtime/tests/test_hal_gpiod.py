@@ -42,6 +42,15 @@ class FakeRequest:
         self.released = True
 
 
+@pytest.fixture(autouse=True)
+def chip_exists(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Only CHIP is a GPIO chip device here; CI machines have none.
+    def is_gpiochip_device(path: str) -> bool:
+        return path == CHIP
+
+    monkeypatch.setattr(gpiod, "is_gpiochip_device", is_gpiochip_device)
+
+
 @pytest.fixture
 def requests(monkeypatch: pytest.MonkeyPatch) -> list[FakeRequest]:
     made: list[FakeRequest] = []
@@ -122,6 +131,14 @@ def test_offset_the_chip_does_not_have_raises_pin_invalid(
     assert raised.value.code == "hal.pin_invalid"
     assert raised.value.params == {"pin": 99, "chip": CHIP, "detail": "line offset of out range"}
     assert isinstance(raised.value.__cause__, ValueError)
+
+
+def test_missing_chip_raises_chip_unavailable_when_the_hal_is_created() -> None:
+    with pytest.raises(PrimumError) as raised:
+        GpiodHal("/dev/gpiochip-missing")
+
+    assert raised.value.code == "hal.chip_unavailable"
+    assert raised.value.params == {"chip": "/dev/gpiochip-missing"}
 
 
 def test_create_hal_returns_the_gpio_hal_for_the_chip(requests: list[FakeRequest]) -> None:

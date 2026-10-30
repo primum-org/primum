@@ -10,6 +10,9 @@ paths:
   (exclusive for motors and servos, latest-wins for lights and relays). No exceptions.
 - Safe state is applied on start, stop, crash (watchdog) and panic, best-effort across
   outputs: one failing line never stops the others; failures are raised together at the end.
+  "Stop" means the process closes the HAL: `SIGINT` does it through the `with` block, `SIGTERM`
+  only once the service handles it (phase 1.2, uvicorn's lifespan), and `SIGKILL` never; what
+  the process cannot do is covered by the watchdog (phase 3) and safe boot levels (phase 6).
 - Motors never reverse instantly: stop, wait the dead time, then change direction.
 - Arbitration order: panic / safe state / driver limits → manual control and test mode →
   sequences by priority (latest command wins within the same priority).

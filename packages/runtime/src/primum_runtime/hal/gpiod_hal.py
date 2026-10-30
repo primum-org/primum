@@ -33,9 +33,15 @@ class GpiodLine:
 
 
 class GpiodHal(Hal):
-    """Drives GPIO lines of one chip. On a Raspberry Pi 4, line offsets are BCM numbers."""
+    """Drives GPIO lines of one chip. On a Raspberry Pi 4, line offsets are BCM numbers.
+
+    Fails with ``hal.chip_unavailable`` when ``chip`` is not a GPIO chip device, so a wrong
+    chip is reported as such and not as the first pin requested.
+    """
 
     def __init__(self, chip: str = DEFAULT_CHIP) -> None:
+        if not gpiod.is_gpiochip_device(chip):
+            raise PrimumError("hal.chip_unavailable", {"chip": chip})
         super().__init__()
         self._chip = chip
 
