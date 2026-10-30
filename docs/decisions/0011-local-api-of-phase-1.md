@@ -47,6 +47,7 @@ arbiter of phase 4 exists, and how stopping the service reaches the HAL.
   command the outputs, so the default address is loopback; block 1.4 opens it to the local
   network for the phone, with LEDs only.
 - Block 1.3's catalogs need entries for `output.unknown`, `panic.active` and `request.invalid`.
+- The page of block 1.3 is served by the same app at `/`, after the API's routes.
 - There is no data directory yet: nothing is written. It arrives with the first file the
   runtime writes, configurable and `/data` by default.
 - One event loop thread runs every handler (all `async`), so the controller needs no locks.

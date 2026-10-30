@@ -6,7 +6,7 @@ when a phase starts or finishes.
 | Phase | Goal | Status |
 |---|---|---|
 | 0 | Repository skeleton: structure, docs, rules, tooling, CI | In progress (dev Pi pending) |
-| 1 | End-to-end skeleton: toggle an LED from a phone | In progress (1.1 and 1.2 done) |
+| 1 | End-to-end skeleton: toggle an LED from a phone | In progress (1.1–1.3 done) |
 | 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Not started |
 | 3 | HAL, basic drivers and safety | Not started |
 | 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Not started |
@@ -72,21 +72,27 @@ development Pi. One pull request per block.
 **Done when:** `uv run just dev` and `curl` or a browser toggle the simulated LED, and the
 WebSocket reports every change.
 
-**1.3 · Minimal page and i18n** · *no Pi*
-- `i18n/en.json` and `es.json` created now (from phase 2): `ui.*` keys for the page and
-  `errors.*` for every code so far, including the nine from 1.1 (`hal.pin_in_use`,
-  `hal.pin_invalid`, `hal.pin_unavailable`, `hal.chip_unavailable`, `hal.chip_access_denied`,
-  `hal.unsupported_platform`, `hal.closed`, `hal.safe_state_incomplete`,
-  `hal.release_incomplete`; the hint of `hal.chip_access_denied` says to add the user to group
-  `gpio`) and the three from 1.2 (`output.unknown`, `panic.active`, `request.invalid`);
-  consistency test (same keys and placeholders in both
-  catalogs, every code raised has an entry). Parameters named `detail` carry technical text
-  from the system (for example `strerror`): the UI shows them apart, as a technical detail, never
-  as the message. Tuple params (lists of pins) are formatted for the user's language.
-- A minimal page served by the runtime (HTML and a little JavaScript, no build step; Vue
-  arrives in phase 5): `tokens.css`, icons from `design/`, mobile first (≥ 44 px targets),
-  panic button, language from the browser, "Offline" when the service is unreachable.
-  Fonts fall back to system fonts until the woff2 files arrive (phase 5).
+**1.3 · Minimal page and i18n** · *no Pi* · **done**
+- `i18n/en.json` and `es.json`: `ui.*` strings of the page and `errors.*` for the twelve codes
+  of 1.1 and 1.2, each with a `message` and a `hint` (the hint of `hal.chip_access_denied` says
+  to add the user to group `gpio`). Every code is a member of `ErrorCode`, so the type checker
+  rejects an undeclared one (decision 0009).
+- `test_catalogs.py`: same strings and placeholders in both catalogs; `ErrorCode` and the
+  `errors` entries match both ways; messages never embed technical params; the page uses every
+  `ui` key and only keys that exist (keys are written literally, so the test can find them).
+- Params named `detail`, `consumer` and `fields` carry technical text: the page shows them apart,
+  as a technical detail, never as the message. Tuple params (lists of pins) are formatted for
+  the language with `Intl.ListFormat`.
+- A minimal page served by the runtime at `/` (HTML, CSS and JavaScript modules, no build step;
+  Vue arrives in phase 5): a switch per output, the panic notice and its release, API errors
+  with message, hint and technical detail, and "No connection" when the service is unreachable
+  (switches disabled, panic never). Mobile first (≥ 44 px targets, panic 72 px with its
+  octagonal chamfer), light and dark from the tokens, language from the browser. Icons are kept
+  in memory, so the notice keeps its icon offline. Fonts fall back to system fonts until the
+  woff2 files arrive (phase 5).
+- The page's shared assets (catalogs, `tokens.css`, icons, logo) are copied into
+  `primum_runtime/ui/generated/` by `just gen` (`tools/gen_ui_assets.py`), so the installed
+  runtime serves them; `just gen-check` fails if a copy is stale.
 
 **Done when:** from the laptop's browser the page toggles the simulated LED in English and
 in Spanish, and the consistency test exists and passes (every code the runtime raises has an

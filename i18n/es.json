@@ -1,0 +1,67 @@
+{
+  "ui": {
+    "app.title": "Primum",
+    "outputs.heading": "Salidas",
+    "output.on": "Encendida",
+    "output.off": "Apagada",
+    "output.toggle": "Encender o apagar {name}",
+    "panic.button": "Pánico",
+    "panic.description": "Apaga todas las salidas y deja de aceptar órdenes.",
+    "panic.active": "Pánico activo: todas las salidas están apagadas y no se aceptan órdenes.",
+    "panic.release": "Desactivar pánico",
+    "connection.offline": "Sin conexión con el servicio. Reintentando…",
+    "error.detail": "Detalle técnico",
+    "error.unknown": "Error inesperado ({code}).",
+    "error.close": "Cerrar"
+  },
+  "errors": {
+    "hal.pin_in_use": {
+      "message": "El pin {pin} ya lo usa otra salida.",
+      "hint": "Elige un pin distinto para una de las dos."
+    },
+    "hal.pin_invalid": {
+      "message": "El pin {pin} no existe en esta placa.",
+      "hint": "Comprueba el número de pin en el esquema de la placa."
+    },
+    "hal.pin_unavailable": {
+      "message": "Otra cosa de esta placa está usando el pin {pin}.",
+      "hint": "Libéralo (detén el programa o desactiva la interfaz que lo usa) o elige otro pin."
+    },
+    "hal.chip_unavailable": {
+      "message": "No se puede abrir el controlador GPIO {chip}.",
+      "hint": "Comprueba que Primum está configurado para esta placa."
+    },
+    "hal.chip_access_denied": {
+      "message": "Primum no tiene permiso para usar el controlador GPIO {chip}.",
+      "hint": "Añade el usuario que ejecuta Primum al grupo gpio y reinicia el servicio."
+    },
+    "hal.unsupported_platform": {
+      "message": "En este sistema ({platform}) no se puede usar hardware real.",
+      "hint": "Ejecuta Primum en una Raspberry Pi o arráncalo en modo simulación."
+    },
+    "hal.closed": {
+      "message": "La conexión con el hardware está cerrada.",
+      "hint": "Reinicia el servicio."
+    },
+    "hal.safe_state_incomplete": {
+      "message": "No se pudieron poner en estado seguro los pines {pins}.",
+      "hint": "Corta la alimentación de lo que tengan conectado y revisa el cableado."
+    },
+    "hal.release_incomplete": {
+      "message": "No se pudieron liberar los pines {pins}.",
+      "hint": "Reinicia la placa antes de volver a usarlos."
+    },
+    "output.unknown": {
+      "message": "No hay ninguna salida llamada {name}.",
+      "hint": "Recarga la página para ver las salidas actuales."
+    },
+    "panic.active": {
+      "message": "El pánico está activo: las salidas no aceptan órdenes.",
+      "hint": "Desactiva el pánico cuando sea seguro continuar."
+    },
+    "request.invalid": {
+      "message": "La petición no era válida.",
+      "hint": "Recarga la página. Si vuelve a pasar, informa del error con el detalle técnico."
+    }
+  }
+}

@@ -1,0 +1,71 @@
+<!doctype html>
+<!-- Every visible text comes from the catalogs (data-i18n keys); none is written here. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title></title>
+  <link rel="icon" href="generated/logo/primum-mark-16-light.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="generated/tokens.css">
+  <link rel="stylesheet" href="app.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body class="touch">
+  <header class="bar">
+    <span class="icon icon-logo" aria-hidden="true"></span>
+    <h1 data-i18n="app.title"></h1>
+  </header>
+
+  <main>
+    <p id="connection" class="notice notice-warning" role="status" hidden>
+      <span class="icon icon-warn" aria-hidden="true"></span>
+      <span class="notice-text" data-i18n="connection.offline"></span>
+    </p>
+
+    <section id="panic-active" class="notice notice-danger" role="alert" hidden>
+      <span class="icon icon-panic" aria-hidden="true"></span>
+      <div class="notice-text">
+        <p data-i18n="panic.active"></p>
+        <button id="release-panic" class="button" type="button" data-i18n="panic.release"></button>
+      </div>
+    </section>
+
+    <section id="error" class="notice notice-danger" role="alert" hidden>
+      <span class="icon icon-warn" aria-hidden="true"></span>
+      <div class="notice-text">
+        <p id="error-message"></p>
+        <p id="error-hint" class="secondary"></p>
+        <details id="error-technical" hidden>
+          <summary data-i18n="error.detail"></summary>
+          <pre id="error-technical-text"></pre>
+        </details>
+        <button id="error-close" class="button" type="button" data-i18n="error.close"></button>
+      </div>
+    </section>
+
+    <section class="outputs" aria-labelledby="outputs-heading">
+      <h2 id="outputs-heading" data-i18n="outputs.heading"></h2>
+      <ul id="outputs"></ul>
+    </section>
+  </main>
+
+  <footer class="panic-area">
+    <button id="panic" class="panic" type="button" aria-describedby="panic-description">
+      <span class="icon icon-panic" aria-hidden="true"></span>
+      <span data-i18n="panic.button"></span>
+    </button>
+    <p id="panic-description" class="secondary" data-i18n="panic.description"></p>
+  </footer>
+
+  <template id="output-row">
+    <li class="output">
+      <span class="icon icon-led" aria-hidden="true"></span>
+      <span class="output-name"></span>
+      <button class="switch" type="button" aria-pressed="false">
+        <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+        <span class="switch-state"></span>
+      </button>
+    </li>
+  </template>
+</body>
+</html>

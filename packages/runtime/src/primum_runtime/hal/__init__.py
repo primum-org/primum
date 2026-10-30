@@ -6,7 +6,7 @@ in a ``with`` block so the safe state is applied when the runtime stops.
 
 import sys
 
-from primum_runtime.errors import PrimumError
+from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.hal.base import DigitalOutput, Hal, LineDriver, OutputSpec
 from primum_runtime.hal.simulated import SimulatedHal, SimulatedLine
 
@@ -35,6 +35,6 @@ def create_hal(*, simulate: bool, chip: str | None = None) -> Hal:
     except ModuleNotFoundError as error:
         if error.name != "gpiod":
             raise
-        raise PrimumError("hal.unsupported_platform", {"platform": sys.platform}) from error
+        raise PrimumError(ErrorCode.HAL_UNSUPPORTED_PLATFORM, {"platform": sys.platform}) from error
 
     return GpiodHal(chip or DEFAULT_CHIP)

@@ -12,8 +12,12 @@ The service that runs on Linux boards. It executes deployment packages from `pri
 - API handlers are `async`: they all run on the event loop's thread, so `control` needs no locks.
 - Never run `hw` tests or drive lines on a Pi that runs other GPIO software, such as the belén's
   Pi (`rpi4b`): the kernel does not see lines driven through `/dev/gpiomem` (decision 0010).
-- Errors are `PrimumError(code, params)` (decision 0009), never text. System text (for example
-  `strerror`) goes in a `detail` param.
+- Errors are `PrimumError(ErrorCode.X, params)` (decision 0009), never text. System text (for
+  example `strerror`) goes in a `detail` param. A new code goes in `ErrorCode` and in both
+  catalogs in `i18n/` (`test_catalogs.py` checks it).
+- The page lives in `ui/` (no build step). `ui/generated/` holds copies of `i18n/` and `design/`
+  assets made by `just gen`: never edit them, edit the source and regenerate. UI keys are written
+  literally (`t("panic.button")`, `data-i18n="panic.button"`) so the catalog test finds them.
 - Safety first: every output has a safe state applied on start, stop, crash and panic.
 - Measure durations with a monotonic clock. Wall-clock time only for schedules, and only
   when it is known to be reliable (the Pi 4 has no RTC).
