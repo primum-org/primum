@@ -1,0 +1,211 @@
+/* The runtime's page. Colors, fonts, sizes and motion come only from generated/tokens.css. */
+
+:root {
+  /* No border token: the brandbook mixes text.primary at 13 % for rules. */
+  --rule: color-mix(in srgb, var(--color-text-primary) 13%, transparent);
+  /* The page is a touch surface: the touch column of the brandbook's density table. */
+  --focus-ring: var(--size-focus-ring-touch);
+  --panic-chamfer: var(--size-panic-chamfer-touch);
+  --switch-width: calc(var(--size-control-sm) + var(--space-5));
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-md);
+  line-height: 1.4;
+}
+
+h1, h2 { margin: 0; }
+h1 { font-family: var(--font-family-display); font-size: var(--font-size-xl); font-weight: 500; }
+h2 { font-size: var(--font-size-sm); font-weight: 600; color: var(--color-text-secondary); }
+p { margin: 0; }
+.secondary { color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+
+:focus-visible {
+  outline: var(--focus-ring) solid var(--color-brand-secondary);
+  outline-offset: var(--focus-ring);
+}
+
+.icon {
+  flex: none;
+  width: var(--size-icon-24);
+  height: var(--size-icon-24);
+  background: currentColor;
+  mask: var(--icon) center / contain no-repeat;
+}
+/* The --icon-* properties are set by icons.js, from icons kept in memory. */
+.icon-logo {
+  --icon: var(--icon-logo);
+  width: var(--size-icon-32);
+  height: var(--size-icon-32);
+  color: var(--color-brand-secondary);
+}
+.icon-led { --icon: var(--icon-led); }
+.icon-panic { --icon: var(--icon-panic); }
+.icon-warn { --icon: var(--icon-warn); }
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--size-rule-md) solid var(--rule);
+}
+
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: var(--size-content);
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+/* Notices: a state color always comes with an icon and a word. */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: var(--size-rule-md) solid var(--state);
+  background: color-mix(in srgb, var(--state) 7%, transparent);
+}
+.notice[hidden] { display: none; }
+.notice > .icon { color: var(--state); }
+.notice-text { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.notice-warning { --state: var(--color-semantic-warning); }
+.notice-danger { --state: var(--color-semantic-danger); border-width: var(--size-rule-strong); }
+.notice details { margin-top: var(--space-2); font-size: var(--font-size-sm); }
+.notice summary { min-height: var(--size-touch-target); display: flex; align-items: center; cursor: pointer; }
+.notice pre {
+  margin: 0;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.button {
+  flex: none;
+  min-height: var(--size-control-touch);
+  padding: 0 var(--space-4);
+  border: var(--size-rule-md) solid var(--color-text-primary);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.outputs { display: flex; flex-direction: column; gap: var(--space-2); }
+.outputs ul { margin: 0; padding: 0; list-style: none; border-top: var(--size-rule-md) solid var(--rule); }
+
+.output {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-row-touch);
+  border-bottom: var(--size-rule-md) solid var(--rule);
+}
+.output-name { flex: 1; font-family: var(--font-family-mono); }
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch-target);
+  min-width: var(--size-touch-target);
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.switch-track {
+  position: relative;
+  width: var(--switch-width);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-full);
+  border: var(--size-rule-md) solid var(--color-text-primary);
+  background: var(--color-surface-raised);
+  transition: background var(--motion-base);
+}
+.switch-thumb {
+  position: absolute;
+  /* Centred in the track: (track height − thumb) / 2, minus the border. */
+  top: calc((var(--size-control-sm) - var(--size-icon-24)) / 2 - var(--size-rule-md));
+  left: calc((var(--size-control-sm) - var(--size-icon-24)) / 2 - var(--size-rule-md));
+  width: var(--size-icon-24);
+  height: var(--size-icon-24);
+  border-radius: var(--radius-full);
+  background: var(--color-text-primary);
+  transition: transform var(--motion-base);
+}
+.switch[aria-pressed="true"] .switch-track { background: var(--color-brand-primary); }
+.switch[aria-pressed="true"] .switch-thumb {
+  transform: translateX(calc(var(--switch-width) - var(--size-control-sm)));
+  background: var(--color-text-inverse);
+}
+.switch-state { min-width: 6em; text-align: start; }
+.switch:disabled { cursor: not-allowed; opacity: 0.45; }
+/* Offline the last state may be stale: "mixed" puts the thumb in the middle, neither on nor off. */
+.switch[aria-pressed="mixed"] .switch-thumb {
+  transform: translateX(calc((var(--switch-width) - var(--size-control-sm)) / 2));
+  background: var(--color-text-secondary);
+}
+.switch:disabled .switch-track { border-style: dashed; }
+
+/* Panic: anchored at the bottom, 72 px, octagonal chamfer, never disabled. */
+.panic-area {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-top: var(--size-rule-md) solid var(--rule);
+  background: var(--color-surface-base);
+}
+.panic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: calc(var(--size-content) - 2 * var(--space-4));
+  min-height: var(--size-panic-touch);
+  border: 0;
+  background: var(--color-semantic-danger);
+  color: var(--color-text-inverse);
+  font: inherit;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(
+    var(--panic-chamfer) 0, calc(100% - var(--panic-chamfer)) 0, 100% var(--panic-chamfer),
+    100% calc(100% - var(--panic-chamfer)), calc(100% - var(--panic-chamfer)) 100%,
+    var(--panic-chamfer) 100%, 0 calc(100% - var(--panic-chamfer)), 0 var(--panic-chamfer)
+  );
+}
+/* clip-path would cut the outline: the focus ring goes inside. */
+.panic:focus-visible { outline-offset: calc(-2 * var(--focus-ring)); outline-color: var(--color-text-inverse); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

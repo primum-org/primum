@@ -1,0 +1,75 @@
+{
+  "ui": {
+    "app.title": "Primum",
+    "outputs.heading": "Outputs",
+    "output.on": "On",
+    "output.off": "Off",
+    "output.toggle": "Turn {name} on or off",
+    "panic.button": "Panic",
+    "panic.description": "Turns every output off and stops accepting commands.",
+    "panic.active": "Panic is active: every output is off and commands are refused.",
+    "panic.release": "Release panic",
+    "connection.offline": "No connection with the service. Retrying…",
+    "error.detail": "Technical detail",
+    "error.unknown": "Unexpected error ({code}).",
+    "error.close": "Close"
+  },
+  "errors": {
+    "hal.pin_in_use": {
+      "message": "Pin {pin} is already used by another output.",
+      "hint": "Choose a different pin for one of them."
+    },
+    "hal.pin_invalid": {
+      "message": "Pin {pin} does not exist on this board.",
+      "hint": "Check the pin number against the board's pinout."
+    },
+    "hal.pin_unavailable": {
+      "message": "Pin {pin} is being used by something else on this board.",
+      "hint": "Free it (stop the program or turn off the interface that uses it) or choose another pin."
+    },
+    "hal.chip_unavailable": {
+      "message": "The GPIO controller {chip} cannot be opened.",
+      "hint": "Check that Primum is configured for this board."
+    },
+    "hal.chip_access_denied": {
+      "message": "Primum has no permission to use the GPIO controller {chip}.",
+      "hint": "Add the user that runs Primum to the gpio group, then restart the service."
+    },
+    "hal.unsupported_platform": {
+      "message": "Real hardware cannot be used on this system ({platform}).",
+      "hint": "Run Primum on a Raspberry Pi, or start it in simulation mode."
+    },
+    "hal.closed": {
+      "message": "The connection to the hardware is closed.",
+      "hint": "Restart the service."
+    },
+    "hal.safe_state_incomplete": {
+      "message": "Pins {pins} could not be put in their safe state.",
+      "hint": "Cut the power of what is wired to them, then check the wiring."
+    },
+    "hal.release_incomplete": {
+      "message": "Pins {pins} could not be released.",
+      "hint": "Restart the board before using them again."
+    },
+    "output.unknown": {
+      "message": "There is no output called {name}.",
+      "hint": "Reload the page to see the current outputs."
+    },
+    "panic.active": {
+      "message": "Panic is active: outputs do not accept commands.",
+      "hint": "Release panic when it is safe to continue."
+    },
+    "request.invalid": {
+      "message": "The request was not valid.",
+      "hint": "Reload the page. If it happens again, report it with the technical detail."
+    },
+    "request.not_found": {
+      "message": "The service has nothing at {path}.",
+      "hint": "Reload the page. If it happens again, report it with the technical detail."
+    },
+    "request.method_not_allowed": {
+      "message": "The service does not accept this action at {path}.",
+      "hint": "Reload the page. If it happens again, report it with the technical detail."
+    }
+  }
+}

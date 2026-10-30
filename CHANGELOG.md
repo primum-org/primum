@@ -14,3 +14,8 @@ All notable changes to this project are documented here. The format follows
   logo symbol and 56 icons.
 - `primum-runtime`: a local HTTP API and WebSocket to turn an LED on and off, with a panic
   button, on a Raspberry Pi or simulated (`uv run just dev`).
+- A page served by the runtime to turn the LED on and off from a phone or a browser, with the
+  panic button, in English and Spanish, light and dark.
+- Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
+  with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
+  invalid requests, unknown paths and methods of the API.

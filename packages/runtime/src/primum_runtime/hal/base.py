@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from types import TracebackType
 from typing import Protocol, Self
 
-from primum_runtime.errors import PrimumError
+from primum_runtime.errors import ErrorCode, PrimumError
 
 
 @dataclass(frozen=True)
@@ -29,7 +29,7 @@ class OutputSpec:
 
     def __post_init__(self) -> None:
         if self.pin < 0:
-            raise PrimumError("hal.pin_invalid", {"pin": self.pin})
+            raise PrimumError(ErrorCode.HAL_PIN_INVALID, {"pin": self.pin})
 
 
 class LineDriver(Protocol):
@@ -85,7 +85,7 @@ def _pins(failures: dict[int, Exception]) -> tuple[int, ...]:
 
 
 def _incomplete(
-    code: str, params: dict[str, tuple[int, ...]], errors: list[Exception]
+    code: ErrorCode, params: dict[str, tuple[int, ...]], errors: list[Exception]
 ) -> PrimumError:
     """One error naming the pins that failed, chained to every original exception."""
     error = PrimumError(code, params)
@@ -107,7 +107,7 @@ class Hal(ABC):
         """Claim ``spec.pin`` as a digital output, starting in the safe state (off)."""
         self.ensure_open()
         if spec.pin in self._outputs:
-            raise PrimumError("hal.pin_in_use", {"pin": spec.pin})
+            raise PrimumError(ErrorCode.HAL_PIN_IN_USE, {"pin": spec.pin})
         driver = self._open_line(spec)
         self._drivers[spec.pin] = driver
         output = DigitalOutput(spec, driver, self)
@@ -121,12 +121,12 @@ class Hal(ABC):
         """
         failures = self._safe_state_failures()
         if failures:
-            code = "hal.safe_state_incomplete"
+            code = ErrorCode.HAL_SAFE_STATE_INCOMPLETE
             raise _incomplete(code, {"pins": _pins(failures)}, list(failures.values()))
 
     def ensure_open(self) -> None:
         if self._closed:
-            raise PrimumError("hal.closed")
+            raise PrimumError(ErrorCode.HAL_CLOSED)
 
     def close(self) -> None:
         """Apply the safe state, then release every line; the HAL is closed afterwards.
@@ -161,9 +161,11 @@ class Hal(ABC):
             params = {"pins": _pins(safe_failures)}
             if release_failures:
                 params["release_pins"] = _pins(release_failures)
-            raise _incomplete("hal.safe_state_incomplete", params, errors)
+            raise _incomplete(ErrorCode.HAL_SAFE_STATE_INCOMPLETE, params, errors)
         if release_failures:
-            raise _incomplete("hal.release_incomplete", {"pins": _pins(release_failures)}, errors)
+            raise _incomplete(
+                ErrorCode.HAL_RELEASE_INCOMPLETE, {"pins": _pins(release_failures)}, errors
+            )
 
     def _safe_state_failures(self) -> dict[int, Exception]:
         """Try to put every output in its safe state; return the failures by pin."""

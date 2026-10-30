@@ -19,6 +19,10 @@ sync:
 test *args:
     uv run pytest {{args}}
 
+# Tests of the page's JavaScript (Node's built-in runner; needs Node 22 or later)
+test-js:
+    node --test "packages/runtime/tests/js/*.test.mjs"
+
 # Run only the tests that need a real board (on the Pi, with PRIMUM_HW_TEST_PIN set); none collected is not a failure
 test-hw *args:
     uv run pytest -m hw {{args}} || test $? -eq 5
@@ -49,13 +53,15 @@ typecheck:
 arch:
     uv run lint-imports
 
-# Regenerate generated files (design tokens CSS)
+# Regenerate generated files: design tokens CSS, then the page's copies of i18n and design assets
 gen:
     uv run python tools/gen_tokens.py
+    uv run python tools/gen_ui_assets.py
 
 # Fail if a generated file is out of date
 gen-check:
     uv run python tools/gen_tokens.py --check
+    uv run python tools/gen_ui_assets.py --check
 
 # Repository hygiene hooks (whitespace, YAML/TOML/JSON, large files) on every file. Ruff is
 # skipped here because `lint` checks it without writing. The whitespace hooks still fix files
@@ -64,4 +70,4 @@ hooks:
     SKIP=ruff-check,ruff-format uv run pre-commit run --all-files
 
 # Everything CI runs: hygiene, lint, types, architecture, generated files and tests
-check: hooks lint typecheck arch gen-check test
+check: hooks lint typecheck arch gen-check test test-js

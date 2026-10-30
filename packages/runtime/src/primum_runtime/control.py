@@ -10,7 +10,7 @@ Listeners are told the new ``State`` after every change; they must not block.
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
-from primum_runtime.errors import PrimumError
+from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.hal import DigitalOutput, Hal, OutputSpec
 
 type Listener = Callable[[State], None]
@@ -53,9 +53,9 @@ class Controller:
         """
         output = self._outputs.get(name)
         if output is None:
-            raise PrimumError("output.unknown", {"name": name})
+            raise PrimumError(ErrorCode.OUTPUT_UNKNOWN, {"name": name})
         if self._panic:
-            raise PrimumError("panic.active")
+            raise PrimumError(ErrorCode.PANIC_ACTIVE)
         output.set(on)
         self._notify()
 

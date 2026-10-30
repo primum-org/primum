@@ -23,8 +23,10 @@ arbiter of phase 4 exists, and how stopping the service reaches the HAL.
   refuses commands with `panic.active` until it is released. It is latched before the safe
   state is tried, so it holds even if an output fails. Releasing it leaves outputs off.
 - **Errors** are `{"code", "params"}` (decision 0009) with the HTTP status chosen by code:
-  `output.unknown` 404, `panic.active` 409, `request.invalid` 422 (field paths in `fields`,
-  pydantic's text in `detail`), `hal.closed` 503, anything else 500. Bodies are strict: `"yes"`
+  `output.unknown` 404, `panic.active` 409, `request.invalid` 422 (field paths in `fields`, and
+  in `detail` each field's problem, never pydantic's full text, which names source files),
+  `request.not_found` 404 and `request.method_not_allowed` 405 (FastAPI's own, with `path`;
+  added in 1.3), `hal.closed` 503, anything else 500. Bodies are strict: `"yes"`
   or `1` are not booleans, and unknown fields are refused.
 - **The HAL lives in the app's lifespan.** uvicorn turns `SIGINT` and `SIGTERM` into a
   shutdown, which closes the HAL and applies the safe state, then re-raises the signal so the
@@ -47,6 +49,7 @@ arbiter of phase 4 exists, and how stopping the service reaches the HAL.
   command the outputs, so the default address is loopback; block 1.4 opens it to the local
   network for the phone, with LEDs only.
 - Block 1.3's catalogs need entries for `output.unknown`, `panic.active` and `request.invalid`.
+- The page of block 1.3 is served by the same app at `/`, after the API's routes.
 - There is no data directory yet: nothing is written. It arrives with the first file the
   runtime writes, configurable and `/data` by default.
 - One event loop thread runs every handler (all `async`), so the controller needs no locks.

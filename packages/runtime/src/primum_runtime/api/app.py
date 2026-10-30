@@ -7,8 +7,10 @@ from systemd, both handled by uvicorn) the HAL is closed, which applies the safe
 import logging
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from primum_runtime import __version__
 from primum_runtime.api.broadcast import StateBroadcaster
@@ -19,6 +21,9 @@ from primum_runtime.control import Controller
 from primum_runtime.hal import Hal, create_hal
 
 log = logging.getLogger(__name__)
+
+# The page and its generated assets (i18n catalogs, tokens, icons), served at "/".
+UI_DIR = Path(__file__).resolve().parent.parent / "ui"
 
 type HalFactory = Callable[[], Hal]
 
@@ -53,6 +58,8 @@ def create_app(config: RuntimeConfig, open_hal: HalFactory | None = None) -> Fas
     app = FastAPI(title="Primum runtime", version=__version__, lifespan=lifespan)
     app.state.stopped_safely = False
     app.include_router(router)
+    # Mounted last: the API's routes are matched first.
+    app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")
     install_error_handlers(app)
     return app
 

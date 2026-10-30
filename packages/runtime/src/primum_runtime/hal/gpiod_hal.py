@@ -8,7 +8,7 @@ installed (macOS, Windows, CI jobs without it).
 import gpiod
 from gpiod.line import Direction, Value
 
-from primum_runtime.errors import ErrorParam, PrimumError
+from primum_runtime.errors import ErrorCode, ErrorParam, PrimumError
 from primum_runtime.hal.base import Hal, OutputSpec
 
 DEFAULT_CHIP = "/dev/gpiochip0"
@@ -70,7 +70,7 @@ class GpiodHal(Hal):
             # Another process may take the line after the check; gpiod raises ValueError(EINVAL)
             # for some lines the kernel owns, so the exception type says nothing more.
             raise PrimumError(
-                "hal.pin_unavailable",
+                ErrorCode.HAL_PIN_UNAVAILABLE,
                 {"pin": spec.pin, "chip": self._path, "detail": _detail(error)},
             ) from error
         return GpiodLine(request, spec.pin)
@@ -78,7 +78,8 @@ class GpiodHal(Hal):
     def _check_line(self, pin: int) -> None:
         if pin >= self._num_lines:
             raise PrimumError(
-                "hal.pin_invalid", {"pin": pin, "chip": self._path, "lines": self._num_lines}
+                ErrorCode.HAL_PIN_INVALID,
+                {"pin": pin, "chip": self._path, "lines": self._num_lines},
             )
         info = self._chip.get_line_info(pin)
         if not info.used:
@@ -88,7 +89,7 @@ class GpiodHal(Hal):
         # for them, but an unlabelled userspace request looks the same, so nothing is guessed.
         if info.consumer:
             params["consumer"] = info.consumer
-        raise PrimumError("hal.pin_unavailable", params)
+        raise PrimumError(ErrorCode.HAL_PIN_UNAVAILABLE, params)
 
 
 def _open_chip(path: str) -> tuple[gpiod.Chip, int]:
@@ -107,9 +108,9 @@ def _open_chip(path: str) -> tuple[gpiod.Chip, int]:
 def _chip_error(path: str, error: OSError) -> PrimumError:
     """No permission is its own code: the fix (joining group ``gpio``) differs."""
     if isinstance(error, PermissionError):
-        code = "hal.chip_access_denied"
+        code = ErrorCode.HAL_CHIP_ACCESS_DENIED
     else:
-        code = "hal.chip_unavailable"
+        code = ErrorCode.HAL_CHIP_UNAVAILABLE
     return PrimumError(code, {"chip": path, "detail": _detail(error)})
 
 

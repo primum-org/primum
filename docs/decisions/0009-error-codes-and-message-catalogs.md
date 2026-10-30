@@ -35,3 +35,7 @@ also tie it to one language and make the MCP server and the UI disagree.
 - `core` stays language-independent and testable by comparing codes and params.
 - Adding an error means adding its code, its catalog entries in both languages and a test.
 - Schema validation errors (decision 0008) are mapped to codes as well.
+- In the runtime, every code is a member of `primum_runtime.errors.ErrorCode` (a `StrEnum`), and
+  `PrimumError` only takes those: the type checker rejects an undeclared code, and the catalog
+  test compares the enum with the catalogs in both directions (block 1.3). `core` gets its own
+  enum in phase 2, checked by the same test.
