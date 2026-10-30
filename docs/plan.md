@@ -6,7 +6,7 @@ when a phase starts or finishes.
 | Phase | Goal | Status |
 |---|---|---|
 | 0 | Repository skeleton: structure, docs, rules, tooling, CI | In progress (dev Pi pending) |
-| 1 | End-to-end skeleton: toggle an LED from a phone | In progress (1.1 done) |
+| 1 | End-to-end skeleton: toggle an LED from a phone | In progress (1.1 and 1.2 done) |
 | 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Not started |
 | 3 | HAL, basic drivers and safety | Not started |
 | 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Not started |
@@ -50,20 +50,23 @@ development Pi. One pull request per block.
 - A `hw` test for the real HAL, run on the Pi with `just test-hw`: it checks what the kernel
   reports for the line, not the LED itself. It needs `PRIMUM_HW_TEST_PIN` (a pin with nothing
   wired, or only an LED) and fails without it; from phase 2 the pin comes from the board profile.
-- `GpiodHal` is also tested without a Pi (in CI), with a fake `gpiod.request_lines`: requested
+- `GpiodHal` is also tested without a Pi (in CI), with a fake `gpiod.Chip`: requested
   configuration, values written, release on close, error mapping and `create_hal`.
 
-**1.2 · Service, API and WebSocket** · *no Pi*
+**1.2 · Service, API and WebSocket** · *no Pi* · **done** (decision 0011)
 - FastAPI + uvicorn (pydantic at this edge only, decision 0008): `GET /api/status`,
-  `PUT /api/outputs/{name}` (`{"on": true}`), `POST /api/panic`, WebSocket `/api/ws` pushing
-  every state change.
-- Configuration by CLI or environment: `--simulate`, pin, `active_low`, port (8080), data
-  directory (default `/data`). The HAL lives in the app's lifespan, so stopping the service
-  applies the safe state. Today `SIGTERM` leaves the line on (measured on the Pi, decision
-  0010), so the test starts the simulated service as a real process, sends it `SIGTERM` and
-  checks that every output ends in its safe state (the state is reported by the process before
-  it exits); a second test ends the lifespan with the test client.
-- API errors carry codes (decision 0009), for example `output.unknown`.
+  `PUT /api/outputs/{name}` (`{"on": true}`), `POST /api/panic` and `DELETE /api/panic`
+  (panic is latched until released), WebSocket `/api/ws` sending the full state on connect and
+  after every change.
+- Layers `cli` → `api` → `config` → `control` → `hal` → `errors`, enforced by import contracts;
+  web frameworks only in `api` and `cli`.
+- Configuration by CLI or `PRIMUM_*` variables: `--simulate`, `--chip`, `--pin` (required, no
+  default), `--active-low`, `--host` (`127.0.0.1`), `--port` (8080). The data directory waits
+  for the first file the runtime writes.
+- The HAL lives in the app's lifespan. A test starts the simulated service as a real process,
+  turns the LED on, sends `SIGTERM` and checks the log line written after the HAL closed with
+  every output off; another ends the lifespan with the test client.
+- API errors carry codes (decision 0009): `output.unknown`, `panic.active`, `request.invalid`.
 - `uv run just dev`: the simulated service on the laptop. Tests with the test client.
 
 **Done when:** `uv run just dev` and `curl` or a browser toggle the simulated LED, and the
@@ -75,7 +78,8 @@ WebSocket reports every change.
   `hal.pin_invalid`, `hal.pin_unavailable`, `hal.chip_unavailable`, `hal.chip_access_denied`,
   `hal.unsupported_platform`, `hal.closed`, `hal.safe_state_incomplete`,
   `hal.release_incomplete`; the hint of `hal.chip_access_denied` says to add the user to group
-  `gpio`); consistency test (same keys and placeholders in both
+  `gpio`) and the three from 1.2 (`output.unknown`, `panic.active`, `request.invalid`);
+  consistency test (same keys and placeholders in both
   catalogs, every code raised has an entry). Parameters named `detail` carry technical text
   from the system (for example `strerror`): the UI shows them apart, as a technical detail, never
   as the message. Tuple params (lists of pins) are formatted for the user's language.

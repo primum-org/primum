@@ -23,6 +23,10 @@ test *args:
 test-hw *args:
     uv run pytest -m hw {{args}} || test $? -eq 5
 
+# The service with the simulated HAL, at http://127.0.0.1:8080 (pass more options after the task name)
+dev *args:
+    uv run primum-runtime --simulate --pin 17 {{args}}
+
 # Re-run the tests every time a file is saved
 watch:
     uv run ptw . --now
