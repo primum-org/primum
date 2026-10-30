@@ -19,7 +19,7 @@ sync:
 test *args:
     uv run pytest {{args}}
 
-# Run only the tests that need a real board (on the Pi); none collected yet is not a failure
+# Run only the tests that need a real board (on the Pi, with PRIMUM_HW_TEST_PIN set); none collected is not a failure
 test-hw *args:
     uv run pytest -m hw {{args}} || test $? -eq 5
 

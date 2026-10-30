@@ -11,8 +11,10 @@ also tie it to one language and make the MCP server and the UI disagree.
 ## Decision
 - An error returned by `core` carries **no text**, only:
   - `code`: stable, dotted, `<area>.<reason>` (for example `pin.in_use`);
-  - `params`: simple values (strings, numbers, booleans, ids) used by the message
-    (for example `{"pin": 18, "element": "LED strip", "suggestion": 23}`);
+  - `params`: simple values (strings, numbers, booleans, ids), or tuples of them for lists,
+    used by the message (for example `{"pin": 18, "element": "LED strip", "pins": (17, 27)}`).
+    Lists are never pre-joined into text: the UI formats them for the user's language
+    ("17 and 27", "17 y 27");
   - `location`: the file id and a JSON Pointer inside it, when it applies.
 - All user-visible text lives in **message catalogs** in `i18n/`: `en.json` (default) and
   `es.json`. Error entries are keyed by code and hold a `message` and a `hint`, with `{param}`
