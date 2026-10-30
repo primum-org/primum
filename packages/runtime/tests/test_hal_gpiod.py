@@ -107,6 +107,23 @@ def test_unavailable_line_raises_pin_unavailable_with_detail(
     assert isinstance(raised.value.__cause__, OSError)
 
 
+def test_offset_the_chip_does_not_have_raises_pin_invalid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # What gpiod raises on a Pi 4 for OutputSpec(pin=99) on gpiochip0.
+    def out_of_range(*_args: object, **_kwargs: object) -> None:
+        raise ValueError("line offset of out range")
+
+    monkeypatch.setattr(gpiod, "request_lines", out_of_range)
+
+    with GpiodHal(CHIP) as hal, pytest.raises(PrimumError) as raised:
+        hal.digital_output(OutputSpec(pin=99))
+
+    assert raised.value.code == "hal.pin_invalid"
+    assert raised.value.params == {"pin": 99, "chip": CHIP, "detail": "line offset of out range"}
+    assert isinstance(raised.value.__cause__, ValueError)
+
+
 def test_create_hal_returns_the_gpio_hal_for_the_chip(requests: list[FakeRequest]) -> None:
     with create_hal(simulate=False, chip=CHIP) as hal:
         assert isinstance(hal, GpiodHal)

@@ -44,7 +44,7 @@ development Pi. One pull request per block.
 - `DigitalOutput.read()` reads the hardware; `is_on` is the last state commanded.
 - `gpiod` is a Linux-only dependency, imported lazily and only by `hal/gpiod_hal.py` (an
   import contract enforces it); its own type hints pass pyright strict (decision 0010).
-- Errors with codes: `hal.pin_in_use`, `hal.pin_unavailable`, `hal.closed`,
+- Errors with codes: `hal.pin_in_use`, `hal.pin_invalid`, `hal.pin_unavailable`, `hal.closed`,
   `hal.safe_state_incomplete`, `hal.release_incomplete` (catalog entries in 1.3). Lists of pins
   are tuples, never pre-joined text.
 - A `hw` test for the real HAL, run on the Pi with `just test-hw`: it checks what the kernel
@@ -68,8 +68,9 @@ WebSocket reports every change.
 
 **1.3 · Minimal page and i18n** · *no Pi*
 - `i18n/en.json` and `es.json` created now (from phase 2): `ui.*` keys for the page and
-  `errors.*` for every code so far, including the five from 1.1 (`hal.pin_in_use`,
-  `hal.pin_unavailable`, `hal.closed`, `hal.safe_state_incomplete`, `hal.release_incomplete`); consistency test (same keys and placeholders in both
+  `errors.*` for every code so far, including the six from 1.1 (`hal.pin_in_use`,
+  `hal.pin_invalid`, `hal.pin_unavailable`, `hal.closed`, `hal.safe_state_incomplete`,
+  `hal.release_incomplete`); consistency test (same keys and placeholders in both
   catalogs, every code raised has an entry). Parameters named `detail` carry technical text
   from the system (for example `strerror`): the UI shows them apart, as a technical detail, never
   as the message. Tuple params (lists of pins) are formatted for the user's language.

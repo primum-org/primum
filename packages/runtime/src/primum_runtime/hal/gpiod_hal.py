@@ -49,6 +49,11 @@ class GpiodHal(Hal):
             request = gpiod.request_lines(
                 self._chip, consumer=CONSUMER, config={spec.pin: settings}
             )
+        except ValueError as error:
+            # gpiod rejects offsets the chip does not have ("line offset out of range").
+            raise PrimumError(
+                "hal.pin_invalid", {"pin": spec.pin, "chip": self._chip, "detail": str(error)}
+            ) from error
         except OSError as error:
             raise PrimumError(
                 "hal.pin_unavailable",
