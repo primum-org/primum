@@ -6,7 +6,8 @@
 ## Context
 The runtime rules say hardware is reached only through the HAL, with a simulated
 implementation, but the plan put the HAL in phase 3 while phase 1 already drives a GPIO line.
-`gpiod` (libgpiod v2 bindings) compiles a C extension, does not exist on macOS or Windows, and
+`gpiod` (libgpiod v2 bindings) is a C extension (a wheel where one exists, built from source
+elsewhere), does not exist on macOS or Windows, and
 had to pass pyright in strict mode.
 
 ## Decision
@@ -21,11 +22,21 @@ had to pass pyright in strict mode.
   own type hints (`py.typed`) pass pyright strict, so no local stubs are needed.
 - `gpiod` is imported only by `primum_runtime/hal/gpiod_hal.py`, and that module is imported
   lazily by `create_hal`. An import-linter contract forbids `gpiod` anywhere else in the runtime.
-- HAL failures are `PrimumError`s with codes (`hal.pin_in_use`, `hal.pin_unavailable`,
-  `hal.closed`, `hal.safe_state_incomplete`, `hal.release_incomplete`; `hal.pin_invalid` for a
-  negative pin, checked by `OutputSpec`, or an offset the chip does not have, which gpiod
-  reports as `ValueError`; `hal.chip_unavailable` when the chip is not a GPIO chip device,
-  checked when `GpiodHal` is created), per decision 0009.
+- `GpiodHal` opens the chip when it is created and checks each pin before requesting it:
+  against the chip's number of lines, and whether another consumer already holds the line.
+  gpiod uses `ValueError` both for an offset out of range and for some lines the kernel owns
+  (`ValueError(22, 'Invalid argument')` for GPIO 2 with I2C on), so errors are not told apart
+  by exception type: after the checks, anything `request_lines` raises means unavailable.
+- HAL failures are `PrimumError`s with codes, per decision 0009:
+  - `hal.pin_invalid`: a negative pin (`OutputSpec`) or one the chip does not have (`lines`);
+  - `hal.pin_in_use`: already claimed through this HAL;
+  - `hal.pin_unavailable`: held by another consumer (`consumer`) or refused by the kernel
+    (`detail`);
+  - `hal.chip_unavailable` and `hal.chip_access_denied` (fix: the user joins group `gpio`),
+    when `GpiodHal` is created;
+  - `hal.unsupported_platform`: the GPIO HAL asked for where `gpiod` is not installed;
+  - `hal.closed`, `hal.safe_state_incomplete`, `hal.release_incomplete`.
+
   No raw exception from gpiod leaves the HAL.
   System text such as `strerror` goes in a `detail` parameter, shown as a technical detail.
 
@@ -37,11 +48,15 @@ had to pass pyright in strict mode.
 
 ## Consequences
 - The simulated runtime works on any OS; real-hardware tests are marked `hw` and run on the Pi.
-- Linux CI builds `gpiod` and type-checks the real HAL against its real types.
+- Linux CI installs the `gpiod` wheel and type-checks the real HAL against its real types.
 - On the Pi, `gpiod` must install from a wheel or build from source with its bundled libgpiod
   (checked first thing in block 1.4).
-- What happens to a released line depends on the kernel and the board. On the development
-  Pi 4 (checked on 2026-10-30), a released line stays an output with no consumer and keeps
+- The kernel only knows lines requested through the character device. Software that writes
+  `/dev/gpiomem` directly (RPi.GPIO, pigpio) drives lines the kernel reports as free, so
+  `hal.pin_in_use` and `hal.pin_unavailable` cannot see it. Primum never shares a Pi with
+  other GPIO software; provisioning (block 1.4) refuses to run where it finds some.
+- What happens to a released line depends on the kernel and the board. On a Pi 4 (checked on
+  2026-10-30, the belén's Pi, not a Primum development Pi), a released line stays an output with no consumer and keeps
   its last value, so after `close()` it stays driven low; it does not float. That is not a
   guarantee across kernels or boards, so phase 1 drives LEDs only, never relays: relays wait
   for safe boot levels in `config.txt` (phase 6) and the watchdog (phase 3).
@@ -49,8 +64,8 @@ had to pass pyright in strict mode.
   collected), and lines may stay active. Acceptable with LEDs only; the watchdog of phase 3
   covers crashes.
 - Known limit: the safe state on stop needs the process to close the HAL. Measured on the
-  development Pi 4 (2026-10-30) with an LED on: after `SIGINT` the line is low; after `SIGTERM`
-  and `SIGKILL` it stays high, because Python dies without running `__exit__`. Phase 1.2 fixes
+  same Pi 4 (2026-10-30) on GPIO 17, with nothing wired to it, by reading the line after
+  driving it active: after `SIGINT` it is low; after `SIGTERM` and `SIGKILL` it stays high, because Python dies without running `__exit__`. Phase 1.2 fixes
   `SIGTERM` (uvicorn runs the lifespan shutdown) and tests it by killing a real process;
   `SIGKILL` cannot be handled, so it is left to the watchdog (phase 3) and safe boot levels
   (phase 6).

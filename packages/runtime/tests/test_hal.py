@@ -116,6 +116,20 @@ def test_create_hal_returns_the_simulated_hal_when_simulating() -> None:
     assert isinstance(create_hal(simulate=True), SimulatedHal)
 
 
+def test_create_hal_without_gpiod_raises_unsupported_platform(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # As on macOS or Windows, where gpiod is not installed.
+    monkeypatch.setitem(sys.modules, "gpiod", None)
+    monkeypatch.delitem(sys.modules, "primum_runtime.hal.gpiod_hal", raising=False)
+
+    with pytest.raises(PrimumError) as raised:
+        create_hal(simulate=False)
+
+    assert raised.value.code == "hal.unsupported_platform"
+    assert raised.value.params == {"platform": sys.platform}
+
+
 def test_simulated_hal_does_not_import_gpiod() -> None:
     # A fresh interpreter: other tests may have imported gpiod in this one.
     code = "import sys; from primum_runtime.hal import create_hal; create_hal(simulate=True); "

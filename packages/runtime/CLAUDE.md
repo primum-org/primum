@@ -6,6 +6,8 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   `create_hal(simulate=...)` and keep it in a `with` block. Every HAL has a simulated
   implementation, and tests use it; tests that need a real board are marked `@pytest.mark.hw`.
 - `gpiod` is imported only by `hal/gpiod_hal.py` (`just arch` enforces it).
+- Never run `hw` tests or drive lines on a Pi that runs other GPIO software, such as the belén's
+  Pi (`rpi4b`): the kernel does not see lines driven through `/dev/gpiomem` (decision 0010).
 - Errors are `PrimumError(code, params)` (decision 0009), never text. System text (for example
   `strerror`) goes in a `detail` param.
 - Safety first: every output has a safe state applied on start, stop, crash and panic.

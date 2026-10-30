@@ -1,7 +1,8 @@
-"""GpiodHal without a Pi: `gpiod.request_lines` is replaced by a fake that records the calls.
+"""GpiodHal without a Pi: `gpiod.Chip` is replaced by a fake that records the calls.
 
 The real kernel interaction is covered by the `hw` test on the Pi; these tests cover our side:
-the requested configuration, the values written, the release and the error mapping.
+the checks before a line is requested, the requested configuration, the values written, the
+release and the error mapping.
 """
 
 import errno
@@ -13,19 +14,19 @@ from primum_runtime.errors import PrimumError
 from primum_runtime.hal import OutputSpec, create_hal
 
 gpiod = pytest.importorskip("gpiod", reason="gpiod is only installed on Linux")
-from gpiod import LineSettings  # noqa: E402 (after the importorskip above)
+from gpiod import ChipInfo, LineSettings  # noqa: E402 (after the importorskip above)
 from gpiod.line import Direction, Value  # noqa: E402
 
 from primum_runtime.hal.gpiod_hal import GpiodHal  # noqa: E402 (needs gpiod)
 
 CHIP = "/dev/gpiochip7"
+NUM_LINES = 58  # as /dev/gpiochip0 on a Raspberry Pi 4
 
 
 @dataclass
 class FakeRequest:
     """Stands in for `gpiod.LineRequest`: records what the HAL asks of the line."""
 
-    path: str
     consumer: str | None
     config: dict[int, LineSettings]
     writes: list[tuple[int, Value]] = field(default_factory=list[tuple[int, Value]])
@@ -42,44 +43,70 @@ class FakeRequest:
         self.released = True
 
 
-@pytest.fixture(autouse=True)
-def chip_exists(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Only CHIP is a GPIO chip device here; CI machines have none.
-    def is_gpiochip_device(path: str) -> bool:
-        return path == CHIP
+@dataclass(frozen=True)
+class FakeLineInfo:
+    """The two fields of `gpiod.LineInfo` the HAL reads."""
 
-    monkeypatch.setattr(gpiod, "is_gpiochip_device", is_gpiochip_device)
+    used: bool
+    consumer: str
+
+
+@dataclass
+class FakeChip:
+    """Stands in for `gpiod.Chip`: lines in `owners` are used by another consumer."""
+
+    path: str
+    owners: dict[int, str] = field(default_factory=dict[int, str])
+    request_error: Exception | None = None
+    requests: list[FakeRequest] = field(default_factory=list[FakeRequest])
+    closed: bool = False
+
+    def get_info(self) -> ChipInfo:
+        return ChipInfo(name="gpiochip7", label="fake", num_lines=NUM_LINES)
+
+    def get_line_info(self, line: int) -> "FakeLineInfo":
+        consumer = self.owners.get(line)
+        return FakeLineInfo(used=consumer is not None, consumer=consumer or "")
+
+    def request_lines(
+        self, config: dict[int, LineSettings], consumer: str | None = None
+    ) -> FakeRequest:
+        if self.request_error is not None:
+            raise self.request_error
+        request = FakeRequest(consumer, config)
+        self.requests.append(request)
+        return request
+
+    def close(self) -> None:
+        self.closed = True
 
 
 @pytest.fixture
-def requests(monkeypatch: pytest.MonkeyPatch) -> list[FakeRequest]:
-    made: list[FakeRequest] = []
+def chip(monkeypatch: pytest.MonkeyPatch) -> FakeChip:
+    fake = FakeChip(CHIP)
 
-    def request_lines(
-        path: str, config: dict[int, LineSettings], consumer: str | None = None
-    ) -> FakeRequest:
-        request = FakeRequest(path, consumer, config)
-        made.append(request)
-        return request
+    def open_chip(path: str) -> FakeChip:
+        if path != CHIP:
+            raise FileNotFoundError(errno.ENOENT, "No such file or directory")
+        return fake
 
-    monkeypatch.setattr(gpiod, "request_lines", request_lines)
-    return made
+    monkeypatch.setattr(gpiod, "Chip", open_chip)
+    return fake
 
 
-def test_output_requests_one_inactive_output_line(requests: list[FakeRequest]) -> None:
+def test_output_requests_one_inactive_output_line(chip: FakeChip) -> None:
     with GpiodHal(CHIP) as hal:
         hal.digital_output(OutputSpec(pin=17, active_low=True))
 
-        (request,) = requests
+        (request,) = chip.requests
         settings = request.config[17]
-        assert request.path == CHIP
         assert request.consumer == "primum"
         assert settings.direction == Direction.OUTPUT
         assert settings.output_value == Value.INACTIVE
         assert settings.active_low
 
 
-def test_set_writes_active_and_inactive_values(requests: list[FakeRequest]) -> None:
+def test_set_writes_active_and_inactive_values(chip: FakeChip) -> None:
     with GpiodHal(CHIP) as hal:
         output = hal.digital_output(OutputSpec(pin=17))
 
@@ -87,26 +114,58 @@ def test_set_writes_active_and_inactive_values(requests: list[FakeRequest]) -> N
         assert output.read()
         output.set(False)
 
-        assert requests[0].writes == [(17, Value.ACTIVE), (17, Value.INACTIVE)]
+        assert chip.requests[0].writes == [(17, Value.ACTIVE), (17, Value.INACTIVE)]
 
 
-def test_close_writes_the_safe_state_and_releases_the_line(requests: list[FakeRequest]) -> None:
+def test_close_writes_the_safe_state_releases_the_line_and_closes_the_chip(
+    chip: FakeChip,
+) -> None:
     hal = GpiodHal(CHIP)
     hal.digital_output(OutputSpec(pin=17)).set(True)
 
     hal.close()
 
-    assert requests[0].writes[-1] == (17, Value.INACTIVE)
-    assert requests[0].released
+    assert chip.requests[0].writes[-1] == (17, Value.INACTIVE)
+    assert chip.requests[0].released
+    assert chip.closed
 
 
-def test_unavailable_line_raises_pin_unavailable_with_detail(
-    monkeypatch: pytest.MonkeyPatch,
+def test_offset_the_chip_does_not_have_raises_pin_invalid(chip: FakeChip) -> None:
+    with GpiodHal(CHIP) as hal, pytest.raises(PrimumError) as raised:
+        hal.digital_output(OutputSpec(pin=NUM_LINES))
+
+    assert raised.value.code == "hal.pin_invalid"
+    assert raised.value.params == {"pin": NUM_LINES, "chip": CHIP, "lines": NUM_LINES}
+    assert chip.requests == []
+
+
+def test_line_used_by_another_consumer_raises_pin_unavailable_without_requesting_it(
+    chip: FakeChip,
 ) -> None:
-    def busy(*_args: object, **_kwargs: object) -> None:
-        raise OSError(errno.EBUSY, "Device or resource busy")
+    chip.owners[2] = "kernel"  # GPIO 2 is I2C SDA on a Pi 4 with I2C enabled
 
-    monkeypatch.setattr(gpiod, "request_lines", busy)
+    with GpiodHal(CHIP) as hal, pytest.raises(PrimumError) as raised:
+        hal.digital_output(OutputSpec(pin=2))
+
+    assert raised.value.code == "hal.pin_unavailable"
+    assert raised.value.params == {"pin": 2, "chip": CHIP, "consumer": "kernel"}
+    assert chip.requests == []
+
+
+def test_einval_from_the_request_raises_pin_unavailable(chip: FakeChip) -> None:
+    # What gpiod raises on a Pi 4 for GPIO 2 owned by the kernel, if the check missed it.
+    chip.request_error = ValueError(errno.EINVAL, "Invalid argument")
+
+    with GpiodHal(CHIP) as hal, pytest.raises(PrimumError) as raised:
+        hal.digital_output(OutputSpec(pin=2))
+
+    assert raised.value.code == "hal.pin_unavailable"
+    assert raised.value.params["pin"] == 2
+    assert isinstance(raised.value.__cause__, ValueError)
+
+
+def test_busy_line_raises_pin_unavailable_with_the_system_text(chip: FakeChip) -> None:
+    chip.request_error = OSError(errno.EBUSY, "Device or resource busy")
 
     with GpiodHal(CHIP) as hal, pytest.raises(PrimumError) as raised:
         hal.digital_output(OutputSpec(pin=17))
@@ -116,34 +175,36 @@ def test_unavailable_line_raises_pin_unavailable_with_detail(
     assert isinstance(raised.value.__cause__, OSError)
 
 
-def test_offset_the_chip_does_not_have_raises_pin_invalid(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    # What gpiod raises on a Pi 4 for OutputSpec(pin=99) on gpiochip0.
-    def out_of_range(*_args: object, **_kwargs: object) -> None:
-        raise ValueError("line offset of out range")
-
-    monkeypatch.setattr(gpiod, "request_lines", out_of_range)
-
-    with GpiodHal(CHIP) as hal, pytest.raises(PrimumError) as raised:
-        hal.digital_output(OutputSpec(pin=99))
-
-    assert raised.value.code == "hal.pin_invalid"
-    assert raised.value.params == {"pin": 99, "chip": CHIP, "detail": "line offset of out range"}
-    assert isinstance(raised.value.__cause__, ValueError)
-
-
+@pytest.mark.usefixtures("chip")
 def test_missing_chip_raises_chip_unavailable_when_the_hal_is_created() -> None:
     with pytest.raises(PrimumError) as raised:
         GpiodHal("/dev/gpiochip-missing")
 
     assert raised.value.code == "hal.chip_unavailable"
-    assert raised.value.params == {"chip": "/dev/gpiochip-missing"}
+    assert raised.value.params == {
+        "chip": "/dev/gpiochip-missing",
+        "detail": "No such file or directory",
+    }
 
 
-def test_create_hal_returns_the_gpio_hal_for_the_chip(requests: list[FakeRequest]) -> None:
+def test_chip_without_permission_raises_chip_access_denied(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def denied(_path: str) -> FakeChip:
+        raise PermissionError(errno.EACCES, "Permission denied")
+
+    monkeypatch.setattr(gpiod, "Chip", denied)
+
+    with pytest.raises(PrimumError) as raised:
+        GpiodHal(CHIP)
+
+    assert raised.value.code == "hal.chip_access_denied"
+    assert raised.value.params == {"chip": CHIP, "detail": "Permission denied"}
+
+
+def test_create_hal_returns_the_gpio_hal_for_the_chip(chip: FakeChip) -> None:
     with create_hal(simulate=False, chip=CHIP) as hal:
         assert isinstance(hal, GpiodHal)
         hal.digital_output(OutputSpec(pin=17))
 
-    assert requests[0].path == CHIP
+    assert chip.requests

@@ -45,10 +45,11 @@ development Pi. One pull request per block.
 - `gpiod` is a Linux-only dependency, imported lazily and only by `hal/gpiod_hal.py` (an
   import contract enforces it); its own type hints pass pyright strict (decision 0010).
 - Errors with codes: `hal.pin_in_use`, `hal.pin_invalid`, `hal.pin_unavailable`,
-  `hal.chip_unavailable`, `hal.closed`, `hal.safe_state_incomplete`, `hal.release_incomplete`
-  (catalog entries in 1.3). Lists of pins are tuples, never pre-joined text.
+  `hal.chip_unavailable`, `hal.chip_access_denied`, `hal.unsupported_platform`, `hal.closed`,
+  `hal.safe_state_incomplete`, `hal.release_incomplete` (catalog entries in 1.3). Lists of pins are tuples, never pre-joined text.
 - A `hw` test for the real HAL, run on the Pi with `just test-hw`: it checks what the kernel
-  reports for the line, not the LED itself.
+  reports for the line, not the LED itself. It needs `PRIMUM_HW_TEST_PIN` (a pin with nothing
+  wired, or only an LED) and fails without it; from phase 2 the pin comes from the board profile.
 - `GpiodHal` is also tested without a Pi (in CI), with a fake `gpiod.request_lines`: requested
   configuration, values written, release on close, error mapping and `create_hal`.
 
@@ -70,9 +71,11 @@ WebSocket reports every change.
 
 **1.3 · Minimal page and i18n** · *no Pi*
 - `i18n/en.json` and `es.json` created now (from phase 2): `ui.*` keys for the page and
-  `errors.*` for every code so far, including the seven from 1.1 (`hal.pin_in_use`,
-  `hal.pin_invalid`, `hal.pin_unavailable`, `hal.chip_unavailable`, `hal.closed`,
-  `hal.safe_state_incomplete`, `hal.release_incomplete`); consistency test (same keys and placeholders in both
+  `errors.*` for every code so far, including the nine from 1.1 (`hal.pin_in_use`,
+  `hal.pin_invalid`, `hal.pin_unavailable`, `hal.chip_unavailable`, `hal.chip_access_denied`,
+  `hal.unsupported_platform`, `hal.closed`, `hal.safe_state_incomplete`,
+  `hal.release_incomplete`; the hint of `hal.chip_access_denied` says to add the user to group
+  `gpio`); consistency test (same keys and placeholders in both
   catalogs, every code raised has an entry). Parameters named `detail` carry technical text
   from the system (for example `strerror`): the UI shows them apart, as a technical detail, never
   as the message. Tuple params (lists of pins) are formatted for the user's language.
@@ -86,18 +89,22 @@ in Spanish, and the consistency test exists and passes (every code the runtime r
 entry in both catalogs).
 
 **1.4 · Deployment to the development Pi** · *needs the Pi*
+- The development Pi is a Pi for Primum only. The belén's Pi (`rpi4b`, hostname `belen`) is
+  not one: it runs `belen.service` with RPi.GPIO through `/dev/gpiomem`, and GPIO 17 there is a
+  220 V relay. Provisioning refuses to run where it finds `belen.service` or another GPIO user
+  (decision 0010).
 - First, check that `gpiod` installs on Raspberry Pi OS. The PyPI package builds its own copy
   of libgpiod (the system version does not matter), so without a ready wheel (PyPI or
   piwheels) the Pi needs `gcc` and `python3-dev`; provisioning installs them if so.
 - `image/provision.sh` (idempotent): packages, `uv`, user `primum` in group `gpio`, `/data`,
   systemd unit `primum.service` (restart on failure). Nothing is set up by hand on the Pi.
 - `tools/pi-sync.sh` and `just pi-sync`, `just pi-test`, `just pi-logs`, `just pi-watch`;
-  host from `PRIMUM_PI_HOST` (default `dev-pi`). Claude Code permissions allow
+  host from `PRIMUM_PI_HOST`, with no default until the development Pi exists (then decide it). Claude Code permissions allow
   `uv run just pi-*` only, not raw `ssh`/`rsync`.
 
 - Check by eye that the LED really follows the page (the `hw` test only reads the kernel).
 
-**Done when:** a phone on the same Wi-Fi opens `http://dev-pi.local:8080`, turns the LED on,
+**Done when:** a phone on the same Wi-Fi opens the development Pi on port 8080, turns the LED on,
 and it still works after a reboot.
 
 **1.5 · Image spike** · *needs the Pi, half a day*
