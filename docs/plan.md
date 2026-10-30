@@ -100,6 +100,13 @@ entry in both catalogs).
 - First, check that `gpiod` installs on Raspberry Pi OS. The PyPI package builds its own copy
   of libgpiod (the system version does not matter), so without a ready wheel (PyPI or
   piwheels) the Pi needs `gcc` and `python3-dev`; provisioning installs them if so.
+  `create_hal` maps only a missing `gpiod` to `hal.unsupported_platform`: a broken install
+  (for example a missing `gpiod._ext`) still escapes as a raw `ImportError`. Map it here,
+  where `gpiod` is first installed on a Pi, with a test.
+- `GpiodHal` logs a warning when a pin it requests is free but already an output: on a clean
+  Pi free lines are inputs, so it hints at software driving GPIO through `/dev/gpiomem`
+  (RPi.GPIO left GPIO 17 and 22 like that on the belén's Pi, decision 0010). A warning, not an
+  error: lines Primum released stay outputs too.
 - `image/provision.sh` (idempotent): packages, `uv`, user `primum` in group `gpio`, `/data`,
   systemd unit `primum.service` (restart on failure). Nothing is set up by hand on the Pi.
 - `tools/pi-sync.sh` and `just pi-sync`, `just pi-test`, `just pi-logs`, `just pi-watch`;
