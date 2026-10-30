@@ -37,3 +37,10 @@ had to pass pyright in strict mode.
 - On the Pi, `gpiod` must install from a wheel or build from source with its bundled libgpiod
   (checked first thing in block 1.4).
 - A released line may float, so phase 1 drives LEDs only, never relays.
+- Known limit: a second Ctrl+C while the HAL is closing interrupts it (only `Exception` is
+  collected), and lines may stay active. Acceptable with LEDs only; the watchdog of phase 3
+  covers crashes.
+- `GpiodHal` requests one line per output. When the per-board arbiter arrives (phase 3), one
+  request per chip is likely better.
+- Line offsets equal BCM numbers on a Pi 4 with `/dev/gpiochip0`. On a Pi 5 the chip and the
+  numbering depend on the kernel: they must come from the board profile, not from constants.

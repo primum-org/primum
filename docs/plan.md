@@ -45,8 +45,10 @@ development Pi. One pull request per block.
 - `gpiod` is a Linux-only dependency, imported lazily and only by `hal/gpiod_hal.py` (an
   import contract enforces it); its own type hints pass pyright strict (decision 0010).
 - Errors with codes: `hal.pin_in_use`, `hal.pin_unavailable`, `hal.closed`,
-  `hal.safe_state_incomplete`, `hal.release_incomplete` (catalog entries in 1.3).
-- A `hw` test for the real HAL, run on the Pi with `just test-hw`.
+  `hal.safe_state_incomplete`, `hal.release_incomplete` (catalog entries in 1.3). Lists of pins
+  are tuples, never pre-joined text.
+- A `hw` test for the real HAL, run on the Pi with `just test-hw`: it checks what the kernel
+  reports for the line, not the LED itself.
 
 **1.2 · Service, API and WebSocket** · *no Pi*
 - FastAPI + uvicorn (pydantic at this edge only, decision 0008): `GET /api/status`,
@@ -67,7 +69,7 @@ WebSocket reports every change.
   `errors.*` for every code so far; consistency test (same keys and placeholders in both
   catalogs, every code raised has an entry). Parameters named `detail` carry technical text
   from the system (for example `strerror`): the UI shows them apart, as a technical detail, never
-  as the message.
+  as the message. Tuple params (lists of pins) are formatted for the user's language.
 - A minimal page served by the runtime (HTML and a little JavaScript, no build step; Vue
   arrives in phase 5): `tokens.css`, icons from `design/`, mobile first (≥ 44 px targets),
   panic button, language from the browser, "Offline" when the service is unreachable.
@@ -85,6 +87,8 @@ in Spanish.
 - `tools/pi-sync.sh` and `just pi-sync`, `just pi-test`, `just pi-logs`, `just pi-watch`;
   host from `PRIMUM_PI_HOST` (default `dev-pi`). Claude Code permissions allow
   `uv run just pi-*` only, not raw `ssh`/`rsync`.
+
+- Check by eye that the LED really follows the page (the `hw` test only reads the kernel).
 
 **Done when:** a phone on the same Wi-Fi opens `http://dev-pi.local:8080`, turns the LED on,
 and it still works after a reboot.
@@ -110,7 +114,8 @@ and it still works after a reboot.
    catalogs and to the consistency test started in phase 1.
 3. Workspace loader (receives the files' contents from the caller: `core` reads no files), id references, scopes (folder visibility, export/import, redefinition
    is an error), components with parameters, cycle detection.
-4. `boards/rpi4b.json`: 40 pins, alternate functions, buses, reserved pins.
+4. `boards/rpi4b.json`: 40 pins, alternate functions, buses, reserved pins, and the GPIO chip
+   and line numbering (on a Pi 5 they change with the kernel: never hard-code them).
 5. Resource allocation and pin conflicts, reported as error codes with clear catalog messages.
 6. Detection of sequences that may overlap on the same element.
 7. CLI: `primum validate <project>`.
@@ -119,7 +124,8 @@ and it still works after a reboot.
 
 ## Phase 3 · HAL, basic drivers and safety
 
-1. Extend the HAL started in phase 1: digital inputs, hardware PWM, crash safety.
+1. Extend the HAL started in phase 1: digital inputs, hardware PWM, crash safety; one line
+   request per chip instead of one per output, for the per-board arbiter.
 2. Driver manifest (capabilities, config, platforms, safe state, limits, conflict policy).
 3. Drivers: digital output, digital input (debounce, pull), hardware PWM.
 4. Safe state on start/stop/crash, panic, test mode with expiring commands, systemd watchdog.

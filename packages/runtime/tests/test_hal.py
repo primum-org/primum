@@ -127,15 +127,15 @@ def test_read_reports_the_state_of_the_line() -> None:
 
 
 def test_failed_write_keeps_the_last_commanded_state() -> None:
-    with SimulatedHal() as hal:
-        output = hal.digital_output(LED)
-        hal.lines[17].fail_writes(OSError(5, "I/O error"))
+    # No `with` block: closing a HAL with a faulty line raises, and would hide a failed assert.
+    hal = SimulatedHal()
+    output = hal.digital_output(LED)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
 
-        with pytest.raises(OSError):
-            output.set(True)
+    with pytest.raises(OSError):
+        output.set(True)
 
-        assert not output.is_on
-        hal.lines[17].fail_writes(None)
+    assert not output.is_on
 
 
 def test_apply_safe_state_turns_off_the_other_outputs_when_one_fails() -> None:
@@ -150,7 +150,7 @@ def test_apply_safe_state_turns_off_the_other_outputs_when_one_fails() -> None:
         hal.apply_safe_state()
 
     assert raised.value.code == "hal.safe_state_incomplete"
-    assert raised.value.params == {"pins": "17"}
+    assert raised.value.params == {"pins": (17,)}
     assert isinstance(raised.value.__cause__, ExceptionGroup)
     assert not hal.lines[27].active
 
@@ -182,7 +182,27 @@ def test_close_releases_the_other_lines_when_one_release_fails() -> None:
         hal.close()
 
     assert raised.value.code == "hal.release_incomplete"
-    assert raised.value.params == {"pins": "17"}
+    assert raised.value.params == {"pins": (17,)}
     assert hal.lines[27].released
     with pytest.raises(PrimumError):
         hal.ensure_open()
+
+
+def test_close_reports_safe_state_and_release_failures_together() -> None:
+    hal = SimulatedHal()
+    hal.digital_output(LED).set(True)
+    hal.digital_output(RELAY)
+    write_error = OSError(5, "I/O error")
+    release_error = OSError(16, "Device or resource busy")
+    hal.lines[17].fail_writes(write_error)
+    hal.lines[27].fail_release(release_error)
+
+    with pytest.raises(PrimumError) as raised:
+        hal.close()
+
+    assert raised.value.code == "hal.safe_state_incomplete"
+    assert raised.value.params == {"pins": (17,), "release_pins": (27,)}
+    cause = raised.value.__cause__
+    assert isinstance(cause, ExceptionGroup)
+    # isinstance cannot narrow the group's type parameter, so pyright sees it as unknown.
+    assert cause.exceptions == (write_error, release_error)  # pyright: ignore[reportUnknownMemberType]

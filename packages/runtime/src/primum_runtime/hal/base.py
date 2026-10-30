@@ -73,10 +73,16 @@ class DigitalOutput:
         self.set(False)
 
 
-def _failed(code: str, failures: dict[int, Exception]) -> PrimumError:
-    """One error naming every pin that failed, chained to the original exceptions."""
-    error = PrimumError(code, {"pins": ", ".join(str(pin) for pin in sorted(failures))})
-    error.__cause__ = ExceptionGroup(code, list(failures.values()))
+def _pins(failures: dict[int, Exception]) -> tuple[int, ...]:
+    return tuple(sorted(failures))
+
+
+def _incomplete(
+    code: str, params: dict[str, tuple[int, ...]], errors: list[Exception]
+) -> PrimumError:
+    """One error naming the pins that failed, chained to every original exception."""
+    error = PrimumError(code, params)
+    error.__cause__ = ExceptionGroup(code, errors)
     return error
 
 
@@ -104,14 +110,10 @@ class Hal(ABC):
 
         Raises ``hal.safe_state_incomplete`` (param ``pins``) after trying all of them.
         """
-        failures: dict[int, Exception] = {}
-        for pin, output in self._outputs.items():
-            try:
-                output.to_safe_state()
-            except Exception as error:  # collected and re-raised below, after trying all
-                failures[pin] = error
+        failures = self._safe_state_failures()
         if failures:
-            raise _failed("hal.safe_state_incomplete", failures)
+            code = "hal.safe_state_incomplete"
+            raise _incomplete(code, {"pins": _pins(failures)}, list(failures.values()))
 
     def ensure_open(self) -> None:
         if self._closed:
@@ -121,17 +123,16 @@ class Hal(ABC):
         """Apply the safe state, then release every line; the HAL is closed afterwards.
 
         Every line is released even if putting some in the safe state or releasing others
-        fails. Raises ``hal.safe_state_incomplete`` or ``hal.release_incomplete`` (param
-        ``pins``) at the end. Closing twice does nothing.
+        fails. At the end it raises ``hal.safe_state_incomplete`` (params ``pins`` and, if
+        releases failed too, ``release_pins``) or ``hal.release_incomplete`` (param ``pins``),
+        chained to every original exception. Closing twice does nothing.
+
+        Known limit: a second Ctrl+C while closing interrupts it (only ``Exception`` is
+        collected). Phase 1 drives LEDs only; the watchdog of phase 3 covers crashes.
         """
         if self._closed:
             return
-        safe_state_error: PrimumError | None = None
-        try:
-            self.apply_safe_state()
-        except PrimumError as error:
-            safe_state_error = error
-
+        safe_failures = self._safe_state_failures()
         release_failures: dict[int, Exception] = {}
         for pin, driver in self._drivers.items():
             try:
@@ -142,13 +143,24 @@ class Hal(ABC):
         self._outputs.clear()
         self._closed = True
 
-        if safe_state_error is not None:
+        errors = [*safe_failures.values(), *release_failures.values()]
+        if safe_failures:
+            params = {"pins": _pins(safe_failures)}
             if release_failures:
-                failed = sorted(release_failures)
-                safe_state_error.add_note(f"lines also failed to release: {failed}")
-            raise safe_state_error
+                params["release_pins"] = _pins(release_failures)
+            raise _incomplete("hal.safe_state_incomplete", params, errors)
         if release_failures:
-            raise _failed("hal.release_incomplete", release_failures)
+            raise _incomplete("hal.release_incomplete", {"pins": _pins(release_failures)}, errors)
+
+    def _safe_state_failures(self) -> dict[int, Exception]:
+        """Try to put every output in its safe state; return the failures by pin."""
+        failures: dict[int, Exception] = {}
+        for pin, output in self._outputs.items():
+            try:
+                output.to_safe_state()
+            except Exception as error:  # collected and reported by the caller
+                failures[pin] = error
+        return failures
 
     def __enter__(self) -> Self:
         return self
