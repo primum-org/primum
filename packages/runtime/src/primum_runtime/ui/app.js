@@ -38,9 +38,9 @@ function render() {
   for (const output of state?.outputs ?? []) {
     const button = rowFor(output.name).querySelector(".switch");
     button.setAttribute("aria-pressed", String(output.on));
-    button.querySelector(".switch-state").textContent = output.on
-      ? catalog.t("output.on")
-      : catalog.t("output.off");
+    // Offline the last state may be stale (stopping the service turns outputs off): no word.
+    const word = output.on ? catalog.t("output.on") : catalog.t("output.off");
+    button.querySelector(".switch-state").textContent = online ? word : "";
     button.disabled = !online || state.panic;
   }
 }

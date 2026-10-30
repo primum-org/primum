@@ -11,7 +11,9 @@ const ICONS = {
 export async function loadIcons(root) {
   await Promise.all(
     Object.entries(ICONS).map(async ([property, path]) => {
-      const svg = await (await fetch(path)).text();
+      const response = await fetch(path);
+      if (!response.ok) return; // the element shows without its icon, never with an error page
+      const svg = await response.text();
       root.style.setProperty(property, `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
     }),
   );

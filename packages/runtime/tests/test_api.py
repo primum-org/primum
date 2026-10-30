@@ -59,6 +59,29 @@ def test_invalid_body_is_422_request_invalid(client: TestClient, body: dict[str,
     assert response.json()["code"] == "request.invalid"
 
 
+def test_invalid_body_names_the_field_and_never_a_source_file(client: TestClient) -> None:
+    response = client.put(f"/api/outputs/{LED}", json={"on": "yes"})
+
+    params = response.json()["params"]
+    assert params["fields"] == ["body.on"]
+    assert params["detail"].startswith("body.on: ")
+    assert ".py" not in params["detail"]
+
+
+def test_unknown_api_path_is_404_request_not_found(client: TestClient) -> None:
+    response = client.get("/api/nothing")
+
+    assert response.status_code == 404
+    assert response.json() == {"code": "request.not_found", "params": {"path": "/api/nothing"}}
+
+
+def test_wrong_method_is_405_request_method_not_allowed(client: TestClient) -> None:
+    response = client.post("/api/status")
+
+    assert response.status_code == 405
+    assert response.json()["code"] == "request.method_not_allowed"
+
+
 def test_panic_turns_off_and_refuses_commands_until_released(
     client: TestClient, hal: SimulatedHal
 ) -> None:

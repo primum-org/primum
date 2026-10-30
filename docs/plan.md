@@ -73,8 +73,9 @@ development Pi. One pull request per block.
 WebSocket reports every change.
 
 **1.3 · Minimal page and i18n** · *no Pi* · **done**
-- `i18n/en.json` and `es.json`: `ui.*` strings of the page and `errors.*` for the twelve codes
-  of 1.1 and 1.2, each with a `message` and a `hint` (the hint of `hal.chip_access_denied` says
+- `i18n/en.json` and `es.json`: `ui.*` strings of the page and `errors.*` for the codes of 1.1
+  and 1.2 plus `request.not_found` and `request.method_not_allowed` (FastAPI's own 404 and 405
+  carry codes too), each with a `message` and a `hint` (the hint of `hal.chip_access_denied` says
   to add the user to group `gpio`). Every code is a member of `ErrorCode`, so the type checker
   rejects an undeclared one (decision 0009).
 - `test_catalogs.py`: same strings and placeholders in both catalogs; `ErrorCode` and the
@@ -82,14 +83,21 @@ WebSocket reports every change.
   `ui` key and only keys that exist (keys are written literally, so the test can find them).
 - Params named `detail`, `consumer` and `fields` carry technical text: the page shows them apart,
   as a technical detail, never as the message. Tuple params (lists of pins) are formatted for
-  the language with `Intl.ListFormat`.
+  the language with `Intl.ListFormat`. `request.invalid`'s detail is built from the field
+  problems only, never from FastAPI's text, which names source files.
 - A minimal page served by the runtime at `/` (HTML, CSS and JavaScript modules, no build step;
   Vue arrives in phase 5): a switch per output, the panic notice and its release, API errors
   with message, hint and technical detail, and "No connection" when the service is unreachable
   (switches disabled, panic never). Mobile first (≥ 44 px targets, panic 72 px with its
   octagonal chamfer), light and dark from the tokens, language from the browser. Icons are kept
   in memory, so the notice keeps its icon offline. Fonts fall back to system fonts until the
-  woff2 files arrive (phase 5).
+  woff2 files arrive (phase 5). Sizes come from the new `size.*` tokens (touch target,
+  controls, rows, transport, panic and its chamfer, icons, focus ring, rules, content width),
+  taken from the brandbook's density table: `app.css` has no literal pixel value. Offline, the
+  switches hide their state word: the last state may be stale.
+- `just test-js` (part of `just check`, Node 22 or later; CI installs Node 24): Node's built-in
+  runner tests `i18n.js` with the real catalogs (language choice, placeholders, lists, unknown
+  codes, technical params).
 - The page's shared assets (catalogs, `tokens.css`, icons, logo) are copied into
   `primum_runtime/ui/generated/` by `just gen` (`tools/gen_ui_assets.py`), so the installed
   runtime serves them; `just gen-check` fails if a copy is stale.

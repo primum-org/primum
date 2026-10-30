@@ -19,6 +19,10 @@ sync:
 test *args:
     uv run pytest {{args}}
 
+# Tests of the page's JavaScript (Node's built-in runner; needs Node 22 or later)
+test-js:
+    node --test "packages/runtime/tests/js/*.test.mjs"
+
 # Run only the tests that need a real board (on the Pi, with PRIMUM_HW_TEST_PIN set); none collected is not a failure
 test-hw *args:
     uv run pytest -m hw {{args}} || test $? -eq 5
@@ -66,4 +70,4 @@ hooks:
     SKIP=ruff-check,ruff-format uv run pre-commit run --all-files
 
 # Everything CI runs: hygiene, lint, types, architecture, generated files and tests
-check: hooks lint typecheck arch gen-check test
+check: hooks lint typecheck arch gen-check test test-js

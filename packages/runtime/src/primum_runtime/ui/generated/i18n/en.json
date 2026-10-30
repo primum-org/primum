@@ -62,6 +62,14 @@
     "request.invalid": {
       "message": "The request was not valid.",
       "hint": "Reload the page. If it happens again, report it with the technical detail."
+    },
+    "request.not_found": {
+      "message": "The service has nothing at {path}.",
+      "hint": "Reload the page. If it happens again, report it with the technical detail."
+    },
+    "request.method_not_allowed": {
+      "message": "The service does not accept this action at {path}.",
+      "hint": "Reload the page. If it happens again, report it with the technical detail."
     }
   }
 }

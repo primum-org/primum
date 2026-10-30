@@ -62,6 +62,14 @@
     "request.invalid": {
       "message": "La petición no era válida.",
       "hint": "Recarga la página. Si vuelve a pasar, informa del error con el detalle técnico."
+    },
+    "request.not_found": {
+      "message": "El servicio no tiene nada en {path}.",
+      "hint": "Recarga la página. Si vuelve a pasar, informa del error con el detalle técnico."
+    },
+    "request.method_not_allowed": {
+      "message": "El servicio no acepta esta acción en {path}.",
+      "hint": "Recarga la página. Si vuelve a pasar, informa del error con el detalle técnico."
     }
   }
 }

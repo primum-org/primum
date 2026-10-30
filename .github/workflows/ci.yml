@@ -24,6 +24,11 @@ jobs:
         with:
           enable-cache: true
 
+      # For the page's JavaScript tests (`just test-js`).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Install
         run: uv sync --locked
 

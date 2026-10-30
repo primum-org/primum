@@ -3,10 +3,10 @@
 :root {
   /* No border token: the brandbook mixes text.primary at 13 % for rules. */
   --rule: color-mix(in srgb, var(--color-text-primary) 13%, transparent);
-  --touch-target: 44px;
-  --panic-height: 72px;
-  --panic-chamfer: 16px;
-  --focus-ring: 3px;
+  /* The page is a touch surface: the touch column of the brandbook's density table. */
+  --focus-ring: var(--size-focus-ring-touch);
+  --panic-chamfer: var(--size-panic-chamfer-touch);
+  --switch-width: calc(var(--size-control-sm) + var(--space-5));
 }
 
 * { box-sizing: border-box; }
@@ -36,13 +36,18 @@ p { margin: 0; }
 
 .icon {
   flex: none;
-  width: 24px;
-  height: 24px;
+  width: var(--size-icon-24);
+  height: var(--size-icon-24);
   background: currentColor;
   mask: var(--icon) center / contain no-repeat;
 }
 /* The --icon-* properties are set by icons.js, from icons kept in memory. */
-.icon-logo { --icon: var(--icon-logo); width: 32px; height: 32px; color: var(--color-brand-secondary); }
+.icon-logo {
+  --icon: var(--icon-logo);
+  width: var(--size-icon-32);
+  height: var(--size-icon-32);
+  color: var(--color-brand-secondary);
+}
 .icon-led { --icon: var(--icon-led); }
 .icon-panic { --icon: var(--icon-panic); }
 .icon-warn { --icon: var(--icon-warn); }
@@ -52,7 +57,7 @@ p { margin: 0; }
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--rule);
+  border-bottom: var(--size-rule-md) solid var(--rule);
 }
 
 main {
@@ -61,7 +66,7 @@ main {
   flex-direction: column;
   gap: var(--space-4);
   width: 100%;
-  max-width: 560px;
+  max-width: var(--size-content);
   margin: 0 auto;
   padding: var(--space-4);
 }
@@ -73,16 +78,16 @@ main {
   gap: var(--space-3);
   padding: var(--space-3);
   border-radius: var(--radius-sm);
-  border: 1px solid var(--state);
+  border: var(--size-rule-md) solid var(--state);
   background: color-mix(in srgb, var(--state) 7%, transparent);
 }
 .notice[hidden] { display: none; }
 .notice > .icon { color: var(--state); }
 .notice-text { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 .notice-warning { --state: var(--color-semantic-warning); }
-.notice-danger { --state: var(--color-semantic-danger); border-width: 2px; }
+.notice-danger { --state: var(--color-semantic-danger); border-width: var(--size-rule-strong); }
 .notice details { margin-top: var(--space-2); font-size: var(--font-size-sm); }
-.notice summary { min-height: var(--touch-target); display: flex; align-items: center; cursor: pointer; }
+.notice summary { min-height: var(--size-touch-target); display: flex; align-items: center; cursor: pointer; }
 .notice pre {
   margin: 0;
   font-family: var(--font-family-mono);
@@ -93,9 +98,9 @@ main {
 
 .button {
   flex: none;
-  min-height: var(--touch-target);
+  min-height: var(--size-control-touch);
   padding: 0 var(--space-4);
-  border: 1px solid var(--color-text-primary);
+  border: var(--size-rule-md) solid var(--color-text-primary);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
   color: var(--color-text-primary);
@@ -105,14 +110,14 @@ main {
 }
 
 .outputs { display: flex; flex-direction: column; gap: var(--space-2); }
-.outputs ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.outputs ul { margin: 0; padding: 0; list-style: none; border-top: var(--size-rule-md) solid var(--rule); }
 
 .output {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: 64px;
-  border-bottom: 1px solid var(--rule);
+  min-height: var(--size-row-touch);
+  border-bottom: var(--size-rule-md) solid var(--rule);
 }
 .output-name { flex: 1; font-family: var(--font-family-mono); }
 
@@ -120,8 +125,8 @@ main {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--touch-target);
-  min-width: var(--touch-target);
+  min-height: var(--size-touch-target);
+  min-width: var(--size-touch-target);
   padding: 0 var(--space-2);
   border: 0;
   background: none;
@@ -131,25 +136,29 @@ main {
 }
 .switch-track {
   position: relative;
-  width: 52px;
-  height: 32px;
+  width: var(--switch-width);
+  height: var(--size-control-sm);
   border-radius: var(--radius-full);
-  border: 1px solid var(--color-text-primary);
+  border: var(--size-rule-md) solid var(--color-text-primary);
   background: var(--color-surface-raised);
   transition: background var(--motion-base);
 }
 .switch-thumb {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 24px;
-  height: 24px;
+  /* Centred in the track: (track height − thumb) / 2, minus the border. */
+  top: calc((var(--size-control-sm) - var(--size-icon-24)) / 2 - var(--size-rule-md));
+  left: calc((var(--size-control-sm) - var(--size-icon-24)) / 2 - var(--size-rule-md));
+  width: var(--size-icon-24);
+  height: var(--size-icon-24);
   border-radius: var(--radius-full);
   background: var(--color-text-primary);
   transition: transform var(--motion-base);
 }
 .switch[aria-pressed="true"] .switch-track { background: var(--color-brand-primary); }
-.switch[aria-pressed="true"] .switch-thumb { transform: translateX(20px); background: var(--color-text-inverse); }
+.switch[aria-pressed="true"] .switch-thumb {
+  transform: translateX(calc(var(--switch-width) - var(--size-control-sm)));
+  background: var(--color-text-inverse);
+}
 .switch-state { min-width: 6em; text-align: start; }
 .switch:disabled { cursor: not-allowed; opacity: 0.45; }
 .switch:disabled .switch-track { border-style: dashed; }
@@ -163,7 +172,7 @@ main {
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-4);
-  border-top: 1px solid var(--rule);
+  border-top: var(--size-rule-md) solid var(--rule);
   background: var(--color-surface-base);
 }
 .panic {
@@ -172,8 +181,8 @@ main {
   justify-content: center;
   gap: var(--space-3);
   width: 100%;
-  max-width: 528px;
-  min-height: var(--panic-height);
+  max-width: calc(var(--size-content) - 2 * var(--space-4));
+  min-height: var(--size-panic-touch);
   border: 0;
   background: var(--color-semantic-danger);
   color: var(--color-text-inverse);

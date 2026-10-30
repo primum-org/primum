@@ -26,6 +26,10 @@ Source: the Claude Design system <https://claude.ai/artifact/4qZ3u7SrWZZ6gg3gTmy
 - `color.neutral.*` is an **absolute** scale, identical in light and dark: it does not follow the
   theme. For anything that must adapt (backgrounds, text, borders) use `color.surface.*` and
   `color.text.*`; use `neutral` only where a fixed value is meant (e.g. text on a track block).
+- Sizes (`size.*`) follow the brandbook's density table: `--size-touch-target` (44 px),
+  `--size-control-{sm,md,touch}`, `--size-row-{md,touch}`, `--size-transport-{md,touch}`,
+  `--size-panic-touch` and its chamfer, `--size-icon-{16,20,24,32}`, `--size-focus-ring-{md,touch}`,
+  `--size-rule-{md,strong}` and `--size-content` (the width of a single-column page).
 - Property names follow the token path: `color.semantic.danger` → `--color-semantic-danger`,
   `font.size.md` → `--font-size-md`, `radius.md` → `--radius-md`, `space.3` → `--space-3`.
 - **Never hard-code a HEX value, font or size** in the UI: use the properties.

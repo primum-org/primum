@@ -27,6 +27,8 @@ class ErrorCode(StrEnum):
     OUTPUT_UNKNOWN = "output.unknown"
     PANIC_ACTIVE = "panic.active"
     REQUEST_INVALID = "request.invalid"
+    REQUEST_NOT_FOUND = "request.not_found"
+    REQUEST_METHOD_NOT_ALLOWED = "request.method_not_allowed"
 
 
 class PrimumError(Exception):
