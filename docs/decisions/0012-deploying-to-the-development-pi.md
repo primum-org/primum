@@ -22,8 +22,8 @@ shared with other GPIO software (decision 0010), and the API has no authenticati
   `/data` (`ProtectSystem=strict`), restarts on failure and is stopped with `SIGTERM`, which
   applies the safe state.
 - **The LED's pin is required** the first time (`--pin`), never defaulted.
-- **Laptop side:** `tools/pi.sh` behind `just pi-*`, host from `PRIMUM_PI_HOST` with no
-  default. The source is mirrored with `rsync`, filtered by `.gitignore`, so local changes are
+- **Laptop side:** `tools/pi.sh` behind `just pi-*`, host from `PRIMUM_PI_HOST`, by default
+  `primum-dev`: an SSH alias that names the development Pi and no other board. The source is mirrored with `rsync`, filtered by `.gitignore`, so local changes are
   tried without committing and deleted files disappear on the Pi too.
 - **Tests on the Pi** (`just pi-test`) stop the service, which holds the LED's line, run the
   `hw` tests on the configured pin with only the runtime and the `test` dependency group, and

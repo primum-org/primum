@@ -6,13 +6,14 @@
 #   tools/pi.sh test           run the `hw` tests on the Pi, on the LED's pin
 #   tools/pi.sh logs           follow the service's log
 #
-# The Pi is the SSH host in PRIMUM_PI_HOST (an alias of ~/.ssh/config, key-based login and
-# passwordless sudo). There is no default: never point it at a Pi that runs other GPIO
-# software, such as the belén's (decision 0010); provisioning refuses to run there anyway.
+# The Pi is the SSH host in PRIMUM_PI_HOST, `primum-dev` by default: an alias of ~/.ssh/config
+# with key-based login and passwordless sudo (image/README.md). Never point it at a Pi that runs
+# other GPIO software, such as the belén's (decision 0010); provisioning refuses to run there.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 REMOTE_SOURCE=primum-src
+DEFAULT_HOST=primum-dev
 
 fail() {
   echo "pi: $*" >&2
@@ -20,9 +21,7 @@ fail() {
 }
 
 host() {
-  [[ -n ${PRIMUM_PI_HOST:-} ]] ||
-    fail "set PRIMUM_PI_HOST to the SSH host of the development Pi (for example primum-dev)"
-  echo "$PRIMUM_PI_HOST"
+  echo "${PRIMUM_PI_HOST:-$DEFAULT_HOST}"
 }
 
 # Mirror the working tree, local changes included, minus what .gitignore excludes (rsync reads

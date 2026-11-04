@@ -1,7 +1,8 @@
 """The scripts that prepare and drive the development Pi, run here without a Pi.
 
 What can be checked off the board: refusing other GPIO software, refusing a board that is not a
-Pi, and refusing to run without a host or a pin. The rest runs on the Pi (block 1.4).
+Pi, the host the Pi tasks use and refusing to provision without a pin. The rest was checked on
+the development Pi (block 1.4).
 """
 
 import os
@@ -74,8 +75,17 @@ def test_provision_rejects_invalid_arguments(args: list[str]) -> None:
     assert "usage:" in result.stderr
 
 
-def test_pi_tasks_need_a_host_and_have_no_default() -> None:
+def _fake_rsync(directory: Path) -> str:
+    """A PATH whose rsync prints its arguments and fails, so nothing reaches a real host."""
+    rsync = directory / "rsync"
+    rsync.write_text('#!/bin/sh\necho "rsync $*" >&2\nexit 1\n')
+    rsync.chmod(0o755)
+    return f"{directory}{os.pathsep}{os.environ['PATH']}"
+
+
+def test_pi_tasks_use_primum_dev_when_no_host_is_set(tmp_path: Path) -> None:
     env = {key: value for key, value in os.environ.items() if key != "PRIMUM_PI_HOST"}
+    env["PATH"] = _fake_rsync(tmp_path)
     result = subprocess.run(  # noqa: S603
         ["bash", str(PI), "sync"],  # noqa: S607
         capture_output=True,
@@ -85,7 +95,13 @@ def test_pi_tasks_need_a_host_and_have_no_default() -> None:
     )
 
     assert result.returncode == 1
-    assert "PRIMUM_PI_HOST" in result.stderr
+    assert "primum-dev:primum-src/" in result.stderr
+
+
+def test_pi_tasks_use_the_host_in_primum_pi_host(tmp_path: Path) -> None:
+    result = _run(PI, "sync", PRIMUM_PI_HOST="other-pi", PATH=_fake_rsync(tmp_path))
+
+    assert "other-pi:primum-src/" in result.stderr
 
 
 def test_pi_provision_needs_the_pin_before_touching_the_pi() -> None:

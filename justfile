@@ -31,7 +31,7 @@ test-hw *args:
 dev *args:
     uv run primum-runtime --simulate --pin 17 {{args}}
 
-# Provision the development Pi (host in PRIMUM_PI_HOST) with the LED on GPIO `pin`
+# Provision the development Pi (PRIMUM_PI_HOST, primum-dev by default) with the LED on GPIO `pin`
 pi-provision pin:
     bash tools/pi.sh provision {{pin}}
 
