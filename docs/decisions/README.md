@@ -19,6 +19,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0009](0009-error-codes-and-message-catalogs.md) | Errors are codes with parameters; text lives in translation catalogs | Accepted |
 | [0010](0010-hal-from-phase-1-and-gpiod.md) | The HAL exists from phase 1; gpiod is a Linux-only dependency behind it | Accepted |
 | [0011](0011-local-api-of-phase-1.md) | The local API of phase 1: full states, latched panic, codes for every error | Accepted |
+| [0012](0012-deploying-to-the-development-pi.md) | Deploying the runtime to the development Pi | Accepted |
 
 ## Template
 

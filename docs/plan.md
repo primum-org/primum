@@ -5,8 +5,8 @@ when a phase starts or finishes.
 
 | Phase | Goal | Status |
 |---|---|---|
-| 0 | Repository skeleton: structure, docs, rules, tooling, CI | In progress (dev Pi pending) |
-| 1 | End-to-end skeleton: toggle an LED from a phone | In progress (1.1–1.3 done) |
+| 0 | Repository skeleton: structure, docs, rules, tooling, CI | Done |
+| 1 | End-to-end skeleton: toggle an LED from a phone | In progress (1.1–1.4 done) |
 | 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Not started |
 | 3 | HAL, basic drivers and safety | Not started |
 | 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Not started |
@@ -24,7 +24,7 @@ when a phase starts or finishes.
 - [x] Claude Code: `CLAUDE.md`, rules, hooks, permissions
 - [x] Docs: vision, glossary, architecture, plan, decisions
 - [x] Brand in `design/`: brandbook, tokens (single source) with generated CSS, logo, icons
-- [ ] Development Pi with Raspberry Pi OS Lite 64-bit reachable over SSH
+- [x] Development Pi with Raspberry Pi OS Lite 64-bit reachable over SSH (`primum-dev`)
 
 **Done when:** CI is green, `just check` passes locally and the development Pi is reachable.
 
@@ -107,28 +107,44 @@ WebSocket reports every change.
 in Spanish, and the consistency test exists and passes (every code the runtime raises has an
 entry in both catalogs).
 
-**1.4 · Deployment to the development Pi** · *needs the Pi*
-- The development Pi is a Pi for Primum only. The belén's Pi (`rpi4b`, hostname `belen`) is
-  not one: it runs `belen.service` with RPi.GPIO through `/dev/gpiomem`, and GPIO 17 there is a
-  220 V relay. Provisioning refuses to run where it finds `belen.service` or another GPIO user
-  (decision 0010).
-- First, check that `gpiod` installs on Raspberry Pi OS. The PyPI package builds its own copy
-  of libgpiod (the system version does not matter), so without a ready wheel (PyPI or
-  piwheels) the Pi needs `gcc` and `python3-dev`; provisioning installs them if so.
-  `create_hal` maps only a missing `gpiod` to `hal.unsupported_platform`: a broken install
-  (for example a missing `gpiod._ext`) still escapes as a raw `ImportError`. Map it here,
-  where `gpiod` is first installed on a Pi, with a test.
-- `GpiodHal` logs a warning when a pin it requests is free but already an output: on a clean
-  Pi free lines are inputs, so it hints at software driving GPIO through `/dev/gpiomem`
-  (RPi.GPIO left GPIO 17 and 22 like that on the belén's Pi, decision 0010). A warning, not an
-  error: lines Primum released stay outputs too.
-- `image/provision.sh` (idempotent): packages, `uv`, user `primum` in group `gpio`, `/data`,
-  systemd unit `primum.service` (restart on failure). Nothing is set up by hand on the Pi.
-- `tools/pi-sync.sh` and `just pi-sync`, `just pi-test`, `just pi-logs`, `just pi-watch`;
-  host from `PRIMUM_PI_HOST`, with no default until the development Pi exists (then decide it). Claude Code permissions allow
-  `uv run just pi-*` only, not raw `ssh`/`rsync`.
-
-- Check by eye that the LED really follows the page (the `hw` test only reads the kernel).
+**1.4 · Deployment to the development Pi** · *needs the Pi* · **done**
+(decision 0012)
+- The development Pi is a Pi, or an SD card, for Primum only. A Pi that already runs other GPIO
+  software (RPi.GPIO or pigpio through `/dev/gpiomem`) is not one: that software may have
+  relays wired to the very pins Primum would use. Provisioning refuses to run where other
+  software drives GPIO, found generically by
+  `image/check-gpio-users.sh` (processes holding `/dev/gpiomem` or `/dev/mem`, `pigpiod`); no
+  program is named in the code. Software installed but not running is not found: that is why
+  the Pi is for Primum only.
+- `gpiod` 2.5.0 has wheels for Python 3.13 on aarch64, and `uv sync` installed it on the Pi with
+  no build; provisioning still installs `build-essential` in case one is needed. A broken
+  install (part of `gpiod` missing, such as `gpiod._ext`) is `hal.gpio_library_broken`, with a
+  test.
+- Other GPIO software is checked where the check can see it: `check-gpio-users.sh` needs root
+  (a normal user cannot see other users' processes, so it would pass) and also runs as the
+  service's `ExecStartPre`, so Primum does not start next to it. The HAL does not warn about a
+  free line that is already an output: Primum's own released lines look the same, so the
+  warning showed on every restart (decision 0010).
+- `image/provision.sh` (idempotent): checks the board and GPIO users; packages, `uv` (pinned),
+  user `primum` in group `gpio`, `/data`, `/etc/primum/runtime.env` (the LED's pin, required the
+  first time, no default; listens on the local network, port 8080), the runtime in
+  `/opt/primum/venv` (no dev tools, not editable), systemd unit `primum.service` (restart on
+  failure, hardened, writes only `/data`; bytecode compiled at install, since the service
+  cannot write it), a persistent journal on the development Pi. `--app-only` installs new
+  source and the unit, then restarts. A restart counts only once `/api/status` answers (up to
+  15 s): systemd's "active" comes before the HAL claims the pin.
+- `tools/pi.sh` behind `just pi-provision PIN`, `just pi-sync`, `just pi-test`, `just pi-logs`
+  and `just pi-watch`. The host comes from `PRIMUM_PI_HOST`, `primum-dev` by default.
+  `pi-test` stops the service, runs the `hw` tests on the
+  configured pin with only the runtime and the `test` group installed (some dev tools have no
+  wheel for the Pi), then starts it again. Claude Code permissions allow `uv run just` tasks,
+  not raw `ssh` or `rsync`.
+- Off the Pi: `shellcheck` on every script (`just lint`) and `tools/tests/test_pi_scripts.py`
+  (GPIO users found in a fake process tree, a board that is not a Pi, the default host, no pin).
+- On the development Pi (2026-11-04: Pi 4, a clean Raspberry Pi OS Lite 64-bit, an LED on GPIO
+  17, on the network Windows shares from the laptop): `just pi-provision 17`, `just pi-test`,
+  the phone toggles the LED and panics, two pages follow each other, and after a reboot the LED
+  goes off with the service and the page comes back by itself.
 
 **Done when:** a phone on the same Wi-Fi opens the development Pi on port 8080, turns the LED on,
 and it still works after a reboot.
@@ -176,6 +192,10 @@ and it still works after a reboot.
 
 **Done when:** after `kill -9` of the service every output is in its safe state.
 
+Found in 1.4: after `SIGKILL` a line keeps its last value until the service starts again, and
+if systemd gives up restarting (`StartLimitBurst`) it stays so. The watchdog and the safe state
+on start must cover a service that does not come back.
+
 ## Phase 4 · Engine and deployment packages
 
 1. Sequence engine (monotonic clock, components flattened by the compiler).
@@ -205,6 +225,8 @@ a BME280/VL53L0X sensor, WS2812B strip and audio.
 
 rpi-image-gen config; partitions `boot` · `rootfs A` · `rootfs B` (reserved) · `data`;
 read-only root; first boot with its own Wi-Fi and setup wizard; CI publishes `.img.xz`.
+`provision.sh` installs `uv` with `curl | sh` from a pinned version but no checksum: fine for the
+development Pi, the image must verify what it downloads.
 
 ## Phase 8 · Local MCP server
 

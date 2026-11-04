@@ -10,8 +10,8 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   below it, and FastAPI, uvicorn and pydantic stay in `api` and `cli` (`just arch`, decision 0011).
   The API commands outputs through `control.Controller`, never through the HAL.
 - API handlers are `async`: they all run on the event loop's thread, so `control` needs no locks.
-- Never run `hw` tests or drive lines on a Pi that runs other GPIO software, such as the belén's
-  Pi (`rpi4b`): the kernel does not see lines driven through `/dev/gpiomem` (decision 0010).
+- Never run `hw` tests or drive lines on a Pi that runs other GPIO software: the kernel does not
+  see lines driven through `/dev/gpiomem`, so a "free" pin may have a relay on it (decision 0010).
 - Errors are `PrimumError(ErrorCode.X, params)` (decision 0009), never text. System text (for
   example `strerror`) goes in a `detail` param. A new code goes in `ErrorCode` and in both
   catalogs in `i18n/` (`test_catalogs.py` checks it).

@@ -45,7 +45,7 @@ class FakeRequest:
 
 @dataclass(frozen=True)
 class FakeLineInfo:
-    """The two fields of `gpiod.LineInfo` the HAL reads."""
+    """The fields of `gpiod.LineInfo` the HAL reads."""
 
     used: bool
     consumer: str | None
@@ -72,7 +72,7 @@ class FakeChip:
         return ChipInfo(name="gpiochip7", label="fake", num_lines=NUM_LINES)
 
     def get_line_info(self, line: int) -> FakeLineInfo:
-        return FakeLineInfo(used=line in self.owners, consumer=self.owners.get(line))
+        return FakeLineInfo(line in self.owners, self.owners.get(line))
 
     def request_lines(
         self, config: dict[int, LineSettings], consumer: str | None = None
@@ -160,12 +160,12 @@ def test_line_held_by_a_kernel_driver_raises_pin_unavailable_without_consumer(
 
 
 def test_line_held_by_a_named_consumer_raises_pin_unavailable_with_it(chip: FakeChip) -> None:
-    chip.owners[17] = "belen"
+    chip.owners[17] = "other-app"
 
     with GpiodHal(CHIP) as hal, pytest.raises(PrimumError) as raised:
         hal.digital_output(OutputSpec(pin=17))
 
-    assert raised.value.params == {"pin": 17, "chip": CHIP, "consumer": "belen"}
+    assert raised.value.params == {"pin": 17, "chip": CHIP, "consumer": "other-app"}
     assert chip.requests == []
 
 

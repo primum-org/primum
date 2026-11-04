@@ -9,15 +9,18 @@ requires-python = ">=3.13"
 dependencies = ["primum-core", "primum-runtime"]
 
 [dependency-groups]
+# What the `hw` tests need on the Pi (`just pi-test`), where some dev tools have no wheel.
+test = ["httpx2>=2.16.0", "pytest>=8.3"]
 dev = [
-    "httpx2>=2.16.0",
+    { include-group = "test" },
     "import-linter>=2.1",
     "pre-commit>=4.7.0",
     "pyright>=1.1.400",
-    "pytest>=8.3",
     "pytest-watcher>=0.4",
     "ruff>=0.11",
     "rust-just>=1.59.0",
+    "shellcheck-py>=0.11.0.1",
+    "watchfiles>=1.3.0",
 ]
 
 [tool.uv]
