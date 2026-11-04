@@ -119,17 +119,22 @@ entry in both catalogs).
   no build; provisioning still installs `build-essential` in case one is needed. A broken
   install (part of `gpiod` missing, such as `gpiod._ext`) is `hal.gpio_library_broken`, with a
   test.
-- `GpiodHal` logs a warning when a pin it requests is free but already an output: on a clean
-  Pi free lines are inputs, so it hints at software driving GPIO through `/dev/gpiomem`
-  (RPi.GPIO left GPIO 17 and 22 like that on the belén's Pi, decision 0010). A warning, not an
-  error: lines Primum released stay outputs too.
+- Other GPIO software is checked where the check can see it: `check-gpio-users.sh` needs root
+  (a normal user cannot see other users' processes, so it would pass) and also runs as the
+  service's `ExecStartPre`, so Primum does not start next to it. The HAL does not warn about a
+  free line that is already an output: Primum's own released lines look the same, so the
+  warning showed on every restart (decision 0010).
 - `image/provision.sh` (idempotent): checks the board and GPIO users; packages, `uv` (pinned),
   user `primum` in group `gpio`, `/data`, `/etc/primum/runtime.env` (the LED's pin, required the
   first time, no default; listens on the local network, port 8080), the runtime in
   `/opt/primum/venv` (no dev tools, not editable), systemd unit `primum.service` (restart on
-  failure, hardened, writes only `/data`). `--app-only` installs new source and restarts.
+  failure, hardened, writes only `/data`; bytecode compiled at install, since the service
+  cannot write it), a persistent journal on the development Pi. `--app-only` installs new
+  source and the unit, then restarts. A restart counts only once `/api/status` answers (up to
+  15 s): systemd's "active" comes before the HAL claims the pin.
 - `tools/pi.sh` behind `just pi-provision PIN`, `just pi-sync`, `just pi-test`, `just pi-logs`
-  and `just pi-watch`. The host comes from `PRIMUM_PI_HOST`, `primum-dev` by default. `pi-test` stops the service, runs the `hw` tests on the
+  and `just pi-watch`. The host comes from `PRIMUM_PI_HOST`, `primum-dev` by default.
+  `pi-test` stops the service, runs the `hw` tests on the
   configured pin with only the runtime and the `test` group installed (some dev tools have no
   wheel for the Pi), then starts it again. Claude Code permissions allow `uv run just` tasks,
   not raw `ssh` or `rsync`.
@@ -186,6 +191,10 @@ and it still works after a reboot.
 
 **Done when:** after `kill -9` of the service every output is in its safe state.
 
+Found in 1.4: after `SIGKILL` a line keeps its last value until the service starts again, and
+if systemd gives up restarting (`StartLimitBurst`) it stays so. The watchdog and the safe state
+on start must cover a service that does not come back.
+
 ## Phase 4 · Engine and deployment packages
 
 1. Sequence engine (monotonic clock, components flattened by the compiler).
@@ -215,6 +224,8 @@ a BME280/VL53L0X sensor, WS2812B strip and audio.
 
 rpi-image-gen config; partitions `boot` · `rootfs A` · `rootfs B` (reserved) · `data`;
 read-only root; first boot with its own Wi-Fi and setup wizard; CI publishes `.img.xz`.
+`provision.sh` installs `uv` with `curl | sh` from a pinned version but no checksum: fine for the
+development Pi, the image must verify what it downloads.
 
 ## Phase 8 · Local MCP server
 

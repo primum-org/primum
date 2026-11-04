@@ -57,12 +57,18 @@ had to pass pyright in strict mode.
 - The kernel only knows lines requested through the character device. Software that writes
   `/dev/gpiomem` directly (RPi.GPIO, pigpio) drives lines the kernel reports as free, so
   `hal.pin_in_use` and `hal.pin_unavailable` cannot see it. Primum never shares a Pi with
-  other GPIO software; provisioning (block 1.4) refuses to run where it finds some.
+  other GPIO software: provisioning and the service itself (an `ExecStartPre` check, as root,
+  block 1.4) refuse to run where some holds `/dev/gpiomem` or `/dev/mem`. The HAL does not
+  guess from line states: a free line left as an output looks the same whether Primum or
+  other software released it.
 - What happens to a released line depends on the kernel and the board. On a Pi 4 (checked on
   2026-10-30, the belén's Pi, not a Primum development Pi), a released line stays an output with no consumer and keeps
   its last value, so after `close()` it stays driven low; it does not float. That is not a
   guarantee across kernels or boards, so phase 1 drives LEDs only, never relays: relays wait
   for safe boot levels in `config.txt` (phase 6) and the watchdog (phase 3).
+- Released lines are not turned into inputs. An input is left to the pin's pull (GPIO 9–27
+  pull down on a Pi 4), which would switch on an active-low relay board: the last safe output
+  value is the safer state to leave behind.
 - Known limit: a second Ctrl+C while the HAL is closing interrupts it (only `Exception` is
   collected), and lines may stay active. Acceptable with LEDs only; the watchdog of phase 3
   covers crashes.

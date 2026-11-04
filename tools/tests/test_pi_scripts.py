@@ -57,6 +57,22 @@ def test_check_gpio_users_passes_when_nothing_drives_gpio(tmp_path: Path) -> Non
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.skipif(os.geteuid() == 0, reason="checks what happens without root")
+def test_check_gpio_users_refuses_to_run_without_root() -> None:
+    env = {key: value for key, value in os.environ.items() if key != "PROC"}
+    result = subprocess.run(  # noqa: S603
+        ["bash", str(CHECK_GPIO_USERS)],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+        env=env,
+    )
+
+    # Without root other users' processes are invisible: passing would be a false "all clear".
+    assert result.returncode == 2
+    assert "run it as root" in result.stderr
+
+
 def test_provision_refuses_a_board_that_is_not_a_raspberry_pi(tmp_path: Path) -> None:
     model = tmp_path / "model"
     model.write_text("Generic x86 machine\0")

@@ -4,13 +4,14 @@
 #
 #   sudo image/provision.sh --pin 17   # first time: everything, with the LED on GPIO 17
 #   sudo image/provision.sh            # again: everything, keeping the configured pin
-#   sudo image/provision.sh --app-only # only install this source and restart the service
+#   sudo image/provision.sh --app-only # only install this source and the unit, and restart
 #
 # Run it from a copy of the repository on the Pi (`just pi-provision` and `just pi-sync` copy
 # it and run it). Layout:
 #   /opt/primum/app      the source being installed      /opt/primum/venv  the runtime
-#   /opt/primum/python   Python, installed by uv         /etc/primum/runtime.env  configuration
-#   /data                the only writable path of the service (user `primum`, group `gpio`)
+#   /etc/primum/runtime.env  configuration               /data  the service's only writable path
+# Python 3.13 is the system's when it has it (Raspberry Pi OS 13); otherwise uv installs it in
+# /opt/primum/python.
 set -euo pipefail
 
 UV_VERSION=0.11.32
@@ -19,6 +20,8 @@ SOURCE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 PRIMUM_HOME=/opt/primum
 CONFIG=/etc/primum/runtime.env
 UNIT=/etc/systemd/system/primum.service
+JOURNAL_CONFIG=/etc/systemd/journald.conf.d/primum.conf
+STARTUP_TIMEOUT_S=15
 MODEL_FILE=${MODEL_FILE:-/proc/device-tree/model}
 PACKAGES=(git build-essential curl rsync)
 
@@ -85,6 +88,16 @@ install_uv() {
     env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
 }
 
+# The development Pi keeps its log across reboots, to see how the service stopped. The Primum OS
+# image (phase 7, read-only root) decides this on its own.
+persist_journal() {
+  [[ -f $JOURNAL_CONFIG ]] && return 0
+  log "keeping the journal across reboots"
+  install -d -m 0755 "$(dirname "$JOURNAL_CONFIG")"
+  printf '[Journal]\nStorage=persistent\n' >"$JOURNAL_CONFIG"
+  systemctl restart systemd-journald
+}
+
 create_user() {
   if ! id primum >/dev/null 2>&1; then
     log "creating user primum"
@@ -115,13 +128,14 @@ CONFIG
 install_app() {
   log "installing the runtime from $SOURCE"
   install -d -m 0755 "$PRIMUM_HOME"
-  rsync -a --delete --exclude .venv --exclude .git "$SOURCE/" "$PRIMUM_HOME/app/"
-  # Not editable: the venv keeps working whatever later happens to the copied source.
+  rsync -a --delete --chown=root:root --exclude .venv --exclude .git "$SOURCE/" "$PRIMUM_HOME/app/"
+  # Not editable: the venv keeps working whatever later happens to the copied source. Bytecode
+  # is compiled here because the service cannot write it (ProtectSystem=strict).
   UV_PROJECT_ENVIRONMENT=$PRIMUM_HOME/venv \
     UV_PYTHON_INSTALL_DIR=$PRIMUM_HOME/python \
     UV_CACHE_DIR=/var/cache/primum/uv \
     /usr/local/bin/uv sync --directory "$PRIMUM_HOME/app" --frozen --no-dev --no-editable \
-    --package primum-runtime --quiet
+    --compile-bytecode --package primum-runtime --quiet
 }
 
 install_service() {
@@ -133,15 +147,20 @@ install_service() {
   systemctl enable --quiet primum.service
 }
 
+# "active" only means the process started: the service is up once its API answers, after
+# opening the HAL and claiming the pin.
 restart_service() {
   log "restarting primum.service"
   systemctl restart primum.service
-  sleep 2
-  if ! systemctl is-active --quiet primum.service; then
-    journalctl -u primum.service -n 20 --no-pager >&2
-    fail "primum.service did not start (log above)"
-  fi
-  log "running: http://$(hostname).local:$PORT"
+  for _ in $(seq "$STARTUP_TIMEOUT_S"); do
+    if curl -sf "http://127.0.0.1:$PORT/api/status" >/dev/null; then
+      log "running: http://$(hostname).local:$PORT"
+      return 0
+    fi
+    sleep 1
+  done
+  journalctl -u primum.service -n 30 --no-pager >&2
+  fail "primum.service did not answer within ${STARTUP_TIMEOUT_S} s (log above)"
 }
 
 main() {
@@ -152,12 +171,13 @@ main() {
   if ! $app_only; then
     install_packages
     install_uv
+    persist_journal
     create_user
     write_config
   fi
   [[ -f $CONFIG ]] || fail "Primum is not provisioned yet: run it once with --pin N"
   install_app
-  $app_only || install_service
+  install_service
   restart_service
 }
 

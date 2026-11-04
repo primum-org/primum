@@ -59,7 +59,7 @@ test_hw() {
   ssh "$pi" bash -s -- "$REMOTE_SOURCE" <<'REMOTE'
 set -euo pipefail
 cd "$1"
-./image/check-gpio-users.sh
+sudo ./image/check-gpio-users.sh
 pin=$(sed -n 's/^PRIMUM_PIN=//p' /etc/primum/runtime.env)
 sudo systemctl stop primum.service
 trap 'sudo systemctl start primum.service' EXIT

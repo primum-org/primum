@@ -10,6 +10,9 @@ Group=primum
 SupplementaryGroups=gpio
 EnvironmentFile=/etc/primum/runtime.env
 WorkingDirectory=/data
+# Refuse to start next to other GPIO software (decision 0010). "+" runs the check as root and
+# outside the sandbox: only root can see other users' processes.
+ExecStartPre=+/opt/primum/app/image/check-gpio-users.sh
 ExecStart=/opt/primum/venv/bin/primum-runtime
 # SIGTERM makes uvicorn close the HAL, which applies the safe state (decision 0011).
 TimeoutStopSec=10

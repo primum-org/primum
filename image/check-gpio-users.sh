@@ -6,8 +6,14 @@
 # so the HAL cannot see them. Nothing here is specific to one program. Limit: software that is
 # installed but not running holds nothing, so it is not found; a Pi for Primum has none.
 #
-# PROC (default /proc) lets the tests use a fake process tree.
+# Needs root: other users' open files are hidden from a normal user, so without root the
+# check would find nothing and pass. PROC (a fake process tree) is for the tests.
 set -euo pipefail
+
+if [[ -z ${PROC:-} ]] && ((EUID != 0)); then
+  echo "check-gpio-users: run it as root (without root it cannot see other users' processes)" >&2
+  exit 2
+fi
 
 proc=${PROC:-/proc}
 found=()
