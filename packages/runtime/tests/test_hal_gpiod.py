@@ -160,12 +160,12 @@ def test_line_held_by_a_kernel_driver_raises_pin_unavailable_without_consumer(
 
 
 def test_line_held_by_a_named_consumer_raises_pin_unavailable_with_it(chip: FakeChip) -> None:
-    chip.owners[17] = "belen"
+    chip.owners[17] = "other-app"
 
     with GpiodHal(CHIP) as hal, pytest.raises(PrimumError) as raised:
         hal.digital_output(OutputSpec(pin=17))
 
-    assert raised.value.params == {"pin": 17, "chip": CHIP, "consumer": "belen"}
+    assert raised.value.params == {"pin": 17, "chip": CHIP, "consumer": "other-app"}
     assert chip.requests == []
 
 

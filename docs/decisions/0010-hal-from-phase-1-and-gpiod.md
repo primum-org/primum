@@ -62,7 +62,7 @@ had to pass pyright in strict mode.
   guess from line states: a free line left as an output looks the same whether Primum or
   other software released it.
 - What happens to a released line depends on the kernel and the board. On a Pi 4 (checked on
-  2026-10-30, the belén's Pi, not a Primum development Pi), a released line stays an output with no consumer and keeps
+  2026-10-30 with Debian 13 and kernel 6.18), a released line stays an output with no consumer and keeps
   its last value, so after `close()` it stays driven low; it does not float. That is not a
   guarantee across kernels or boards, so phase 1 drives LEDs only, never relays: relays wait
   for safe boot levels in `config.txt` (phase 6) and the watchdog (phase 3).

@@ -8,7 +8,7 @@
 #
 # The Pi is the SSH host in PRIMUM_PI_HOST, `primum-dev` by default: an alias of ~/.ssh/config
 # with key-based login and passwordless sudo (image/README.md). Never point it at a Pi that runs
-# other GPIO software, such as the belén's (decision 0010); provisioning refuses to run there.
+# other GPIO software (decision 0010); provisioning refuses to run there.
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)

@@ -39,8 +39,8 @@ shared with other GPIO software (decision 0010), and the API has no authenticati
 - Installing from a git clone on the Pi: needs GitHub credentials there and a commit for every
   try.
 - A wheel built on the laptop: one more step per change, and `uv.lock` already pins everything.
-- Defaulting the pin to 17: a default pin is a pin someone wired a relay to (it happened, on the
-  belén's Pi).
+- Defaulting the pin to 17: a default pin is a pin someone wired a relay to (it happened, on a
+  Pi that was running another installation).
 
 ## Consequences
 - The laptop needs `ssh` and `rsync`; the Pi needs Internet the first time.

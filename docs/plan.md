@@ -109,9 +109,10 @@ entry in both catalogs).
 
 **1.4 · Deployment to the development Pi** · *needs the Pi* · **done**
 (decision 0012)
-- The development Pi is a Pi, or an SD card, for Primum only. The belén's Pi (`rpi4b`, hostname
-  `belen`) is not one: it runs RPi.GPIO through `/dev/gpiomem`, and GPIO 17 there is a 220 V
-  relay. Provisioning refuses to run where other software drives GPIO, found generically by
+- The development Pi is a Pi, or an SD card, for Primum only. A Pi that already runs other GPIO
+  software (RPi.GPIO or pigpio through `/dev/gpiomem`) is not one: that software may have
+  relays wired to the very pins Primum would use. Provisioning refuses to run where other
+  software drives GPIO, found generically by
   `image/check-gpio-users.sh` (processes holding `/dev/gpiomem` or `/dev/mem`, `pigpiod`); no
   program is named in the code. Software installed but not running is not found: that is why
   the Pi is for Primum only.
