@@ -96,6 +96,9 @@ persist_journal() {
   install -d -m 0755 "$(dirname "$JOURNAL_CONFIG")"
   printf '[Journal]\nStorage=persistent\n' >"$JOURNAL_CONFIG"
   systemctl restart systemd-journald
+  # A restarted journald keeps writing to /run until it is flushed; at boot the flush is
+  # systemd-journal-flush.service's job, here it is ours.
+  journalctl --flush
 }
 
 create_user() {
