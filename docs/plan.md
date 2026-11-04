@@ -149,9 +149,16 @@ entry in both catalogs).
 **Done when:** a phone on the same Wi-Fi opens the development Pi on port 8080, turns the LED on,
 and it still works after a reboot.
 
-**1.5 · Image spike** · *needs the Pi, half a day*
+**1.5 · Image spike** · *needs the Pi, half a day* · in progress
 - CI builds the minimal rpi-image-gen image on an ARM runner; boot it on the Pi. Only a check
   that the tool works: the real image is phase 7.
+- `image/spike/` (config, a layer and its overlay) and `.github/workflows/image-spike.yml`
+  (`ubuntu-24.04-arm`, rpi-image-gen pinned to v2.9.0, by hand or on pull requests that change
+  the spike; uploads `primum-spike.img.xz`). Debian Trixie for a Pi 4, user `primum`, SSH with
+  keys only. The Wi-Fi password and the SSH key go in `primum/` on the boot partition after
+  flashing and a boot service applies them, so no secret goes through CI.
+- **Pending:** the CI build (time, size, problems) and booting the image on the Pi. Then record
+  what was learnt for phase 7 in a decision note.
 
 **Watch during phase 1**
 - Only LEDs, no relays: a released GPIO line may float, so relays wait for the watchdog

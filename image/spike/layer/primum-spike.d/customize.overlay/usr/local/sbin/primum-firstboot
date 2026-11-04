@@ -1,0 +1,41 @@
+#!/bin/sh
+# Apply what the user put in primum/ on the boot partition after flashing:
+#   wifi.txt         two lines, SSID=<name> and PSK=<password>; deleted once applied
+#   authorized_keys  the SSH public key(s) of the user given as $1
+# The files may come from Windows (CRLF line endings), so carriage returns are dropped.
+# BOOT_DIR and IWD_DIR are for the tests (tools/tests/test_image_spike.py).
+set -eu
+
+user=$1
+dir=${BOOT_DIR:-/boot/firmware/primum}
+iwd=${IWD_DIR:-/var/lib/iwd}
+
+value() {
+  sed -n "s/^$1=//p" "$dir/wifi.txt" | tr -d '\r' | head -n 1
+}
+
+# iwd names a profile after the SSID, or "=" and its hex bytes when it has other characters.
+profile_name() {
+  case $1 in
+    *[!A-Za-z0-9_-]*) printf '=%s' "$(printf '%s' "$1" | od -An -tx1 | tr -d ' \n')" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+if [ -f "$dir/wifi.txt" ]; then
+  ssid=$(value SSID)
+  psk=$(value PSK)
+  install -d -m 0700 "$iwd"
+  profile=$iwd/$(profile_name "$ssid").psk
+  printf '[Security]\nPassphrase=%s\n' "$psk" >"$profile"
+  chmod 0600 "$profile"
+  rm -f "$dir/wifi.txt" # the password must not stay on a partition anyone can read
+fi
+
+if [ -f "$dir/authorized_keys" ]; then
+  home=$(getent passwd "$user" | cut -d: -f6)
+  install -d -m 0700 -o "$user" -g "$user" "$home/.ssh"
+  tr -d '\r' <"$dir/authorized_keys" >"$home/.ssh/authorized_keys"
+  chown "$user:$user" "$home/.ssh/authorized_keys"
+  chmod 0600 "$home/.ssh/authorized_keys"
+fi

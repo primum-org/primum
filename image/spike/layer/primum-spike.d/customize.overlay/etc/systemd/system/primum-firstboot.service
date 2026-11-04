@@ -1,0 +1,15 @@
+# Applies primum/wifi.txt and primum/authorized_keys from the boot partition, before the
+# network and SSH start. Does nothing when there is nothing to apply.
+[Unit]
+Description=Primum: apply Wi-Fi and SSH key from the boot partition
+RequiresMountsFor=/boot/firmware
+ConditionPathExists=/boot/firmware/primum
+Before=iwd.service ssh.service
+
+[Service]
+Type=oneshot
+# The user created by config/primum-spike.yaml (device.user1).
+ExecStart=/usr/local/sbin/primum-firstboot primum
+
+[Install]
+WantedBy=multi-user.target

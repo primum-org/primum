@@ -1,0 +1,13 @@
+# METABEGIN
+# X-Env-Layer-Name: primum-spike
+# X-Env-Layer-Category: service
+# X-Env-Layer-Version: 1.0.0
+# X-Env-Layer-Desc: Block 1.5 spike. At boot, applies the Wi-Fi network and the SSH key put in
+#  primum/ on the boot partition after flashing (see image/spike/README.md). Its files are in
+#  primum-spike.d/customize.overlay, copied into the image before these hooks run.
+# X-Env-Layer-Requires: device-user-admin,openssh-server,iwd
+# METAEND
+---
+mmdebstrap:
+  customize-hooks:
+    - $BDEBSTRAP_HOOKS/enable-units "$1" primum-firstboot

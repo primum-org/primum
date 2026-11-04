@@ -1,0 +1,21 @@
+# Block 1.5 spike: the smallest image that proves rpi-image-gen works for Primum (phase 7 builds
+# the real one). Debian Trixie for a Raspberry Pi 4, with SSH and Wi-Fi taken from files put on
+# the boot partition after flashing, so no secret goes through CI.
+include:
+  file: trixie-minbase.yaml
+
+device:
+  layer: rpi4
+  hostname: primum-spike
+  user1: primum
+  # No password: login only with the SSH key from the boot partition.
+  user1sudo: nopasswd
+
+ssh:
+  pubkey_only: y
+
+image:
+  name: primum-spike
+
+layer:
+  app: primum-spike

@@ -59,7 +59,7 @@ watch:
 lint:
     uv run ruff check
     uv run ruff format --check
-    uv run shellcheck image/*.sh tools/*.sh
+    uv run shellcheck image/*.sh tools/*.sh image/spike/layer/*.d/customize.overlay/usr/local/sbin/*
 
 # Fix lint issues and format the code
 fmt:
