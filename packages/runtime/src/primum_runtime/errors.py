@@ -18,6 +18,7 @@ class ErrorCode(StrEnum):
     HAL_PIN_IN_USE = "hal.pin_in_use"
     HAL_PIN_INVALID = "hal.pin_invalid"
     HAL_PIN_UNAVAILABLE = "hal.pin_unavailable"
+    HAL_PROFILE_MISMATCH = "hal.profile_mismatch"
     HAL_CHIP_UNAVAILABLE = "hal.chip_unavailable"
     HAL_CHIP_ACCESS_DENIED = "hal.chip_access_denied"
     HAL_UNSUPPORTED_PLATFORM = "hal.unsupported_platform"

@@ -27,6 +27,10 @@
       "message": "Pin {pin} is being used by something else on this board.",
       "hint": "Free it (stop the program or turn off the interface that uses it) or choose another pin."
     },
+    "hal.profile_mismatch": {
+      "message": "The board profile puts pin {pin} on line {line}, but the GPIO controller {chip} has {lines} lines.",
+      "hint": "The profile does not match this board: check that Primum is configured for the right board, or report it."
+    },
     "hal.chip_unavailable": {
       "message": "The GPIO controller {chip} cannot be opened.",
       "hint": "Check that Primum is configured for this board."

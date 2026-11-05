@@ -22,15 +22,11 @@ from primum_runtime.errors import ErrorCode, PrimumError
 class OutputSpec:
     """How a digital output is wired: its GPIO number (BCM) and whether it is active low.
 
-    A negative pin fails with ``hal.pin_invalid``, before any HAL sees it.
+    Whether the board has that GPIO is the HAL's to check, against the board profile.
     """
 
     pin: int
     active_low: bool = False
-
-    def __post_init__(self) -> None:
-        if self.pin < 0:
-            raise PrimumError(ErrorCode.HAL_PIN_INVALID, {"pin": self.pin})
 
 
 @dataclass(frozen=True)

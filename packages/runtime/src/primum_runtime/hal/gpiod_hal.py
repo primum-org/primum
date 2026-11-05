@@ -79,10 +79,12 @@ class GpiodHal(Hal):
         return GpiodLine(request, line)
 
     def _check_line(self, pin: int, line: int) -> None:
-        if line >= self._num_lines:  # the profile and the chip disagree
+        if line >= self._num_lines:
+            # The pin exists on the board, but the profile puts it on a line this chip lacks:
+            # the profile is wrong for this board, not the user's pin.
             raise PrimumError(
-                ErrorCode.HAL_PIN_INVALID,
-                {"pin": pin, "chip": self._path, "lines": self._num_lines},
+                ErrorCode.HAL_PROFILE_MISMATCH,
+                {"pin": pin, "line": line, "chip": self._path, "lines": self._num_lines},
             )
         info = self._chip.get_line_info(line)
         if not info.used:
@@ -96,7 +98,9 @@ class GpiodHal(Hal):
 
 
 def _chip_paths() -> list[str]:
-    return sorted(str(path) for path in DEVICES.glob("gpiochip*"))
+    """Every GPIO chip device once: links (``gpiochip4 -> gpiochip0`` on Raspberry Pi OS, for
+    programs written for a Pi 5) are skipped, as they name a chip that is already listed."""
+    return sorted(str(path) for path in DEVICES.glob("gpiochip*") if not path.is_symlink())
 
 
 def _find_chip(label: str) -> tuple[gpiod.Chip, str, int]:

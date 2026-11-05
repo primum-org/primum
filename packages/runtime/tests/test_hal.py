@@ -54,12 +54,12 @@ def test_claiming_a_pin_twice_fails_with_pin_in_use() -> None:
         assert raised.value.params == {"pin": 17}
 
 
-def test_negative_pin_raises_pin_invalid_before_reaching_a_hal() -> None:
-    with pytest.raises(PrimumError) as raised:
-        OutputSpec(pin=-1)
+def test_negative_pin_raises_pin_invalid() -> None:
+    with SimulatedHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
+        hal.digital_output(OutputSpec(pin=-1))
 
     assert raised.value.code == "hal.pin_invalid"
-    assert raised.value.params == {"pin": -1}
+    assert raised.value.params == {"pin": -1, "board": "rpi4b"}
 
 
 def test_apply_safe_state_turns_every_output_off() -> None:

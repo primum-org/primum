@@ -9,7 +9,8 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   it; tests that need a real board are marked `@pytest.mark.hw`.
 - `gpiod` is imported only by `hal/gpiod_hal.py` (`just arch` enforces it).
 - Layers: `cli` → `api` → `config` → `board` → `control` → `hal` → `errors`; each imports only
-  the ones below it, and FastAPI, uvicorn and pydantic stay in `api` and `cli` (`just arch`, decision 0011).
+  the ones below it, and FastAPI, uvicorn and pydantic stay in `api` and `cli` (`just arch`,
+  decision 0011).
   The API commands outputs through `control.Controller`, never through the HAL.
 - API handlers are `async`: they all run on the event loop's thread, so `control` needs no locks.
 - Never run `hw` tests or drive lines on a Pi that runs other GPIO software: the kernel does not
@@ -19,7 +20,8 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   catalogs in `i18n/` (`test_catalogs.py` checks it).
 - The page lives in `ui/` (no build step). `ui/generated/` holds copies of `i18n/` and `design/`
   assets, and `generated/boards/` copies of the board profiles, made by `just gen`: never edit
-  them, edit the source and regenerate. UI keys are written literally (`t("panic.button")`, `data-i18n="panic.button"`) so the catalog test finds them.
+  them, edit the source and regenerate. UI keys are written literally (`t("panic.button")`,
+  `data-i18n="panic.button"`) so the catalog test finds them.
 - Safety first: every output has a safe state applied on start, stop, crash and panic.
 - Measure durations with a monotonic clock. Wall-clock time only for schedules, and only
   when it is known to be reliable (the Pi 4 has no RTC).

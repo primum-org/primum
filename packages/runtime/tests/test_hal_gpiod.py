@@ -7,6 +7,7 @@ release and the error mapping.
 
 import errno
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import pytest
 
@@ -149,12 +150,12 @@ def test_close_writes_the_safe_state_releases_the_line_and_closes_the_chip(
     assert chip.closed
 
 
-def test_a_line_the_chip_does_not_have_raises_pin_invalid(chip: FakeChip) -> None:
+def test_a_profile_line_the_chip_does_not_have_raises_profile_mismatch(chip: FakeChip) -> None:
     with GpiodHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
         hal.digital_output(OutputSpec(pin=6))
 
-    assert raised.value.code == "hal.pin_invalid"
-    assert raised.value.params == {"pin": 6, "chip": CHIP, "lines": NUM_LINES}
+    assert raised.value.code == "hal.profile_mismatch"
+    assert raised.value.params == {"pin": 6, "line": NUM_LINES, "chip": CHIP, "lines": NUM_LINES}
     assert chip.requests == []
 
 
@@ -292,3 +293,14 @@ def test_create_hal_returns_the_gpio_hal_for_the_board(chip: FakeChip) -> None:
         hal.digital_output(OutputSpec(pin=17))
 
     assert chip.requests
+
+
+def test_links_to_a_chip_are_not_opened_twice(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "gpiochip0").touch()
+    (tmp_path / "gpiochip1").touch()
+    (tmp_path / "gpiochip4").symlink_to(tmp_path / "gpiochip0")
+    monkeypatch.setattr(gpiod_hal, "DEVICES", tmp_path)
+
+    assert gpiod_hal._chip_paths() == [str(tmp_path / "gpiochip0"), str(tmp_path / "gpiochip1")]  # pyright: ignore[reportPrivateUsage] -- what the HAL opens

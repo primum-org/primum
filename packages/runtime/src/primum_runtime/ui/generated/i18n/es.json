@@ -27,6 +27,10 @@
       "message": "Otra cosa de esta placa está usando el pin {pin}.",
       "hint": "Libéralo (detén el programa o desactiva la interfaz que lo usa) o elige otro pin."
     },
+    "hal.profile_mismatch": {
+      "message": "El perfil de placa pone el pin {pin} en la línea {line}, pero el controlador GPIO {chip} tiene {lines} líneas.",
+      "hint": "El perfil no corresponde a esta placa: comprueba que Primum está configurado para la placa correcta o avísanos."
+    },
     "hal.chip_unavailable": {
       "message": "No se puede abrir el controlador GPIO {chip}.",
       "hint": "Comprueba que Primum está configurado para esta placa."
