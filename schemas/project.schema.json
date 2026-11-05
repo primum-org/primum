@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "project.schema.json",
+  "title": "Project",
+  "description": "The manifest of a project: project.json, at the root of the project's folder.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "schemaVersion", "name"],
+  "properties": {
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "kind": { "const": "project" },
+    "schemaVersion": { "const": 1 },
+    "name": { "$ref": "common.schema.json#/$defs/name" },
+    "description": { "$ref": "common.schema.json#/$defs/description" }
+  }
+}

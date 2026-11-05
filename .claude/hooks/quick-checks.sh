@@ -12,7 +12,7 @@ set -euo pipefail
 cd "${CLAUDE_PROJECT_DIR:-$PWD}"
 # Run when relevant files are uncommitted, or committed but not pushed yet (commits made
 # before stopping would otherwise skip the checks). Without an upstream, compare with origin/main.
-watched=('*.py' 'pyproject.toml' 'uv.lock' 'design/tokens/')
+watched=('*.py' 'pyproject.toml' 'uv.lock' 'design/' 'schemas/' 'i18n/')
 uncommitted=$(git status --porcelain -- "${watched[@]}")
 base=$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null || echo origin/main)
 unpushed=$(git diff --name-only "$base" -- "${watched[@]}" 2>/dev/null || true)
@@ -30,7 +30,7 @@ run() {
 
 run "ruff check" uv run --quiet ruff check
 run "ruff format --check (run: uv run just fmt)" uv run --quiet ruff format --check
-run "Generated files check (run: uv run just gen)" uv run --quiet python tools/gen_tokens.py --check
+run "Generated files check (run: uv run just gen)" uv run --quiet just gen-check
 run "Architecture rules (lint-imports)" uv run --quiet lint-imports
 run "pyright" uv run --quiet pyright
 run "Tests" uv run --quiet pytest -q -x

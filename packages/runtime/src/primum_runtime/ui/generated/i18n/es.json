@@ -74,6 +74,78 @@
     "request.method_not_allowed": {
       "message": "El servicio no acepta esta acción en {path}.",
       "hint": "Recarga la página. Si vuelve a pasar, informa del error con el detalle técnico."
+    },
+    "file.not_utf8": {
+      "message": "El fichero no es texto UTF-8.",
+      "hint": "Vuelve a guardarlo con la codificación UTF-8."
+    },
+    "file.invalid_json": {
+      "message": "El fichero no es JSON válido (línea {line}, columna {column}).",
+      "hint": "Corrige el texto cerca de esa posición o recupera el fichero de una copia."
+    },
+    "file.duplicate_key": {
+      "message": "La clave {key} aparece dos veces en el mismo objeto.",
+      "hint": "Deja solo una de ellas."
+    },
+    "file.not_an_object": {
+      "message": "El fichero no contiene un objeto JSON.",
+      "hint": "Un fichero de Primum empieza por { y acaba en }."
+    },
+    "schema.missing_field": {
+      "message": "Falta el campo {field}.",
+      "hint": "Añádelo: este formato lo exige."
+    },
+    "schema.unknown_field": {
+      "message": "El campo {field} no forma parte de este formato.",
+      "hint": "Quítalo o revisa cómo está escrito."
+    },
+    "schema.wrong_type": {
+      "message": "El campo {field} tiene un tipo de valor incorrecto.",
+      "hint": "Se esperaba: {expected}."
+    },
+    "schema.not_allowed": {
+      "message": "El valor de {field} no es uno de los permitidos.",
+      "hint": "Usa uno de estos: {allowed}."
+    },
+    "schema.invalid_format": {
+      "message": "El valor de {field} no tiene el formato esperado ({format}).",
+      "hint": "Revisa cómo está escrito."
+    },
+    "schema.invalid_value": {
+      "message": "El valor de {field} no es válido.",
+      "hint": "Compruébalo con la descripción del formato."
+    },
+    "schema.too_short": {
+      "message": "El texto de {field} es demasiado corto.",
+      "hint": "Necesita al menos {min} caracteres."
+    },
+    "schema.too_long": {
+      "message": "El texto de {field} es demasiado largo.",
+      "hint": "Puede tener como mucho {max} caracteres."
+    },
+    "schema.too_few_items": {
+      "message": "{field} tiene muy pocos elementos.",
+      "hint": "Necesita al menos {min}."
+    },
+    "schema.too_many_items": {
+      "message": "{field} tiene demasiados elementos.",
+      "hint": "Puede tener como mucho {max}."
+    },
+    "schema.duplicate_items": {
+      "message": "{field} tiene elementos repetidos.",
+      "hint": "Quita los repetidos."
+    },
+    "schema.below_minimum": {
+      "message": "El valor de {field} es demasiado pequeño.",
+      "hint": "Debe ser {minimum} o más."
+    },
+    "schema.above_maximum": {
+      "message": "El valor de {field} es demasiado grande.",
+      "hint": "Debe ser {maximum} o menos."
+    },
+    "schema.unsupported_version": {
+      "message": "El fichero usa la versión {version} de su formato, y esta versión de Primum lee la versión {supported}.",
+      "hint": "Ábrelo con una versión de Primum que lea ese formato."
     }
   }
 }

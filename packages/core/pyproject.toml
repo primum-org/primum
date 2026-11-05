@@ -5,7 +5,9 @@ description = "Primum core: project model, validation, compiler and simulator. P
 readme = "README.md"
 requires-python = ">=3.13"
 license = "Apache-2.0"
-dependencies = []
+# fastjsonschema: structural validation against schemas/ (decision 0008); pure Python, no
+# dependencies of its own.
+dependencies = ["fastjsonschema>=2.22.2"]
 
 [build-system]
 requires = ["hatchling>=1.27"]
