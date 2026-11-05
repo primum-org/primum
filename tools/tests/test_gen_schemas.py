@@ -3,6 +3,7 @@
 import importlib.util
 import json
 import re
+import subprocess
 import sys
 from collections.abc import Mapping
 from pathlib import Path
@@ -12,7 +13,7 @@ from uuid import UUID
 import pytest
 
 import gen_schemas
-from gen_schemas import SchemaError, differences, generate, write
+from gen_schemas import ROOT, SchemaError, differences, generate, write
 
 DRAFT = "https://json-schema.org/draft/2020-12/schema"
 ID = "8d0f6f1e-3b2a-4c55-9a51-1f2d3c4b5a69"
@@ -42,6 +43,7 @@ SHOW: dict[str, object] = {
         "steps": {"type": "array", "items": {"$ref": "#/$defs/step"}},
         "grid": {"type": "array", "items": {"type": "array", "items": {"type": "integer"}}},
         "speed": {"type": "number", "default": 1},
+        "volume": {"type": "number", "default": 0.5},
         "enabled": {"type": "boolean"},
     },
     "$defs": {
@@ -114,6 +116,7 @@ def test_a_validated_document_is_parsed_into_the_dataclasses(model: ModuleType) 
         steps=(model.Step(at_ms=0, if_="dark"), model.Step(at_ms=500, if_="always")),
         grid=((1, 2), (3,)),
         speed=2.0,
+        volume=0.5,
         enabled=True,
     )
     assert show.kind == "show"
@@ -122,7 +125,8 @@ def test_a_validated_document_is_parsed_into_the_dataclasses(model: ModuleType) 
 def test_absent_optional_fields_take_their_default_or_none(model: ModuleType) -> None:
     show = model.parse_show({"id": ID, "kind": "show", "name": "N", "mode": "once", "steps": []})
 
-    assert (show.speed, show.enabled, show.level, show.grid) == (1, None, None, None)
+    assert (show.speed, show.volume) == (1, 0.5)
+    assert (show.enabled, show.level, show.grid) == (None, None, None)
 
 
 def test_the_schemas_module_holds_each_schema_by_file_name(
@@ -148,6 +152,11 @@ def test_the_schemas_module_holds_each_schema_by_file_name(
         ({"properties": {"mixed": {"enum": ["a", 1]}}}, "all strings or all integers"),
         ({"properties": {"bad": {"$ref": "#/$defs/nope"}}}, "must name a schema or one of"),
         ({"properties": {"bad": {"$ref": "other.schema.json"}}}, "unknown schema"),
+        ({"properties": {"bad": {"type": "string", "minLength": "1"}}}, "not a valid schema"),
+        (
+            {"properties": {"bad": {"type": "string", "default": "x"}}, "required": ["bad"]},
+            "on an optional property",
+        ),
         ({"properties": {"bad": {"type": ["string", "null"]}}}, "needs a single type"),
         ({"$id": "renamed.schema.json"}, "its $id must be its file name"),
     ],
@@ -202,3 +211,17 @@ def test_write_removes_modules_whose_source_is_gone(tmp_path: Path) -> None:
 
 def test_the_repository_modules_are_up_to_date() -> None:
     assert gen_schemas.main(["--check"]) == 0
+
+
+def test_generated_code_passes_strict_type_checking(tmp_path: Path) -> None:
+    """The repository's model.py only covers what today's schemas use; the fixture uses all."""
+    write(generate(_write_schemas(tmp_path, COMMON, SHOW)), tmp_path / "out")
+
+    result = subprocess.run(  # noqa: S603 -- our own interpreter, fixed arguments
+        [sys.executable, "-m", "pyright", "--project", str(ROOT), str(tmp_path / "out")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout

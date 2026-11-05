@@ -16,6 +16,14 @@ from primum_core.generated.schemas import SCHEMAS
 from primum_core.json_values import is_array, is_object
 
 VERSION_FIELD = "schemaVersion"
+EXPECTED_TYPE_CODES = {
+    "string": CoreErrorCode.SCHEMA_EXPECTED_TEXT,
+    "integer": CoreErrorCode.SCHEMA_EXPECTED_INTEGER,
+    "number": CoreErrorCode.SCHEMA_EXPECTED_NUMBER,
+    "boolean": CoreErrorCode.SCHEMA_EXPECTED_BOOLEAN,
+    "array": CoreErrorCode.SCHEMA_EXPECTED_LIST,
+    "object": CoreErrorCode.SCHEMA_EXPECTED_OBJECT,
+}
 
 type Step = str | int
 type Validator = Callable[[object], object]
@@ -123,13 +131,13 @@ def _code_for(rule: str, expected: object) -> tuple[CoreErrorCode, dict[str, Par
     """The code of a failure that concerns one value, and the params it adds to ``field``."""
     match rule:
         case "type":
-            return CoreErrorCode.SCHEMA_WRONG_TYPE, {"expected": _scalar(expected)}
+            return EXPECTED_TYPE_CODES.get(str(expected), CoreErrorCode.SCHEMA_INVALID_VALUE), {}
         case "const":
             return CoreErrorCode.SCHEMA_NOT_ALLOWED, {"allowed": (_scalar(expected),)}
         case "enum":
             return CoreErrorCode.SCHEMA_NOT_ALLOWED, {"allowed": _scalars(expected)}
-        case "format":
-            return CoreErrorCode.SCHEMA_INVALID_FORMAT, {"format": _scalar(expected)}
+        case "format" if expected == "uuid":
+            return CoreErrorCode.SCHEMA_INVALID_ID, {}
         case "minLength":
             return CoreErrorCode.SCHEMA_TOO_SHORT, {"min": _scalar(expected)}
         case "maxLength":
@@ -144,7 +152,7 @@ def _code_for(rule: str, expected: object) -> tuple[CoreErrorCode, dict[str, Par
             return CoreErrorCode.SCHEMA_ABOVE_MAXIMUM, {"maximum": _scalar(expected)}
         case "uniqueItems":
             return CoreErrorCode.SCHEMA_DUPLICATE_ITEMS, {}
-        case _:  # pattern, and any rule the schemas may use later without a code of its own
+        case _:  # pattern, and any rule or format the schemas may use later without its own code
             return CoreErrorCode.SCHEMA_INVALID_VALUE, {}
 
 

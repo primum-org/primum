@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeIs
 
+import fastjsonschema
+
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "schemas"
 TARGET = ROOT / "packages" / "core" / "src" / "primum_core" / "generated"
@@ -48,6 +50,7 @@ SCALARS = {
 
 type Schema = dict[str, object]
 type JsonLiteral = str | int | bool
+type Default = JsonLiteral | float
 
 
 class SchemaError(ValueError):
@@ -100,7 +103,7 @@ class FieldSpec:
     name: str
     type: TypeSpec
     required: bool
-    default: JsonLiteral | None = None
+    default: Default | None = None
 
 
 @dataclass(frozen=True)
@@ -193,8 +196,10 @@ class _Builder:
         default = schema.get("default")
         if isinstance(spec, Constant) and not required:
             raise SchemaError(f"{where}: a const property must be required")
-        if default is not None and (required or not _is_literal(default)):
-            raise SchemaError(f"{where}: a default must be a string, number or boolean, optional")
+        if default is not None and (required or not _is_default(default)):
+            raise SchemaError(
+                f"{where}: a default must be a string, number or boolean, on an optional property"
+            )
         return FieldSpec(json_name, _field_name(json_name), spec, required, default)
 
     def _type(self, schema: Schema, file: str, where: str) -> TypeSpec:
@@ -257,6 +262,10 @@ def _is_literal(value: object) -> TypeIs[JsonLiteral]:
     return isinstance(value, str | int | bool)
 
 
+def _is_default(value: object) -> TypeIs[Default]:
+    return isinstance(value, str | int | float | bool)
+
+
 def _literal(value: object, where: str) -> JsonLiteral:
     if not _is_literal(value):
         raise SchemaError(f"{where}: const and enum values must be strings, integers or booleans")
@@ -291,7 +300,7 @@ def _field_name(name: str) -> str:
 # --- writing Python -------------------------------------------------------------------------
 
 
-def _python_literal(value: JsonLiteral) -> str:
+def _python_literal(value: Default) -> str:
     return json.dumps(value, ensure_ascii=False) if isinstance(value, str) else repr(value)
 
 
@@ -442,10 +451,21 @@ def render_schemas(schemas: dict[str, tuple[str, Schema]]) -> str:
     )
 
 
+def check_compiles(schemas: dict[str, Schema]) -> None:
+    """Compile each schema as ``core`` will, so a malformed one fails here, not in ``core``."""
+    for name, schema in schemas.items():
+        try:
+            fastjsonschema.compile(schema, handlers={"": schemas.__getitem__}, use_default=False)
+        except (fastjsonschema.JsonSchemaDefinitionException, KeyError) as error:
+            raise SchemaError(f"{name}: not a valid schema: {error}") from error
+
+
 def generate(source: Path) -> dict[str, str]:
     """The content of every generated module, by file name."""
     schemas = load(source)
-    classes = _Builder({name: schema for name, (_, schema) in schemas.items()}).build()
+    parsed = {name: schema for name, (_, schema) in schemas.items()}
+    classes = _Builder(parsed).build()
+    check_compiles(parsed)  # after the subset checks, whose messages are clearer
     return {
         "__init__.py": f"{HEADER}\n",
         "schemas.py": render_schemas(schemas),

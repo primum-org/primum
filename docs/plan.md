@@ -192,8 +192,12 @@ pull request per block.
   structural problem of a file is reported; a stub in `typings/` keeps pyright strict.
 - `primum_core.errors`: `CoreErrorCode`, `Issue` (`code`, `params`, `location`, `severity`),
   `Location` (`path`, JSON `pointer`, `file_id` once known). `primum_core.formats.read_manifest`:
-  UTF-8 (byte order mark accepted), JSON without repeated keys or `NaN`, schema, dataclass.
-- Codes `file.*` and `schema.*` in both catalogs; the catalog test checks `core`'s codes too.
+  UTF-8 (byte order mark accepted), JSON without repeated keys or `NaN` (`2.0` read as the
+  integer it is), schema, dataclass.
+- Codes `file.*` and `schema.*` in both catalogs, one per expected type so no message quotes
+  JSON Schema's words; the catalog test checks `core`'s codes too.
+- The generator compiles every schema (a malformed one fails `just gen-check`) and type-checks
+  the code it generates for a fixture that uses every supported keyword.
 - Formats are drafts until the first release: `schemaVersion` 1 may change without migrations.
 
 **2.2 · Board profile `rpi4b`**

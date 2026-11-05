@@ -99,17 +99,37 @@
       "message": "El campo {field} no forma parte de este formato.",
       "hint": "Quítalo o revisa cómo está escrito."
     },
-    "schema.wrong_type": {
-      "message": "El campo {field} tiene un tipo de valor incorrecto.",
-      "hint": "Se esperaba: {expected}."
+    "schema.expected_text": {
+      "message": "El campo {field} debe ser un texto.",
+      "hint": "Escríbelo entre comillas dobles, como \"Escaparate\"."
+    },
+    "schema.expected_integer": {
+      "message": "El campo {field} debe ser un número entero.",
+      "hint": "Escríbelo sin comillas ni decimales, como 17."
+    },
+    "schema.expected_number": {
+      "message": "El campo {field} debe ser un número.",
+      "hint": "Escríbelo sin comillas, como 0.5 o 2."
+    },
+    "schema.expected_boolean": {
+      "message": "El campo {field} debe ser true o false.",
+      "hint": "Escribe true o false, sin comillas."
+    },
+    "schema.expected_list": {
+      "message": "El campo {field} debe ser una lista.",
+      "hint": "Escríbela entre corchetes, como [1, 2]."
+    },
+    "schema.expected_object": {
+      "message": "El campo {field} debe ser un grupo de campos.",
+      "hint": "Escríbelo entre llaves, como {\"name\": \"LED\"}."
     },
     "schema.not_allowed": {
       "message": "El valor de {field} no es uno de los permitidos.",
       "hint": "Usa uno de estos: {allowed}."
     },
-    "schema.invalid_format": {
-      "message": "El valor de {field} no tiene el formato esperado ({format}).",
-      "hint": "Revisa cómo está escrito."
+    "schema.invalid_id": {
+      "message": "El valor de {field} no es un identificador válido.",
+      "hint": "Un identificador es un UUID como 8d0f6f1e-3b2a-4c55-9a51-1f2d3c4b5a69; deja que Primum lo cree."
     },
     "schema.invalid_value": {
       "message": "El valor de {field} no es válido.",

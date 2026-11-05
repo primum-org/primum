@@ -25,9 +25,16 @@ class CoreErrorCode(StrEnum):
     FILE_NOT_AN_OBJECT = "file.not_an_object"
     SCHEMA_MISSING_FIELD = "schema.missing_field"  # field
     SCHEMA_UNKNOWN_FIELD = "schema.unknown_field"  # field
-    SCHEMA_WRONG_TYPE = "schema.wrong_type"  # field, expected
+    # A value of the wrong type: one code per expected type, so every message reads naturally
+    # in every language instead of quoting JSON Schema's type names.
+    SCHEMA_EXPECTED_TEXT = "schema.expected_text"  # field
+    SCHEMA_EXPECTED_INTEGER = "schema.expected_integer"  # field
+    SCHEMA_EXPECTED_NUMBER = "schema.expected_number"  # field
+    SCHEMA_EXPECTED_BOOLEAN = "schema.expected_boolean"  # field
+    SCHEMA_EXPECTED_LIST = "schema.expected_list"  # field
+    SCHEMA_EXPECTED_OBJECT = "schema.expected_object"  # field
     SCHEMA_NOT_ALLOWED = "schema.not_allowed"  # field, allowed
-    SCHEMA_INVALID_FORMAT = "schema.invalid_format"  # field, format
+    SCHEMA_INVALID_ID = "schema.invalid_id"  # field
     SCHEMA_INVALID_VALUE = "schema.invalid_value"  # field
     SCHEMA_TOO_SHORT = "schema.too_short"  # field, min
     SCHEMA_TOO_LONG = "schema.too_long"  # field, max
@@ -61,7 +68,13 @@ class Location:
 
 @dataclass(frozen=True)
 class Issue:
+    """One problem found in a project. Equal issues hash alike, so they can be deduplicated."""
+
     code: CoreErrorCode
     params: Mapping[str, ParamValue] = field(default_factory=dict[str, ParamValue])
     location: Location | None = None
     severity: Severity = Severity.ERROR
+
+    # Written by hand because params is a mapping; dataclass keeps an explicit __hash__.
+    def __hash__(self) -> int:
+        return hash((self.code, frozenset(self.params.items()), self.location, self.severity))

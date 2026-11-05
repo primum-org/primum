@@ -99,17 +99,37 @@
       "message": "The field {field} is not part of this format.",
       "hint": "Remove it, or check how it is spelled."
     },
-    "schema.wrong_type": {
-      "message": "The field {field} has the wrong type of value.",
-      "hint": "Expected: {expected}."
+    "schema.expected_text": {
+      "message": "The field {field} must be text.",
+      "hint": "Write it between double quotes, like \"Shop window\"."
+    },
+    "schema.expected_integer": {
+      "message": "The field {field} must be a whole number.",
+      "hint": "Write it without quotes or decimals, like 17."
+    },
+    "schema.expected_number": {
+      "message": "The field {field} must be a number.",
+      "hint": "Write it without quotes, like 0.5 or 2."
+    },
+    "schema.expected_boolean": {
+      "message": "The field {field} must be true or false.",
+      "hint": "Write true or false, without quotes."
+    },
+    "schema.expected_list": {
+      "message": "The field {field} must be a list.",
+      "hint": "Write it between square brackets, like [1, 2]."
+    },
+    "schema.expected_object": {
+      "message": "The field {field} must be a group of fields.",
+      "hint": "Write it between curly braces, like {\"name\": \"LED\"}."
     },
     "schema.not_allowed": {
       "message": "The value of {field} is not one of the allowed values.",
       "hint": "Use one of these: {allowed}."
     },
-    "schema.invalid_format": {
-      "message": "The value of {field} does not have the expected format ({format}).",
-      "hint": "Check how it is written."
+    "schema.invalid_id": {
+      "message": "The value of {field} is not a valid id.",
+      "hint": "An id is a UUID such as 8d0f6f1e-3b2a-4c55-9a51-1f2d3c4b5a69; let Primum create it."
     },
     "schema.invalid_value": {
       "message": "The value of {field} is not valid.",

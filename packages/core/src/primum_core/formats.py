@@ -3,12 +3,14 @@
 ``core`` reads no files: the caller passes the content it read, and the path where it found it
 (for display). Each file goes through three steps, and stops at the first that fails:
 
-1. text and JSON: UTF-8 (a byte order mark is accepted), valid JSON, no repeated keys;
+1. text and JSON: UTF-8 (a byte order mark is accepted), valid JSON, no repeated keys, and
+   numbers as JSON means them (``2.0`` is the integer ``2``);
 2. structure: the file's schema in ``schemas/``, every problem reported;
 3. the generated, immutable dataclass of the format.
 """
 
 import json
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -31,7 +33,8 @@ class Parsed[T]:
 
 
 class _NotStandardJson:
-    """``NaN`` and ``Infinity``: Python's json accepts them, JSON does not.
+    """``NaN``, ``Infinity`` and numbers too large for a float: Python's json accepts them, JSON
+    has no such values.
 
     The value is kept in the document as this marker, so the schema reports it, with its field,
     as a value of the wrong type.
@@ -74,6 +77,7 @@ def _decode(content: bytes, location: Location) -> object:
             text,
             object_pairs_hook=_object_without_repeated_keys,
             parse_constant=lambda _: _NotStandardJson(),
+            parse_float=_number,
         )
     except _DuplicateKeyError as repeated:
         return Issue(CoreErrorCode.FILE_DUPLICATE_KEY, {"key": repeated.key}, location)
@@ -83,6 +87,18 @@ def _decode(content: bytes, location: Location) -> object:
             {"line": invalid.lineno, "column": invalid.colno},
             location,
         )
+
+
+def _number(text: str) -> object:
+    """A JSON number with a fraction or an exponent (``2.0``, ``5e2``, ``0.5``).
+
+    JSON Schema counts ``2.0`` as an integer, so the schema accepts it where an integer goes;
+    it becomes the int ``2`` here, so the model gets the type the schema promised.
+    """
+    value = float(text)
+    if not math.isfinite(value):
+        return _NotStandardJson()
+    return int(value) if value.is_integer() else value
 
 
 def _object_without_repeated_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:

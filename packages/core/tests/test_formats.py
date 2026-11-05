@@ -90,7 +90,7 @@ def test_every_problem_is_reported_not_only_the_first() -> None:
     content = _manifest(id="not-a-uuid", name="", extra=1, other=2)
 
     assert _codes(content) == [
-        (CoreErrorCode.SCHEMA_INVALID_FORMAT, {"field": "id", "format": "uuid"}, "/id"),
+        (CoreErrorCode.SCHEMA_INVALID_ID, {"field": "id"}, "/id"),
         (CoreErrorCode.SCHEMA_TOO_SHORT, {"field": "name", "min": 1}, "/name"),
         (CoreErrorCode.SCHEMA_UNKNOWN_FIELD, {"field": "extra"}, "/extra"),
         (CoreErrorCode.SCHEMA_UNKNOWN_FIELD, {"field": "other"}, "/other"),
@@ -100,7 +100,7 @@ def test_every_problem_is_reported_not_only_the_first() -> None:
 @pytest.mark.parametrize(
     ("changes", "expected"),
     [
-        ({"name": 3}, (CoreErrorCode.SCHEMA_WRONG_TYPE, {"field": "name", "expected": "string"})),
+        ({"name": 3}, (CoreErrorCode.SCHEMA_EXPECTED_TEXT, {"field": "name"})),
         ({"name": "x" * 81}, (CoreErrorCode.SCHEMA_TOO_LONG, {"field": "name", "max": 80})),
         (
             {"kind": "sequence"},
@@ -125,12 +125,36 @@ def test_each_rule_has_its_code_and_params(
     assert pointer == f"/{next(iter(changes))}"
 
 
-def test_nan_is_not_json_and_is_reported_as_the_wrong_type() -> None:
-    content = _manifest().replace(b'"Shop window"', b"NaN")
+@pytest.mark.parametrize("number", [b"NaN", b"Infinity", b"-Infinity", b"1e400"])
+def test_numbers_json_does_not_have_are_reported_as_the_wrong_type(number: bytes) -> None:
+    content = _manifest().replace(b'"Shop window"', number)
+
+    assert _codes(content) == [(CoreErrorCode.SCHEMA_EXPECTED_TEXT, {"field": "name"}, "/name")]
+
+
+def test_a_whole_number_written_with_decimals_is_an_integer() -> None:
+    content = _manifest().replace(b'"schemaVersion": 1', b'"schemaVersion": 1.0')
+
+    parsed = read_manifest(PATH, content)
+
+    assert parsed.issues == ()
+
+
+def test_a_whole_number_written_with_decimals_is_reported_as_an_integer() -> None:
+    content = _manifest().replace(b'"schemaVersion": 1', b'"schemaVersion": 2e0')
 
     assert _codes(content) == [
-        (CoreErrorCode.SCHEMA_WRONG_TYPE, {"field": "name", "expected": "string"}, "/name")
+        (CoreErrorCode.SCHEMA_UNSUPPORTED_VERSION, {"version": 2, "supported": 1}, "/schemaVersion")
     ]
+    [issue] = read_manifest(PATH, content).issues
+    assert type(issue.params["version"]) is int
+
+
+def test_equal_issues_can_be_deduplicated() -> None:
+    first = read_manifest(PATH, _manifest(name="")).issues
+    second = read_manifest(PATH, _manifest(name="")).issues
+
+    assert len(set(first + second)) == 1
 
 
 def test_issues_name_the_file_by_path_and_by_id_once_known() -> None:

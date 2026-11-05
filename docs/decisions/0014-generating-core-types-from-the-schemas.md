@@ -16,14 +16,24 @@ become the codes of decision 0009, nor how a problem points at a file before its
     snake_case fields, arrays as tuples, enums and consts as `Literal`, ids as `UUID`, and a
     `parse_<name>()` that builds it from a document that passed its schema.
   It accepts a deliberately small subset of JSON Schema (`schemas/README.md`) and fails on
-  anything else, so every format maps to plain types in any language.
+  anything else, so every format maps to plain types in any language. It also compiles every
+  schema as `core` will, so a malformed one fails `just gen-check`, never `core`.
 - **Validation at run time**: `core` compiles each schema with `fastjsonschema` on first use,
   with `fast_fail=False`, so **every structural problem of a file is reported**, not only the
   first. Each failure becomes an `Issue` with a `schema.*` code, the field as a person reads it
   (`outputs[2].name`) and a JSON Pointer to it. Text and JSON problems have `file.*` codes.
+- **No JSON Schema words in messages**: a value of the wrong type has one code per expected
+  type (`schema.expected_text`, `schema.expected_integer`…) and a malformed id has
+  `schema.invalid_id`, so the Spanish text never quotes "string" or "uuid".
+- **Numbers as JSON means them**: JSON Schema counts `2.0` as an integer, so the schema accepts
+  it; decoding turns a whole number written with decimals into an `int`, and the model gets the
+  type the schema promised. `NaN`, `Infinity` and numbers too large for a float are not JSON
+  and are reported as values of the wrong type.
 - **`Issue`** = `code` + `params` + `location` + `severity`. `severity` is `error` or `warning`
   (overlapping sequences are warnings, decision 0006). `location` holds the file's `path` (for
   display, always known), its `file_id` once the file has a valid one, and the JSON Pointer.
+  Issues are hashable, so checks can deduplicate them. Reading a file returns `Parsed`: the
+  value and the issues together, because from 2.3 a file can be read with warnings.
 - **Formats are drafts until the first release**: `schemaVersion` stays `1` and may change
   without a migration while no user files exist. The rule "a breaking change bumps
   `schemaVersion` and ships a migration" starts with the first release.
