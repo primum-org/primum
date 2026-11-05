@@ -6,7 +6,7 @@ when a phase starts or finishes.
 | Phase | Goal | Status |
 |---|---|---|
 | 0 | Repository skeleton: structure, docs, rules, tooling, CI | Done |
-| 1 | End-to-end skeleton: toggle an LED from a phone | In progress (1.1–1.4 done) |
+| 1 | End-to-end skeleton: toggle an LED from a phone | Done |
 | 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Not started |
 | 3 | HAL, basic drivers and safety | Not started |
 | 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Not started |
@@ -149,7 +149,7 @@ entry in both catalogs).
 **Done when:** a phone on the same Wi-Fi opens the development Pi on port 8080, turns the LED on,
 and it still works after a reboot.
 
-**1.5 · Image spike** · *needs the Pi, half a day* · in progress
+**1.5 · Image spike** · *needs the Pi, half a day* · **done** (decision 0013)
 - CI builds the minimal rpi-image-gen image on an ARM runner; boot it on the Pi. Only a check
   that the tool works: the real image is phase 7.
 - `image/spike/` (config, a layer and its overlay) and `.github/workflows/image-spike.yml`
@@ -157,8 +157,10 @@ and it still works after a reboot.
   the spike; uploads `primum-spike.img.xz`). Debian Trixie for a Pi 4, user `primum`, SSH with
   keys only. The Wi-Fi password and the SSH key go in `primum/` on the boot partition after
   flashing and a boot service applies them, so no secret goes through CI.
-- **Pending:** the CI build (time, size, problems) and booting the image on the Pi. Then record
-  what was learnt for phase 7 in a decision note.
+- Result (2026-11-05): the CI build works (about 3 minutes, 160 MB compressed) and the image
+  boots on the Pi 4 and is reachable over SSH. The minimal base lacked a Wi-Fi country and mDNS
+  (both added), Imager's customisation does not apply to a custom image, and a board without a
+  password needs a status report on the boot partition (`primum/status.txt`) to be debugged.
 
 **Watch during phase 1**
 - Only LEDs, no relays: a released GPIO line may float, so relays wait for the watchdog
@@ -232,6 +234,9 @@ a BME280/VL53L0X sensor, WS2812B strip and audio.
 
 rpi-image-gen config; partitions `boot` · `rootfs A` · `rootfs B` (reserved) · `data`;
 read-only root; first boot with its own Wi-Fi and setup wizard; CI publishes `.img.xz`.
+Starts from the 1.5 spike (decision 0013): rpi-image-gen on `ubuntu-24.04-arm`, our layers with
+overlays, the Wi-Fi country asked at first boot, mDNS, a status report on the boot partition,
+and a networking stack chosen for the access point (the minimal base uses iwd + networkd).
 `provision.sh` installs `uv` with `curl | sh` from a pinned version but no checksum: fine for the
 development Pi, the image must verify what it downloads.
 
