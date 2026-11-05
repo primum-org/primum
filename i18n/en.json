@@ -74,6 +74,98 @@
     "request.method_not_allowed": {
       "message": "The service does not accept this action at {path}.",
       "hint": "Reload the page. If it happens again, report it with the technical detail."
+    },
+    "file.not_utf8": {
+      "message": "The file is not UTF-8 text.",
+      "hint": "Save it again with UTF-8 encoding."
+    },
+    "file.invalid_json": {
+      "message": "The file is not valid JSON (line {line}, column {column}).",
+      "hint": "Fix the text near that position, or restore the file from a copy."
+    },
+    "file.duplicate_key": {
+      "message": "The key {key} appears twice in the same object.",
+      "hint": "Keep only one of them."
+    },
+    "file.not_an_object": {
+      "message": "The file does not contain a JSON object.",
+      "hint": "A Primum file starts with { and ends with }."
+    },
+    "schema.missing_field": {
+      "message": "The field {field} is missing.",
+      "hint": "Add it: this format requires it."
+    },
+    "schema.unknown_field": {
+      "message": "The field {field} is not part of this format.",
+      "hint": "Remove it, or check how it is spelled."
+    },
+    "schema.expected_text": {
+      "message": "The field {field} must be text.",
+      "hint": "Write it between double quotes, like \"Shop window\"."
+    },
+    "schema.expected_integer": {
+      "message": "The field {field} must be a whole number.",
+      "hint": "Write it without quotes or decimals, like 17."
+    },
+    "schema.expected_number": {
+      "message": "The field {field} must be a number.",
+      "hint": "Write it without quotes, like 0.5 or 2."
+    },
+    "schema.expected_boolean": {
+      "message": "The field {field} must be true or false.",
+      "hint": "Write true or false, without quotes."
+    },
+    "schema.expected_list": {
+      "message": "The field {field} must be a list.",
+      "hint": "Write it between square brackets, like [1, 2]."
+    },
+    "schema.expected_object": {
+      "message": "The field {field} must be a group of fields.",
+      "hint": "Write it between curly braces, like {\"name\": \"LED\"}."
+    },
+    "schema.not_allowed": {
+      "message": "The value of {field} is not one of the allowed values.",
+      "hint": "Use one of these: {allowed}."
+    },
+    "schema.invalid_id": {
+      "message": "The value of {field} is not a valid id.",
+      "hint": "An id is a UUID such as 8d0f6f1e-3b2a-4c55-9a51-1f2d3c4b5a69; let Primum create it."
+    },
+    "schema.invalid_value": {
+      "message": "The value of {field} is not valid.",
+      "hint": "Check it against the description of the format."
+    },
+    "schema.too_short": {
+      "message": "The text of {field} is too short.",
+      "hint": "It needs at least {min} characters."
+    },
+    "schema.too_long": {
+      "message": "The text of {field} is too long.",
+      "hint": "It can have at most {max} characters."
+    },
+    "schema.too_few_items": {
+      "message": "{field} has too few items.",
+      "hint": "It needs at least {min}."
+    },
+    "schema.too_many_items": {
+      "message": "{field} has too many items.",
+      "hint": "It can have at most {max}."
+    },
+    "schema.duplicate_items": {
+      "message": "{field} has repeated items.",
+      "hint": "Remove the repeated ones."
+    },
+    "schema.below_minimum": {
+      "message": "The value of {field} is too small.",
+      "hint": "It must be {minimum} or more."
+    },
+    "schema.above_maximum": {
+      "message": "The value of {field} is too large.",
+      "hint": "It must be {maximum} or less."
+    },
+    "schema.unsupported_version": {
+      "message": "The file uses version {version} of its format, and this version of Primum reads version {supported}.",
+      "hint": "Open it with a version of Primum that reads that format."
     }
   }
 }

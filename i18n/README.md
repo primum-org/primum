@@ -10,7 +10,8 @@ All user-visible text: `en.json` (default locale) and `es.json`
 Rules, checked by `packages/runtime/tests/test_catalogs.py`:
 
 - Both catalogs have the same keys, and each string the same placeholders.
-- Every code in `primum_runtime.errors.ErrorCode` has an entry, and every entry is a code.
+- Every code in `primum_runtime.errors.ErrorCode` and `primum_core.errors.CoreErrorCode` has an
+  entry, and every entry is a code of one of them (never of both).
 - Every `ui` key the page uses exists, and every `ui` key is used.
 - Placeholders name params the error always carries. Params named `detail`, `consumer` and
   `fields` are technical text: the page shows them apart, never inside the message. Tuple

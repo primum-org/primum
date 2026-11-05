@@ -7,7 +7,7 @@ when a phase starts or finishes.
 |---|---|---|
 | 0 | Repository skeleton: structure, docs, rules, tooling, CI | Done |
 | 1 | End-to-end skeleton: toggle an LED from a phone | Done |
-| 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Not started |
+| 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | In progress |
 | 3 | HAL, basic drivers and safety | Not started |
 | 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Not started |
 | 5 | Local web UI v1 | Not started |
@@ -171,23 +171,82 @@ and it still works after a reboot.
 
 ## Phase 2 · Project model and `core`
 
-1. Hand-written JSON Schemas in `schemas/` (the source, decision 0008): project manifest and
-   the file types `.sec`, `.auto`, `.evt`, `.sched`, `.vars`, `.hw`; `schemaVersion` and UUIDs
-   everywhere. Generated frozen dataclasses for `core`; structural validation with
-   `fastjsonschema`; `just gen` and `just check` cover the generated types.
-2. Error model in `core` (decision 0009): codes, params and location, added to the `i18n/`
-   catalogs and to the consistency test started in phase 1.
-3. Workspace loader (receives the files' contents from the caller: `core` reads no files), id references, scopes (folder visibility, export/import, redefinition
-   is an error), components with parameters, cycle detection.
-4. `boards/rpi4b.json`: 40 pins, alternate functions, buses, reserved pins, and the GPIO chip
-   and line numbering (on a Pi 5 they change with the kernel: never hard-code them). The
-   simulated HAL takes the board profile and rejects pins the board does not have with
-   `hal.pin_invalid`, so `--simulate` fails where the Pi would (today it accepts any pin).
-5. Resource allocation and pin conflicts, reported as error codes with clear catalog messages.
-6. Detection of sequences that may overlap on the same element.
-7. CLI: `primum validate <project>`.
+`primum validate <project>` loads an example project (a folder of files), checks it against the
+Raspberry Pi 4 board profile and explains typical conflicts clearly, in English or Spanish. No
+Pi needed. Not here: running sequences (phase 4), new drivers (phase 3), the UI (phase 5), the
+expression language of conditions (phase 4: conditions are stored, not interpreted).
+
+Across the phase: `core` reads no files (it gets a map of path → bytes and returns an immutable
+project or `Issue`s); every check is a small pure function returning issues; pins are BCM GPIO
+numbers in files (messages also show the physical pin); times are integer milliseconds. One
+pull request per block.
+
+**2.1 · Formats and `core` errors** · **done** (decision 0014)
+- `schemas/common.schema.json` (`id`, `name`, `description`) and `schemas/project.schema.json`
+  (the `project.json` manifest); the subset of JSON Schema formats may use, in
+  `schemas/README.md`.
+- `tools/gen_schemas.py` (`just gen`, `just gen-check`): `primum_core/generated/schemas.py`
+  and `model.py` (frozen dataclasses with a parser each). Our own generator:
+  `datamodel-code-generator` keeps mutable lists and loses the JSON names.
+- `fastjsonschema` in `core` (`>=2.22.2`), compiled on first use with `fast_fail=False`: every
+  structural problem of a file is reported; a stub in `typings/` keeps pyright strict.
+- `primum_core.errors`: `CoreErrorCode`, `Issue` (`code`, `params`, `location`, `severity`),
+  `Location` (`path`, JSON `pointer`, `file_id` once known). `primum_core.formats.read_manifest`:
+  UTF-8 (byte order mark accepted), JSON without repeated keys or `NaN` (`2.0` read as the
+  integer it is), schema, dataclass.
+- Codes `file.*` and `schema.*` in both catalogs, one per expected type so no message quotes
+  JSON Schema's words; the catalog test checks `core`'s codes too.
+- The generator compiles every schema (a malformed one fails `just gen-check`) and type-checks
+  the code it generates for a fixture that uses every supported keyword.
+- Formats are drafts until the first release: `schemaVersion` 1 may change without migrations.
+
+**2.2 · Board profile `rpi4b`**
+- `schemas/board-profile.schema.json` and `boards/rpi4b.json`: the 40 physical pins (GPIO,
+  3V3, 5V, GND), alternate functions (I2C1 on 2/3, SPI0, UART on 14/15, PWM0/PWM1 on 12/18 and
+  13/19, sharing channels), buses, reserved pins (0/1, HAT EEPROM), the GPIO chip **by label**
+  (`pinctrl-bcm2711`, never `/dev/gpiochipN`) and each pin's line. `docs/specs/board-profiles.md`.
+- Runtime: a generated copy of the profile, `--board rpi4b`; the simulated HAL rejects pins
+  the board does not have with `hal.pin_invalid`, so `--simulate` fails where the Pi would.
+
+**2.3 · Workspace, file types and `primum validate`**
+- Schemas of `.hw` (boards, and elements of a generic type — `digital_output`,
+  `digital_input`, `pwm_output`, `i2c_device` — with their resources), `.vars`, `.sec` (tracks
+  per element with clips; blocks that include another sequence), `.auto` (`when` an event or
+  schedule, `if` stored as text until phase 4, `do` start/stop a sequence or set/increment a
+  variable), `.evt` and `.sched` (minimal).
+- Loader: unique ids, references resolved by id and of the right kind (`id.duplicate`,
+  `ref.unknown`, `ref.wrong_kind`, `file.unknown_extension`, `project.manifest_missing`).
+- `packages/cli` (`primum` command, since `core` does no I/O): `primum validate <folder>` with
+  messages and hints from the catalogs, `--lang`, `--json`, exit codes 0/1/2, `--strict` makes
+  warnings fail. `examples/minimal/`, `docs/specs/workspace.md` (including the `.primum`
+  archive, implemented later).
+
+**2.4 · Scopes, variables and components**
+- Scopes by folder (decision 0005); export, and import by the `.vars` id plus the name.
+  `name.redefined`, `name.unknown`, `name.not_exported`, `name.unused` (warning).
+- Constants resolved when validating; variables with type, initial value, limits and
+  persistence (`variable.initial_out_of_range`).
+- Components: sequences with parameters, instances with arguments; `sequence.cycle` with the
+  chain of names. `docs/specs/variables-and-scopes.md`.
+
+**2.5 · Resources and pin conflicts**
+- An allocator that checks every element against its board's profile: `pin.in_use`,
+  `pin.not_gpio`, `pin.not_on_board`, `pin.reserved`, `pin.claimed_by_bus` (GPIO 2/3 with an
+  I2C device), `pwm.channel_in_use` (12 and 18), `i2c.address_in_use`,
+  `pin.function_unavailable`. One invalid project per case in `examples/invalid/`, each tested.
+
+**2.6 · Overlapping sequences and closing the phase**
+- Within a sequence, clips overlapping in time on the same element are an error
+  (`track.clips_overlap`), included sequences flattened. Between sequences that can start
+  independently, touching the same element outside an exclusive group, a warning
+  (`sequence.may_overlap`): a static approximation until the engine of phase 4.
+- A complete example (a shop window: relay, LED, sensor, variables in folders, components, an
+  automation); CHANGELOG; phase marked done.
 
 **Done when:** example projects validate, and typical conflicts are reported clearly, without the Pi.
+
+Not in this phase: editing operations and the `.primum` archive (with the UI in phase 5 and the
+MCP server in phase 8).
 
 ## Phase 3 · HAL, basic drivers and safety
 

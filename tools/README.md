@@ -2,6 +2,9 @@
 
 Developer scripts. Common tasks are exposed through the `justfile`.
 
+- `gen_schemas.py`: generates `core`'s view of the formats from `schemas/` into
+  `packages/core/src/primum_core/generated/`: the schemas `core` validates against and a frozen
+  dataclass, with its parser, for every object (`just gen`; `--check` in CI).
 - `gen_tokens.py`: generates `design/tokens/tokens.css` from `design/tokens/tokens.json`
   (`just gen`; `--check` in CI).
 - `gen_ui_assets.py`: copies `i18n/*.json`, `tokens.css`, the icons and the logo into

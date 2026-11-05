@@ -74,13 +74,15 @@ typecheck:
 arch:
     uv run lint-imports
 
-# Regenerate generated files: design tokens CSS, then the page's copies of i18n and design assets
+# Regenerate generated files: core's types from schemas/, design tokens CSS, then the page's copies of i18n and design assets
 gen:
+    uv run python tools/gen_schemas.py
     uv run python tools/gen_tokens.py
     uv run python tools/gen_ui_assets.py
 
 # Fail if a generated file is out of date
 gen-check:
+    uv run python tools/gen_schemas.py --check
     uv run python tools/gen_tokens.py --check
     uv run python tools/gen_ui_assets.py --check
 

@@ -39,6 +39,9 @@ primum-runtime = { workspace = true }
 line-length = 100
 target-version = "py313"
 src = ["packages/*/src", "packages/*/tests", "tools"]
+# Generated code is checked by pyright and by its generator's tests, not formatted by ruff.
+extend-exclude = ["**/generated/**"]
+force-exclude = true  # also when pre-commit passes the files one by one
 
 [tool.ruff.lint]
 select = [
@@ -58,6 +61,7 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 "packages/*/tests/**" = ["S101"]  # assert is how pytest works
 "tools/tests/**" = ["S101"]
+"typings/**" = ["N818"]  # stubs copy the names of the library they describe
 
 # --- pyright ----------------------------------------------------------------
 

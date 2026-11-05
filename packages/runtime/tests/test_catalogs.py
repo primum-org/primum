@@ -1,7 +1,8 @@
 """The message catalogs in i18n/ (decision 0009): complete, consistent and used.
 
-Every error code the runtime can raise has an entry in every language, every language has the
-same keys and placeholders, and the page's UI strings exist and are all used.
+Every error code the runtime and ``core`` can report has an entry in every language, every
+language has the same keys and placeholders, and the page's UI strings exist and are all used.
+The test lives here because the runtime depends on ``core`` and can see both sets of codes.
 """
 
 import json
@@ -11,6 +12,7 @@ from typing import TypeIs
 
 import pytest
 
+from primum_core.errors import CoreErrorCode
 from primum_runtime.errors import ErrorCode
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -75,11 +77,15 @@ def test_every_language_has_the_same_strings_and_placeholders_as_the_default(
     assert mismatched == set()
 
 
+def test_runtime_and_core_never_share_a_code() -> None:
+    assert {code.value for code in ErrorCode} & {code.value for code in CoreErrorCode} == set()
+
+
 @pytest.mark.parametrize("language", LANGUAGES)
 def test_every_error_code_has_a_message_and_a_hint_and_nothing_else(language: str) -> None:
     errors = _load(language)["errors"]
 
-    assert set(errors) == {code.value for code in ErrorCode}
+    assert set(errors) == {code.value for code in (*ErrorCode, *CoreErrorCode)}
     for code, entry in errors.items():
         assert _is_object(entry), code
         assert set(entry) == {"message", "hint"}, code
