@@ -1,0 +1,95 @@
+{
+  "id": "74199cdc-a832-44e6-81e6-6a2eb987fb62",
+  "kind": "board_profile",
+  "schemaVersion": 1,
+  "model": "rpi4b",
+  "name": "Raspberry Pi 4 Model B",
+  "gpioChip": {
+    "label": "pinctrl-bcm2711"
+  },
+  "pins": [
+    {"physical": 1, "kind": "power_3v3"},
+    {"physical": 2, "kind": "power_5v"},
+    {"physical": 3, "kind": "gpio", "gpio": 2, "line": 2, "defaultPull": "up"},
+    {"physical": 4, "kind": "power_5v"},
+    {"physical": 5, "kind": "gpio", "gpio": 3, "line": 3, "defaultPull": "up"},
+    {"physical": 6, "kind": "ground"},
+    {"physical": 7, "kind": "gpio", "gpio": 4, "line": 4, "defaultPull": "up"},
+    {"physical": 8, "kind": "gpio", "gpio": 14, "line": 14, "defaultPull": "down"},
+    {"physical": 9, "kind": "ground"},
+    {"physical": 10, "kind": "gpio", "gpio": 15, "line": 15, "defaultPull": "down"},
+    {"physical": 11, "kind": "gpio", "gpio": 17, "line": 17, "defaultPull": "down"},
+    {"physical": 12, "kind": "gpio", "gpio": 18, "line": 18, "defaultPull": "down"},
+    {"physical": 13, "kind": "gpio", "gpio": 27, "line": 27, "defaultPull": "down"},
+    {"physical": 14, "kind": "ground"},
+    {"physical": 15, "kind": "gpio", "gpio": 22, "line": 22, "defaultPull": "down"},
+    {"physical": 16, "kind": "gpio", "gpio": 23, "line": 23, "defaultPull": "down"},
+    {"physical": 17, "kind": "power_3v3"},
+    {"physical": 18, "kind": "gpio", "gpio": 24, "line": 24, "defaultPull": "down"},
+    {"physical": 19, "kind": "gpio", "gpio": 10, "line": 10, "defaultPull": "down"},
+    {"physical": 20, "kind": "ground"},
+    {"physical": 21, "kind": "gpio", "gpio": 9, "line": 9, "defaultPull": "down"},
+    {"physical": 22, "kind": "gpio", "gpio": 25, "line": 25, "defaultPull": "down"},
+    {"physical": 23, "kind": "gpio", "gpio": 11, "line": 11, "defaultPull": "down"},
+    {"physical": 24, "kind": "gpio", "gpio": 8, "line": 8, "defaultPull": "up"},
+    {"physical": 25, "kind": "ground"},
+    {"physical": 26, "kind": "gpio", "gpio": 7, "line": 7, "defaultPull": "up"},
+    {"physical": 27, "kind": "gpio", "gpio": 0, "line": 0, "defaultPull": "up"},
+    {"physical": 28, "kind": "gpio", "gpio": 1, "line": 1, "defaultPull": "up"},
+    {"physical": 29, "kind": "gpio", "gpio": 5, "line": 5, "defaultPull": "up"},
+    {"physical": 30, "kind": "ground"},
+    {"physical": 31, "kind": "gpio", "gpio": 6, "line": 6, "defaultPull": "up"},
+    {"physical": 32, "kind": "gpio", "gpio": 12, "line": 12, "defaultPull": "down"},
+    {"physical": 33, "kind": "gpio", "gpio": 13, "line": 13, "defaultPull": "down"},
+    {"physical": 34, "kind": "ground"},
+    {"physical": 35, "kind": "gpio", "gpio": 19, "line": 19, "defaultPull": "down"},
+    {"physical": 36, "kind": "gpio", "gpio": 16, "line": 16, "defaultPull": "down"},
+    {"physical": 37, "kind": "gpio", "gpio": 26, "line": 26, "defaultPull": "down"},
+    {"physical": 38, "kind": "gpio", "gpio": 20, "line": 20, "defaultPull": "down"},
+    {"physical": 39, "kind": "ground"},
+    {"physical": 40, "kind": "gpio", "gpio": 21, "line": 21, "defaultPull": "down"}
+  ],
+  "buses": [
+    {
+      "id": "i2c1",
+      "kind": "i2c",
+      "signals": [
+        {"name": "sda", "gpio": 2},
+        {"name": "scl", "gpio": 3}
+      ]
+    },
+    {
+      "id": "spi0",
+      "kind": "spi",
+      "signals": [
+        {"name": "mosi", "gpio": 10},
+        {"name": "miso", "gpio": 9},
+        {"name": "sclk", "gpio": 11},
+        {"name": "ce0", "gpio": 8},
+        {"name": "ce1", "gpio": 7}
+      ]
+    },
+    {
+      "id": "uart0",
+      "kind": "uart",
+      "signals": [
+        {"name": "tx", "gpio": 14},
+        {"name": "rx", "gpio": 15}
+      ]
+    }
+  ],
+  "pwmChannels": [
+    {
+      "id": "pwm0",
+      "gpios": [12, 18]
+    },
+    {
+      "id": "pwm1",
+      "gpios": [13, 19]
+    }
+  ],
+  "reserved": [
+    {"gpio": 0, "reason": "hat_eeprom"},
+    {"gpio": 1, "reason": "hat_eeprom"}
+  ]
+}

@@ -109,6 +109,7 @@ layers = [
     "primum_runtime.cli",
     "primum_runtime.api",
     "primum_runtime.config",
+    "primum_runtime.board",
     "primum_runtime.control",
     "primum_runtime.hal",
     "primum_runtime.errors",
@@ -119,6 +120,7 @@ name = "web frameworks only at the edge: api and cli"
 type = "forbidden"
 source_modules = [
     "primum_runtime.config",
+    "primum_runtime.board",
     "primum_runtime.control",
     "primum_runtime.hal",
     "primum_runtime.errors",

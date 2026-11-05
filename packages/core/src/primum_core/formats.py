@@ -6,7 +6,8 @@
 1. text and JSON: UTF-8 (a byte order mark is accepted), valid JSON, no repeated keys, and
    numbers as JSON means them (``2.0`` is the integer ``2``);
 2. structure: the file's schema in ``schemas/``, every problem reported;
-3. the generated, immutable dataclass of the format.
+3. the generated, immutable dataclass of the format;
+4. meaning, for formats that have rules a schema cannot express (board profiles).
 """
 
 import json
@@ -16,12 +17,15 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from uuid import UUID
 
+from primum_core.boards import check_board_profile
 from primum_core.errors import CoreErrorCode, Issue, Location
-from primum_core.generated.model import Project, parse_project
+from primum_core.generated.model import BoardProfile, Project, parse_board_profile, parse_project
 from primum_core.json_values import JsonObject, as_object, is_object
 from primum_core.schema_validation import validate
 
 ID_FIELD = "id"
+
+type Check[T] = Callable[[T, Location], tuple[Issue, ...]]
 
 
 @dataclass(frozen=True)
@@ -52,8 +56,19 @@ def read_manifest(path: PurePosixPath, content: bytes) -> Parsed[Project]:
     return _read(path, content, "project.schema.json", parse_project)
 
 
+def read_board_profile(path: PurePosixPath, content: bytes) -> Parsed[BoardProfile]:
+    """Read a board profile (``boards/<model>.json``), its meaning checked too."""
+    return _read(
+        path, content, "board-profile.schema.json", parse_board_profile, check_board_profile
+    )
+
+
 def _read[T](
-    path: PurePosixPath, content: bytes, schema: str, parse: Callable[[JsonObject], T]
+    path: PurePosixPath,
+    content: bytes,
+    schema: str,
+    parse: Callable[[JsonObject], T],
+    check: Check[T] | None = None,
 ) -> Parsed[T]:
     location = Location(path)
     document = _decode(content, location)
@@ -63,7 +78,9 @@ def _read[T](
     issues = validate(schema, document, location)
     if issues:
         return Parsed(None, issues)
-    return Parsed(parse(as_object(document)))
+    value = parse(as_object(document))
+    issues = check(value, location) if check else ()
+    return Parsed(None, issues) if issues else Parsed(value)
 
 
 def _decode(content: bytes, location: Location) -> object:

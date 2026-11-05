@@ -6,12 +6,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from primum_runtime.api import create_app
+from primum_runtime.board import load_board
 from primum_runtime.config import LED, RuntimeConfig
 from primum_runtime.hal import OutputSpec, SimulatedHal
 
+BOARD = load_board("rpi4b")
+
 PIN = 17
 CONFIG = RuntimeConfig(
-    simulate=True, chip=None, outputs={LED: OutputSpec(pin=PIN)}, host="127.0.0.1", port=8080
+    simulate=True, board=BOARD, outputs={LED: OutputSpec(pin=PIN)}, host="127.0.0.1", port=8080
 )
 OFF = {"outputs": [{"name": LED, "on": False}], "panic": False}
 ON = {"outputs": [{"name": LED, "on": True}], "panic": False}
@@ -19,7 +22,7 @@ ON = {"outputs": [{"name": LED, "on": True}], "panic": False}
 
 @pytest.fixture
 def hal() -> SimulatedHal:
-    return SimulatedHal()
+    return SimulatedHal(BOARD)
 
 
 @pytest.fixture

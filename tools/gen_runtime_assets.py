@@ -1,7 +1,9 @@
-"""Copy the page's shared assets into the runtime package, so it serves them when installed.
+"""Copy shared files into the runtime package, so the installed runtime has them.
 
-The sources stay where they are (``i18n/`` and ``design/``); the runtime gets byte-identical
-copies under ``primum_runtime/ui/generated/``, which are never edited by hand.
+The sources stay where they are; the runtime gets byte-identical copies, never edited by hand:
+
+- the page's assets (``i18n/``, ``design/``) under ``primum_runtime/ui/generated/``;
+- the board profiles (``boards/``) under ``primum_runtime/generated/boards/``.
 
     uv run just gen         # copy (and remove copies whose source is gone)
     uv run just gen-check   # fail if a copy is missing, stale or extra (part of `just check`)
@@ -13,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TARGET = ROOT / "packages" / "runtime" / "src" / "primum_runtime" / "ui" / "generated"
+RUNTIME = ROOT / "packages" / "runtime" / "src" / "primum_runtime"
 
 
 @dataclass(frozen=True)
@@ -25,12 +27,16 @@ class Source:
     into: str
 
 
-SOURCES = (
-    Source(ROOT / "i18n", "*.json", "i18n"),
-    Source(ROOT / "design" / "tokens", "tokens.css", "."),
-    Source(ROOT / "design" / "icons", "*.svg", "icons"),
-    Source(ROOT / "design" / "logo", "*.svg", "logo"),
-)
+# Each target directory, with what it holds. A target holds nothing else: extra files go.
+TARGETS: dict[Path, tuple[Source, ...]] = {
+    RUNTIME / "ui" / "generated": (
+        Source(ROOT / "i18n", "*.json", "i18n"),
+        Source(ROOT / "design" / "tokens", "tokens.css", "."),
+        Source(ROOT / "design" / "icons", "*.svg", "icons"),
+        Source(ROOT / "design" / "logo", "*.svg", "logo"),
+    ),
+    RUNTIME / "generated" / "boards": (Source(ROOT / "boards", "*.json", "."),),
+}
 
 
 def expected(sources: tuple[Source, ...], target: Path) -> dict[Path, bytes]:
@@ -63,20 +69,22 @@ def write(files: dict[Path, bytes], target: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Copy i18n and design assets for the page.")
+    parser = argparse.ArgumentParser(description="Copy shared files into the runtime package.")
     parser.add_argument("--check", action="store_true", help="fail if a copy is out of date")
     args = parser.parse_args(argv)
 
-    files = expected(SOURCES, TARGET)
-    if args.check:
-        problems = differences(files, TARGET)
-        for problem in problems:
-            sys.stderr.write(f"{TARGET.relative_to(ROOT)}: {problem}\n")
-        if problems:
-            sys.stderr.write("Run `uv run just gen` and commit the result.\n")
-        return 1 if problems else 0
-    write(files, TARGET)
-    return 0
+    stale = False
+    for target, sources in TARGETS.items():
+        files = expected(sources, target)
+        if not args.check:
+            write(files, target)
+            continue
+        for problem in differences(files, target):
+            stale = True
+            sys.stderr.write(f"{target.relative_to(ROOT)}: {problem}\n")
+    if stale:
+        sys.stderr.write("Run `uv run just gen` and commit the result.\n")
+    return 1 if stale else 0
 
 
 if __name__ == "__main__":

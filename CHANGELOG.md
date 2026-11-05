@@ -19,6 +19,9 @@ All notable changes to this project are documented here. The format follows
 - Scripts to install Primum on a Raspberry Pi as a service that starts with the board
   (`image/provision.sh`) and to work against it from a laptop (`just pi-*`). They refuse a
   board where other software drives GPIO.
+- Board profile of the Raspberry Pi 4 Model B (`boards/rpi4b.json`): its 40 pins, buses, PWM
+  channels and reserved pins. The runtime takes the board (`--board`, `rpi4b` by default) and
+  refuses pins it does not have, also when simulated, and finds the board's GPIO chip by name.
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.

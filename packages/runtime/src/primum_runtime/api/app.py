@@ -35,7 +35,7 @@ def create_app(config: RuntimeConfig, open_hal: HalFactory | None = None) -> Fas
     """
 
     def default_hal() -> Hal:
-        return create_hal(simulate=config.simulate, chip=config.chip)
+        return create_hal(simulate=config.simulate, board=config.board)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:

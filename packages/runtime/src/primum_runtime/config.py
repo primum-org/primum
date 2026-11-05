@@ -1,7 +1,8 @@
 """Service configuration, from command-line options or ``PRIMUM_*`` environment variables.
 
 An option given on the command line wins over the environment. Phase 1 drives one output,
-named ``led``; from phase 2 outputs come from the deployment package and the board profile.
+named ``led``; later, outputs come from the deployment package. The board (``rpi4b`` by
+default, the only one so far) says which pins exist and on which GPIO chip.
 
 The pin has no default on purpose: a default pin is a pin someone may have wired to a relay.
 """
@@ -10,7 +11,8 @@ import argparse
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from primum_runtime.hal import OutputSpec
+from primum_runtime.board import DEFAULT_BOARD, available_boards, load_board
+from primum_runtime.hal import BoardGpio, OutputSpec
 
 LED = "led"
 DEFAULT_HOST = "127.0.0.1"
@@ -22,7 +24,7 @@ _FALSE = frozenset({"0", "false", "no", "off", ""})
 @dataclass(frozen=True)
 class RuntimeConfig:
     simulate: bool
-    chip: str | None
+    board: BoardGpio
     outputs: Mapping[str, OutputSpec]
     host: str
     port: int
@@ -39,13 +41,17 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
     if pin is None:
         parser.error("the pin of the LED is required: --pin or PRIMUM_PIN")
     simulate: bool = args.simulate
-    chip: str | None = args.chip
+    board: str = args.board
+    if board not in available_boards():  # argparse checks the choices of options, not defaults
+        parser.error(
+            f"no profile for board {board!r} (PRIMUM_BOARD): {', '.join(available_boards())}"
+        )
     active_low: bool = args.active_low
     host: str = args.host
     port: int = args.port
     return RuntimeConfig(
         simulate=simulate,
-        chip=chip,
+        board=load_board(board),
         outputs={LED: OutputSpec(pin=pin, active_low=active_low)},
         host=host,
         port=port,
@@ -63,15 +69,16 @@ def _parser(env: Mapping[str, str]) -> argparse.ArgumentParser:
         help="use the simulated HAL instead of the GPIO chip (PRIMUM_SIMULATE)",
     )
     parser.add_argument(
-        "--chip",
-        default=env.get("PRIMUM_CHIP"),
-        help="GPIO chip device, /dev/gpiochip0 by default (PRIMUM_CHIP)",
+        "--board",
+        choices=available_boards(),
+        default=env.get("PRIMUM_BOARD", DEFAULT_BOARD),
+        help=f"board model, with its pins and GPIO chip; {DEFAULT_BOARD} by default (PRIMUM_BOARD)",
     )
     parser.add_argument(
         "--pin",
         type=int,
         default=_int(env, "PRIMUM_PIN"),
-        help="GPIO line of the LED; required, no default (PRIMUM_PIN)",
+        help="GPIO number of the LED (BCM); required, no default (PRIMUM_PIN)",
     )
     parser.add_argument(
         "--active-low",

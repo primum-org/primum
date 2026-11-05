@@ -13,6 +13,7 @@ TypeScript types follow in phase 5.
 |---|---|
 | `common.schema.json` | Definitions shared by every format: `id`, `name`, `description` |
 | `project.schema.json` | `project.json`, the manifest at the root of a project |
+| `board-profile.schema.json` | `boards/<model>.json`, a board profile (`docs/specs/board-profiles.md`) |
 
 ## The subset of JSON Schema we use
 

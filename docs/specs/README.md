@@ -12,6 +12,6 @@ the spec in the same pull request. They are written from phase 2 on.
 | `engine-semantics.md` | Sequences in time, automations, arbitration, re-trigger, exclusive groups | 4 |
 | `safety.md` | Safe state, limits, panic, test mode, watchdog | 3 |
 | `deployment-package.md` | Package format, hash, minimum runtime version, activation, rollback | 4 |
-| `board-profiles.md` | Board profile format | 2 |
+| [`board-profiles.md`](board-profiles.md) | Board profile format, rules and use | 2 |
 | `drivers.md` | Driver manifest: capabilities, config, platforms, safe state, conflict policy | 3 |
 | `protocol.md` | Messages between boards and transports | after v1 |

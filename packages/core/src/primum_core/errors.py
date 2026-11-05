@@ -44,6 +44,13 @@ class CoreErrorCode(StrEnum):
     SCHEMA_BELOW_MINIMUM = "schema.below_minimum"  # field, minimum
     SCHEMA_ABOVE_MAXIMUM = "schema.above_maximum"  # field, maximum
     SCHEMA_UNSUPPORTED_VERSION = "schema.unsupported_version"  # version, supported
+    BOARD_DUPLICATE_PIN = "board.duplicate_pin"  # physical
+    BOARD_POWER_PIN_WITH_GPIO = "board.power_pin_with_gpio"  # physical
+    BOARD_INCOMPLETE_GPIO_PIN = "board.incomplete_gpio_pin"  # physical
+    BOARD_DUPLICATE_GPIO = "board.duplicate_gpio"  # gpio
+    BOARD_DUPLICATE_LINE = "board.duplicate_line"  # line
+    BOARD_UNKNOWN_GPIO = "board.unknown_gpio"  # gpio
+    BOARD_DUPLICATE_ID = "board.duplicate_id"  # id
 
 
 class Severity(StrEnum):

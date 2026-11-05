@@ -4,15 +4,18 @@ import types
 
 import pytest
 
+from primum_runtime.board import load_board
 from primum_runtime.errors import PrimumError
 from primum_runtime.hal import OutputSpec, SimulatedHal, create_hal
+
+BOARD = load_board("rpi4b")
 
 LED = OutputSpec(pin=17)
 RELAY = OutputSpec(pin=27, active_low=True)
 
 
 def test_digital_output_starts_in_safe_state() -> None:
-    with SimulatedHal() as hal:
+    with SimulatedHal(BOARD) as hal:
         output = hal.digital_output(LED)
 
         assert not output.is_on
@@ -21,7 +24,7 @@ def test_digital_output_starts_in_safe_state() -> None:
 
 
 def test_set_turns_the_line_on_and_off() -> None:
-    with SimulatedHal() as hal:
+    with SimulatedHal(BOARD) as hal:
         output = hal.digital_output(LED)
 
         output.set(True)
@@ -32,7 +35,7 @@ def test_set_turns_the_line_on_and_off() -> None:
 
 
 def test_active_low_output_drives_the_pin_low_when_on() -> None:
-    with SimulatedHal() as hal:
+    with SimulatedHal(BOARD) as hal:
         relay = hal.digital_output(RELAY)
 
         assert hal.lines[27].level_high
@@ -41,7 +44,7 @@ def test_active_low_output_drives_the_pin_low_when_on() -> None:
 
 
 def test_claiming_a_pin_twice_fails_with_pin_in_use() -> None:
-    with SimulatedHal() as hal:
+    with SimulatedHal(BOARD) as hal:
         hal.digital_output(LED)
 
         with pytest.raises(PrimumError) as raised:
@@ -60,7 +63,7 @@ def test_negative_pin_raises_pin_invalid_before_reaching_a_hal() -> None:
 
 
 def test_apply_safe_state_turns_every_output_off() -> None:
-    with SimulatedHal() as hal:
+    with SimulatedHal(BOARD) as hal:
         led = hal.digital_output(LED)
         relay = hal.digital_output(RELAY)
         led.set(True)
@@ -73,7 +76,7 @@ def test_apply_safe_state_turns_every_output_off() -> None:
 
 
 def test_close_applies_safe_state_and_releases_lines() -> None:
-    hal = SimulatedHal()
+    hal = SimulatedHal(BOARD)
     hal.digital_output(LED).set(True)
     line = hal.lines[17]
 
@@ -84,7 +87,7 @@ def test_close_applies_safe_state_and_releases_lines() -> None:
 
 
 def test_leaving_the_with_block_on_an_exception_applies_safe_state() -> None:
-    hal = SimulatedHal()
+    hal = SimulatedHal(BOARD)
 
     with pytest.raises(KeyboardInterrupt), hal:
         hal.digital_output(LED).set(True)
@@ -95,7 +98,7 @@ def test_leaving_the_with_block_on_an_exception_applies_safe_state() -> None:
 
 
 def test_closed_hal_rejects_new_outputs_and_writes() -> None:
-    hal = SimulatedHal()
+    hal = SimulatedHal(BOARD)
     output = hal.digital_output(LED)
     hal.close()
 
@@ -108,13 +111,13 @@ def test_closed_hal_rejects_new_outputs_and_writes() -> None:
 
 
 def test_closing_twice_does_nothing() -> None:
-    hal = SimulatedHal()
+    hal = SimulatedHal(BOARD)
     hal.close()
     hal.close()
 
 
 def test_create_hal_returns_the_simulated_hal_when_simulating() -> None:
-    assert isinstance(create_hal(simulate=True), SimulatedHal)
+    assert isinstance(create_hal(simulate=True, board=BOARD), SimulatedHal)
 
 
 def test_create_hal_without_gpiod_raises_unsupported_platform(
@@ -125,7 +128,7 @@ def test_create_hal_without_gpiod_raises_unsupported_platform(
     monkeypatch.delitem(sys.modules, "primum_runtime.hal.gpiod_hal", raising=False)
 
     with pytest.raises(PrimumError) as raised:
-        create_hal(simulate=False)
+        create_hal(simulate=False, board=BOARD)
 
     assert raised.value.code == "hal.unsupported_platform"
     assert raised.value.params == {"platform": sys.platform}
@@ -140,7 +143,7 @@ def test_create_hal_with_a_broken_gpiod_raises_gpio_library_broken(
     monkeypatch.delitem(sys.modules, "primum_runtime.hal.gpiod_hal", raising=False)
 
     with pytest.raises(PrimumError) as raised:
-        create_hal(simulate=False)
+        create_hal(simulate=False, board=BOARD)
 
     assert raised.value.code == "hal.gpio_library_broken"
     assert "gpiod.line" in str(raised.value.params["detail"])
@@ -148,15 +151,20 @@ def test_create_hal_with_a_broken_gpiod_raises_gpio_library_broken(
 
 def test_simulated_hal_does_not_import_gpiod() -> None:
     # A fresh interpreter: other tests may have imported gpiod in this one.
-    code = "import sys; from primum_runtime.hal import create_hal; create_hal(simulate=True); "
-    code += "sys.exit('gpiod' in sys.modules)"
+    code = (
+        "import sys\n"
+        "from primum_runtime.board import load_board\n"
+        "from primum_runtime.hal import create_hal\n"
+        "create_hal(simulate=True, board=load_board('rpi4b'))\n"
+        "sys.exit('gpiod' in sys.modules)"
+    )
     result = subprocess.run([sys.executable, "-c", code], check=False)  # noqa: S603 (fixed code)
 
     assert result.returncode == 0
 
 
 def test_read_reports_the_state_of_the_line() -> None:
-    with SimulatedHal() as hal:
+    with SimulatedHal(BOARD) as hal:
         output = hal.digital_output(LED)
 
         output.set(True)
@@ -166,7 +174,7 @@ def test_read_reports_the_state_of_the_line() -> None:
 
 def test_failed_write_keeps_the_last_commanded_state() -> None:
     # No `with` block: closing a HAL with a faulty line raises, and would hide a failed assert.
-    hal = SimulatedHal()
+    hal = SimulatedHal(BOARD)
     output = hal.digital_output(LED)
     hal.lines[17].fail_writes(OSError(5, "I/O error"))
 
@@ -177,7 +185,7 @@ def test_failed_write_keeps_the_last_commanded_state() -> None:
 
 
 def test_apply_safe_state_turns_off_the_other_outputs_when_one_fails() -> None:
-    hal = SimulatedHal()
+    hal = SimulatedHal(BOARD)
     led = hal.digital_output(LED)
     relay = hal.digital_output(RELAY)
     led.set(True)
@@ -194,7 +202,7 @@ def test_apply_safe_state_turns_off_the_other_outputs_when_one_fails() -> None:
 
 
 def test_close_releases_every_line_even_if_the_safe_state_fails() -> None:
-    hal = SimulatedHal()
+    hal = SimulatedHal(BOARD)
     hal.digital_output(LED).set(True)
     hal.digital_output(RELAY).set(True)
     hal.lines[17].fail_writes(OSError(5, "I/O error"))
@@ -211,7 +219,7 @@ def test_close_releases_every_line_even_if_the_safe_state_fails() -> None:
 
 
 def test_close_releases_the_other_lines_when_one_release_fails() -> None:
-    hal = SimulatedHal()
+    hal = SimulatedHal(BOARD)
     hal.digital_output(LED)
     hal.digital_output(RELAY)
     hal.lines[17].fail_release(OSError(5, "I/O error"))
@@ -227,7 +235,7 @@ def test_close_releases_the_other_lines_when_one_release_fails() -> None:
 
 
 def test_failed_safe_state_on_leaving_with_replaces_the_original_exception() -> None:
-    hal = SimulatedHal()
+    hal = SimulatedHal(BOARD)
     original = KeyboardInterrupt()
 
     with pytest.raises(PrimumError) as raised, hal:
@@ -240,7 +248,7 @@ def test_failed_safe_state_on_leaving_with_replaces_the_original_exception() -> 
 
 
 def test_close_reports_safe_state_and_release_failures_together() -> None:
-    hal = SimulatedHal()
+    hal = SimulatedHal(BOARD)
     hal.digital_output(LED).set(True)
     hal.digital_output(RELAY)
     write_error = OSError(5, "I/O error")
@@ -257,3 +265,12 @@ def test_close_reports_safe_state_and_release_failures_together() -> None:
     assert isinstance(cause, ExceptionGroup)
     # isinstance cannot narrow the group's type parameter, so pyright sees it as unknown.
     assert cause.exceptions == (write_error, release_error)  # pyright: ignore[reportUnknownMemberType]
+
+
+def test_simulated_hal_refuses_a_pin_its_board_does_not_have() -> None:
+    with SimulatedHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
+        hal.digital_output(OutputSpec(pin=28))
+
+    assert raised.value.code == "hal.pin_invalid"
+    assert raised.value.params == {"pin": 28, "board": "rpi4b"}
+    assert hal.lines == {}

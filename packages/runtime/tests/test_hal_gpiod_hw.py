@@ -12,6 +12,7 @@ import os
 
 import pytest
 
+from primum_runtime.board import load_board
 from primum_runtime.hal import OutputSpec
 
 pytestmark = pytest.mark.hw
@@ -33,7 +34,7 @@ def test_gpiod_line_starts_inactive_and_the_kernel_reports_each_written_value() 
     from primum_runtime.hal.gpiod_hal import GpiodHal
 
     pin = _test_pin()
-    with GpiodHal() as hal:
+    with GpiodHal(load_board("rpi4b")) as hal:
         output = hal.digital_output(OutputSpec(pin=pin))
         assert not output.read()
 

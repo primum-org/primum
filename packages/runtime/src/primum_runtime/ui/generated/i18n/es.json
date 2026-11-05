@@ -166,6 +166,34 @@
     "schema.unsupported_version": {
       "message": "El fichero usa la versión {version} de su formato, y esta versión de Primum lee la versión {supported}.",
       "hint": "Ábrelo con una versión de Primum que lea ese formato."
+    },
+    "board.duplicate_pin": {
+      "message": "El perfil de placa repite el pin físico {physical}.",
+      "hint": "Deja una sola entrada por cada pin del conector."
+    },
+    "board.power_pin_with_gpio": {
+      "message": "El pin físico {physical} es de alimentación o de tierra, pero el perfil le da un GPIO, una línea o un pull.",
+      "hint": "Quita esos campos o marca el pin como gpio."
+    },
+    "board.incomplete_gpio_pin": {
+      "message": "El pin físico {physical} es un GPIO, pero el perfil no indica su número de GPIO, su línea y su pull.",
+      "hint": "Añade gpio, line y defaultPull al pin."
+    },
+    "board.duplicate_gpio": {
+      "message": "El perfil de placa asigna el GPIO {gpio} a más de un pin.",
+      "hint": "Cada GPIO está en un solo pin del conector: revisa el patillaje."
+    },
+    "board.duplicate_line": {
+      "message": "El perfil de placa asigna más de un GPIO a la línea {line} del chip GPIO.",
+      "hint": "Revisa la línea de cada GPIO con el chip GPIO de la placa."
+    },
+    "board.unknown_gpio": {
+      "message": "El perfil de placa usa el GPIO {gpio}, que no tiene ninguno de sus pines.",
+      "hint": "Usa un GPIO de los que aparecen en los pines del perfil."
+    },
+    "board.duplicate_id": {
+      "message": "El perfil de placa usa el nombre {id} más de una vez.",
+      "hint": "Da a cada bus y a cada canal PWM un nombre distinto."
     }
   }
 }
