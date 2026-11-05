@@ -1,0 +1,9 @@
+# Long enough after boot for Wi-Fi to have connected, or visibly failed.
+[Unit]
+Description=Primum: write the network status 90 s after boot
+
+[Timer]
+OnBootSec=90s
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,66 @@
+# Block 1.5 spike: build the smallest Primum image with rpi-image-gen, on an arm64 runner, the
+# platform rpi-image-gen supports (Debian-based arm64; its own CI uses this runner). It takes
+# minutes, so it runs by hand or when a pull request changes the spike, not on every one.
+name: Image spike
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - image/spike/**
+      - .github/workflows/image-spike.yml
+
+permissions:
+  contents: read
+
+env:
+  # Pinned: rpi-image-gen is under active development.
+  RPI_IMAGE_GEN_VERSION: v2.9.0
+
+jobs:
+  image:
+    name: Build image (Pi 4, Debian Trixie)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get rpi-image-gen ${{ env.RPI_IMAGE_GEN_VERSION }}
+        run: >
+          git clone --depth 1 --branch "$RPI_IMAGE_GEN_VERSION"
+          https://github.com/raspberrypi/rpi-image-gen.git "$RUNNER_TEMP/rpi-image-gen"
+
+      - name: Install its dependencies
+        working-directory: ${{ runner.temp }}/rpi-image-gen
+        run: |
+          sudo apt-get update
+          # The tool runs as this user and needs to traverse its home (as in its own CI).
+          sudo chmod o+x "$HOME"
+          sudo ./install_deps.sh
+
+      - name: Build
+        working-directory: ${{ runner.temp }}/rpi-image-gen
+        run: |
+          start=$(date +%s)
+          ./rpi-image-gen build -S "$GITHUB_WORKSPACE/image/spike" -c primum-spike.yaml
+          echo "BUILD_SECONDS=$(( $(date +%s) - start ))" >> "$GITHUB_ENV"
+
+      - name: Compress
+        working-directory: ${{ runner.temp }}/rpi-image-gen
+        run: |
+          image=$(find work -name 'primum-spike*.img' -print -quit)
+          test -n "$image"
+          xz -T0 -6 -c "$image" > "$RUNNER_TEMP/primum-spike.img.xz"
+          {
+            echo "## Image spike"
+            echo "- rpi-image-gen: $RPI_IMAGE_GEN_VERSION"
+            echo "- build time: $(( BUILD_SECONDS / 60 )) min $(( BUILD_SECONDS % 60 )) s"
+            echo "- image: $(du -h "$image" | cut -f1), compressed: $(du -h "$RUNNER_TEMP/primum-spike.img.xz" | cut -f1)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: primum-spike-image
+          path: ${{ runner.temp }}/primum-spike.img.xz
+          compression-level: 0 # already xz
+          retention-days: 7
