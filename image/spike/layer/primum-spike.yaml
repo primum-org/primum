@@ -10,4 +10,4 @@
 ---
 mmdebstrap:
   customize-hooks:
-    - $BDEBSTRAP_HOOKS/enable-units "$1" primum-firstboot
+    - $BDEBSTRAP_HOOKS/enable-units "$1" primum-firstboot primum-report.timer

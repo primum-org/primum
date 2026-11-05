@@ -1,0 +1,9 @@
+# Writes primum/status.txt on the boot partition (see /usr/local/sbin/primum-report).
+[Unit]
+Description=Primum: write the network status to the boot partition
+RequiresMountsFor=/boot/firmware
+ConditionPathExists=/boot/firmware/primum
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/primum-report

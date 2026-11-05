@@ -8,7 +8,9 @@ arm64 runner. It is a check of the tool, not Primum OS: phase 7 builds the real 
 - `config/primum-spike.yaml`: the build (Pi 4, hostname `primum-spike`, user `primum` with
   passwordless sudo and no password, SSH with keys only).
 - `layer/primum-spike.yaml`: a service that, at boot, applies the files in `primum/` on the
-  boot partition. Its files live in `layer/primum-spike.d/customize.overlay/`.
+  boot partition, and another that 90 s after boot writes `primum/status.txt` there (Wi-Fi
+  state, networks seen, addresses, iwd's log), readable from any computer when the board cannot
+  be reached. Their files live in `layer/primum-spike.d/customize.overlay/`.
 - `.github/workflows/image-spike.yml`: builds it with a pinned rpi-image-gen and uploads
   `primum-spike.img.xz` (kept 7 days). It runs by hand (Actions → Image spike → Run workflow)
   and on pull requests that change the spike.
@@ -30,5 +32,9 @@ arm64 runner. It is a check of the tool, not Primum OS: phase 7 builds the real 
    ```bash
    ssh primum-spike 'hostname && cat /etc/os-release | grep PRETTY && uname -m'
    ```
+
+If the board does not show up on the network, wait two minutes, power it off and read
+`primum/status.txt` on the card from any computer. On Windows, check that the files are not
+called `wifi.txt.txt` (Explorer hides known extensions). The Wi-Fi country is Spain (`ES`).
 
 No secret goes through CI: the Wi-Fi password and the key are added to the card after flashing.

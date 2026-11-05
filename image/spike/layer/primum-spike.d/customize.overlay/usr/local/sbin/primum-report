@@ -1,0 +1,17 @@
+#!/bin/sh
+# Write how the network came up to primum/status.txt on the boot partition, so it can be read
+# from any computer when the board cannot be reached (no screen login: the user has no
+# password). No secrets: iwd's profiles are listed by name only.
+set -u
+
+out=/boot/firmware/primum/status.txt
+{
+  echo "== $(date -u +%FT%TZ), $(cat /proc/uptime | cut -d' ' -f1) s after boot"
+  echo "== primum-firstboot"; systemctl status primum-firstboot --no-pager 2>&1 | tail -n 5
+  echo "== iwd profiles"; ls /var/lib/iwd 2>&1
+  echo "== wireless regulatory domain"; cat /sys/module/cfg80211/parameters/ieee80211_regdom 2>&1
+  echo "== wlan0"; iwctl station wlan0 show 2>&1
+  echo "== networks seen"; iwctl station wlan0 get-networks 2>&1
+  echo "== addresses"; ip -brief address 2>&1
+  echo "== iwd log"; journalctl -u iwd -b --no-pager 2>&1 | tail -n 30
+} >"$out" 2>&1
