@@ -1,0 +1,7 @@
+{
+  "id": "cb48758c-0bb1-4a5e-a60a-685c061e948d",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Pin claimed by bus",
+  "description": "An LED on GPIO 2 while an I2C expander uses the bus."
+}

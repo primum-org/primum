@@ -1,0 +1,28 @@
+{
+  "id": "dfe0a228-a83b-481e-9968-76852d24916b",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "c06a0add-fbb6-47ff-940f-33c8216fb448",
+      "name": "Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "9f09b073-2cd5-49ed-aa40-73c6b1567dea",
+      "name": "LED",
+      "board": "c06a0add-fbb6-47ff-940f-33c8216fb448",
+      "type": "digital_output",
+      "pin": 17
+    },
+    {
+      "id": "ed9ab8a2-4320-4e29-bf13-b6b8f28565ee",
+      "name": "Relay",
+      "board": "c06a0add-fbb6-47ff-940f-33c8216fb448",
+      "type": "digital_output",
+      "pin": 17
+    }
+  ]
+}

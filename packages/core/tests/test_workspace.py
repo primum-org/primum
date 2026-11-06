@@ -9,6 +9,7 @@ import pytest
 
 from primum_core.errors import CoreErrorCode, Severity
 from primum_core.workspace import MANIFEST, load_workspace
+from project_builder import PROFILES
 
 type Files = dict[PurePosixPath, bytes]
 type Found = list[tuple[CoreErrorCode, dict[str, object], str, str]]
@@ -105,12 +106,12 @@ def _found(files: Files) -> Found:
             str(issue.location.path) if issue.location else "",
             issue.location.pointer if issue.location else "",
         )
-        for issue in load_workspace(files).issues
+        for issue in load_workspace(files, PROFILES).issues
     ]
 
 
 def test_a_valid_project_loads_with_every_file_by_path() -> None:
-    parsed = load_workspace(_project())
+    parsed = load_workspace(_project(), PROFILES)
 
     assert parsed.issues == ()
     assert parsed.value is not None
@@ -129,7 +130,7 @@ def test_without_a_manifest_it_is_not_a_project() -> None:
     files = _project()
     del files[MANIFEST]
 
-    parsed = load_workspace(files)
+    parsed = load_workspace(files, PROFILES)
 
     assert parsed.value is None
     assert _found(files) == [(CoreErrorCode.PROJECT_MANIFEST_MISSING, {}, "project.json", "")]
@@ -139,7 +140,7 @@ def test_a_file_of_no_project_type_is_ignored_with_a_warning() -> None:
     files = _project()
     files[PurePosixPath("notes/README.md")] = b"# notes"
 
-    parsed = load_workspace(files)
+    parsed = load_workspace(files, PROFILES)
 
     assert parsed.value is not None
     [issue] = parsed.issues
@@ -356,7 +357,7 @@ def test_extensions_are_matched_without_regard_to_case() -> None:
     files = _project()
     files[PurePosixPath("SCENES/OTHER.SEC")] = _file("sequence", _id(60), name="Other", tracks=[])
 
-    parsed = load_workspace(files)
+    parsed = load_workspace(files, PROFILES)
 
     assert parsed.issues == ()
     assert parsed.value is not None

@@ -4,7 +4,8 @@ The sources stay where they are; the packages get byte-identical copies, never e
 
 - runtime: the page's assets (``i18n/``, ``design/``) under ``primum_runtime/ui/generated/``,
   and the board profiles (``boards/``) under ``primum_runtime/generated/boards/``;
-- CLI: the message catalogs (``i18n/``) under ``primum_cli/generated/i18n/``.
+- CLI: the message catalogs (``i18n/``) under ``primum_cli/generated/i18n/`` and the board
+  profiles under ``primum_cli/generated/boards/``.
 
     uv run just gen         # copy (and remove copies whose source is gone)
     uv run just gen-check   # fail if a copy is missing, stale or extra (part of `just check`)
@@ -39,6 +40,7 @@ TARGETS: dict[Path, tuple[Source, ...]] = {
     ),
     RUNTIME / "generated" / "boards": (Source(ROOT / "boards", "*.json", "."),),
     CLI / "generated" / "i18n": (Source(ROOT / "i18n", "*.json", "."),),
+    CLI / "generated" / "boards": (Source(ROOT / "boards", "*.json", "."),),
 }
 
 

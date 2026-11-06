@@ -1,0 +1,7 @@
+{
+  "id": "e107b9e4-8031-49d8-b85d-a5ccde5fac2d",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Pin not on board",
+  "description": "An LED on GPIO 28, which a Raspberry Pi 4 does not have."
+}

@@ -1,0 +1,30 @@
+{
+  "id": "4582369f-3c2b-4ee3-a3ea-787a656169d4",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "b1681f26-3e0a-474e-afe6-3ec208f0a7e2",
+      "name": "Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "c3a715f1-d160-4d19-b364-c9d72b8619b8",
+      "name": "Expander",
+      "board": "b1681f26-3e0a-474e-afe6-3ec208f0a7e2",
+      "type": "i2c_device",
+      "bus": "i2c1",
+      "address": 32
+    },
+    {
+      "id": "7a4b273e-209d-4681-ac99-02e59c225c9f",
+      "name": "Sensor",
+      "board": "b1681f26-3e0a-474e-afe6-3ec208f0a7e2",
+      "type": "i2c_device",
+      "bus": "i2c1",
+      "address": 32
+    }
+  ]
+}

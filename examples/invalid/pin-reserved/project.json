@@ -1,0 +1,7 @@
+{
+  "id": "6e7a2cf5-19ad-435c-94be-893f25274938",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Pin reserved",
+  "description": "An LED on GPIO 0, reserved for the HAT EEPROM."
+}

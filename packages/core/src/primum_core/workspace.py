@@ -3,7 +3,8 @@
 ``core`` reads no files: the caller passes every file of the project folder, by its path
 relative to the folder, with its content. ``project.json`` at the root is the manifest; the
 other files are read by their extension (``.hw``, ``.vars``, ``.sec``, ``.evt``, ``.sched``,
-``.auto``). A file of no project type is ignored with a warning.
+``.auto``). A file of no project type is ignored with a warning. The caller also passes the
+board profiles (``boards/``, by model): the elements of each board are checked against them.
 
 Extensions are matched without regard to case (``SHOW.SEC`` is a sequence), as Windows does.
 
@@ -28,6 +29,7 @@ from primum_core.formats import (
 )
 from primum_core.generated.model import Project
 from primum_core.references import LocatedContent, check_references
+from primum_core.resources import Profiles, check_resources
 from primum_core.scopes import check_scopes
 from primum_core.variants import check_variants
 
@@ -50,8 +52,9 @@ class Workspace:
     files: tuple[ProjectFile, ...]
 
 
-def load_workspace(files: Mapping[PurePosixPath, bytes]) -> Parsed[Workspace]:
-    """Read and check a project from its files (path relative to the project folder → content).
+def load_workspace(files: Mapping[PurePosixPath, bytes], profiles: Profiles) -> Parsed[Workspace]:
+    """Read and check a project from its files (path relative to the project folder → content)
+    and the board profiles it may use (by model).
 
     The workspace comes back when no issue is an error; warnings come with it.
     """
@@ -79,6 +82,7 @@ def load_workspace(files: Mapping[PurePosixPath, bytes]) -> Parsed[Workspace]:
         issues += check_references(located, (manifest.id, Location(MANIFEST, file_id=manifest.id)))
         issues += check_scopes(located)
         issues += check_components(located)
+        issues += check_resources(located, profiles)
     if manifest is None or any(issue.severity is Severity.ERROR for issue in issues):
         return Parsed(None, tuple(issues))
     return Parsed(Workspace(manifest, tuple(read)), tuple(issues))

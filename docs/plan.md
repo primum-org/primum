@@ -261,11 +261,18 @@ pull request per block.
   keeps its own stack. Follow-ups: limits of an `integer` variable against its type, exported
   names nothing imports, and words inside text literals of conditions (phase 4).
 
-**2.5 · Resources and pin conflicts**
-- An allocator that checks every element against its board's profile: `pin.in_use`,
-  `pin.not_gpio`, `pin.not_on_board`, `pin.reserved`, `pin.claimed_by_bus` (GPIO 2/3 with an
-  I2C device), `pwm.channel_in_use` (12 and 18), `i2c.address_in_use`,
-  `pin.function_unavailable`. One invalid project per case in `examples/invalid/`, each tested.
+**2.5 · Resources and pin conflicts** · **done** (`docs/specs/board-profiles.md`, resource allocation)
+- `primum_core.resources.check_resources(files, profiles)`: `load_workspace` takes the board
+  profiles by model (the CLI loads its copy of `boards/`, `primum_cli.boards`). Per board:
+  `board.unknown_model`, `pin.not_on_board`, `pin.reserved`, `pin.in_use` (naming the other
+  element), `pin.claimed_by_bus` (GPIO 2/3 with an I2C device: devices are placed first),
+  `pin.function_unavailable`, `pwm.channel_in_use` (12 and 18), `bus.not_on_board`,
+  `bus.not_i2c` (a device on `spi0`), `i2c.address_in_use`. Messages show `GPIO 17 (pin 11)`.
+  `pin.not_gpio` dropped: elements name GPIOs, never physical pins, so it cannot happen.
+- Follow-up for phase 5: issues of the resource check come board by board, devices first, not
+  in file order; the UI sorts what it shows by file and pointer. The CLI loads the profiles on
+  every run: cache them when there are many boards.
+- `examples/invalid/<code>/`: one project per code; a test checks each gives exactly its code.
 
 **2.6 · Overlapping sequences and closing the phase**
 - Within a sequence, clips overlapping in time on the same element are an error

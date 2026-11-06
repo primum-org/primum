@@ -199,6 +199,46 @@
       "message": "La secuencia {sequence} se incluye a sí misma a través de {chain}.",
       "hint": "Las secuencias no pueden incluirse unas a otras en bucle: quita uno de esos bloques."
     },
+    "board.unknown_model": {
+      "message": "La placa {board} es una {model}, y esta versión de Primum no tiene perfil para ese modelo.",
+      "hint": "Usa un modelo que Primum conozca (rpi4b) o añade su perfil en boards/."
+    },
+    "pin.not_on_board": {
+      "message": "El GPIO {pin} no existe en {board}.",
+      "hint": "Mira el patillaje de la placa y elige un GPIO que tenga."
+    },
+    "pin.reserved": {
+      "message": "El GPIO {pin} (pin {physical}) está reservado por la placa.",
+      "hint": "La placa lo usa para sí misma (en una Raspberry Pi, los GPIO 0 y 1 leen la EEPROM de los HAT): elige otro GPIO."
+    },
+    "pin.in_use": {
+      "message": "El GPIO {pin} (pin {physical}) ya lo usa {other}.",
+      "hint": "Mueve uno de los dos elementos a un GPIO libre."
+    },
+    "pin.claimed_by_bus": {
+      "message": "El GPIO {pin} (pin {physical}) pertenece al bus {bus} mientras haya un dispositivo conectado a él.",
+      "hint": "Mueve el elemento a otro GPIO o quita los dispositivos de ese bus."
+    },
+    "pin.function_unavailable": {
+      "message": "El GPIO {pin} (pin {physical}) no tiene PWM por hardware.",
+      "hint": "Usa un GPIO con PWM (en una Raspberry Pi: 12, 13, 18 o 19)."
+    },
+    "pwm.channel_in_use": {
+      "message": "El GPIO {pin} (pin {physical}) comparte su canal PWM con {other}.",
+      "hint": "Dos pines del mismo canal no pueden ser ambos salidas PWM: usa un pin del otro canal."
+    },
+    "bus.not_on_board": {
+      "message": "{board} no tiene bus {bus}.",
+      "hint": "Usa un bus que la placa tenga (en una Raspberry Pi: i2c1)."
+    },
+    "bus.not_i2c": {
+      "message": "El bus {bus} de {board} no es un bus I2C.",
+      "hint": "Un dispositivo I2C va en un bus I2C (en una Raspberry Pi: i2c1)."
+    },
+    "i2c.address_in_use": {
+      "message": "La dirección {address} del bus {bus} ya la usa {other}.",
+      "hint": "Dos dispositivos en un bus necesitan direcciones distintas: cambia una (muchos dispositivos tienen un puente para ello)."
+    },
     "schema.missing_field": {
       "message": "Falta el campo {field}.",
       "hint": "Añádelo: este formato lo exige."
