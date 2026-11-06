@@ -24,7 +24,9 @@ EXIT_FAILED = 2
 SEVERITY_KEYS = {Severity.ERROR: "severity.error", Severity.WARNING: "severity.warning"}
 
 
-def main(argv: Sequence[str] | None = None, out: TextIO | None = None) -> int:
+def main(
+    argv: Sequence[str] | None = None, out: TextIO | None = None, err: TextIO | None = None
+) -> int:
     args = _parser().parse_args(sys.argv[1:] if argv is None else argv)
     return validate(
         args.folder,
@@ -32,20 +34,22 @@ def main(argv: Sequence[str] | None = None, out: TextIO | None = None) -> int:
         as_json=args.json,
         strict=args.strict,
         out=out or sys.stdout,
+        err=err or sys.stderr,
     )
 
 
-def validate(folder: Path, catalog: Catalog, *, as_json: bool, strict: bool, out: TextIO) -> int:
-    """Check the project in ``folder`` and write what was found."""
+def validate(
+    folder: Path, catalog: Catalog, *, as_json: bool, strict: bool, out: TextIO, err: TextIO
+) -> int:
+    """Check the project in ``folder``: what was found goes to ``out``, why it could not run to
+    ``err``."""
     if not folder.is_dir():
-        sys.stderr.write(catalog.text("folder.not_a_folder", path=str(folder)) + "\n")
+        err.write(catalog.text("folder.not_a_folder", path=str(folder)) + "\n")
         return EXIT_FAILED
     try:
         files = read_folder(folder)
     except OSError as error:
-        sys.stderr.write(
-            catalog.text("folder.unreadable", path=str(folder), detail=str(error)) + "\n"
-        )
+        err.write(catalog.text("folder.unreadable", path=str(folder), detail=str(error)) + "\n")
         return EXIT_FAILED
     issues = load_workspace(files).issues
     errors = sum(issue.severity is Severity.ERROR for issue in issues)

@@ -89,7 +89,7 @@ def read_manifest(path: PurePosixPath, content: bytes) -> Parsed[Project]:
 
 def read_project_file(path: PurePosixPath, content: bytes) -> Parsed[ProjectFileContent]:
     """Read a project file of a type in ``PROJECT_FILE_FORMATS``, chosen by its extension."""
-    schema, parse = PROJECT_FILE_FORMATS[path.suffix]
+    schema, parse = PROJECT_FILE_FORMATS[path.suffix.lower()]
     return _read(path, content, schema, parse)
 
 

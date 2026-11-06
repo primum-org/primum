@@ -6,7 +6,8 @@ A project is a folder of files (decision 0004). This spec says what the folder h
 ## The folder
 
 - `project.json` at the root: the manifest (name, description).
-- Any number of project files, in any folders, each read by its extension:
+- Any number of project files, in any folders, each read by its extension (without regard to
+  case: `SHOW.SEC` is a sequence):
 
 | Extension | Kind | Holds |
 |---|---|---|
@@ -32,18 +33,19 @@ something of the right kind:
 
 | Field | Refers to |
 |---|---|
-| `.hw` `elements[].board` | a board |
+| `.hw` `elements[].board` | a board, of this or another `.hw` file (one file per board is fine) |
 | `.vars` `imports[].from` | a `.vars` file |
-| `.sec` `tracks[].element` | an element, or an element parameter of this same sequence |
+| `.sec` `tracks[].element` | an element, or a parameter of type `element` of this same sequence |
 | `.sec` `blocks[].sequence` | a sequence |
 | `.sec` `blocks[].arguments[].parameter` | a parameter of the included sequence |
-| `.sec` `blocks[].arguments[].element` | an element, or an element parameter of this sequence |
-| `.evt` `element` | an element |
+| `.sec` `blocks[].arguments[].element` | an element, or a parameter of type `element` of this sequence |
+| `.evt` `element` | an input element (`digital_input`, `i2c_device`), never an output |
 | `.auto` `when[]` | an event or a schedule |
 | `.auto` `do[].sequence` | a sequence |
 
 Names of constants and variables are not ids: they follow the scopes of decision 0005 (block
-2.4).
+2.4). Whether a block's arguments fit the parameters they name (an element for an element
+parameter, a value for the others, each parameter once) is checked with components (2.4).
 
 ## Fields that depend on the case
 
@@ -63,10 +65,11 @@ Names of constants and variables are not ids: they follow the scopes of decision
 the `Workspace` (manifest and files, by path) or the issues that prevent it. Checks come in
 stages, so each problem is reported once, where it is:
 
-1. each file on its own: UTF-8, JSON, its schema (`file.*`, `schema.*`);
-2. once every file reads, the project as a whole: unique ids (`id.duplicate`), references
-   (`ref.unknown`, `ref.wrong_kind`), fields that depend on the case
-   (`schema.missing_field`, `schema.unexpected_field`).
+1. each file on its own: UTF-8, JSON, its schema (`file.*`, `schema.*`), then the fields that
+   depend on the case (`schema.missing_field`, `schema.unexpected_field`);
+2. once every file reads, the project as a whole: unique ids (`id.duplicate`) and references
+   (`ref.unknown`, `ref.wrong_kind`), which need every file: a file that does not read would
+   make references to what it defines look wrong.
 
 Without `project.json` the folder is not a project (`project.manifest_missing`). Warnings do
 not make a project invalid; errors do. Later blocks add scopes and components (2.4), pins
@@ -77,8 +80,9 @@ not make a project invalid; errors do. Later blocks add scopes and components (2
     uv run primum validate <folder> [--lang en|es] [--json] [--strict]
 
 It writes each issue with its place, message and hint (English by default, Spanish with
-`--lang es`), or JSON with codes, params and the English text. Exit status: 0 valid, 1
-problems (warnings count with `--strict`), 2 the command could not run.
+`--lang es`), or JSON with codes, params, places and the text in the chosen language. Scripts
+and AI assistants should rely on the codes and params, not on the text. Exit status: 0 valid,
+1 problems (warnings count with `--strict`), 2 the command could not run (on stderr).
 
 ## The `.primum` file
 

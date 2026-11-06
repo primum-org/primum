@@ -14,9 +14,9 @@ EXAMPLES = ROOT / "examples"
 MINIMAL = EXAMPLES / "minimal"
 
 
-def _run(*args: str) -> tuple[int, str]:
+def _run(*args: str, err: StringIO | None = None) -> tuple[int, str]:
     out = StringIO()
-    status = main(["validate", *args], out)
+    status = main(["validate", *args], out, err or StringIO())
     return status, out.getvalue()
 
 
@@ -120,13 +120,13 @@ def test_json_gives_codes_params_places_and_english_text(project: Path) -> None:
     }
 
 
-def test_a_path_that_is_not_a_folder_exits_2(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    status, out = _run(str(tmp_path / "missing"))
+def test_a_path_that_is_not_a_folder_exits_2_saying_so_on_err(tmp_path: Path) -> None:
+    err = StringIO()
+
+    status, out = _run(str(tmp_path / "missing"), err=err)
 
     assert (status, out) == (EXIT_FAILED, "")
-    assert "is not a folder" in capsys.readouterr().err
+    assert err.getvalue() == f"{tmp_path / 'missing'} is not a folder.\n"
 
 
 def test_a_wrong_option_exits_2() -> None:

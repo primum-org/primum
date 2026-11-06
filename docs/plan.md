@@ -231,6 +231,12 @@ pull request per block.
   section), `--lang`, `--json`, `--strict`, exit codes 0/1/2; hidden files and links skipped.
   `tools/gen_assets.py` (was `gen_runtime_assets.py`) also copies the catalogs into it.
 - `examples/minimal/`, kept valid by a test.
+- From review: a track (and an argument's `element`) may play a parameter of type `element`
+  only; an event comes from an input element; extensions match without regard to case; the
+  fields of each file are checked even if another file does not read.
+- Follow-up: the CLI reads every file of the folder before `core` ignores the ones of no
+  project type. Before projects carry audio (phase 6), `core` should take the paths and read
+  the contents it needs lazily, so a video left in the folder is not read to be ignored.
 
 **2.4 · Scopes, variables and components**
 - Scopes by folder (decision 0005); export, and import by the `.vars` id plus the name.
@@ -238,7 +244,9 @@ pull request per block.
 - Constants resolved when validating; variables with type, initial value, limits and
   persistence (`variable.initial_out_of_range`).
 - Components: sequences with parameters, instances with arguments; `sequence.cycle` with the
-  chain of names. `docs/specs/variables-and-scopes.md`.
+  chain of names. Arguments fit their parameters: an `element` for an element parameter, a
+  `value` of the right type for the others, never both or neither, each parameter once.
+  `docs/specs/variables-and-scopes.md`.
 
 **2.5 · Resources and pin conflicts**
 - An allocator that checks every element against its board's profile: `pin.in_use`,

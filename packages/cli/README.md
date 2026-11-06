@@ -5,7 +5,7 @@ I/O itself, then writes what `core` reports in the user's language.
 
     uv run primum validate examples/minimal
     uv run primum validate my-project --lang es
-    uv run primum validate my-project --json      # for scripts, CI and AI assistants
+    uv run primum validate my-project --json      # codes and params for scripts, CI and AI
     uv run primum validate my-project --strict    # warnings fail too
 
 Exit status: 0 the project is valid, 1 it has problems, 2 the command could not run (a wrong

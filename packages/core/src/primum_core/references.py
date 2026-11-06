@@ -4,10 +4,10 @@ Every file has an id, and so has everything defined inside one that others can r
 (boards, elements, constants, variables, parameters, clips, blocks). Ids are unique in the
 whole project. A reference is an id, and it must name something of the right kind: a track
 plays an element, an automation starts a sequence. A track may also play an element parameter
-of its own sequence (a component).
+of its own sequence (a component), and an event comes from an input element, never an output.
 """
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, replace
 from uuid import UUID
 
@@ -36,6 +36,7 @@ class _Entity:
     kind: str
     location: Location
     owner: UUID | None = None  # the sequence of a parameter
+    variant: str | None = None  # the type of an element or of a parameter
 
 
 @dataclass(frozen=True)
@@ -46,10 +47,14 @@ class _Reference:
     location: Location
     # A parameter is accepted only if it belongs to this sequence.
     parameter_of: UUID | None = None
+    # For some kinds, only these types (an element parameter, an input element).
+    variants: Mapping[str, frozenset[str]] | None = None
 
 
-ELEMENT = frozenset({"element"})
+INPUT_ELEMENT = frozenset({"element"})
+INPUT_TYPES = {"element": frozenset({"digital_input", "i2c_device"})}
 OWN_ELEMENT = frozenset({"element", "parameter"})
+ELEMENT_PARAMETER = {"parameter": frozenset({"element"})}
 PARAMETER = frozenset({"parameter"})
 
 
@@ -81,14 +86,21 @@ def _check(reference: _Reference, index: dict[UUID, _Entity]) -> Issue | None:
     entity = index.get(reference.target)
     if entity is None:
         code = CoreErrorCode.REF_UNKNOWN
-    elif entity.kind not in reference.kinds or (
-        entity.kind == "parameter" and entity.owner != reference.parameter_of
-    ):
-        code = CoreErrorCode.REF_WRONG_KIND
-    else:
+    elif _fits(entity, reference):
         return None
+    else:
+        code = CoreErrorCode.REF_WRONG_KIND
     params = {"field": field_name(reference.steps), "id": str(reference.target)}
     return Issue(code, params, replace(reference.location, pointer=pointer(reference.steps)))
+
+
+def _fits(entity: _Entity, reference: _Reference) -> bool:
+    if entity.kind not in reference.kinds:
+        return False
+    if entity.kind == "parameter" and entity.owner != reference.parameter_of:
+        return False
+    allowed = (reference.variants or {}).get(entity.kind)
+    return allowed is None or entity.variant in allowed
 
 
 def _at(file: LocatedContent, *steps: Step) -> Location:
@@ -103,7 +115,8 @@ def _entities(file: LocatedContent) -> Iterator[tuple[UUID, _Entity]]:
             for index, board in enumerate(content.boards):
                 yield board.id, _Entity("board", _at(file, "boards", index))
             for index, element in enumerate(content.elements):
-                yield element.id, _Entity("element", _at(file, "elements", index))
+                at = _at(file, "elements", index)
+                yield element.id, _Entity("element", at, variant=element.type)
         case Variables():
             for index, constant in enumerate(content.constants):
                 yield constant.id, _Entity("constant", _at(file, "constants", index))
@@ -112,7 +125,7 @@ def _entities(file: LocatedContent) -> Iterator[tuple[UUID, _Entity]]:
         case Sequence():
             for index, parameter in enumerate(content.parameters):
                 at = _at(file, "parameters", index)
-                yield parameter.id, _Entity("parameter", at, owner=content.id)
+                yield parameter.id, _Entity("parameter", at, content.id, parameter.type)
             for track_index, track in enumerate(content.tracks):
                 for index, clip in enumerate(track.clips):
                     yield clip.id, _Entity("clip", _at(file, "tracks", track_index, "clips", index))
@@ -139,7 +152,8 @@ def _references(file: LocatedContent) -> Iterator[_Reference]:
             yield from _sequence_references(content, at)
         case Event():
             if content.element is not None:
-                yield _Reference(content.element, ELEMENT, ("element",), at)
+                steps = ("element",)
+                yield _Reference(content.element, INPUT_ELEMENT, steps, at, None, INPUT_TYPES)
         case Automation():
             for index, trigger in enumerate(content.when):
                 yield _Reference(trigger, frozenset({"event", "schedule"}), ("when", index), at)
@@ -154,7 +168,8 @@ def _references(file: LocatedContent) -> Iterator[_Reference]:
 def _sequence_references(sequence: Sequence, at: Location) -> Iterator[_Reference]:
     own = sequence.id
     for index, track in enumerate(sequence.tracks):
-        yield _Reference(track.element, OWN_ELEMENT, ("tracks", index, "element"), at, own)
+        steps = ("tracks", index, "element")
+        yield _Reference(track.element, OWN_ELEMENT, steps, at, own, ELEMENT_PARAMETER)
     for index, block in enumerate(sequence.blocks):
         yield _Reference(block.sequence, frozenset({"sequence"}), ("blocks", index, "sequence"), at)
         for argument_index, argument in enumerate(block.arguments):
@@ -164,4 +179,6 @@ def _sequence_references(sequence: Sequence, at: Location) -> Iterator[_Referenc
                 argument.parameter, PARAMETER, (*steps, "parameter"), at, block.sequence
             )
             if argument.element is not None:
-                yield _Reference(argument.element, OWN_ELEMENT, (*steps, "element"), at, own)
+                yield _Reference(
+                    argument.element, OWN_ELEMENT, (*steps, "element"), at, own, ELEMENT_PARAMETER
+                )

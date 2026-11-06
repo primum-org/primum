@@ -324,3 +324,46 @@ def test_fields_that_depend_on_the_case_are_checked(
     ]
 
     assert expected in found
+
+
+def test_a_track_plays_an_element_parameter_never_a_parameter_of_another_type() -> None:
+    parameter = _id(50)
+    blink: dict[str, object] = {
+        "parameters": [{"id": parameter, "name": "times", "type": "number"}],
+        "tracks": [{"element": parameter, "clips": []}],
+    }
+
+    [(code, params, _, pointer)] = _found(_project(**{"scenes/blink.sec": blink}))
+    assert (code, params["field"], pointer) == (
+        CoreErrorCode.REF_WRONG_KIND,
+        "tracks[0].element",
+        "/tracks/0/element",
+    )
+
+
+def test_an_event_comes_from_an_input_element_never_an_output() -> None:
+    [(code, params, _, _)] = _found(_project(**{"pressed.evt": {"element": LED}}))
+
+    assert (code, params["field"]) == (CoreErrorCode.REF_WRONG_KIND, "element")
+
+
+def test_extensions_are_matched_without_regard_to_case() -> None:
+    files = _project()
+    files[PurePosixPath("SCENES/OTHER.SEC")] = _file("sequence", _id(60), name="Other", tracks=[])
+
+    parsed = load_workspace(files)
+
+    assert parsed.issues == ()
+    assert parsed.value is not None
+    assert PurePosixPath("SCENES/OTHER.SEC") in {file.path for file in parsed.value.files}
+
+
+def test_fields_of_a_file_are_checked_even_if_another_file_does_not_read() -> None:
+    files = _project(**{"pressed.evt": {"source": "ui"}})
+    files[PurePosixPath("broken.sec")] = b"{"
+
+    assert [code for code, *_ in _found(files)] == [
+        CoreErrorCode.FILE_INVALID_JSON,
+        CoreErrorCode.SCHEMA_UNEXPECTED_FIELD,
+        CoreErrorCode.SCHEMA_UNEXPECTED_FIELD,
+    ]

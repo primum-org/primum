@@ -5,9 +5,12 @@ relative to the folder, with its content. ``project.json`` at the root is the ma
 other files are read by their extension (``.hw``, ``.vars``, ``.sec``, ``.evt``, ``.sched``,
 ``.auto``). A file of no project type is ignored with a warning.
 
+Extensions are matched without regard to case (``SHOW.SEC`` is a sequence), as Windows does.
+
 Checks come in stages, so a problem is reported once, where it is: first each file on its own
-(text, JSON, schema), then, once every file reads, the project as a whole (ids, references,
-fields that depend on the case). Later blocks add scopes, components and pins.
+(text, JSON, schema, then the fields that depend on the case), and, once every file reads, the
+project as a whole (ids and references, which need every file). Later blocks add scopes,
+components and pins.
 """
 
 from collections.abc import Mapping
@@ -57,7 +60,7 @@ def load_workspace(files: Mapping[PurePosixPath, bytes]) -> Parsed[Workspace]:
     for path in sorted(files):
         if path == MANIFEST:
             continue
-        if path.suffix not in PROJECT_FILE_FORMATS:
+        if path.suffix.lower() not in PROJECT_FILE_FORMATS:
             issues.append(
                 Issue(CoreErrorCode.FILE_NOT_IN_FORMAT, {}, Location(path), Severity.WARNING)
             )
@@ -66,10 +69,14 @@ def load_workspace(files: Mapping[PurePosixPath, bytes]) -> Parsed[Workspace]:
         issues += parsed.issues
         if parsed.value is None:
             complete = False
-        else:
-            read.append(ProjectFile(path, parsed.value))
+            continue
+        read.append(ProjectFile(path, parsed.value))
+        issues += check_variants(_located(read[-1]))
     if complete and manifest is not None:
-        issues += _project_issues(manifest, read)
+        issues += check_references(
+            [_located(file) for file in read],
+            (manifest.id, Location(MANIFEST, file_id=manifest.id)),
+        )
     if manifest is None or any(issue.severity is Severity.ERROR for issue in issues):
         return Parsed(None, tuple(issues))
     return Parsed(Workspace(manifest, tuple(read)), tuple(issues))
@@ -84,11 +91,5 @@ def _manifest(files: Mapping[PurePosixPath, bytes], issues: list[Issue]) -> Proj
     return parsed.value
 
 
-def _project_issues(manifest: Project, files: list[ProjectFile]) -> list[Issue]:
-    located = [
-        LocatedContent(file.content, Location(file.path, file_id=file.content.id)) for file in files
-    ]
-    issues = list(check_references(located, (manifest.id, Location(MANIFEST, file_id=manifest.id))))
-    for file in located:
-        issues += check_variants(file)
-    return issues
+def _located(file: ProjectFile) -> LocatedContent:
+    return LocatedContent(file.content, Location(file.path, file_id=file.content.id))
