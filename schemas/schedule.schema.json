@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "schedule.schema.json",
+  "title": "Schedule",
+  "description": "A .sched file: times of day that start automations, and windows of time that automations use as conditions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "schemaVersion",
+    "name"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "kind": {
+      "const": "schedule"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "name": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "times": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/scheduleTime"
+      }
+    },
+    "windows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/scheduleWindow"
+      }
+    }
+  },
+  "$defs": {
+    "scheduleTime": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Every listed day at a time.",
+      "required": [
+        "days",
+        "at"
+      ],
+      "properties": {
+        "days": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/weekday"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "at": {
+          "$ref": "common.schema.json#/$defs/timeOfDay"
+        }
+      }
+    },
+    "scheduleWindow": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Every listed day from one time to another.",
+      "required": [
+        "days",
+        "from",
+        "to"
+      ],
+      "properties": {
+        "days": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/weekday"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "from": {
+          "$ref": "common.schema.json#/$defs/timeOfDay"
+        },
+        "to": {
+          "$ref": "common.schema.json#/$defs/timeOfDay"
+        }
+      }
+    }
+  }
+}

@@ -1,9 +1,10 @@
-"""Copy shared files into the runtime package, so the installed runtime has them.
+"""Copy shared files into the packages that ship them, so they have them once installed.
 
-The sources stay where they are; the runtime gets byte-identical copies, never edited by hand:
+The sources stay where they are; the packages get byte-identical copies, never edited by hand:
 
-- the page's assets (``i18n/``, ``design/``) under ``primum_runtime/ui/generated/``;
-- the board profiles (``boards/``) under ``primum_runtime/generated/boards/``.
+- runtime: the page's assets (``i18n/``, ``design/``) under ``primum_runtime/ui/generated/``,
+  and the board profiles (``boards/``) under ``primum_runtime/generated/boards/``;
+- CLI: the message catalogs (``i18n/``) under ``primum_cli/generated/i18n/``.
 
     uv run just gen         # copy (and remove copies whose source is gone)
     uv run just gen-check   # fail if a copy is missing, stale or extra (part of `just check`)
@@ -16,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RUNTIME = ROOT / "packages" / "runtime" / "src" / "primum_runtime"
+CLI = ROOT / "packages" / "cli" / "src" / "primum_cli"
 
 
 @dataclass(frozen=True)
@@ -36,6 +38,7 @@ TARGETS: dict[Path, tuple[Source, ...]] = {
         Source(ROOT / "design" / "logo", "*.svg", "logo"),
     ),
     RUNTIME / "generated" / "boards": (Source(ROOT / "boards", "*.json", "."),),
+    CLI / "generated" / "i18n": (Source(ROOT / "i18n", "*.json", "."),),
 }
 
 
@@ -69,7 +72,7 @@ def write(files: dict[Path, bytes], target: Path) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Copy shared files into the runtime package.")
+    parser = argparse.ArgumentParser(description="Copy shared files into the packages.")
     parser.add_argument("--check", action="store_true", help="fail if a copy is out of date")
     args = parser.parse_args(argv)
 

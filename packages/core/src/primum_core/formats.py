@@ -12,25 +12,56 @@
 
 import json
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from uuid import UUID
 
 from primum_core.boards import check_board_profile
 from primum_core.errors import CoreErrorCode, Issue, Location
-from primum_core.generated.model import BoardProfile, Project, parse_board_profile, parse_project
+from primum_core.generated.model import (
+    Automation,
+    BoardProfile,
+    Event,
+    Hardware,
+    Project,
+    Schedule,
+    Sequence,
+    Variables,
+    parse_automation,
+    parse_board_profile,
+    parse_event,
+    parse_hardware,
+    parse_project,
+    parse_schedule,
+    parse_sequence,
+    parse_variables,
+)
 from primum_core.json_values import JsonObject, as_object, is_object
 from primum_core.schema_validation import validate
 
 ID_FIELD = "id"
 
 type Check[T] = Callable[[T, Location], tuple[Issue, ...]]
+# The content of a project file other than the manifest, by its extension.
+type ProjectFileContent = Hardware | Variables | Sequence | Event | Schedule | Automation
+
+PROJECT_FILE_FORMATS: Mapping[str, tuple[str, Callable[[JsonObject], ProjectFileContent]]] = {
+    ".hw": ("hardware.schema.json", parse_hardware),
+    ".vars": ("variables.schema.json", parse_variables),
+    ".sec": ("sequence.schema.json", parse_sequence),
+    ".evt": ("event.schema.json", parse_event),
+    ".sched": ("schedule.schema.json", parse_schedule),
+    ".auto": ("automation.schema.json", parse_automation),
+}
 
 
 @dataclass(frozen=True)
 class Parsed[T]:
-    """What reading a file gave: the value, or ``None`` and the issues that prevented it."""
+    """What reading gave: the value, or ``None`` if an error prevented it, and the issues.
+
+    Warnings do not prevent the value: a value may come with issues, all of them warnings.
+    """
 
     value: T | None
     issues: tuple[Issue, ...] = ()
@@ -54,6 +85,12 @@ class _DuplicateKeyError(ValueError):
 def read_manifest(path: PurePosixPath, content: bytes) -> Parsed[Project]:
     """Read a project's manifest (``project.json``)."""
     return _read(path, content, "project.schema.json", parse_project)
+
+
+def read_project_file(path: PurePosixPath, content: bytes) -> Parsed[ProjectFileContent]:
+    """Read a project file of a type in ``PROJECT_FILE_FORMATS``, chosen by its extension."""
+    schema, parse = PROJECT_FILE_FORMATS[path.suffix.lower()]
+    return _read(path, content, schema, parse)
 
 
 def read_board_profile(path: PurePosixPath, content: bytes) -> Parsed[BoardProfile]:

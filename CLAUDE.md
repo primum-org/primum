@@ -37,12 +37,14 @@ Read first: `docs/vision.md` (scope) · `docs/glossary.md` (vocabulary) ·
 ```
 packages/core      primum-core: model, validation, compiler, simulator (pure)
 packages/runtime   primum-runtime: engine, HAL, drivers, safety, local API (Linux/Pi)
+packages/cli       primum-cli: the `primum` command (`primum validate <project>`)
 apps/webui         local web UI (Vue 3 + TypeScript), from phase 5
 schemas/           JSON Schemas: single source of the formats
 boards/            board profiles (pins, peripherals, resources)
 design/            brand: brandbook, tokens (single source), logo, icons
 i18n/              message catalogs (en, es): every user-visible text, error messages by code
 image/             Primum OS image (rpi-image-gen), from phase 7
+examples/          example projects, kept valid by a test
 tools/             developer scripts
 docs/              vision, glossary, architecture, plan, specs/, decisions/
 ```

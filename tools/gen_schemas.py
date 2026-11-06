@@ -221,7 +221,13 @@ class _Builder:
             raise SchemaError(f"{where}: define nested objects in $defs and use them with $ref")
         if isinstance(kind, str) and kind in SCALARS:
             return Scalar(*SCALARS[kind])
-        raise SchemaError(f"{where}: needs a single type, a const, an enum or a $ref")
+        if _is_list(kind) and len(kind) > 1 and all(item in SCALARS for item in kind):
+            # A value that may be a number, a boolean or a text (a variable's initial value).
+            annotations = dict.fromkeys(SCALARS[str(item)][0] for item in kind)
+            return Scalar(" | ".join(annotations), "as_scalar")
+        raise SchemaError(
+            f"{where}: needs a type (or a list of scalar types), a const, an enum or a $ref"
+        )
 
     def _reference(self, ref: str, file: str, where: str) -> TypeSpec:
         target_file, _, pointer = ref.partition("#")
@@ -350,7 +356,16 @@ def _field_line(field: FieldSpec) -> str:
         return f"    {field.name}: {annotation}"
     if field.default is not None:
         return f"    {field.name}: {annotation} = {_python_literal(field.default)}"
+    if isinstance(field.type, Array):
+        return f"    {field.name}: {annotation} = ()"
     return f"    {field.name}: {annotation} | None = None"
+
+
+def _fallback(field: FieldSpec) -> str:
+    """The value of an optional field that is absent: its default, nothing, or no items."""
+    if field.default is not None:
+        return _python_literal(field.default)
+    return "()" if isinstance(field.type, Array) else "None"
 
 
 def _choices(spec: TypeSpec) -> Choice | None:
@@ -381,8 +396,7 @@ def _render_choices(owner: ClassSpec) -> list[str]:
 def _argument_line(owner: ClassSpec, field: FieldSpec) -> str:
     value = _parser(field.type, f'data["{field.json_name}"]', _choices_name(owner, field))
     if not field.required:
-        fallback = "None" if field.default is None else _python_literal(field.default)
-        value = f'{value} if "{field.json_name}" in data else {fallback}'
+        value = f'{value} if "{field.json_name}" in data else {_fallback(field)}'
     return f"        {field.name}={value},"
 
 

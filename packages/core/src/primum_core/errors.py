@@ -23,8 +23,14 @@ class CoreErrorCode(StrEnum):
     FILE_INVALID_JSON = "file.invalid_json"  # line, column
     FILE_DUPLICATE_KEY = "file.duplicate_key"  # key
     FILE_NOT_AN_OBJECT = "file.not_an_object"
+    FILE_NOT_IN_FORMAT = "file.not_in_format"  # (warning) a file of no project type, ignored
+    PROJECT_MANIFEST_MISSING = "project.manifest_missing"
+    ID_DUPLICATE = "id.duplicate"  # id
+    REF_UNKNOWN = "ref.unknown"  # field, id
+    REF_WRONG_KIND = "ref.wrong_kind"  # field, id
     SCHEMA_MISSING_FIELD = "schema.missing_field"  # field
     SCHEMA_UNKNOWN_FIELD = "schema.unknown_field"  # field
+    SCHEMA_UNEXPECTED_FIELD = "schema.unexpected_field"  # field: of the format, not of this case
     # A value of the wrong type: one code per expected type, so every message reads naturally
     # in every language instead of quoting JSON Schema's type names.
     SCHEMA_EXPECTED_TEXT = "schema.expected_text"  # field

@@ -1,0 +1,239 @@
+{
+  "ui": {
+    "app.title": "Primum",
+    "outputs.heading": "Outputs",
+    "output.on": "On",
+    "output.off": "Off",
+    "output.toggle": "Turn {name} on or off",
+    "panic.button": "Panic",
+    "panic.description": "Turns every output off and stops accepting commands.",
+    "panic.active": "Panic is active: every output is off and commands are refused.",
+    "panic.release": "Release panic",
+    "connection.offline": "No connection with the service. Retrying…",
+    "error.detail": "Technical detail",
+    "error.unknown": "Unexpected error ({code}).",
+    "error.close": "Close"
+  },
+  "cli": {
+    "severity.error": "error",
+    "severity.warning": "warning",
+    "hint": "Hint: {hint}",
+    "result.valid": "{path}: the project is valid.",
+    "result.invalid": "{path}: the project has problems.",
+    "summary": "Errors: {errors}. Warnings: {warnings}.",
+    "list.and": "and",
+    "issue.unknown": "A problem this version of the messages does not know ({code}).",
+    "folder.not_a_folder": "{path} is not a folder.",
+    "folder.unreadable": "Cannot read {path}: {detail}"
+  },
+  "errors": {
+    "hal.pin_in_use": {
+      "message": "Pin {pin} is already used by another output.",
+      "hint": "Choose a different pin for one of them."
+    },
+    "hal.pin_invalid": {
+      "message": "Pin {pin} does not exist on this board.",
+      "hint": "Check the pin number against the board's pinout."
+    },
+    "hal.pin_unavailable": {
+      "message": "Pin {pin} is being used by something else on this board.",
+      "hint": "Free it (stop the program or turn off the interface that uses it) or choose another pin."
+    },
+    "hal.profile_mismatch": {
+      "message": "The board profile puts pin {pin} on line {line}, but the GPIO controller {chip} has {lines} lines.",
+      "hint": "The profile does not match this board: check that Primum is configured for the right board, or report it."
+    },
+    "hal.chip_not_found": {
+      "message": "No GPIO controller named {chip} was found on this system.",
+      "hint": "Check that Primum is configured for this board (--board)."
+    },
+    "hal.chip_access_denied": {
+      "message": "Primum has no permission to use the GPIO controller {chip}.",
+      "hint": "Add the user that runs Primum to the gpio group, then restart the service."
+    },
+    "hal.unsupported_platform": {
+      "message": "Real hardware cannot be used on this system ({platform}).",
+      "hint": "Run Primum on a Raspberry Pi, or start it in simulation mode."
+    },
+    "hal.gpio_library_broken": {
+      "message": "The GPIO library is installed but incomplete, so real hardware cannot be used.",
+      "hint": "Reinstall Primum on this board; if it happens again, report it with the technical detail."
+    },
+    "hal.closed": {
+      "message": "The connection to the hardware is closed.",
+      "hint": "Restart the service."
+    },
+    "hal.safe_state_incomplete": {
+      "message": "Pins {pins} could not be put in their safe state.",
+      "hint": "Cut the power of what is wired to them, then check the wiring."
+    },
+    "hal.release_incomplete": {
+      "message": "Pins {pins} could not be released.",
+      "hint": "Restart the board before using them again."
+    },
+    "output.unknown": {
+      "message": "There is no output called {name}.",
+      "hint": "Reload the page to see the current outputs."
+    },
+    "panic.active": {
+      "message": "Panic is active: outputs do not accept commands.",
+      "hint": "Release panic when it is safe to continue."
+    },
+    "request.invalid": {
+      "message": "The request was not valid.",
+      "hint": "Reload the page. If it happens again, report it with the technical detail."
+    },
+    "request.not_found": {
+      "message": "The service has nothing at {path}.",
+      "hint": "Reload the page. If it happens again, report it with the technical detail."
+    },
+    "request.method_not_allowed": {
+      "message": "The service does not accept this action at {path}.",
+      "hint": "Reload the page. If it happens again, report it with the technical detail."
+    },
+    "file.not_utf8": {
+      "message": "The file is not UTF-8 text.",
+      "hint": "Save it again with UTF-8 encoding."
+    },
+    "file.invalid_json": {
+      "message": "The file is not valid JSON (line {line}, column {column}).",
+      "hint": "Fix the text near that position, or restore the file from a copy."
+    },
+    "file.duplicate_key": {
+      "message": "The key {key} appears twice in the same object.",
+      "hint": "Keep only one of them."
+    },
+    "file.not_an_object": {
+      "message": "The file does not contain a JSON object.",
+      "hint": "A Primum file starts with { and ends with }."
+    },
+    "file.not_in_format": {
+      "message": "This file is not one of the project's file types, so Primum ignores it.",
+      "hint": "Move it out of the project folder if it does not belong there."
+    },
+    "project.manifest_missing": {
+      "message": "The folder has no project.json, so it is not a Primum project.",
+      "hint": "Open the project's folder, or create the project from Primum."
+    },
+    "id.duplicate": {
+      "message": "The id {id} is used more than once in the project.",
+      "hint": "Every file and everything defined in one needs its own id: if you copied a file, give the copy new ids."
+    },
+    "ref.unknown": {
+      "message": "{field} refers to {id}, which is not in the project.",
+      "hint": "Choose something that exists, or add the file that defines it."
+    },
+    "ref.wrong_kind": {
+      "message": "{field} refers to {id}, which cannot be used there.",
+      "hint": "Choose something of the right type for this field."
+    },
+    "schema.missing_field": {
+      "message": "The field {field} is missing.",
+      "hint": "Add it: this format requires it."
+    },
+    "schema.unknown_field": {
+      "message": "The field {field} is not part of this format.",
+      "hint": "Remove it, or check how it is spelled."
+    },
+    "schema.unexpected_field": {
+      "message": "The field {field} does not apply here.",
+      "hint": "Remove it: it is only used in other cases."
+    },
+    "schema.expected_text": {
+      "message": "The field {field} must be text.",
+      "hint": "Write it between double quotes, like \"Shop window\"."
+    },
+    "schema.expected_integer": {
+      "message": "The field {field} must be a whole number.",
+      "hint": "Write it without quotes or decimals, like 17."
+    },
+    "schema.expected_number": {
+      "message": "The field {field} must be a number.",
+      "hint": "Write it without quotes, like 0.5 or 2."
+    },
+    "schema.expected_boolean": {
+      "message": "The field {field} must be true or false.",
+      "hint": "Write true or false, without quotes."
+    },
+    "schema.expected_list": {
+      "message": "The field {field} must be a list.",
+      "hint": "Write it between square brackets, like [1, 2]."
+    },
+    "schema.expected_object": {
+      "message": "The field {field} must be a group of fields.",
+      "hint": "Write it between curly braces, like {\"name\": \"LED\"}."
+    },
+    "schema.not_allowed": {
+      "message": "The value of {field} is not one of the allowed values.",
+      "hint": "Use one of these: {allowed}."
+    },
+    "schema.invalid_id": {
+      "message": "The value of {field} is not a valid id.",
+      "hint": "An id is a UUID such as 8d0f6f1e-3b2a-4c55-9a51-1f2d3c4b5a69; let Primum create it."
+    },
+    "schema.invalid_value": {
+      "message": "The value of {field} is not valid.",
+      "hint": "Check it against the description of the format."
+    },
+    "schema.too_short": {
+      "message": "The text of {field} is too short.",
+      "hint": "It needs at least {min} characters."
+    },
+    "schema.too_long": {
+      "message": "The text of {field} is too long.",
+      "hint": "It can have at most {max} characters."
+    },
+    "schema.too_few_items": {
+      "message": "{field} has too few items.",
+      "hint": "It needs at least {min}."
+    },
+    "schema.too_many_items": {
+      "message": "{field} has too many items.",
+      "hint": "It can have at most {max}."
+    },
+    "schema.duplicate_items": {
+      "message": "{field} has repeated items.",
+      "hint": "Remove the repeated ones."
+    },
+    "schema.below_minimum": {
+      "message": "The value of {field} is too small.",
+      "hint": "It must be {minimum} or more."
+    },
+    "schema.above_maximum": {
+      "message": "The value of {field} is too large.",
+      "hint": "It must be {maximum} or less."
+    },
+    "schema.unsupported_version": {
+      "message": "The file uses version {version} of its format, and this version of Primum reads version {supported}.",
+      "hint": "Open it with a version of Primum that reads that format."
+    },
+    "board.duplicate_pin": {
+      "message": "The board profile lists physical pin {physical} more than once.",
+      "hint": "Keep one entry per pin of the header."
+    },
+    "board.power_pin_with_gpio": {
+      "message": "Physical pin {physical} is a power or ground pin, but the profile gives it a GPIO, a line or a pull.",
+      "hint": "Remove those fields, or mark the pin as gpio."
+    },
+    "board.incomplete_gpio_pin": {
+      "message": "Physical pin {physical} is a GPIO, but the profile does not give its GPIO number, its line and its pull.",
+      "hint": "Add gpio, line and defaultPull to the pin."
+    },
+    "board.duplicate_gpio": {
+      "message": "The board profile gives GPIO {gpio} to more than one pin.",
+      "hint": "Each GPIO is on one pin of the header: check the pinout."
+    },
+    "board.duplicate_line": {
+      "message": "The board profile maps more than one GPIO to line {line} of the GPIO chip.",
+      "hint": "Check the line of each GPIO against the board's GPIO chip."
+    },
+    "board.unknown_gpio": {
+      "message": "The board profile uses GPIO {gpio}, which none of its pins has.",
+      "hint": "Use a GPIO listed in the profile's pins."
+    },
+    "board.duplicate_id": {
+      "message": "The board profile uses the name {id} more than once.",
+      "hint": "Give each bus and each PWM channel its own name."
+    }
+  }
+}

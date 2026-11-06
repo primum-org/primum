@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "variables.schema.json",
+  "title": "Variables",
+  "description": "A .vars file: the constants and variables of the folder it is in, and the names that folder shares with others (decision 0005).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "schemaVersion",
+    "constants",
+    "variables"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "kind": {
+      "const": "variables"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "constants": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/constant"
+      }
+    },
+    "variables": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/variable"
+      }
+    },
+    "exports": {
+      "description": "Names of this file that other folders may import.",
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/variableName"
+      },
+      "uniqueItems": true
+    },
+    "imports": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/variableImport"
+      }
+    }
+  },
+  "$defs": {
+    "constant": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A value fixed while the show runs, resolved when the project is compiled.",
+      "required": [
+        "id",
+        "name",
+        "type",
+        "value"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/variableName"
+        },
+        "type": {
+          "$ref": "common.schema.json#/$defs/valueType"
+        },
+        "value": {
+          "$ref": "common.schema.json#/$defs/value"
+        }
+      }
+    },
+    "variable": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A value that changes while running, owned by one board.",
+      "required": [
+        "id",
+        "name",
+        "type",
+        "initial"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/variableName"
+        },
+        "type": {
+          "$ref": "common.schema.json#/$defs/valueType"
+        },
+        "initial": {
+          "$ref": "common.schema.json#/$defs/value"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "persistent": {
+          "description": "Kept across restarts.",
+          "type": "boolean",
+          "default": false
+        },
+        "setting": {
+          "description": "Shown in the phone UI as a setting.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "variableImport": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A name exported by the .vars file of another folder.",
+      "required": [
+        "from",
+        "name"
+      ],
+      "properties": {
+        "from": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/variableName"
+        }
+      }
+    }
+  }
+}

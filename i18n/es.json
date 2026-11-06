@@ -14,6 +14,18 @@
     "error.unknown": "Error inesperado ({code}).",
     "error.close": "Cerrar"
   },
+  "cli": {
+    "severity.error": "error",
+    "severity.warning": "aviso",
+    "hint": "Pista: {hint}",
+    "result.valid": "{path}: el proyecto es válido.",
+    "result.invalid": "{path}: el proyecto tiene problemas.",
+    "summary": "Errores: {errors}. Avisos: {warnings}.",
+    "list.and": "y",
+    "issue.unknown": "Un problema que esta versión de los mensajes no conoce ({code}).",
+    "folder.not_a_folder": "{path} no es una carpeta.",
+    "folder.unreadable": "No se puede leer {path}: {detail}"
+  },
   "errors": {
     "hal.pin_in_use": {
       "message": "El pin {pin} ya lo usa otra salida.",
@@ -95,6 +107,26 @@
       "message": "El fichero no contiene un objeto JSON.",
       "hint": "Un fichero de Primum empieza por { y acaba en }."
     },
+    "file.not_in_format": {
+      "message": "Este fichero no es de ningún tipo del proyecto, así que Primum lo ignora.",
+      "hint": "Sácalo de la carpeta del proyecto si no pertenece a ella."
+    },
+    "project.manifest_missing": {
+      "message": "La carpeta no tiene project.json, así que no es un proyecto de Primum.",
+      "hint": "Abre la carpeta del proyecto o crea el proyecto desde Primum."
+    },
+    "id.duplicate": {
+      "message": "El identificador {id} se usa más de una vez en el proyecto.",
+      "hint": "Cada fichero y cada cosa definida en él necesita su propio identificador: si has copiado un fichero, da identificadores nuevos a la copia."
+    },
+    "ref.unknown": {
+      "message": "{field} hace referencia a {id}, que no está en el proyecto.",
+      "hint": "Elige algo que exista o añade el fichero que lo define."
+    },
+    "ref.wrong_kind": {
+      "message": "{field} hace referencia a {id}, que no se puede usar ahí.",
+      "hint": "Elige algo del tipo adecuado para este campo."
+    },
     "schema.missing_field": {
       "message": "Falta el campo {field}.",
       "hint": "Añádelo: este formato lo exige."
@@ -102,6 +134,10 @@
     "schema.unknown_field": {
       "message": "El campo {field} no forma parte de este formato.",
       "hint": "Quítalo o revisa cómo está escrito."
+    },
+    "schema.unexpected_field": {
+      "message": "El campo {field} no se aplica aquí.",
+      "hint": "Quítalo: solo se usa en otros casos."
     },
     "schema.expected_text": {
       "message": "El campo {field} debe ser un texto.",

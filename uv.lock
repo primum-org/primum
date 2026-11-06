@@ -4,6 +4,7 @@ requires-python = ">=3.13"
 
 [manifest]
 members = [
+    "primum-cli",
     "primum-core",
     "primum-runtime",
     "primum-workspace",
@@ -399,6 +400,16 @@ wheels = [
 ]
 
 [[package]]
+name = "primum-cli"
+source = { editable = "packages/cli" }
+dependencies = [
+    { name = "primum-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "primum-core", editable = "packages/core" }]
+
+[[package]]
 name = "primum-core"
 source = { editable = "packages/core" }
 dependencies = [
@@ -433,6 +444,7 @@ name = "primum-workspace"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "primum-cli" },
     { name = "primum-core" },
     { name = "primum-runtime" },
 ]
@@ -457,6 +469,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "primum-cli", editable = "packages/cli" },
     { name = "primum-core", editable = "packages/core" },
     { name = "primum-runtime", editable = "packages/runtime" },
 ]

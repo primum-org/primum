@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "event.schema.json",
+  "title": "Event",
+  "description": "An .evt file: something that happens outside and can start automations. The source says where it comes from: an input element, a button of the phone UI, or a request to the local API.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "schemaVersion",
+    "name",
+    "source"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "kind": {
+      "const": "event"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "name": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "source": {
+      "enum": [
+        "element",
+        "ui",
+        "api"
+      ]
+    },
+    "element": {
+      "description": "Source element: the input element (a .hw element).",
+      "$ref": "common.schema.json#/$defs/reference"
+    },
+    "trigger": {
+      "description": "Source element: when it turns on (pressed, detected) or off.",
+      "enum": [
+        "on",
+        "off"
+      ]
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "4c2f938a-3c2f-48a3-ad69-35157953d514",
+  "kind": "automation",
+  "schemaVersion": 1,
+  "name": "Blink on start",
+  "when": [
+    "50c0ac65-68d0-4672-8b33-85f432a1efa8"
+  ],
+  "do": [
+    {
+      "action": "start_sequence",
+      "sequence": "f12a4b8e-5c1a-4c6e-a258-1a95a3ef9765"
+    }
+  ]
+}

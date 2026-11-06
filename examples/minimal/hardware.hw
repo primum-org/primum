@@ -1,0 +1,21 @@
+{
+  "id": "8b34a244-0199-439c-ae03-77c465b6dace",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "7e684758-14bb-4429-a216-de1916adeaa9",
+      "name": "Raspberry Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "f346cbbc-e5e9-477e-ba12-519a80017ef5",
+      "name": "LED",
+      "board": "7e684758-14bb-4429-a216-de1916adeaa9",
+      "type": "digital_output",
+      "pin": 17
+    }
+  ]
+}

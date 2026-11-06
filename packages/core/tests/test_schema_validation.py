@@ -1,22 +1,20 @@
-"""How validation failures inside nested values are named and pointed at.
+"""How places inside a document are named and pointed at.
 
-The manifest has no arrays yet, so these check the naming helpers directly; the formats of
-block 2.3 will cover them end to end.
+fastjsonschema reports array indices as text; they become ints by looking at the document.
 """
 
 import pytest
 
+from primum_core.pointers import field_name, pointer
 from primum_core.schema_validation import (
-    _field,  # pyright: ignore[reportPrivateUsage] -- naming rules tested before any format uses arrays
-    _pointer,  # pyright: ignore[reportPrivateUsage]
-    _typed_steps,  # pyright: ignore[reportPrivateUsage]
+    _typed_steps,  # pyright: ignore[reportPrivateUsage] -- the mapping from fastjsonschema's paths
 )
 
 DOCUMENT = {"outputs": [{"name": "a"}, {"name": "b", "pins": [1, 2]}], "a/b": {"~x": 1}}
 
 
 @pytest.mark.parametrize(
-    ("raw", "steps", "field", "pointer"),
+    ("raw", "steps", "field", "expected_pointer"),
     [
         ((), (), "", ""),
         (("outputs",), ("outputs",), "outputs", "/outputs"),
@@ -31,13 +29,13 @@ DOCUMENT = {"outputs": [{"name": "a"}, {"name": "b", "pins": [1, 2]}], "a/b": {"
     ],
 )
 def test_steps_become_a_readable_field_and_a_json_pointer(
-    raw: tuple[str, ...], steps: tuple[str | int, ...], field: str, pointer: str
+    raw: tuple[str, ...], steps: tuple[str | int, ...], field: str, expected_pointer: str
 ) -> None:
     typed = _typed_steps(raw, DOCUMENT)
 
     assert typed == steps
-    assert _field(typed) == field
-    assert _pointer(typed) == pointer
+    assert field_name(typed) == field
+    assert pointer(typed) == expected_pointer
 
 
 def test_a_numeric_key_of_an_object_stays_a_key() -> None:

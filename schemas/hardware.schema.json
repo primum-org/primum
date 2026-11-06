@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "hardware.schema.json",
+  "title": "Hardware",
+  "description": "A .hw file: boards and the elements wired to them. Which resources an element uses depends on its type: a pin for GPIO elements, a bus and an address for I2C devices.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "schemaVersion",
+    "boards",
+    "elements"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "kind": {
+      "const": "hardware"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "name": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "boards": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/hardwareBoard"
+      }
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/element"
+      }
+    }
+  },
+  "$defs": {
+    "hardwareBoard": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A board of the project, of a model that has a board profile (boards/).",
+      "required": [
+        "id",
+        "name",
+        "model"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "model": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "maxLength": 40
+        }
+      }
+    },
+    "element": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Something wired to a board: an LED, a relay, a button, a sensor.",
+      "required": [
+        "id",
+        "name",
+        "board",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "board": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "type": {
+          "enum": [
+            "digital_output",
+            "digital_input",
+            "pwm_output",
+            "i2c_device"
+          ]
+        },
+        "pin": {
+          "description": "GPIO number (BCM) for digital and PWM elements.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "activeLow": {
+          "description": "Digital elements: on means the line is low.",
+          "type": "boolean",
+          "default": false
+        },
+        "bus": {
+          "description": "I2C devices: the bus of the board profile (i2c1).",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*$"
+        },
+        "address": {
+          "description": "I2C devices: the 7-bit address.",
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 119
+        }
+      }
+    }
+  }
+}

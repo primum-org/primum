@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sequence.schema.json",
+  "title": "Sequence",
+  "description": "A .sec file: actions placed in time on tracks, one track per element, and blocks that include other sequences. With parameters it is a component, reused by other sequences. Sequences never emit events.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "schemaVersion",
+    "name",
+    "tracks"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "kind": {
+      "const": "sequence"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "name": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "description": {
+      "$ref": "common.schema.json#/$defs/description"
+    },
+    "parameters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/parameter"
+      }
+    },
+    "tracks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/track"
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    }
+  },
+  "$defs": {
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "An input of a component, given by each sequence that uses it.",
+      "required": [
+        "id",
+        "name",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/variableName"
+        },
+        "type": {
+          "enum": [
+            "element",
+            "number",
+            "integer",
+            "boolean",
+            "text"
+          ]
+        }
+      }
+    },
+    "track": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The clips of one element: an element of a .hw file, or an element parameter of this sequence.",
+      "required": [
+        "element",
+        "clips"
+      ],
+      "properties": {
+        "element": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "clips": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/clip"
+          }
+        }
+      }
+    },
+    "clip": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "An action of the element, from atMs for durationMs.",
+      "required": [
+        "id",
+        "atMs",
+        "durationMs",
+        "action"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "atMs": {
+          "$ref": "common.schema.json#/$defs/durationMs"
+        },
+        "durationMs": {
+          "$ref": "common.schema.json#/$defs/durationMs"
+        },
+        "action": {
+          "description": "What the element does: its actions come with the drivers (phase 3).",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Another sequence, started at atMs.",
+      "required": [
+        "id",
+        "sequence",
+        "atMs"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "sequence": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "atMs": {
+          "$ref": "common.schema.json#/$defs/durationMs"
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/argument"
+          }
+        }
+      }
+    },
+    "argument": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The value of one parameter of the included sequence: an element, or a value.",
+      "required": [
+        "parameter"
+      ],
+      "properties": {
+        "parameter": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "element": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "value": {
+          "$ref": "common.schema.json#/$defs/value"
+        }
+      }
+    }
+  }
+}

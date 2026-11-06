@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "automation.schema.json",
+  "title": "Automation",
+  "description": "An .auto file: when an event or a schedule fires, if the condition holds, do the actions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "schemaVersion",
+    "name",
+    "when",
+    "do"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "kind": {
+      "const": "automation"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "name": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "when": {
+      "description": "Events (.evt) and schedules (.sched) that start it.",
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/reference"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "if": {
+      "description": "Condition, in the expression language of phase 4: stored, not interpreted yet.",
+      "type": "string",
+      "maxLength": 500
+    },
+    "do": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/automationAction"
+      },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "automationAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Start or stop a sequence, or set or increment a variable.",
+      "required": [
+        "action"
+      ],
+      "properties": {
+        "action": {
+          "enum": [
+            "start_sequence",
+            "stop_sequence",
+            "set_variable",
+            "increment_variable"
+          ]
+        },
+        "sequence": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "variable": {
+          "$ref": "common.schema.json#/$defs/variableName"
+        },
+        "value": {
+          "$ref": "common.schema.json#/$defs/value"
+        }
+      }
+    }
+  }
+}
