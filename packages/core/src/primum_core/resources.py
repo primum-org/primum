@@ -157,11 +157,13 @@ def _gpio_issues(board: _Board, wired: _Wired) -> Iterator[Issue]:
         return
     board.taken[pin] = element.name
     if element.type == PWM_OUTPUT:
-        yield from _pwm_issues(board, element, params, at)
+        yield from _pwm_issues(board, element.name, pin, params, at)
 
 
-def _pwm_issues(board: _Board, element: Element, params: _Params, at: Location) -> Iterator[Issue]:
-    channel = board.pwm_channel_of.get(element.pin or 0)
+def _pwm_issues(
+    board: _Board, element: str, pin: int, params: _Params, at: Location
+) -> Iterator[Issue]:
+    channel = board.pwm_channel_of.get(pin)
     if channel is None:
         yield Issue(CoreErrorCode.PIN_FUNCTION_UNAVAILABLE, params, at)
         return
@@ -169,4 +171,4 @@ def _pwm_issues(board: _Board, element: Element, params: _Params, at: Location) 
     if other is not None:
         yield Issue(CoreErrorCode.PWM_CHANNEL_IN_USE, {**params, "other": other}, at)
     else:
-        board.channels[channel] = element.name
+        board.channels[channel] = element
