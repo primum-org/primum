@@ -52,8 +52,38 @@ checks it.
   not (`--simulate` fails where the Pi would). It ships a copy of the profiles
   (`primum_runtime/generated/boards/`, `just gen`) and drives the board given by `--board`
   (`PRIMUM_BOARD`), `rpi4b` by default.
-- From block 2.5, `core` assigns the pins of a project's elements against the profile: reserved
-  GPIOs, pins taken by an enabled bus, shared PWM channels.
+- `core` gives out the board's resources to the elements of a project (below).
+
+## Resource allocation
+
+`primum_core.resources.check_resources` takes the project's files and the profiles by model
+(`core` reads no files: the CLI loads them from its copy of `boards/`). For every board of a
+`.hw` file, it finds the profile of its `model` (`board.unknown_model` otherwise, and the
+board's elements are not checked) and checks each element wired to it:
+
+| Case | Code | Params |
+|---|---|---|
+| A GPIO the board does not have | `pin.not_on_board` | `pin`, `board` |
+| A reserved GPIO (0/1 on a Pi) | `pin.reserved` | `pin`, `physical` |
+| A GPIO another element already has | `pin.in_use` | `pin`, `physical`, `other` (the element) |
+| A GPIO of a bus with a device on it (2/3 with an I2C device) | `pin.claimed_by_bus` | `pin`, `physical`, `bus` |
+| A PWM output on a pin without hardware PWM | `pin.function_unavailable` | `pin`, `physical` |
+| Two PWM outputs on one channel (12 and 18) | `pwm.channel_in_use` | `pin`, `physical`, `other` |
+| An I2C device on a bus the board does not have | `bus.not_on_board` | `bus`, `board` |
+| Two I2C devices at one address on one bus | `i2c.address_in_use` | `address`, `bus`, `other` |
+
+Rules of the allocation:
+
+- Boards are independent: GPIO 17 on two boards is fine.
+- I2C devices are placed first, so a bus with a device claims the GPIOs of its signals before
+  any element asks for them; GPIO 2 is free while nothing uses `i2c1`.
+- Only the first problem of an element's pin is reported (a reserved pin is not also in use).
+- Messages show `GPIO {pin} (pin {physical})`: the number elements use, and where it is on the
+  header, from the profile.
+- Which GPIOs a bus really claims when enabled is the hardware manager's (phase 6,
+  `config.txt`); here a device on a bus means the bus is enabled.
+
+`examples/invalid/` has one project per code, each kept giving exactly that code by a test.
 
 ## The Raspberry Pi 4 Model B (`rpi4b`)
 

@@ -48,6 +48,16 @@ class CoreErrorCode(StrEnum):
     ARGUMENT_EXPECTED_VALUE = "argument.expected_value"  # parameter
     SEQUENCE_INCLUDES_ITSELF = "sequence.includes_itself"  # sequence
     SEQUENCE_CYCLE = "sequence.cycle"  # sequence, chain
+    # Resources: what a board profile offers, given out to the elements wired to the board.
+    BOARD_UNKNOWN_MODEL = "board.unknown_model"  # model, board
+    PIN_NOT_ON_BOARD = "pin.not_on_board"  # pin, board
+    PIN_RESERVED = "pin.reserved"  # pin, physical
+    PIN_IN_USE = "pin.in_use"  # pin, physical, other
+    PIN_CLAIMED_BY_BUS = "pin.claimed_by_bus"  # pin, physical, bus
+    PIN_FUNCTION_UNAVAILABLE = "pin.function_unavailable"  # pin, physical
+    PWM_CHANNEL_IN_USE = "pwm.channel_in_use"  # pin, physical, other
+    BUS_NOT_ON_BOARD = "bus.not_on_board"  # bus, board
+    I2C_ADDRESS_IN_USE = "i2c.address_in_use"  # address, bus, other
     SCHEMA_MISSING_FIELD = "schema.missing_field"  # field
     SCHEMA_UNKNOWN_FIELD = "schema.unknown_field"  # field
     SCHEMA_UNEXPECTED_FIELD = "schema.unexpected_field"  # field: of the format, not of this case

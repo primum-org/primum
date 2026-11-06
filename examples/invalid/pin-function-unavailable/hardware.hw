@@ -1,0 +1,21 @@
+{
+  "id": "9d94c023-940b-4fdc-af96-b9d70d14cd7d",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "2ffc087d-3c78-4863-91a6-13add482a364",
+      "name": "Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "03725d29-0a4f-4fde-bac3-6de042720796",
+      "name": "Fan",
+      "board": "2ffc087d-3c78-4863-91a6-13add482a364",
+      "type": "pwm_output",
+      "pin": 17
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "id": "ba40ee27-4e4d-4db3-a814-0e3bb44697c9",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "d04083a7-c78d-4c14-9b5f-2fe5d043b508",
+      "name": "Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "b9e761c4-84f1-47da-97c7-2c8eec28251c",
+      "name": "Fan",
+      "board": "d04083a7-c78d-4c14-9b5f-2fe5d043b508",
+      "type": "pwm_output",
+      "pin": 12
+    },
+    {
+      "id": "00dd64ba-f201-4755-b46c-2764e5d0842f",
+      "name": "Dimmer",
+      "board": "d04083a7-c78d-4c14-9b5f-2fe5d043b508",
+      "type": "pwm_output",
+      "pin": 18
+    }
+  ]
+}

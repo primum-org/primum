@@ -1,0 +1,7 @@
+{
+  "id": "d8f4a292-310a-482b-a293-6824e72e638f",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Bus not on board",
+  "description": "An I2C device on a bus the board does not have."
+}

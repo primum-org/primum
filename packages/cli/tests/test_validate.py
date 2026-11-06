@@ -28,13 +28,42 @@ def project(tmp_path: Path) -> Path:
     return folder
 
 
+INVALID = EXAMPLES / "invalid"
+# Each invalid example gives exactly the code it is named after.
+INVALID_CODES = {
+    "board-unknown-model": "board.unknown_model",
+    "pin-not-on-board": "pin.not_on_board",
+    "pin-reserved": "pin.reserved",
+    "pin-in-use": "pin.in_use",
+    "pin-claimed-by-bus": "pin.claimed_by_bus",
+    "pin-function-unavailable": "pin.function_unavailable",
+    "pwm-channel-in-use": "pwm.channel_in_use",
+    "bus-not-on-board": "bus.not_on_board",
+    "i2c-address-in-use": "i2c.address_in_use",
+}
+
+
 @pytest.mark.parametrize(
-    "example", sorted(p for p in EXAMPLES.iterdir() if p.is_dir()), ids=lambda p: p.name
+    "example",
+    sorted(p for p in EXAMPLES.iterdir() if p.is_dir() and p != INVALID),
+    ids=lambda p: p.name,
 )
 def test_every_example_is_valid(example: Path) -> None:
     status, out = _run(str(example), "--strict")
 
     assert status == EXIT_VALID, out
+
+
+def test_the_invalid_examples_are_exactly_the_ones_the_test_knows() -> None:
+    assert {p.name for p in INVALID.iterdir() if p.is_dir()} == set(INVALID_CODES)
+
+
+@pytest.mark.parametrize(("example", "code"), sorted(INVALID_CODES.items()))
+def test_each_invalid_example_gives_exactly_its_code(example: str, code: str) -> None:
+    status, out = _run(str(INVALID / example), "--json")
+
+    assert status == EXIT_PROBLEMS
+    assert [issue["code"] for issue in json.loads(out)["issues"]] == [code]
 
 
 def test_a_valid_project_says_so_and_exits_0() -> None:

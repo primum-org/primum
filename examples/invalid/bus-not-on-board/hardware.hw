@@ -1,0 +1,22 @@
+{
+  "id": "9a7ae027-1701-448a-aa98-b3f64da31c7c",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "88416a8a-56bd-43b1-9b53-a74b63a8dd59",
+      "name": "Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "91b44ec0-a58f-4173-8d42-fab640d6c59d",
+      "name": "Expander",
+      "board": "88416a8a-56bd-43b1-9b53-a74b63a8dd59",
+      "type": "i2c_device",
+      "bus": "i2c7",
+      "address": 32
+    }
+  ]
+}

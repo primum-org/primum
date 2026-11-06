@@ -1,0 +1,7 @@
+{
+  "id": "4ea7b32e-e64d-4d55-a7a0-78c7d4b1d257",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "I2c address in use",
+  "description": "Two I2C devices at address 0x20 on the same bus."
+}
