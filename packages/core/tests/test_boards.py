@@ -136,3 +136,14 @@ def test_bus_and_channel_names_are_unique() -> None:
     assert _issues(change) == [
         (CoreErrorCode.BOARD_DUPLICATE_ID, {"id": "pwm0"}, "/pwmChannels/1/id")
     ]
+
+
+def test_an_incomplete_gpio_pin_is_reported_once_not_again_by_each_reference() -> None:
+    change = {
+        **_pins({"physical": 11, "kind": "gpio", "gpio": 17}),
+        "pwmChannels": [{"id": "pwm0", "gpios": [17]}],
+    }
+
+    assert _issues(change) == [
+        (CoreErrorCode.BOARD_INCOMPLETE_GPIO_PIN, {"physical": 11}, "/pins/0")
+    ]

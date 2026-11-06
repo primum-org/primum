@@ -8,6 +8,7 @@ import pytest
 from primum_runtime import board
 from primum_runtime.board import available_boards, load_board
 from primum_runtime.errors import PrimumError
+from primum_runtime.hal import BoardGpio
 
 
 def test_the_runtime_ships_the_raspberry_pi_4_profile() -> None:
@@ -49,3 +50,13 @@ def test_a_profile_must_be_named_after_its_model(
 
     with pytest.raises(ValueError, match="model differs from file name"):
         load_board("other")
+
+
+def test_the_board_cannot_be_changed_under_a_hal() -> None:
+    lines = {17: 17}
+    gpio = BoardGpio(model="test", chip_label="chip", lines=lines)
+    lines[18] = 18
+
+    assert dict(gpio.lines) == {17: 17}
+    with pytest.raises(TypeError):
+        gpio.lines[18] = 18  # pyright: ignore[reportIndexIssue] -- what the test checks

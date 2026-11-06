@@ -12,7 +12,7 @@ put in the safe state or released. The failures are reported together at the end
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass
-from types import TracebackType
+from types import MappingProxyType, TracebackType
 from typing import Protocol, Self
 
 from primum_runtime.errors import ErrorCode, PrimumError
@@ -40,6 +40,10 @@ class BoardGpio:
     model: str
     chip_label: str
     lines: Mapping[int, int]
+
+    def __post_init__(self) -> None:
+        # A read-only copy: the board cannot change under a HAL that is using it.
+        object.__setattr__(self, "lines", MappingProxyType(dict(self.lines)))
 
     def line(self, pin: int) -> int:
         """The chip line of GPIO ``pin``; ``hal.pin_invalid`` if the board does not have it."""

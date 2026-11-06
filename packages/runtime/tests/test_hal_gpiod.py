@@ -235,7 +235,7 @@ def test_a_gpio_the_board_does_not_have_raises_pin_invalid_before_any_request(
     assert chip.requests == []
 
 
-def test_no_chip_with_the_label_raises_chip_unavailable_naming_the_chips_found(
+def test_no_chip_with_the_label_raises_chip_not_found_naming_the_chips_found(
     monkeypatch: pytest.MonkeyPatch, other_chip: FakeChip
 ) -> None:
     _install(monkeypatch, other_chip)
@@ -243,7 +243,7 @@ def test_no_chip_with_the_label_raises_chip_unavailable_naming_the_chips_found(
     with pytest.raises(PrimumError) as raised:
         GpiodHal(BOARD)
 
-    assert raised.value.code == "hal.chip_unavailable"
+    assert raised.value.code == "hal.chip_not_found"
     assert raised.value.params == {
         "chip": LABEL,
         "detail": "found /dev/gpiochip0 (raspberrypi-exp-gpio)",
@@ -251,27 +251,62 @@ def test_no_chip_with_the_label_raises_chip_unavailable_naming_the_chips_found(
     assert other_chip.closed
 
 
-def test_no_chip_at_all_raises_chip_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_no_chip_at_all_raises_chip_not_found(monkeypatch: pytest.MonkeyPatch) -> None:
     _install(monkeypatch)
 
     with pytest.raises(PrimumError) as raised:
         GpiodHal(BOARD)
 
+    assert raised.value.code == "hal.chip_not_found"
     assert raised.value.params == {"chip": LABEL, "detail": "no GPIO chip found"}
 
 
-def test_failing_chip_info_raises_chip_unavailable_and_closes_the_chip(chip: FakeChip) -> None:
+def test_a_chip_that_fails_is_skipped_and_the_search_goes_on(
+    monkeypatch: pytest.MonkeyPatch, other_chip: FakeChip
+) -> None:
+    other_chip.info_error = OSError(errno.EIO, "Input/output error")
+    chip = FakeChip(CHIP)
+    _install(monkeypatch, other_chip, chip)
+
+    with GpiodHal(BOARD) as hal:
+        hal.digital_output(OutputSpec(pin=17))
+
+    assert other_chip.closed
+    assert chip.requests
+
+
+def test_a_chip_that_fails_is_named_if_no_chip_has_the_label(chip: FakeChip) -> None:
     chip.info_error = OSError(errno.EIO, "Input/output error")
 
     with pytest.raises(PrimumError) as raised:
         GpiodHal(BOARD)
 
-    assert raised.value.code == "hal.chip_unavailable"
-    assert raised.value.params == {"chip": LABEL, "detail": "Input/output error"}
+    assert raised.value.code == "hal.chip_not_found"
+    assert raised.value.params == {
+        "chip": LABEL,
+        "detail": f"found /dev/gpiochip0 (raspberrypi-exp-gpio), {CHIP}: Input/output error",
+    }
     assert chip.closed
 
 
-def test_chip_without_permission_raises_chip_access_denied(
+def test_a_chip_without_permission_is_skipped_if_another_has_the_label(
+    monkeypatch: pytest.MonkeyPatch, chip: FakeChip
+) -> None:
+    def open_chip(path: str) -> FakeChip:
+        if path != CHIP:
+            raise PermissionError(errno.EACCES, "Permission denied")
+        return chip
+
+    monkeypatch.setattr(gpiod_hal, "_chip_paths", lambda: ["/dev/gpiochip0", CHIP])
+    monkeypatch.setattr(gpiod, "Chip", open_chip)
+
+    with GpiodHal(BOARD) as hal:
+        hal.digital_output(OutputSpec(pin=17))
+
+    assert chip.requests
+
+
+def test_no_permission_and_no_label_raises_chip_access_denied(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def denied(_path: str) -> FakeChip:
@@ -284,7 +319,7 @@ def test_chip_without_permission_raises_chip_access_denied(
         GpiodHal(BOARD)
 
     assert raised.value.code == "hal.chip_access_denied"
-    assert raised.value.params == {"chip": LABEL, "detail": "Permission denied"}
+    assert raised.value.params == {"chip": LABEL, "detail": f"found {CHIP}: Permission denied"}
 
 
 def test_create_hal_returns_the_gpio_hal_for_the_board(chip: FakeChip) -> None:

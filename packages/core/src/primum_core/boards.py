@@ -48,7 +48,8 @@ def _pin_issues(pins: tuple[HeaderPin, ...], location: Location) -> Iterator[Iss
 
 
 def _reference_issues(profile: BoardProfile, location: Location) -> Iterator[Issue]:
-    gpios = set(gpio_lines(profile))
+    # Every GPIO a pin names, complete or not: an incomplete pin is reported once, by itself.
+    gpios = {pin.gpio for pin in profile.pins if pin.gpio is not None}
     references: list[tuple[int, str]] = []
     for bus_index, bus in enumerate(profile.buses):
         for index, signal in enumerate(bus.signals):

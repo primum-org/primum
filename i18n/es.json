@@ -31,9 +31,9 @@
       "message": "El perfil de placa pone el pin {pin} en la línea {line}, pero el controlador GPIO {chip} tiene {lines} líneas.",
       "hint": "El perfil no corresponde a esta placa: comprueba que Primum está configurado para la placa correcta o avísanos."
     },
-    "hal.chip_unavailable": {
-      "message": "No se puede abrir el controlador GPIO {chip}.",
-      "hint": "Comprueba que Primum está configurado para esta placa."
+    "hal.chip_not_found": {
+      "message": "No se ha encontrado ningún controlador GPIO llamado {chip} en este sistema.",
+      "hint": "Comprueba que Primum está configurado para esta placa (--board)."
     },
     "hal.chip_access_denied": {
       "message": "Primum no tiene permiso para usar el controlador GPIO {chip}.",

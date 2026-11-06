@@ -41,8 +41,10 @@ checks it.
 
 - **The chip is found by its label**, never by its device path: `/dev/gpiochipN` can change
   with the kernel (on a Pi 5 it did). The runtime opens every GPIO chip and keeps the one with
-  the profile's label; if none matches, `hal.chip_unavailable` names the chips it found. Links
-  between devices (`gpiochip4 -> gpiochip0` on Raspberry Pi OS) are skipped.
+  the profile's label; a chip that cannot be opened is skipped, as another may be the one. If
+  none matches, `hal.chip_not_found` (or `hal.chip_access_denied`, if a chip could not be
+  opened for lack of permission) names every chip it found. Links between devices
+  (`gpiochip4 -> gpiochip0` on Raspberry Pi OS) are skipped.
 - **A GPIO is requested on its `line`**, never on its number: on a Pi 4 they are equal, on
   other boards they need not be. A line the chip does not have means the profile is wrong for
   the board: `hal.profile_mismatch`, not the user's `hal.pin_invalid`.

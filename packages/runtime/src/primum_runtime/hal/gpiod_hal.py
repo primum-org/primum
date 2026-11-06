@@ -106,38 +106,38 @@ def _chip_paths() -> list[str]:
 def _find_chip(label: str) -> tuple[gpiod.Chip, str, int]:
     """Open the chip labelled ``label``: the chip, its device path and its number of lines.
 
-    Every other chip opened on the way is closed. If no chip has the label, the error names the
-    chips found, which tells a wrong board profile from missing permissions.
+    Every other chip is closed again, and one that cannot be opened or read is noted and
+    skipped: another chip may still be the one. Only when none has the label does it fail,
+    naming every chip and what happened to it, with ``hal.chip_access_denied`` if a chip
+    could not be opened for lack of permission (it may be the one), ``hal.chip_not_found``
+    otherwise.
     """
     found: list[str] = []
+    denied: PermissionError | None = None
     for path in _chip_paths():
         try:
             chip = gpiod.Chip(path)
         except OSError as error:
             if isinstance(error, PermissionError):
-                raise _chip_error(label, error) from error
+                denied = error
             found.append(f"{path}: {_detail(error)}")
             continue
         try:
             info = chip.get_info()
         except OSError as error:
             chip.close()
-            raise _chip_error(label, error) from error
+            found.append(f"{path}: {_detail(error)}")
+            continue
         if info.label == label:
             return chip, path, info.num_lines
         chip.close()
         found.append(f"{path} ({info.label})")
     detail = f"found {', '.join(found)}" if found else "no GPIO chip found"
-    raise PrimumError(ErrorCode.HAL_CHIP_UNAVAILABLE, {"chip": label, "detail": detail})
-
-
-def _chip_error(label: str, error: OSError) -> PrimumError:
-    """No permission is its own code: the fix (joining group ``gpio``) differs."""
-    if isinstance(error, PermissionError):
-        code = ErrorCode.HAL_CHIP_ACCESS_DENIED
-    else:
-        code = ErrorCode.HAL_CHIP_UNAVAILABLE
-    return PrimumError(code, {"chip": label, "detail": _detail(error)})
+    if denied is not None:
+        raise PrimumError(
+            ErrorCode.HAL_CHIP_ACCESS_DENIED, {"chip": label, "detail": detail}
+        ) from denied
+    raise PrimumError(ErrorCode.HAL_CHIP_NOT_FOUND, {"chip": label, "detail": detail})
 
 
 def _detail(error: Exception) -> str:
