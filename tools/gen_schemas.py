@@ -361,7 +361,8 @@ def _choices(spec: TypeSpec) -> Choice | None:
 
 
 def _choices_name(owner: ClassSpec, field: FieldSpec) -> str:
-    return f"_{owner.name.upper()}_{field.name.upper().rstrip('_')}"
+    owner_name = _field_name(owner.name[0].lower() + owner.name[1:])
+    return f"_{owner_name.upper()}_{field.name.upper().rstrip('_')}"
 
 
 def _render_choices(owner: ClassSpec) -> list[str]:

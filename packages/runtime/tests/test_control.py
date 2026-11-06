@@ -1,15 +1,18 @@
 import pytest
 
+from primum_runtime.board import load_board
 from primum_runtime.control import Controller, OutputState, State
 from primum_runtime.errors import PrimumError
 from primum_runtime.hal import OutputSpec, SimulatedHal
+
+BOARD = load_board("rpi4b")
 
 SPECS = {"led": OutputSpec(pin=17), "lamp": OutputSpec(pin=27)}
 
 
 @pytest.fixture
 def hal() -> SimulatedHal:
-    return SimulatedHal()
+    return SimulatedHal(BOARD)
 
 
 def test_outputs_start_off_in_configuration_order(hal: SimulatedHal) -> None:

@@ -45,8 +45,10 @@ development Pi. One pull request per block.
 - `gpiod` is a Linux-only dependency, imported lazily and only by `hal/gpiod_hal.py` (an
   import contract enforces it); its own type hints pass pyright strict (decision 0010).
 - Errors with codes: `hal.pin_in_use`, `hal.pin_invalid`, `hal.pin_unavailable`,
-  `hal.chip_unavailable`, `hal.chip_access_denied`, `hal.unsupported_platform`, `hal.closed`,
-  `hal.safe_state_incomplete`, `hal.release_incomplete` (catalog entries in 1.3). Lists of pins are tuples, never pre-joined text.
+  `hal.chip_not_found` (`hal.chip_unavailable` until 2.2), `hal.chip_access_denied`,
+  `hal.unsupported_platform`, `hal.closed`, `hal.safe_state_incomplete`,
+  `hal.release_incomplete` (catalog entries in 1.3). Lists of pins are tuples, never
+  pre-joined text.
 - A `hw` test for the real HAL, run on the Pi with `just test-hw`: it checks what the kernel
   reports for the line, not the LED itself. It needs `PRIMUM_HW_TEST_PIN` (a pin with nothing
   wired, or only an LED) and fails without it; from phase 2 the pin comes from the board profile.
@@ -100,7 +102,7 @@ WebSocket reports every change.
   runner tests `i18n.js` with the real catalogs (language choice, placeholders, lists, unknown
   codes, technical params).
 - The page's shared assets (catalogs, `tokens.css`, icons, logo) are copied into
-  `primum_runtime/ui/generated/` by `just gen` (`tools/gen_ui_assets.py`), so the installed
+  `primum_runtime/ui/generated/` by `just gen` (`tools/gen_runtime_assets.py`), so the installed
   runtime serves them; `just gen-check` fails if a copy is stale.
 
 **Done when:** from the laptop's browser the page toggles the simulated LED in English and
@@ -200,13 +202,17 @@ pull request per block.
   the code it generates for a fixture that uses every supported keyword.
 - Formats are drafts until the first release: `schemaVersion` 1 may change without migrations.
 
-**2.2 · Board profile `rpi4b`**
+**2.2 · Board profile `rpi4b`** · **done**
 - `schemas/board-profile.schema.json` and `boards/rpi4b.json`: the 40 physical pins (GPIO,
-  3V3, 5V, GND), alternate functions (I2C1 on 2/3, SPI0, UART on 14/15, PWM0/PWM1 on 12/18 and
-  13/19, sharing channels), buses, reserved pins (0/1, HAT EEPROM), the GPIO chip **by label**
-  (`pinctrl-bcm2711`, never `/dev/gpiochipN`) and each pin's line. `docs/specs/board-profiles.md`.
-- Runtime: a generated copy of the profile, `--board rpi4b`; the simulated HAL rejects pins
-  the board does not have with `hal.pin_invalid`, so `--simulate` fails where the Pi would.
+  3V3, 5V, GND) with each GPIO's line and pull at power on, buses (I2C1 on 2/3, SPI0, UART0 on
+  14/15), PWM channels (12/18 and 13/19, shared), reserved pins (0/1, HAT EEPROM) and the GPIO
+  chip **by label** (`pinctrl-bcm2711`, never `/dev/gpiochipN`). `docs/specs/board-profiles.md`.
+- `core`: `read_board_profile` checks the rules a schema cannot (`board.*` codes);
+  `boards.gpio_lines`.
+- Runtime: a copy of the profiles (`tools/gen_runtime_assets.py`, which also copies the page's
+  assets), `--board` / `PRIMUM_BOARD` (`rpi4b` by default) instead of `--chip`. Both HALs take
+  the board: they refuse pins it does not have (`hal.pin_invalid`), so `--simulate` fails where
+  the Pi would; the real HAL finds the chip by label and requests each GPIO on its line.
 
 **2.3 · Workspace, file types and `primum validate`**
 - Schemas of `.hw` (boards, and elements of a generic type — `digital_output`,

@@ -27,9 +27,13 @@
       "message": "Pin {pin} is being used by something else on this board.",
       "hint": "Free it (stop the program or turn off the interface that uses it) or choose another pin."
     },
-    "hal.chip_unavailable": {
-      "message": "The GPIO controller {chip} cannot be opened.",
-      "hint": "Check that Primum is configured for this board."
+    "hal.profile_mismatch": {
+      "message": "The board profile puts pin {pin} on line {line}, but the GPIO controller {chip} has {lines} lines.",
+      "hint": "The profile does not match this board: check that Primum is configured for the right board, or report it."
+    },
+    "hal.chip_not_found": {
+      "message": "No GPIO controller named {chip} was found on this system.",
+      "hint": "Check that Primum is configured for this board (--board)."
     },
     "hal.chip_access_denied": {
       "message": "Primum has no permission to use the GPIO controller {chip}.",
@@ -166,6 +170,34 @@
     "schema.unsupported_version": {
       "message": "The file uses version {version} of its format, and this version of Primum reads version {supported}.",
       "hint": "Open it with a version of Primum that reads that format."
+    },
+    "board.duplicate_pin": {
+      "message": "The board profile lists physical pin {physical} more than once.",
+      "hint": "Keep one entry per pin of the header."
+    },
+    "board.power_pin_with_gpio": {
+      "message": "Physical pin {physical} is a power or ground pin, but the profile gives it a GPIO, a line or a pull.",
+      "hint": "Remove those fields, or mark the pin as gpio."
+    },
+    "board.incomplete_gpio_pin": {
+      "message": "Physical pin {physical} is a GPIO, but the profile does not give its GPIO number, its line and its pull.",
+      "hint": "Add gpio, line and defaultPull to the pin."
+    },
+    "board.duplicate_gpio": {
+      "message": "The board profile gives GPIO {gpio} to more than one pin.",
+      "hint": "Each GPIO is on one pin of the header: check the pinout."
+    },
+    "board.duplicate_line": {
+      "message": "The board profile maps more than one GPIO to line {line} of the GPIO chip.",
+      "hint": "Check the line of each GPIO against the board's GPIO chip."
+    },
+    "board.unknown_gpio": {
+      "message": "The board profile uses GPIO {gpio}, which none of its pins has.",
+      "hint": "Use a GPIO listed in the profile's pins."
+    },
+    "board.duplicate_id": {
+      "message": "The board profile uses the name {id} more than once.",
+      "hint": "Give each bus and each PWM channel its own name."
     }
   }
 }

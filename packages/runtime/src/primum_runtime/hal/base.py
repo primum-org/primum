@@ -10,8 +10,9 @@ put in the safe state or released. The failures are reported together at the end
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
-from types import TracebackType
+from types import MappingProxyType, TracebackType
 from typing import Protocol, Self
 
 from primum_runtime.errors import ErrorCode, PrimumError
@@ -19,17 +20,37 @@ from primum_runtime.errors import ErrorCode, PrimumError
 
 @dataclass(frozen=True)
 class OutputSpec:
-    """How a digital output is wired: the GPIO line number and whether it is active low.
+    """How a digital output is wired: its GPIO number (BCM) and whether it is active low.
 
-    A negative pin fails with ``hal.pin_invalid``, before any HAL sees it.
+    Whether the board has that GPIO is the HAL's to check, against the board profile.
     """
 
     pin: int
     active_low: bool = False
 
+
+@dataclass(frozen=True)
+class BoardGpio:
+    """The GPIOs of a board, as its board profile describes them (``boards/<model>.json``).
+
+    ``lines`` maps each GPIO number the board has to its line on the GPIO chip labelled
+    ``chip_label``: a pin missing from it does not exist on this board.
+    """
+
+    model: str
+    chip_label: str
+    lines: Mapping[int, int]
+
     def __post_init__(self) -> None:
-        if self.pin < 0:
-            raise PrimumError(ErrorCode.HAL_PIN_INVALID, {"pin": self.pin})
+        # A read-only copy: the board cannot change under a HAL that is using it.
+        object.__setattr__(self, "lines", MappingProxyType(dict(self.lines)))
+
+    def line(self, pin: int) -> int:
+        """The chip line of GPIO ``pin``; ``hal.pin_invalid`` if the board does not have it."""
+        line = self.lines.get(pin)
+        if line is None:
+            raise PrimumError(ErrorCode.HAL_PIN_INVALID, {"pin": pin, "board": self.model})
+        return line
 
 
 class LineDriver(Protocol):
@@ -94,21 +115,35 @@ def _incomplete(
 
 
 class Hal(ABC):
-    """Base class of every HAL implementation (real hardware or simulated)."""
+    """Base class of every HAL implementation (real hardware or simulated).
 
-    def __init__(self) -> None:
+    A HAL drives one board: it only hands out pins its board profile lists, so the simulated
+    HAL refuses the same pins the real one would.
+    """
+
+    def __init__(self, board: BoardGpio) -> None:
+        self._board = board
         self._outputs: dict[int, DigitalOutput] = {}
         # Kept apart from the outputs: from phase 3 one driver (a request per chip) will serve
         # several outputs, and close() releases drivers, not outputs.
         self._drivers: dict[int, LineDriver] = {}
         self._closed = False
 
+    @property
+    def board(self) -> BoardGpio:
+        return self._board
+
     def digital_output(self, spec: OutputSpec) -> DigitalOutput:
-        """Claim ``spec.pin`` as a digital output, starting in the safe state (off)."""
+        """Claim ``spec.pin`` as a digital output, starting in the safe state (off).
+
+        Fails with ``hal.pin_invalid`` if the board has no such GPIO, and with
+        ``hal.pin_in_use`` if this HAL already handed it out.
+        """
         self.ensure_open()
+        line = self._board.line(spec.pin)
         if spec.pin in self._outputs:
             raise PrimumError(ErrorCode.HAL_PIN_IN_USE, {"pin": spec.pin})
-        driver = self._open_line(spec)
+        driver = self._open_line(spec, line)
         self._drivers[spec.pin] = driver
         output = DigitalOutput(spec, driver, self)
         self._outputs[spec.pin] = output
@@ -189,5 +224,5 @@ class Hal(ABC):
         self.close()
 
     @abstractmethod
-    def _open_line(self, spec: OutputSpec) -> LineDriver:
-        """Request the hardware line for ``spec``, already in the inactive state."""
+    def _open_line(self, spec: OutputSpec, line: int) -> LineDriver:
+        """Request chip line ``line`` for ``spec``, already in the inactive state."""

@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from types import MappingProxyType
 
-from primum_runtime.hal.base import Hal, OutputSpec
+from primum_runtime.hal.base import BoardGpio, Hal, OutputSpec
 
 
 class SimulatedLine:
@@ -64,17 +64,21 @@ class SimulatedLine:
 
 
 class SimulatedHal(Hal):
-    """A HAL whose lines live in memory. ``lines`` exposes them to tests and to the UI."""
+    """A HAL whose lines live in memory, by pin. ``lines`` exposes them to tests and to the UI.
 
-    def __init__(self) -> None:
-        super().__init__()
+    It takes the board profile like the real HAL, so ``--simulate`` refuses the pins the board
+    does not have, as the Pi would.
+    """
+
+    def __init__(self, board: BoardGpio) -> None:
+        super().__init__(board)
         self._lines: dict[int, SimulatedLine] = {}
 
     @property
     def lines(self) -> Mapping[int, SimulatedLine]:
         return MappingProxyType(self._lines)
 
-    def _open_line(self, spec: OutputSpec) -> SimulatedLine:
-        line = SimulatedLine(spec)
-        self._lines[spec.pin] = line
-        return line
+    def _open_line(self, spec: OutputSpec, line: int) -> SimulatedLine:
+        simulated = SimulatedLine(spec)
+        self._lines[spec.pin] = simulated
+        return simulated

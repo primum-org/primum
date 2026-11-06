@@ -133,11 +133,14 @@ install_app() {
   install -d -m 0755 "$PRIMUM_HOME"
   rsync -a --delete --chown=root:root --exclude .venv --exclude .git "$SOURCE/" "$PRIMUM_HOME/app/"
   # Not editable: the venv keeps working whatever later happens to the copied source. Bytecode
-  # is compiled here because the service cannot write it (ProtectSystem=strict).
+  # is compiled here because the service cannot write it (ProtectSystem=strict). Our packages
+  # are reinstalled every time: their version only changes on a release, so uv would otherwise
+  # keep the installed copy and skip the new source.
   UV_PROJECT_ENVIRONMENT=$PRIMUM_HOME/venv \
     UV_PYTHON_INSTALL_DIR=$PRIMUM_HOME/python \
     UV_CACHE_DIR=/var/cache/primum/uv \
     /usr/local/bin/uv sync --directory "$PRIMUM_HOME/app" --frozen --no-dev --no-editable \
+    --reinstall-package primum-core --reinstall-package primum-runtime \
     --compile-bytecode --package primum-runtime --quiet
 }
 

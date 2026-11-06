@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from gen_ui_assets import Source, differences, expected, write
+from gen_runtime_assets import Source, differences, expected, write
 
 
 @pytest.fixture
