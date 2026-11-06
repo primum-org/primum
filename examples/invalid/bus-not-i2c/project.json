@@ -1,0 +1,7 @@
+{
+  "id": "b0f8c405-df1f-40de-a995-27851d9487ab",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Bus not i2c",
+  "description": "An I2C device on spi0, a bus of the board that is not an I2C bus."
+}

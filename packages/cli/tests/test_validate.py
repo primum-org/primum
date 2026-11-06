@@ -39,6 +39,7 @@ INVALID_CODES = {
     "pin-function-unavailable": "pin.function_unavailable",
     "pwm-channel-in-use": "pwm.channel_in_use",
     "bus-not-on-board": "bus.not_on_board",
+    "bus-not-i2c": "bus.not_i2c",
     "i2c-address-in-use": "i2c.address_in_use",
 }
 

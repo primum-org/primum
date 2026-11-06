@@ -267,8 +267,11 @@ pull request per block.
   `board.unknown_model`, `pin.not_on_board`, `pin.reserved`, `pin.in_use` (naming the other
   element), `pin.claimed_by_bus` (GPIO 2/3 with an I2C device: devices are placed first),
   `pin.function_unavailable`, `pwm.channel_in_use` (12 and 18), `bus.not_on_board`,
-  `i2c.address_in_use`. Messages show `GPIO 17 (pin 11)`. `pin.not_gpio` dropped: elements
-  name GPIOs, never physical pins, so it cannot happen.
+  `bus.not_i2c` (a device on `spi0`), `i2c.address_in_use`. Messages show `GPIO 17 (pin 11)`.
+  `pin.not_gpio` dropped: elements name GPIOs, never physical pins, so it cannot happen.
+- Follow-up for phase 5: issues of the resource check come board by board, devices first, not
+  in file order; the UI sorts what it shows by file and pointer. The CLI loads the profiles on
+  every run: cache them when there are many boards.
 - `examples/invalid/<code>/`: one project per code; a test checks each gives exactly its code.
 
 **2.6 · Overlapping sequences and closing the phase**

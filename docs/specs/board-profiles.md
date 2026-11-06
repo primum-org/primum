@@ -70,6 +70,7 @@ board's elements are not checked) and checks each element wired to it:
 | A PWM output on a pin without hardware PWM | `pin.function_unavailable` | `pin`, `physical` |
 | Two PWM outputs on one channel (12 and 18) | `pwm.channel_in_use` | `pin`, `physical`, `other` |
 | An I2C device on a bus the board does not have | `bus.not_on_board` | `bus`, `board` |
+| An I2C device on a bus of another kind (`spi0`) | `bus.not_i2c` | `bus`, `board` |
 | Two I2C devices at one address on one bus | `i2c.address_in_use` | `address`, `bus`, `other` |
 
 Rules of the allocation:
@@ -80,6 +81,8 @@ Rules of the allocation:
 - Only the first problem of an element's pin is reported (a reserved pin is not also in use).
 - Messages show `GPIO {pin} (pin {physical})`: the number elements use, and where it is on the
   header, from the profile.
+- Issues come board by board, devices before the other elements, not in file order. The UI of
+  phase 5 will sort what it shows by file and pointer.
 - Which GPIOs a bus really claims when enabled is the hardware manager's (phase 6,
   `config.txt`); here a device on a bus means the bus is enabled.
 

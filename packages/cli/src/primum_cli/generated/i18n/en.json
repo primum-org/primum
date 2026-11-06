@@ -231,6 +231,10 @@
       "message": "{board} has no {bus} bus.",
       "hint": "Use a bus the board has (on a Raspberry Pi: i2c1)."
     },
+    "bus.not_i2c": {
+      "message": "The {bus} bus of {board} is not an I2C bus.",
+      "hint": "An I2C device goes on an I2C bus (on a Raspberry Pi: i2c1)."
+    },
     "i2c.address_in_use": {
       "message": "Address {address} on the {bus} bus is already used by {other}.",
       "hint": "Two devices on one bus need different addresses: change one (many devices have a jumper for it)."

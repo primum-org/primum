@@ -74,8 +74,7 @@ stages, so each problem is reported once, where it is:
    (`board-profiles.md`).
 
 Without `project.json` the folder is not a project (`project.manifest_missing`). Warnings do
-not make a project invalid; errors do. Later blocks add pins (2.5) and overlapping sequences
-(2.6).
+not make a project invalid; errors do. Block 2.6 adds overlapping sequences.
 
 ## From the command line
 

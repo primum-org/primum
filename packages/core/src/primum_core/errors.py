@@ -57,6 +57,7 @@ class CoreErrorCode(StrEnum):
     PIN_FUNCTION_UNAVAILABLE = "pin.function_unavailable"  # pin, physical
     PWM_CHANNEL_IN_USE = "pwm.channel_in_use"  # pin, physical, other
     BUS_NOT_ON_BOARD = "bus.not_on_board"  # bus, board
+    BUS_NOT_I2C = "bus.not_i2c"  # bus, board
     I2C_ADDRESS_IN_USE = "i2c.address_in_use"  # address, bus, other
     SCHEMA_MISSING_FIELD = "schema.missing_field"  # field
     SCHEMA_UNKNOWN_FIELD = "schema.unknown_field"  # field

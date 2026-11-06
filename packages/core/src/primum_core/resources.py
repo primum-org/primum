@@ -36,9 +36,6 @@ class _Wired:
     location: Location
     steps: tuple[Step, ...]
 
-    def at(self, *steps: Step) -> Location:
-        return _at(self.location, *self.steps, *steps)
-
 
 @dataclass
 class _Board:
@@ -63,7 +60,7 @@ class _Board:
         self.pwm_channel_of = {
             gpio: channel.id for channel in self.profile.pwm_channels for gpio in channel.gpios
         }
-        self.buses = {bus.id: bus for bus in self.profile.buses if bus.kind == "i2c"}
+        self.buses = {bus.id: bus for bus in self.profile.buses}
 
     def pin_params(self, pin: int) -> _Params:
         return {"pin": pin, "physical": self.physical[pin]}
@@ -119,16 +116,19 @@ def _i2c_issues(board: _Board, device: _Wired) -> Iterator[Issue]:
     if element.bus is None or element.address is None:  # the variants check reports it
         return
     bus = board.buses.get(element.bus)
-    if bus is None:
+    if bus is None or bus.kind != "i2c":
+        # A bus the board does not have, or one of another kind (spi0 is a bus, not an I2C one).
+        code = CoreErrorCode.BUS_NOT_ON_BOARD if bus is None else CoreErrorCode.BUS_NOT_I2C
         params: _Params = {"bus": element.bus, "board": board.name}
-        yield Issue(CoreErrorCode.BUS_NOT_ON_BOARD, params, device.at("bus"))
+        yield Issue(code, params, _at(device.location, *device.steps, "bus"))
         return
     for signal in bus.signals:
         board.taken_by_bus.setdefault(signal.gpio, bus.id)
     other = board.addresses.get((bus.id, element.address))
     if other is not None:
         params = {"address": element.address, "bus": bus.id, "other": other}
-        yield Issue(CoreErrorCode.I2C_ADDRESS_IN_USE, params, device.at("address"))
+        at = _at(device.location, *device.steps, "address")
+        yield Issue(CoreErrorCode.I2C_ADDRESS_IN_USE, params, at)
     else:
         board.addresses[(bus.id, element.address)] = element.name
 
@@ -138,7 +138,7 @@ def _gpio_issues(board: _Board, wired: _Wired) -> Iterator[Issue]:
     pin = element.pin
     if pin is None:  # the variants check reports it
         return
-    at = wired.at("pin")
+    at = _at(wired.location, *wired.steps, "pin")
     if pin not in board.gpios:
         yield Issue(CoreErrorCode.PIN_NOT_ON_BOARD, {"pin": pin, "board": board.name}, at)
         return
@@ -157,12 +157,11 @@ def _gpio_issues(board: _Board, wired: _Wired) -> Iterator[Issue]:
         return
     board.taken[pin] = element.name
     if element.type == PWM_OUTPUT:
-        yield from _pwm_issues(board, element, pin, at)
+        yield from _pwm_issues(board, element, params, at)
 
 
-def _pwm_issues(board: _Board, element: Element, pin: int, at: Location) -> Iterator[Issue]:
-    channel = board.pwm_channel_of.get(pin)
-    params = board.pin_params(pin)
+def _pwm_issues(board: _Board, element: Element, params: _Params, at: Location) -> Iterator[Issue]:
+    channel = board.pwm_channel_of.get(element.pin or 0)
     if channel is None:
         yield Issue(CoreErrorCode.PIN_FUNCTION_UNAVAILABLE, params, at)
         return

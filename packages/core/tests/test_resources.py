@@ -146,6 +146,14 @@ def test_a_device_on_a_bus_the_board_does_not_have(project: Project, ids: Ids) -
     ]
 
 
+def test_a_device_on_a_bus_of_another_kind(project: Project, ids: Ids) -> None:
+    _hardware(project, ids, _element(ids, 7, "Expander", "i2c_device", bus="spi0", address=32))
+
+    assert project.found() == [
+        (CoreErrorCode.BUS_NOT_I2C, {"bus": "spi0", "board": "Pi"}, HW, "/elements/0/bus")
+    ]
+
+
 def test_two_devices_at_one_address_on_one_bus(project: Project, ids: Ids) -> None:
     _hardware(
         project,
