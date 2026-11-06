@@ -45,8 +45,10 @@ development Pi. One pull request per block.
 - `gpiod` is a Linux-only dependency, imported lazily and only by `hal/gpiod_hal.py` (an
   import contract enforces it); its own type hints pass pyright strict (decision 0010).
 - Errors with codes: `hal.pin_in_use`, `hal.pin_invalid`, `hal.pin_unavailable`,
-  `hal.chip_unavailable`, `hal.chip_access_denied`, `hal.unsupported_platform`, `hal.closed`,
-  `hal.safe_state_incomplete`, `hal.release_incomplete` (catalog entries in 1.3). Lists of pins are tuples, never pre-joined text.
+  `hal.chip_not_found` (`hal.chip_unavailable` until 2.2), `hal.chip_access_denied`,
+  `hal.unsupported_platform`, `hal.closed`, `hal.safe_state_incomplete`,
+  `hal.release_incomplete` (catalog entries in 1.3). Lists of pins are tuples, never
+  pre-joined text.
 - A `hw` test for the real HAL, run on the Pi with `just test-hw`: it checks what the kernel
   reports for the line, not the LED itself. It needs `PRIMUM_HW_TEST_PIN` (a pin with nothing
   wired, or only an LED) and fails without it; from phase 2 the pin comes from the board profile.
