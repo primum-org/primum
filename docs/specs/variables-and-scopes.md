@@ -37,16 +37,18 @@ parameters of a sequence).
   the same scope.
 - A file **sees** the names of its own folder and of the folders above it, never those of
   sibling or child folders (`name.unknown` otherwise).
-- **No shadowing**: a name is defined once in everything that sees it. Defining a name that
-  is already visible, in the same folder or in a folder above, is `name.redefined` (with the
-  path that already defines it). The second definition, by folder depth and then by path, is
-  the one reported.
+- **No shadowing**: two different definitions with the same name are never visible from one
+  place. Defining a name that is already visible, in the same folder or in a folder above, is
+  `name.redefined`, with the path of the file that defines the existing name. The second
+  definition, by folder depth and then by path, is the one reported.
 - **Exports and imports**: a folder shares a name by listing it in `exports` (of the file
   that defines it: `name.unknown` otherwise). Another folder uses it after importing it, by
   the `.vars` file's id and the name (`imports[]`): the name must exist there
   (`name.unknown`) and be exported (`name.not_exported`). An imported name enters the
   importing folder's scope, so the folders below it see it too, and the no-shadowing rule
-  applies: importing a name that is already visible is `name.redefined`.
+  applies to it. An import may go up as well as sideways: the root may import a counter from
+  `scenes/`, and then every folder sees it. Importing a definition that is already visible is
+  redundant, not an error: the definition is still unique.
 - **Parameters** are the innermost scope: unique within their sequence, and never a name the
   sequence's folder sees (`name.redefined`).
 
@@ -55,7 +57,8 @@ parameters of a sequence).
 An automation resolves names in the scope of its own folder:
 
 - `do[].variable`, the variable an action sets or increments: it must be visible
-  (`name.unknown`) and be a variable (`name.not_a_variable`).
+  (`name.unknown`) and be a variable (`name.not_a_variable`). On an action that takes no
+  variable, a stray `variable` is only `schema.unexpected_field`.
 - The words of its `if` condition. Conditions are text until phase 4 parses them, so for now
   any word that matches a visible name counts as a use, and nothing else is checked.
 
@@ -84,6 +87,9 @@ sequence twice, at different times, is fine.
 ## Not yet
 
 - Conditions (`if`) are stored, not interpreted: the expression language comes in phase 4,
-  and with it the real uses of names in conditions.
+  and with it the real uses of names in conditions. Until then a word inside a text literal
+  (`mode == "night"`) also counts as a use of a constant called `night`.
+- The limits of an `integer` variable are not checked against its type: `min: 0.5` passes.
+- An exported name that nothing imports is not reported as unused.
 - Which board owns a variable (decision 0005): phase 4, with the deployment package.
 - Element parameters that no track plays are not reported.

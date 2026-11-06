@@ -11,7 +11,7 @@ from enum import Enum, auto
 from uuid import UUID
 
 from primum_core.errors import CoreErrorCode, Issue, Location
-from primum_core.generated.model import Argument, Parameter, Sequence
+from primum_core.generated.model import Argument, Block, Parameter, Sequence
 from primum_core.pointers import Step, field_name, pointer
 from primum_core.references import LocatedContent
 from primum_core.values import check_value
@@ -91,29 +91,41 @@ class _Visit(Enum):
 
 
 def _cycles(sequences: Sequences) -> list[Issue]:
-    """One issue per block that closes a cycle of inclusions, found by a depth-first walk."""
+    """One issue per block that closes a cycle of inclusions, found by a depth-first walk.
+
+    The walk keeps its own stack instead of recursing, so a chain of inclusions as long as a
+    project cares to make never exhausts the interpreter's.
+    """
     issues: list[Issue] = []
     state: dict[UUID, _Visit] = {}
     path: list[UUID] = []
+    # The blocks of each sequence on the path that are still to be looked at.
+    pending: list[Iterator[tuple[int, Block]]] = []
 
-    def visit(sequence_id: UUID) -> None:
+    def enter(sequence_id: UUID) -> None:
         state[sequence_id] = _Visit.IN_PROGRESS
         path.append(sequence_id)
-        sequence, location = sequences[sequence_id]
-        for index, block in enumerate(sequence.blocks):
+        pending.append(iter(enumerate(sequences[sequence_id][0].blocks)))
+
+    for root in sequences:
+        if root in state:
+            continue
+        enter(root)
+        while path:
+            step = next(pending[-1], None)
+            if step is None:
+                state[path.pop()] = _Visit.DONE
+                pending.pop()
+                continue
+            index, block = step
             target = block.sequence
             if target not in sequences:
                 continue
             if state.get(target) is _Visit.IN_PROGRESS:
+                location = sequences[path[-1]][1]
                 issues.append(_cycle_issue(path, target, sequences, _at(location, "blocks", index)))
             elif target not in state:
-                visit(target)
-        path.pop()
-        state[sequence_id] = _Visit.DONE
-
-    for sequence_id in sequences:
-        if sequence_id not in state:
-            visit(sequence_id)
+                enter(target)
     return issues
 
 

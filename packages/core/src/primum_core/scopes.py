@@ -2,9 +2,10 @@
 
 A ``.vars`` file defines names for the folder it is in. A file sees the names of its folder and
 of the folders above it, never those of sibling or child folders. A folder may export a name;
-another folder uses it only after importing it (by the ``.vars`` file's id and the name). A name
-defined again where it is already visible, in the same folder or in an inner one, is an error:
-no shadowing. The parameters of a sequence are its innermost scope and follow the same rule.
+another folder uses it only after importing it (by the ``.vars`` file's id and the name). Two
+different definitions with the same name, visible from one place, are an error: no shadowing.
+An import of a definition that is already visible is redundant, not a conflict. The parameters
+of a sequence are its innermost scope and follow the same rule.
 
 Names are used by automations: the variable an action sets or increments, and the words of a
 condition (stored as text until phase 4 parses it: any word that matches a visible name counts
@@ -25,6 +26,8 @@ from primum_core.references import LocatedContent
 from primum_core.values import NUMERIC, Value, check_value
 
 WORD = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+# The actions that name a variable; elsewhere a stray ``variable`` is the variants check's.
+VARIABLE_ACTIONS = frozenset({"set_variable", "increment_variable"})
 
 
 @dataclass(frozen=True)
@@ -67,7 +70,7 @@ class _Scopes:
         existing = names.get(entry.definition.name)
         if existing is None:
             names[entry.definition.name] = entry
-        else:
+        elif _conflict(entry, existing):
             self.issues.append(_redefined(entry, existing))
 
     def visible(self, folder: PurePosixPath) -> Mapping[str, _Entry]:
@@ -109,8 +112,15 @@ def _at(location: Location, *steps: Step) -> Location:
     return replace(location, pointer=pointer(steps))
 
 
+def _conflict(entry: _Entry, existing: _Entry) -> bool:
+    """Two entries clash when they stand for different definitions: importing a definition that
+    is already visible (from the folder above, or into it) names the same one."""
+    return entry.definition.id != existing.definition.id
+
+
 def _redefined(entry: _Entry, existing: _Entry) -> Issue:
-    params = {"name": entry.definition.name, "other": str(existing.location.path)}
+    """``other`` is the file that defines the existing name, where a rename would go."""
+    params = {"name": entry.definition.name, "other": str(existing.definition.location.path)}
     return Issue(CoreErrorCode.NAME_REDEFINED, params, entry.location)
 
 
@@ -184,7 +194,7 @@ def _check_outer_scopes(scopes: _Scopes) -> None:
         for name, entry in scopes.folders[folder].items():
             for above in folder.parents:
                 existing = scopes.folders.get(above, {}).get(name)
-                if existing is not None:
+                if existing is not None and _conflict(entry, existing):
                     scopes.issues.append(_redefined(entry, existing))
                     break
 
@@ -197,7 +207,7 @@ def _use(automation: Automation, location: Location, scopes: _Scopes) -> None:
             if word in visible:
                 scopes.used.add(visible[word].definition.id)
     for index, action in enumerate(automation.do):
-        if action.variable is None:
+        if action.action not in VARIABLE_ACTIONS or action.variable is None:
             continue
         steps: tuple[Step, ...] = ("do", index)
         entry = visible.get(action.variable)
@@ -241,7 +251,7 @@ def _check_parameters(sequence: Sequence, location: Location, scopes: _Scopes) -
         other = seen.get(parameter.name)
         if other is None:
             entry = visible.get(parameter.name)
-            other = entry.location if entry is not None else None
+            other = entry.definition.location if entry is not None else None
         if other is None:
             seen[parameter.name] = at
             continue

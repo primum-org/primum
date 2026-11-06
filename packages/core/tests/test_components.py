@@ -180,3 +180,21 @@ def test_including_the_same_sequence_twice_is_not_a_cycle(project: Project, ids:
     )
 
     assert project.found() == []
+
+
+def test_a_chain_of_thousands_of_inclusions_is_walked_without_recursion(
+    project: Project, ids: Ids
+) -> None:
+    depth = 3000
+    for number in range(depth):
+        blocks = [{"id": ids(10_000 + number), "sequence": ids(100 + number + 1), "atMs": 0}]
+        project.add(
+            f"s{number}.sec",
+            "sequence",
+            ids(100 + number),
+            name=f"S{number}",
+            tracks=[],
+            blocks=blocks if number < depth - 1 else [],
+        )
+
+    assert project.found() == []

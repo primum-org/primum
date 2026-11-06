@@ -296,3 +296,89 @@ def test_parameters_are_the_innermost_scope(project: Project, ids: Ids) -> None:
             "/parameters/2",
         ),
     ]
+
+
+def test_importing_a_name_into_a_folder_above_its_definition_is_allowed(
+    project: Project, ids: Ids
+) -> None:
+    project.add(
+        "counters/counters.vars",
+        "variables",
+        ids(10),
+        constants=[],
+        variables=[_variable(ids, 11, "visits")],
+        exports=["visits"],
+    )
+    project.add(
+        "shop.vars",
+        "variables",
+        ids(12),
+        constants=[],
+        variables=[],
+        imports=[{"from": ids(10), "name": "visits"}],
+    )
+    _automation(project, ids, "count.auto")
+
+    assert project.found() == []
+
+
+def test_a_redefinition_names_the_file_that_defines_the_name_not_the_one_that_imports_it(
+    project: Project, ids: Ids
+) -> None:
+    project.add(
+        "counters/counters.vars",
+        "variables",
+        ids(10),
+        constants=[],
+        variables=[_variable(ids, 11, "visits")],
+        exports=["visits"],
+    )
+    project.add(
+        "shop.vars",
+        "variables",
+        ids(12),
+        constants=[],
+        variables=[],
+        imports=[{"from": ids(10), "name": "visits"}],
+    )
+    project.add(
+        "scenes/scenes.vars",
+        "variables",
+        ids(13),
+        constants=[],
+        variables=[_variable(ids, 14, "visits", setting=True)],
+    )
+    _automation(project, ids, "count.auto")
+
+    assert project.found(severity=Severity.ERROR) == [
+        (
+            CoreErrorCode.NAME_REDEFINED,
+            {"name": "visits", "other": "counters/counters.vars"},
+            "scenes/scenes.vars",
+            "/variables/0",
+        )
+    ]
+
+
+def test_a_stray_variable_on_an_action_that_takes_none_is_reported_once(
+    project: Project, ids: Ids
+) -> None:
+    project.add("blink.sec", "sequence", ids(20), name="Blink", tracks=[])
+    project.add("start.evt", "event", ids(30), name="Start", source="ui")
+    project.add(
+        "count.auto",
+        "automation",
+        ids(31),
+        name="Count",
+        when=[ids(30)],
+        do=[{"action": "start_sequence", "sequence": ids(20), "variable": "ghost"}],
+    )
+
+    assert project.found() == [
+        (
+            CoreErrorCode.SCHEMA_UNEXPECTED_FIELD,
+            {"field": "do[0].variable"},
+            "count.auto",
+            "/do/0/variable",
+        )
+    ]

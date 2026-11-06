@@ -255,6 +255,11 @@ pull request per block.
   of names), one issue per block that closes a loop.
 - Tests build projects with `packages/core/tests/project_builder.py` (on pytest's
   `pythonpath`, since `--import-mode=importlib` keeps test modules apart).
+- From review: an import may go up (the root imports a scene's counter) and importing a
+  definition already visible is redundant, not an error; `name.redefined` names the file that
+  defines the name; a stray `variable` on `start_sequence` is reported once; the cycle walk
+  keeps its own stack. Follow-ups: limits of an `integer` variable against its type, exported
+  names nothing imports, and words inside text literals of conditions (phase 4).
 
 **2.5 · Resources and pin conflicts**
 - An allocator that checks every element against its board's profile: `pin.in_use`,
