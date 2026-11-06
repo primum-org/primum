@@ -43,9 +43,9 @@ something of the right kind:
 | `.auto` `when[]` | an event or a schedule |
 | `.auto` `do[].sequence` | a sequence |
 
-Names of constants and variables are not ids: they follow the scopes of decision 0005 (block
-2.4). Whether a block's arguments fit the parameters they name (an element for an element
-parameter, a value for the others, each parameter once) is checked with components (2.4).
+Names of constants and variables are not ids: they follow the scopes of decision 0005
+(`variables-and-scopes.md`), which also says how a block's arguments fit the parameters they
+name.
 
 ## Fields that depend on the case
 
@@ -69,11 +69,12 @@ stages, so each problem is reported once, where it is:
    depend on the case (`schema.missing_field`, `schema.unexpected_field`);
 2. once every file reads, the project as a whole: unique ids (`id.duplicate`) and references
    (`ref.unknown`, `ref.wrong_kind`), which need every file: a file that does not read would
-   make references to what it defines look wrong.
+   make references to what it defines look wrong; then the names and their scopes, and the
+   components (`variables-and-scopes.md`).
 
 Without `project.json` the folder is not a project (`project.manifest_missing`). Warnings do
-not make a project invalid; errors do. Later blocks add scopes and components (2.4), pins
-(2.5) and overlapping sequences (2.6).
+not make a project invalid; errors do. Later blocks add pins (2.5) and overlapping sequences
+(2.6).
 
 ## From the command line
 

@@ -78,7 +78,7 @@ venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["packages", "tools"]
-pythonpath = ["tools"]
+pythonpath = ["tools", "packages/core/tests"]  # tools' tests import the scripts; core's tests their project builder
 addopts = ["-ra", "--strict-markers", "--import-mode=importlib", "-m", "not hw"]
 markers = [
     "hw: needs a real board; skipped by default, run on the Pi with `just test-hw`",

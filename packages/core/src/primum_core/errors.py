@@ -28,6 +28,26 @@ class CoreErrorCode(StrEnum):
     ID_DUPLICATE = "id.duplicate"  # id
     REF_UNKNOWN = "ref.unknown"  # field, id
     REF_WRONG_KIND = "ref.wrong_kind"  # field, id
+    # Constants, variables and the scopes of their names (decision 0005).
+    NAME_REDEFINED = "name.redefined"  # name, other (the path that already defines it)
+    NAME_UNKNOWN = "name.unknown"  # name
+    NAME_NOT_EXPORTED = "name.not_exported"  # name
+    NAME_NOT_A_VARIABLE = "name.not_a_variable"  # name
+    NAME_UNUSED = "name.unused"  # (warning) name
+    VALUE_EXPECTED_NUMBER = "value.expected_number"  # field
+    VALUE_EXPECTED_INTEGER = "value.expected_integer"  # field
+    VALUE_EXPECTED_BOOLEAN = "value.expected_boolean"  # field
+    VALUE_EXPECTED_TEXT = "value.expected_text"  # field
+    VARIABLE_LIMITS_INVALID = "variable.limits_invalid"  # name, min, max
+    VARIABLE_INITIAL_OUT_OF_RANGE = "variable.initial_out_of_range"  # name, initial
+    VARIABLE_NOT_NUMERIC = "variable.not_numeric"  # name
+    # Components: sequences with parameters, included with arguments.
+    ARGUMENT_MISSING = "argument.missing"  # parameter
+    ARGUMENT_DUPLICATE = "argument.duplicate"  # parameter
+    ARGUMENT_EXPECTED_ELEMENT = "argument.expected_element"  # parameter
+    ARGUMENT_EXPECTED_VALUE = "argument.expected_value"  # parameter
+    SEQUENCE_INCLUDES_ITSELF = "sequence.includes_itself"  # sequence
+    SEQUENCE_CYCLE = "sequence.cycle"  # sequence, chain
     SCHEMA_MISSING_FIELD = "schema.missing_field"  # field
     SCHEMA_UNKNOWN_FIELD = "schema.unknown_field"  # field
     SCHEMA_UNEXPECTED_FIELD = "schema.unexpected_field"  # field: of the format, not of this case

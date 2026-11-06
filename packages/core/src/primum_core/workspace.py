@@ -9,14 +9,15 @@ Extensions are matched without regard to case (``SHOW.SEC`` is a sequence), as W
 
 Checks come in stages, so a problem is reported once, where it is: first each file on its own
 (text, JSON, schema, then the fields that depend on the case), and, once every file reads, the
-project as a whole (ids and references, which need every file). Later blocks add scopes,
-components and pins.
+project as a whole (ids and references, which need every file; then the scopes of names and
+the components). Later blocks add pins and overlapping sequences.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
+from primum_core.components import check_components
 from primum_core.errors import CoreErrorCode, Issue, Location, Severity
 from primum_core.formats import (
     PROJECT_FILE_FORMATS,
@@ -27,6 +28,7 @@ from primum_core.formats import (
 )
 from primum_core.generated.model import Project
 from primum_core.references import LocatedContent, check_references
+from primum_core.scopes import check_scopes
 from primum_core.variants import check_variants
 
 MANIFEST = PurePosixPath("project.json")
@@ -73,10 +75,10 @@ def load_workspace(files: Mapping[PurePosixPath, bytes]) -> Parsed[Workspace]:
         read.append(ProjectFile(path, parsed.value))
         issues += check_variants(_located(read[-1]))
     if complete and manifest is not None:
-        issues += check_references(
-            [_located(file) for file in read],
-            (manifest.id, Location(MANIFEST, file_id=manifest.id)),
-        )
+        located = [_located(file) for file in read]
+        issues += check_references(located, (manifest.id, Location(MANIFEST, file_id=manifest.id)))
+        issues += check_scopes(located)
+        issues += check_components(located)
     if manifest is None or any(issue.severity is Severity.ERROR for issue in issues):
         return Parsed(None, tuple(issues))
     return Parsed(Workspace(manifest, tuple(read)), tuple(issues))

@@ -26,7 +26,10 @@ All notable changes to this project are documented here. The format follows
   problem in English or Spanish (`--lang es`), or as JSON (`--json`). It reads the six file
   types of a project (`.hw`, `.vars`, `.sec`, `.evt`, `.sched`, `.auto`), checks that ids are
   unique and that every reference names something of the right kind. Example:
-  `examples/minimal/`.
+  `examples/minimal/`. It also checks constants and variables (values of their type, limits,
+  where names are visible: a file sees the names of its folder and of the folders above, and a
+  name is never defined twice), and components (a sequence with parameters gets one argument
+  per parameter, and sequences never include each other in a loop).
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.

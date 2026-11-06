@@ -6,7 +6,7 @@ the spec in the same pull request. They are written from phase 2 on.
 | Spec | Covers | Phase |
 |---|---|---|
 | [`workspace.md`](workspace.md) | Project folder, manifest, file types, ids, references, `.primum` archive | 2 |
-| `variables-and-scopes.md` | Constants, variables, scopes, export/import, settings | 2 |
+| [`variables-and-scopes.md`](variables-and-scopes.md) | Constants, variables, scopes, export/import, settings, components | 2 |
 | `expressions.md` | The small, safe expression language used in conditions | 4 |
 | `events.md` | Event sources, debounce, schedules and time windows | 4 |
 | `engine-semantics.md` | Sequences in time, automations, arbitration, re-trigger, exclusive groups | 4 |
