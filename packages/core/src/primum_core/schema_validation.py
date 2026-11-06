@@ -14,6 +14,7 @@ import fastjsonschema
 from primum_core.errors import CoreErrorCode, Issue, Location, ParamScalar, ParamValue
 from primum_core.generated.schemas import SCHEMAS
 from primum_core.json_values import is_array, is_object
+from primum_core.pointers import Step, field_name, pointer
 
 VERSION_FIELD = "schemaVersion"
 EXPECTED_TYPE_CODES = {
@@ -25,7 +26,6 @@ EXPECTED_TYPE_CODES = {
     "object": CoreErrorCode.SCHEMA_EXPECTED_OBJECT,
 }
 
-type Step = str | int
 type Validator = Callable[[object], object]
 
 
@@ -120,7 +120,7 @@ def _issues(failure: _Failure, location: Location) -> Iterator[Issue]:
             yield Issue(
                 CoreErrorCode.SCHEMA_UNSUPPORTED_VERSION,
                 {"version": _scalar(failure.value), "supported": _scalar(failure.expected)},
-                replace(location, pointer=_pointer(steps)),
+                replace(location, pointer=pointer(steps)),
             )
         case rule:
             code, extra_params = _code_for(rule, failure.expected)
@@ -166,22 +166,9 @@ def _issue(
     pointer_steps = steps[:-1] if code is CoreErrorCode.SCHEMA_MISSING_FIELD else steps
     return Issue(
         code,
-        {"field": _field(steps), **params},
-        replace(location, pointer=_pointer(pointer_steps)),
+        {"field": field_name(steps), **params},
+        replace(location, pointer=pointer(pointer_steps)),
     )
-
-
-def _field(steps: tuple[Step, ...]) -> str:
-    """How a person reads a field: ``outputs[2].name``."""
-    text = ""
-    for step in steps:
-        text += f"[{step}]" if isinstance(step, int) else f".{step}" if text else step
-    return text
-
-
-def _pointer(steps: tuple[Step, ...]) -> str:
-    """A JSON Pointer (RFC 6901): ``/outputs/2/name``."""
-    return "".join(f"/{str(step).replace('~', '~0').replace('/', '~1')}" for step in steps)
 
 
 def _names(value: object) -> list[str]:

@@ -102,7 +102,7 @@ WebSocket reports every change.
   runner tests `i18n.js` with the real catalogs (language choice, placeholders, lists, unknown
   codes, technical params).
 - The page's shared assets (catalogs, `tokens.css`, icons, logo) are copied into
-  `primum_runtime/ui/generated/` by `just gen` (`tools/gen_runtime_assets.py`), so the installed
+  `primum_runtime/ui/generated/` by `just gen` (`tools/gen_assets.py`), so the installed
   runtime serves them; `just gen-check` fails if a copy is stale.
 
 **Done when:** from the laptop's browser the page toggles the simulated LED in English and
@@ -209,23 +209,28 @@ pull request per block.
   chip **by label** (`pinctrl-bcm2711`, never `/dev/gpiochipN`). `docs/specs/board-profiles.md`.
 - `core`: `read_board_profile` checks the rules a schema cannot (`board.*` codes);
   `boards.gpio_lines`.
-- Runtime: a copy of the profiles (`tools/gen_runtime_assets.py`, which also copies the page's
+- Runtime: a copy of the profiles (`tools/gen_assets.py`, which also copies the page's
   assets), `--board` / `PRIMUM_BOARD` (`rpi4b` by default) instead of `--chip`. Both HALs take
   the board: they refuse pins it does not have (`hal.pin_invalid`), so `--simulate` fails where
   the Pi would; the real HAL finds the chip by label and requests each GPIO on its line.
 
-**2.3 · Workspace, file types and `primum validate`**
-- Schemas of `.hw` (boards, and elements of a generic type — `digital_output`,
-  `digital_input`, `pwm_output`, `i2c_device` — with their resources), `.vars`, `.sec` (tracks
-  per element with clips; blocks that include another sequence), `.auto` (`when` an event or
-  schedule, `if` stored as text until phase 4, `do` start/stop a sequence or set/increment a
-  variable), `.evt` and `.sched` (minimal).
-- Loader: unique ids, references resolved by id and of the right kind (`id.duplicate`,
-  `ref.unknown`, `ref.wrong_kind`, `file.unknown_extension`, `project.manifest_missing`).
-- `packages/cli` (`primum` command, since `core` does no I/O): `primum validate <folder>` with
-  messages and hints from the catalogs, `--lang`, `--json`, exit codes 0/1/2, `--strict` makes
-  warnings fail. `examples/minimal/`, `docs/specs/workspace.md` (including the `.primum`
-  archive, implemented later).
+**2.3 · Workspace, file types and `primum validate`** · **done** (`docs/specs/workspace.md`)
+- Schemas of `.hw` (boards; elements of a generic type — `digital_output`, `digital_input`,
+  `pwm_output`, `i2c_device` — with a pin or a bus and address), `.vars` (constants,
+  variables, exports, imports), `.sec` (tracks of clips per element, blocks with arguments,
+  parameters), `.evt` (from an element, the phone UI or the API), `.sched` (times and windows),
+  `.auto` (`when` events or schedules, `if` stored as text until phase 4, `do` start/stop a
+  sequence or set/increment a variable). The generator gained lists of scalar types (a value
+  that may be a number, a boolean or a text); absent optional arrays read as `()`.
+- `primum_core.workspace.load_workspace`: files by extension (others ignored with a warning),
+  then, once every file reads, unique ids, references by id and kind (a track may play an
+  element parameter of its own sequence), and fields that depend on the case. Codes
+  `project.manifest_missing`, `file.not_in_format`, `id.duplicate`, `ref.unknown`,
+  `ref.wrong_kind`, `schema.unexpected_field`.
+- `packages/cli` (`primum validate <folder>`): messages and hints from the catalogs (new `cli`
+  section), `--lang`, `--json`, `--strict`, exit codes 0/1/2; hidden files and links skipped.
+  `tools/gen_assets.py` (was `gen_runtime_assets.py`) also copies the catalogs into it.
+- `examples/minimal/`, kept valid by a test.
 
 **2.4 · Scopes, variables and components**
 - Scopes by folder (decision 0005); export, and import by the `.vars` id plus the name.

@@ -1,0 +1,239 @@
+{
+  "ui": {
+    "app.title": "Primum",
+    "outputs.heading": "Salidas",
+    "output.on": "Encendida",
+    "output.off": "Apagada",
+    "output.toggle": "Encender o apagar {name}",
+    "panic.button": "Pánico",
+    "panic.description": "Apaga todas las salidas y deja de aceptar órdenes.",
+    "panic.active": "Pánico activo: todas las salidas están apagadas y no se aceptan órdenes.",
+    "panic.release": "Desactivar pánico",
+    "connection.offline": "Sin conexión con el servicio. Reintentando…",
+    "error.detail": "Detalle técnico",
+    "error.unknown": "Error inesperado ({code}).",
+    "error.close": "Cerrar"
+  },
+  "cli": {
+    "severity.error": "error",
+    "severity.warning": "aviso",
+    "hint": "Pista: {hint}",
+    "result.valid": "{path}: el proyecto es válido.",
+    "result.invalid": "{path}: el proyecto tiene problemas.",
+    "summary": "Errores: {errors}. Avisos: {warnings}.",
+    "list.and": "y",
+    "issue.unknown": "Un problema que esta versión de los mensajes no conoce ({code}).",
+    "folder.not_a_folder": "{path} no es una carpeta.",
+    "folder.unreadable": "No se puede leer {path}: {detail}"
+  },
+  "errors": {
+    "hal.pin_in_use": {
+      "message": "El pin {pin} ya lo usa otra salida.",
+      "hint": "Elige un pin distinto para una de las dos."
+    },
+    "hal.pin_invalid": {
+      "message": "El pin {pin} no existe en esta placa.",
+      "hint": "Comprueba el número de pin en el esquema de la placa."
+    },
+    "hal.pin_unavailable": {
+      "message": "Otra cosa de esta placa está usando el pin {pin}.",
+      "hint": "Libéralo (detén el programa o desactiva la interfaz que lo usa) o elige otro pin."
+    },
+    "hal.profile_mismatch": {
+      "message": "El perfil de placa pone el pin {pin} en la línea {line}, pero el controlador GPIO {chip} tiene {lines} líneas.",
+      "hint": "El perfil no corresponde a esta placa: comprueba que Primum está configurado para la placa correcta o avísanos."
+    },
+    "hal.chip_not_found": {
+      "message": "No se ha encontrado ningún controlador GPIO llamado {chip} en este sistema.",
+      "hint": "Comprueba que Primum está configurado para esta placa (--board)."
+    },
+    "hal.chip_access_denied": {
+      "message": "Primum no tiene permiso para usar el controlador GPIO {chip}.",
+      "hint": "Añade el usuario que ejecuta Primum al grupo gpio y reinicia el servicio."
+    },
+    "hal.unsupported_platform": {
+      "message": "En este sistema ({platform}) no se puede usar hardware real.",
+      "hint": "Ejecuta Primum en una Raspberry Pi o arráncalo en modo simulación."
+    },
+    "hal.gpio_library_broken": {
+      "message": "La biblioteca de GPIO está instalada pero incompleta, así que no se puede usar hardware real.",
+      "hint": "Vuelve a instalar Primum en esta placa; si vuelve a pasar, informa del error con el detalle técnico."
+    },
+    "hal.closed": {
+      "message": "La conexión con el hardware está cerrada.",
+      "hint": "Reinicia el servicio."
+    },
+    "hal.safe_state_incomplete": {
+      "message": "No se pudieron poner en estado seguro los pines {pins}.",
+      "hint": "Corta la alimentación de lo que tengan conectado y revisa el cableado."
+    },
+    "hal.release_incomplete": {
+      "message": "No se pudieron liberar los pines {pins}.",
+      "hint": "Reinicia la placa antes de volver a usarlos."
+    },
+    "output.unknown": {
+      "message": "No hay ninguna salida llamada {name}.",
+      "hint": "Recarga la página para ver las salidas actuales."
+    },
+    "panic.active": {
+      "message": "El pánico está activo: las salidas no aceptan órdenes.",
+      "hint": "Desactiva el pánico cuando sea seguro continuar."
+    },
+    "request.invalid": {
+      "message": "La petición no era válida.",
+      "hint": "Recarga la página. Si vuelve a pasar, informa del error con el detalle técnico."
+    },
+    "request.not_found": {
+      "message": "El servicio no tiene nada en {path}.",
+      "hint": "Recarga la página. Si vuelve a pasar, informa del error con el detalle técnico."
+    },
+    "request.method_not_allowed": {
+      "message": "El servicio no acepta esta acción en {path}.",
+      "hint": "Recarga la página. Si vuelve a pasar, informa del error con el detalle técnico."
+    },
+    "file.not_utf8": {
+      "message": "El fichero no es texto UTF-8.",
+      "hint": "Vuelve a guardarlo con la codificación UTF-8."
+    },
+    "file.invalid_json": {
+      "message": "El fichero no es JSON válido (línea {line}, columna {column}).",
+      "hint": "Corrige el texto cerca de esa posición o recupera el fichero de una copia."
+    },
+    "file.duplicate_key": {
+      "message": "La clave {key} aparece dos veces en el mismo objeto.",
+      "hint": "Deja solo una de ellas."
+    },
+    "file.not_an_object": {
+      "message": "El fichero no contiene un objeto JSON.",
+      "hint": "Un fichero de Primum empieza por { y acaba en }."
+    },
+    "file.not_in_format": {
+      "message": "Este fichero no es de ningún tipo del proyecto, así que Primum lo ignora.",
+      "hint": "Sácalo de la carpeta del proyecto si no pertenece a ella."
+    },
+    "project.manifest_missing": {
+      "message": "La carpeta no tiene project.json, así que no es un proyecto de Primum.",
+      "hint": "Abre la carpeta del proyecto o crea el proyecto desde Primum."
+    },
+    "id.duplicate": {
+      "message": "El identificador {id} se usa más de una vez en el proyecto.",
+      "hint": "Cada fichero y cada cosa definida en él necesita su propio identificador: si has copiado un fichero, da identificadores nuevos a la copia."
+    },
+    "ref.unknown": {
+      "message": "{field} hace referencia a {id}, que no está en el proyecto.",
+      "hint": "Elige algo que exista o añade el fichero que lo define."
+    },
+    "ref.wrong_kind": {
+      "message": "{field} hace referencia a {id}, que no se puede usar ahí.",
+      "hint": "Elige algo del tipo adecuado para este campo."
+    },
+    "schema.missing_field": {
+      "message": "Falta el campo {field}.",
+      "hint": "Añádelo: este formato lo exige."
+    },
+    "schema.unknown_field": {
+      "message": "El campo {field} no forma parte de este formato.",
+      "hint": "Quítalo o revisa cómo está escrito."
+    },
+    "schema.unexpected_field": {
+      "message": "El campo {field} no se aplica aquí.",
+      "hint": "Quítalo: solo se usa en otros casos."
+    },
+    "schema.expected_text": {
+      "message": "El campo {field} debe ser un texto.",
+      "hint": "Escríbelo entre comillas dobles, como \"Escaparate\"."
+    },
+    "schema.expected_integer": {
+      "message": "El campo {field} debe ser un número entero.",
+      "hint": "Escríbelo sin comillas ni decimales, como 17."
+    },
+    "schema.expected_number": {
+      "message": "El campo {field} debe ser un número.",
+      "hint": "Escríbelo sin comillas, como 0.5 o 2."
+    },
+    "schema.expected_boolean": {
+      "message": "El campo {field} debe ser true o false.",
+      "hint": "Escribe true o false, sin comillas."
+    },
+    "schema.expected_list": {
+      "message": "El campo {field} debe ser una lista.",
+      "hint": "Escríbela entre corchetes, como [1, 2]."
+    },
+    "schema.expected_object": {
+      "message": "El campo {field} debe ser un grupo de campos.",
+      "hint": "Escríbelo entre llaves, como {\"name\": \"LED\"}."
+    },
+    "schema.not_allowed": {
+      "message": "El valor de {field} no es uno de los permitidos.",
+      "hint": "Usa uno de estos: {allowed}."
+    },
+    "schema.invalid_id": {
+      "message": "El valor de {field} no es un identificador válido.",
+      "hint": "Un identificador es un UUID como 8d0f6f1e-3b2a-4c55-9a51-1f2d3c4b5a69; deja que Primum lo cree."
+    },
+    "schema.invalid_value": {
+      "message": "El valor de {field} no es válido.",
+      "hint": "Compruébalo con la descripción del formato."
+    },
+    "schema.too_short": {
+      "message": "El texto de {field} es demasiado corto.",
+      "hint": "Necesita al menos {min} caracteres."
+    },
+    "schema.too_long": {
+      "message": "El texto de {field} es demasiado largo.",
+      "hint": "Puede tener como mucho {max} caracteres."
+    },
+    "schema.too_few_items": {
+      "message": "{field} tiene muy pocos elementos.",
+      "hint": "Necesita al menos {min}."
+    },
+    "schema.too_many_items": {
+      "message": "{field} tiene demasiados elementos.",
+      "hint": "Puede tener como mucho {max}."
+    },
+    "schema.duplicate_items": {
+      "message": "{field} tiene elementos repetidos.",
+      "hint": "Quita los repetidos."
+    },
+    "schema.below_minimum": {
+      "message": "El valor de {field} es demasiado pequeño.",
+      "hint": "Debe ser {minimum} o más."
+    },
+    "schema.above_maximum": {
+      "message": "El valor de {field} es demasiado grande.",
+      "hint": "Debe ser {maximum} o menos."
+    },
+    "schema.unsupported_version": {
+      "message": "El fichero usa la versión {version} de su formato, y esta versión de Primum lee la versión {supported}.",
+      "hint": "Ábrelo con una versión de Primum que lea ese formato."
+    },
+    "board.duplicate_pin": {
+      "message": "El perfil de placa repite el pin físico {physical}.",
+      "hint": "Deja una sola entrada por cada pin del conector."
+    },
+    "board.power_pin_with_gpio": {
+      "message": "El pin físico {physical} es de alimentación o de tierra, pero el perfil le da un GPIO, una línea o un pull.",
+      "hint": "Quita esos campos o marca el pin como gpio."
+    },
+    "board.incomplete_gpio_pin": {
+      "message": "El pin físico {physical} es un GPIO, pero el perfil no indica su número de GPIO, su línea y su pull.",
+      "hint": "Añade gpio, line y defaultPull al pin."
+    },
+    "board.duplicate_gpio": {
+      "message": "El perfil de placa asigna el GPIO {gpio} a más de un pin.",
+      "hint": "Cada GPIO está en un solo pin del conector: revisa el patillaje."
+    },
+    "board.duplicate_line": {
+      "message": "El perfil de placa asigna más de un GPIO a la línea {line} del chip GPIO.",
+      "hint": "Revisa la línea de cada GPIO con el chip GPIO de la placa."
+    },
+    "board.unknown_gpio": {
+      "message": "El perfil de placa usa el GPIO {gpio}, que no tiene ninguno de sus pines.",
+      "hint": "Usa un GPIO de los que aparecen en los pines del perfil."
+    },
+    "board.duplicate_id": {
+      "message": "El perfil de placa usa el nombre {id} más de una vez.",
+      "hint": "Da a cada bus y a cada canal PWM un nombre distinto."
+    }
+  }
+}

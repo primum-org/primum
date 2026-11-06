@@ -14,6 +14,12 @@ TypeScript types follow in phase 5.
 | `common.schema.json` | Definitions shared by every format: `id`, `name`, `description` |
 | `project.schema.json` | `project.json`, the manifest at the root of a project |
 | `board-profile.schema.json` | `boards/<model>.json`, a board profile (`docs/specs/board-profiles.md`) |
+| `hardware.schema.json` | `.hw`: boards and elements (`docs/specs/workspace.md`, as the rest) |
+| `variables.schema.json` | `.vars`: constants, variables, exports and imports |
+| `sequence.schema.json` | `.sec`: tracks of clips, blocks, parameters |
+| `event.schema.json` | `.evt`: events from elements, the phone UI or the API |
+| `schedule.schema.json` | `.sched`: times of day and windows of time |
+| `automation.schema.json` | `.auto`: when, if, do |
 
 ## The subset of JSON Schema we use
 
@@ -21,7 +27,8 @@ Small on purpose: every format must map to plain types in Python, TypeScript and
 The generator fails on anything outside it.
 
 - Keywords: `$schema`, `$id`, `$defs`, `$ref`, `$comment`, `title`, `description`, `examples`,
-  `type` (a single type), `properties`, `required`, `additionalProperties`, `items`, `enum`
+  `type` (a single type, or a list of scalar types for a value that may be a number, a
+  boolean or a text), `properties`, `required`, `additionalProperties`, `items`, `enum`
   (all strings or all integers), `const`, `default` (optional scalars only), `format` (only
   `uuid`), `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `minItems`, `maxItems`,
   `uniqueItems`.
@@ -31,7 +38,8 @@ The generator fails on anything outside it.
   ignored) and is either a whole schema (its class is named after `title`) or one of its
   `$defs` (named after its key). Objects are never written inline inside another.
 - Property names are camelCase (`schemaVersion`); the Python fields are snake_case
-  (`schema_version`).
+  (`schema_version`). An optional array that is absent reads as no items (`()`), any other
+  optional property as its `default` or `None`.
 - Every file format has `id` (a UUID), a `kind` const and a `schemaVersion` const, all
   required.
 

@@ -1,0 +1,7 @@
+{
+  "id": "32ce63ca-f73e-44f7-8806-f5c238be0e26",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Minimal",
+  "description": "An LED that blinks when the phone's Start button is pressed."
+}

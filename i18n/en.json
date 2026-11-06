@@ -14,6 +14,18 @@
     "error.unknown": "Unexpected error ({code}).",
     "error.close": "Close"
   },
+  "cli": {
+    "severity.error": "error",
+    "severity.warning": "warning",
+    "hint": "Hint: {hint}",
+    "result.valid": "{path}: the project is valid.",
+    "result.invalid": "{path}: the project has problems.",
+    "summary": "Errors: {errors}. Warnings: {warnings}.",
+    "list.and": "and",
+    "issue.unknown": "A problem this version of the messages does not know ({code}).",
+    "folder.not_a_folder": "{path} is not a folder.",
+    "folder.unreadable": "Cannot read {path}: {detail}"
+  },
   "errors": {
     "hal.pin_in_use": {
       "message": "Pin {pin} is already used by another output.",
@@ -95,6 +107,26 @@
       "message": "The file does not contain a JSON object.",
       "hint": "A Primum file starts with { and ends with }."
     },
+    "file.not_in_format": {
+      "message": "This file is not one of the project's file types, so Primum ignores it.",
+      "hint": "Move it out of the project folder if it does not belong there."
+    },
+    "project.manifest_missing": {
+      "message": "The folder has no project.json, so it is not a Primum project.",
+      "hint": "Open the project's folder, or create the project from Primum."
+    },
+    "id.duplicate": {
+      "message": "The id {id} is used more than once in the project.",
+      "hint": "Every file and everything defined in one needs its own id: if you copied a file, give the copy new ids."
+    },
+    "ref.unknown": {
+      "message": "{field} refers to {id}, which is not in the project.",
+      "hint": "Choose something that exists, or add the file that defines it."
+    },
+    "ref.wrong_kind": {
+      "message": "{field} refers to {id}, which cannot be used there.",
+      "hint": "Choose something of the right type for this field."
+    },
     "schema.missing_field": {
       "message": "The field {field} is missing.",
       "hint": "Add it: this format requires it."
@@ -102,6 +134,10 @@
     "schema.unknown_field": {
       "message": "The field {field} is not part of this format.",
       "hint": "Remove it, or check how it is spelled."
+    },
+    "schema.unexpected_field": {
+      "message": "The field {field} does not apply here.",
+      "hint": "Remove it: it is only used in other cases."
     },
     "schema.expected_text": {
       "message": "The field {field} must be text.",

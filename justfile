@@ -74,17 +74,17 @@ typecheck:
 arch:
     uv run lint-imports
 
-# Regenerate generated files: core's types from schemas/, design tokens CSS, then the runtime's copies of i18n, design assets and board profiles
+# Regenerate generated files: core's types from schemas/, design tokens CSS, then the packages' copies of i18n, design assets and board profiles
 gen:
     uv run python tools/gen_schemas.py
     uv run python tools/gen_tokens.py
-    uv run python tools/gen_runtime_assets.py
+    uv run python tools/gen_assets.py
 
 # Fail if a generated file is out of date
 gen-check:
     uv run python tools/gen_schemas.py --check
     uv run python tools/gen_tokens.py --check
-    uv run python tools/gen_runtime_assets.py --check
+    uv run python tools/gen_assets.py --check
 
 # Repository hygiene hooks (whitespace, YAML/TOML/JSON, large files) on every file. Ruff is
 # skipped here because `lint` checks it without writing. The whitespace hooks still fix files

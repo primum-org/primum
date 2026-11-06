@@ -10,6 +10,7 @@ from typing import TypeIs
 from uuid import UUID
 
 type JsonObject = Mapping[str, object]
+type JsonScalar = str | int | float | bool
 
 
 def is_object(value: object) -> TypeIs[dict[str, object]]:
@@ -60,6 +61,13 @@ def as_float(value: object) -> float:
 def as_bool(value: object) -> bool:
     if not isinstance(value, bool):
         raise _mismatch(value, "a boolean")
+    return value
+
+
+def as_scalar(value: object) -> JsonScalar:
+    """A text, a number or a boolean: a value whose schema allows several scalar types."""
+    if not isinstance(value, str | int | float | bool):
+        raise _mismatch(value, "a text, a number or a boolean")
     return value
 
 

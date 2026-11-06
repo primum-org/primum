@@ -6,15 +6,17 @@ All user-visible text: `en.json` (default locale) and `es.json`
 - `errors`: one entry per error code (`hal.pin_in_use`), with a `message` and a `hint` that
   use `{param}` placeholders. The runtime and `core` return codes and params, never text.
 - `ui`: the strings of the runtime's page, by key (`panic.button`).
+- `cli`: the words of the `primum` command around the messages (`result.valid`, `hint`).
 
 Rules, checked by `packages/runtime/tests/test_catalogs.py`:
 
 - Both catalogs have the same keys, and each string the same placeholders.
 - Every code in `primum_runtime.errors.ErrorCode` and `primum_core.errors.CoreErrorCode` has an
   entry, and every entry is a code of one of them (never of both).
-- Every `ui` key the page uses exists, and every `ui` key is used.
+- Every `ui` key the page uses exists, and every `ui` key is used; the same for `cli` keys and
+  the command (`packages/cli/tests/test_catalog_keys.py`).
 - Placeholders name params the error always carries. Params named `detail`, `consumer` and
   `fields` are technical text: the page shows them apart, never inside the message. Tuple
   params (lists of pins) are formatted for the language ("17 and 27", "17 y 27").
 
-After editing a catalog, run `uv run just gen`: the runtime serves a generated copy.
+After editing a catalog, run `uv run just gen`: the runtime and the CLI ship generated copies.

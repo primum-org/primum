@@ -1,0 +1,19 @@
+{
+  "id": "f12a4b8e-5c1a-4c6e-a258-1a95a3ef9765",
+  "kind": "sequence",
+  "schemaVersion": 1,
+  "name": "Blink",
+  "tracks": [
+    {
+      "element": "f346cbbc-e5e9-477e-ba12-519a80017ef5",
+      "clips": [
+        {
+          "id": "4aafda18-4bb3-4570-93ac-988fa2d0576d",
+          "atMs": 0,
+          "durationMs": 500,
+          "action": "on"
+        }
+      ]
+    }
+  ]
+}

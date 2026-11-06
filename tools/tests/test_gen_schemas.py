@@ -45,6 +45,7 @@ SHOW: dict[str, object] = {
         "speed": {"type": "number", "default": 1},
         "volume": {"type": "number", "default": 0.5},
         "enabled": {"type": "boolean"},
+        "initial": {"type": ["number", "boolean", "string"]},
     },
     "$defs": {
         "step": {
@@ -104,6 +105,7 @@ def test_a_validated_document_is_parsed_into_the_dataclasses(model: ModuleType) 
         "grid": [[1, 2], [3]],
         "speed": 2,
         "enabled": True,
+        "initial": "dim",
     }
 
     show = model.parse_show(document)
@@ -118,6 +120,7 @@ def test_a_validated_document_is_parsed_into_the_dataclasses(model: ModuleType) 
         speed=2.0,
         volume=0.5,
         enabled=True,
+        initial="dim",
     )
     assert show.kind == "show"
 
@@ -126,7 +129,7 @@ def test_absent_optional_fields_take_their_default_or_none(model: ModuleType) ->
     show = model.parse_show({"id": ID, "kind": "show", "name": "N", "mode": "once", "steps": []})
 
     assert (show.speed, show.volume) == (1, 0.5)
-    assert (show.enabled, show.level, show.grid) == (None, None, None)
+    assert (show.enabled, show.level, show.grid) == (None, None, ())
 
 
 def test_the_schemas_module_holds_each_schema_by_file_name(
@@ -157,7 +160,8 @@ def test_the_schemas_module_holds_each_schema_by_file_name(
             {"properties": {"bad": {"type": "string", "default": "x"}}, "required": ["bad"]},
             "on an optional property",
         ),
-        ({"properties": {"bad": {"type": ["string", "null"]}}}, "needs a single type"),
+        ({"properties": {"bad": {"type": ["string", "null"]}}}, "list of scalar types"),
+        ({"properties": {"bad": {"type": ["string"]}}}, "list of scalar types"),
         ({"$id": "renamed.schema.json"}, "its $id must be its file name"),
     ],
 )

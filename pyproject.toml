@@ -6,7 +6,7 @@ name = "primum-workspace"
 version = "0.0.0"
 description = "Development workspace for Primum (not published)."
 requires-python = ">=3.13"
-dependencies = ["primum-core", "primum-runtime"]
+dependencies = ["primum-cli", "primum-core", "primum-runtime"]
 
 [dependency-groups]
 # What the `hw` tests need on the Pi (`just pi-test`), where some dev tools have no wheel.
@@ -30,6 +30,7 @@ package = false
 members = ["packages/*"]
 
 [tool.uv.sources]
+primum-cli = { workspace = true }
 primum-core = { workspace = true }
 primum-runtime = { workspace = true }
 
@@ -86,14 +87,19 @@ markers = [
 # --- import-linter: architecture rules --------------------------------------
 
 [tool.importlinter]
-root_packages = ["primum_core", "primum_runtime"]
+root_packages = ["primum_cli", "primum_core", "primum_runtime"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "core does not depend on runtime"
+name = "core depends on no front end: neither the runtime nor the CLI"
 type = "forbidden"
 source_modules = ["primum_core"]
-forbidden_modules = ["primum_runtime"]
+forbidden_modules = ["primum_runtime", "primum_cli"]
+
+[[tool.importlinter.contracts]]
+name = "the runtime and the CLI are independent front ends of core"
+type = "independence"
+modules = ["primum_runtime", "primum_cli"]
 
 [[tool.importlinter.contracts]]
 name = "hardware only through the HAL: gpiod is imported by primum_runtime.hal.gpiod_hal alone"
