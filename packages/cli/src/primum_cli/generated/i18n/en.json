@@ -127,6 +127,78 @@
       "message": "{field} refers to {id}, which cannot be used there.",
       "hint": "Choose something of the right type for this field."
     },
+    "name.redefined": {
+      "message": "The name {name} is already defined in {other}.",
+      "hint": "Names are visible in the folders below the one that defines them: use a different name here, or remove this one."
+    },
+    "name.unknown": {
+      "message": "No constant or variable named {name} is visible here.",
+      "hint": "Define it in a .vars file of this folder or of one above, or import it from the folder that exports it."
+    },
+    "name.not_exported": {
+      "message": "The name {name} is not exported by that file.",
+      "hint": "Add it to the exports of the .vars file that defines it."
+    },
+    "name.not_a_variable": {
+      "message": "{name} is a constant, so it cannot be changed.",
+      "hint": "Change a variable instead, or make {name} a variable."
+    },
+    "name.unused": {
+      "message": "Nothing uses {name}.",
+      "hint": "Use it in an automation, export it, make it a setting, or remove it."
+    },
+    "value.expected_number": {
+      "message": "The value of {field} must be a number.",
+      "hint": "Write it without quotes, like 0.5 or 2."
+    },
+    "value.expected_integer": {
+      "message": "The value of {field} must be a whole number.",
+      "hint": "Write it without quotes or decimals, like 3."
+    },
+    "value.expected_boolean": {
+      "message": "The value of {field} must be true or false.",
+      "hint": "Write true or false, without quotes."
+    },
+    "value.expected_text": {
+      "message": "The value of {field} must be a text.",
+      "hint": "Write it between double quotes, like \"night\"."
+    },
+    "variable.limits_invalid": {
+      "message": "The limits of {name} are the wrong way round: the minimum ({min}) is above the maximum ({max}).",
+      "hint": "Swap them, or fix the one that is wrong."
+    },
+    "variable.initial_out_of_range": {
+      "message": "The initial value of {name} ({initial}) is outside its limits.",
+      "hint": "Keep it between the minimum and the maximum, or change them."
+    },
+    "variable.not_numeric": {
+      "message": "{name} is not a number, so it cannot be incremented.",
+      "hint": "Set its value instead, or make {name} a number."
+    },
+    "argument.missing": {
+      "message": "The included sequence needs a value for its parameter {parameter}.",
+      "hint": "Add an argument for {parameter} to the block."
+    },
+    "argument.duplicate": {
+      "message": "The parameter {parameter} is given more than once.",
+      "hint": "Keep one argument for {parameter}."
+    },
+    "argument.expected_element": {
+      "message": "The parameter {parameter} takes an element.",
+      "hint": "Give it an element, not a value."
+    },
+    "argument.expected_value": {
+      "message": "The parameter {parameter} takes a value, not an element.",
+      "hint": "Give it a value of the parameter's type."
+    },
+    "sequence.includes_itself": {
+      "message": "The sequence {sequence} includes itself.",
+      "hint": "A sequence cannot contain itself: remove that block."
+    },
+    "sequence.cycle": {
+      "message": "The sequence {sequence} includes itself through {chain}.",
+      "hint": "Sequences cannot include each other in a loop: remove one of those blocks."
+    },
     "schema.missing_field": {
       "message": "The field {field} is missing.",
       "hint": "Add it: this format requires it."

@@ -238,16 +238,28 @@ pull request per block.
   project type. Before projects carry audio (phase 6), `core` should take the paths and read
   the contents it needs lazily, so a video left in the folder is not read to be ignored.
 
-**2.4 · Scopes, variables and components**
-- Scopes by folder (decision 0005); export, and import by the `.vars` id plus the name.
-  `name.redefined`, `name.unknown`, `name.not_exported`, `name.unused` (warning).
-- Constants resolved when validating; variables with type, initial value, limits and
-  persistence. Values of their declared type (a constant `integer` holding a text is an error),
-  limits that make sense, the initial value within them (`variable.initial_out_of_range`).
-- Components: sequences with parameters, instances with arguments; `sequence.cycle` with the
-  chain of names, a sequence that includes itself being the shortest. Arguments fit their parameters: an `element` for an element parameter, a
-  `value` of the right type for the others, never both or neither, each parameter once.
-  `docs/specs/variables-and-scopes.md`.
+**2.4 · Scopes, variables and components** · **done** (`docs/specs/variables-and-scopes.md`)
+- `primum_core.scopes`: a `.vars` file defines names for its folder; a file sees its folder's
+  and the folders' above; export, and import by the `.vars` id plus the name; no shadowing
+  (`name.redefined`, with the path that already defines it, also for parameters and for an
+  import of a visible name); `name.unknown`, `name.not_exported`, `name.not_a_variable`,
+  `variable.not_numeric`; `name.unused` (warning) unless exported, a setting, or a word of a
+  visible condition (text until phase 4).
+- Values of the declared type (`value.expected_number|integer|boolean|text`, one code per
+  type) for constants, initial values, what automations set or add, and arguments; limits only
+  on numeric variables, in order, with the initial value within them
+  (`variable.limits_invalid`, `variable.initial_out_of_range`).
+- `primum_core.components`: one argument per parameter, of the right shape and type
+  (`argument.missing`, `argument.duplicate`, `argument.expected_element`,
+  `argument.expected_value`); `sequence.includes_itself` and `sequence.cycle` (with the chain
+  of names), one issue per block that closes a loop.
+- Tests build projects with `packages/core/tests/project_builder.py` (on pytest's
+  `pythonpath`, since `--import-mode=importlib` keeps test modules apart).
+- From review: an import may go up (the root imports a scene's counter) and importing a
+  definition already visible is redundant, not an error; `name.redefined` names the file that
+  defines the name; a stray `variable` on `start_sequence` is reported once; the cycle walk
+  keeps its own stack. Follow-ups: limits of an `integer` variable against its type, exported
+  names nothing imports, and words inside text literals of conditions (phase 4).
 
 **2.5 · Resources and pin conflicts**
 - An allocator that checks every element against its board's profile: `pin.in_use`,

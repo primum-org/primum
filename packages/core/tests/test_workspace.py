@@ -82,7 +82,7 @@ def _project(**changes: Mapping[str, object]) -> Files:
                 ],
             },
         ),
-        "scenes/scenes.vars": (
+        "shop.vars": (
             "variables",
             VARS,
             {
@@ -121,7 +121,7 @@ def test_a_valid_project_loads_with_every_file_by_path() -> None:
         "hardware.hw",
         "pressed.evt",
         "scenes/blink.sec",
-        "scenes/scenes.vars",
+        "shop.vars",
     ]
 
 
@@ -196,7 +196,12 @@ def test_a_reference_to_nothing_is_reported_at_the_field() -> None:
     [
         (
             "greet.auto",
-            {"do": [{"action": "start_sequence", "sequence": PRESSED}]},
+            {
+                "do": [
+                    {"action": "start_sequence", "sequence": PRESSED},
+                    {"action": "increment_variable", "variable": "visits"},
+                ]
+            },
             "do[0].sequence",
             "/do/0/sequence",
         ),

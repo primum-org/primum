@@ -2,18 +2,30 @@
 
 Some objects take different fields depending on one of them: an element on a GPIO needs a
 ``pin`` while an I2C device needs a ``bus`` and an ``address``; an event from an element needs
-the element; an automation action that starts a sequence names it. A missing field is
-``schema.missing_field`` and a field that does not apply to the case is
-``schema.unexpected_field``, both pointing at it.
+the element; an automation action that starts a sequence names it; only a numeric variable has
+limits. A missing field is ``schema.missing_field`` and a field that does not apply to the case
+is ``schema.unexpected_field``, both pointing at it.
+
+Constants and variables also carry a value of their declared type, and a variable's initial
+value lies within its limits (``value.expected_*``, ``variable.*``).
 """
 
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, replace
 
 from primum_core.errors import CoreErrorCode, Issue, Location
-from primum_core.generated.model import Automation, AutomationAction, Element, Event, Hardware
+from primum_core.generated.model import (
+    Automation,
+    AutomationAction,
+    Element,
+    Event,
+    Hardware,
+    Variable,
+    Variables,
+)
 from primum_core.pointers import Step, field_name, pointer
 from primum_core.references import LocatedContent
+from primum_core.values import NUMERIC, check_value
 
 
 @dataclass(frozen=True)
@@ -79,8 +91,42 @@ def check_variants(file: LocatedContent) -> tuple[Issue, ...]:
                     file.location,
                 )
             )
+        case Variables():
+            return tuple(_variables_issues(content, file.location))
         case _:
             return ()
+
+
+def _variables_issues(content: Variables, location: Location) -> Iterator[Issue]:
+    for index, constant in enumerate(content.constants):
+        steps: tuple[Step, ...] = ("constants", index, "value")
+        if issue := check_value(constant.value, constant.type, steps, location):
+            yield issue
+    for index, variable in enumerate(content.variables):
+        yield from _variable_issues(variable, ("variables", index), location)
+
+
+def _variable_issues(
+    variable: Variable, steps: tuple[Step, ...], location: Location
+) -> Iterator[Issue]:
+    at = replace(location, pointer=pointer(steps))
+    if variable.type not in NUMERIC:
+        limits = {"min": variable.min is not None, "max": variable.max is not None}
+        yield from _check(_case(unexpected="min max"), limits, steps, location)
+    if issue := check_value(variable.initial, variable.type, (*steps, "initial"), location):
+        yield issue
+        return
+    if variable.min is not None and variable.max is not None and variable.min > variable.max:
+        params = {"name": variable.name, "min": variable.min, "max": variable.max}
+        yield Issue(CoreErrorCode.VARIABLE_LIMITS_INVALID, params, at)
+        return
+    initial = variable.initial
+    if isinstance(initial, int | float) and not isinstance(initial, bool):
+        below = variable.min is not None and initial < variable.min
+        above = variable.max is not None and initial > variable.max
+        if below or above:
+            params = {"name": variable.name, "initial": initial}
+            yield Issue(CoreErrorCode.VARIABLE_INITIAL_OUT_OF_RANGE, params, at)
 
 
 def _element_fields(element: Element) -> Mapping[str, bool]:

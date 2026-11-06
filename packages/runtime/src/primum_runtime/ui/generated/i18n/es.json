@@ -127,6 +127,78 @@
       "message": "{field} hace referencia a {id}, que no se puede usar ahí.",
       "hint": "Elige algo del tipo adecuado para este campo."
     },
+    "name.redefined": {
+      "message": "El nombre {name} ya está definido en {other}.",
+      "hint": "Los nombres se ven en las carpetas por debajo de la que los define: usa otro nombre aquí o quita este."
+    },
+    "name.unknown": {
+      "message": "Aquí no se ve ninguna constante ni variable llamada {name}.",
+      "hint": "Defínela en un fichero .vars de esta carpeta o de una superior, o impórtala de la carpeta que la exporta."
+    },
+    "name.not_exported": {
+      "message": "Ese fichero no exporta el nombre {name}.",
+      "hint": "Añádelo a los exports del fichero .vars que lo define."
+    },
+    "name.not_a_variable": {
+      "message": "{name} es una constante, así que no se puede cambiar.",
+      "hint": "Cambia una variable, o convierte {name} en variable."
+    },
+    "name.unused": {
+      "message": "Nada usa {name}.",
+      "hint": "Úsala en una automatización, expórtala, conviértela en ajuste o quítala."
+    },
+    "value.expected_number": {
+      "message": "El valor de {field} debe ser un número.",
+      "hint": "Escríbelo sin comillas, como 0.5 o 2."
+    },
+    "value.expected_integer": {
+      "message": "El valor de {field} debe ser un número entero.",
+      "hint": "Escríbelo sin comillas ni decimales, como 3."
+    },
+    "value.expected_boolean": {
+      "message": "El valor de {field} debe ser true o false.",
+      "hint": "Escribe true o false, sin comillas."
+    },
+    "value.expected_text": {
+      "message": "El valor de {field} debe ser un texto.",
+      "hint": "Escríbelo entre comillas dobles, como \"noche\"."
+    },
+    "variable.limits_invalid": {
+      "message": "Los límites de {name} están al revés: el mínimo ({min}) está por encima del máximo ({max}).",
+      "hint": "Intercámbialos o corrige el que esté mal."
+    },
+    "variable.initial_out_of_range": {
+      "message": "El valor inicial de {name} ({initial}) está fuera de sus límites.",
+      "hint": "Mantenlo entre el mínimo y el máximo, o cámbialos."
+    },
+    "variable.not_numeric": {
+      "message": "{name} no es un número, así que no se puede incrementar.",
+      "hint": "Fija su valor en lugar de incrementarlo, o convierte {name} en número."
+    },
+    "argument.missing": {
+      "message": "La secuencia incluida necesita un valor para su parámetro {parameter}.",
+      "hint": "Añade al bloque un argumento para {parameter}."
+    },
+    "argument.duplicate": {
+      "message": "El parámetro {parameter} se da más de una vez.",
+      "hint": "Deja un solo argumento para {parameter}."
+    },
+    "argument.expected_element": {
+      "message": "El parámetro {parameter} recibe un elemento.",
+      "hint": "Dale un elemento, no un valor."
+    },
+    "argument.expected_value": {
+      "message": "El parámetro {parameter} recibe un valor, no un elemento.",
+      "hint": "Dale un valor del tipo del parámetro."
+    },
+    "sequence.includes_itself": {
+      "message": "La secuencia {sequence} se incluye a sí misma.",
+      "hint": "Una secuencia no puede contenerse a sí misma: quita ese bloque."
+    },
+    "sequence.cycle": {
+      "message": "La secuencia {sequence} se incluye a sí misma a través de {chain}.",
+      "hint": "Las secuencias no pueden incluirse unas a otras en bucle: quita uno de esos bloques."
+    },
     "schema.missing_field": {
       "message": "Falta el campo {field}.",
       "hint": "Añádelo: este formato lo exige."
