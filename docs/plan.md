@@ -242,9 +242,10 @@ pull request per block.
 - Scopes by folder (decision 0005); export, and import by the `.vars` id plus the name.
   `name.redefined`, `name.unknown`, `name.not_exported`, `name.unused` (warning).
 - Constants resolved when validating; variables with type, initial value, limits and
-  persistence (`variable.initial_out_of_range`).
+  persistence. Values of their declared type (a constant `integer` holding a text is an error),
+  limits that make sense, the initial value within them (`variable.initial_out_of_range`).
 - Components: sequences with parameters, instances with arguments; `sequence.cycle` with the
-  chain of names. Arguments fit their parameters: an `element` for an element parameter, a
+  chain of names, a sequence that includes itself being the shortest. Arguments fit their parameters: an `element` for an element parameter, a
   `value` of the right type for the others, never both or neither, each parameter once.
   `docs/specs/variables-and-scopes.md`.
 

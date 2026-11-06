@@ -96,7 +96,7 @@ def test_hidden_files_are_not_part_of_the_project(project: Path) -> None:
     assert _run(str(project), "--strict") == (EXIT_VALID, f"{project}: the project is valid.\n")
 
 
-def test_json_gives_codes_params_places_and_english_text(project: Path) -> None:
+def test_json_gives_codes_params_places_and_the_text_in_english_by_default(project: Path) -> None:
     (project / "project.json").unlink()
 
     status, out = _run(str(project), "--json")
