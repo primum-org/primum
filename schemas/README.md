@@ -16,7 +16,7 @@ TypeScript types follow in phase 5.
 | `board-profile.schema.json` | `boards/<model>.json`, a board profile (`docs/specs/board-profiles.md`) |
 | `hardware.schema.json` | `.hw`: boards and elements (`docs/specs/workspace.md`, as the rest) |
 | `variables.schema.json` | `.vars`: constants, variables, exports and imports |
-| `sequence.schema.json` | `.sec`: tracks of clips, blocks, parameters |
+| `sequence.schema.json` | `.sec`: tracks of clips, blocks, parameters, priority, exclusive group |
 | `event.schema.json` | `.evt`: events from elements, the phone UI or the API |
 | `schedule.schema.json` | `.sched`: times of day and windows of time |
 | `automation.schema.json` | `.auto`: when, if, do |

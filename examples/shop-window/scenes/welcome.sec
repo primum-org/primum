@@ -1,0 +1,37 @@
+{
+  "id": "aed99736-2724-433e-b487-3f8ecb584ea1",
+  "kind": "sequence",
+  "schemaVersion": 1,
+  "name": "Welcome",
+  "exclusiveGroup": "shop",
+  "tracks": [
+    {
+      "element": "4e6c4a57-3921-4ed7-98e6-26fa70e33ad4",
+      "clips": [
+        {
+          "id": "2508ab99-568e-43aa-8a22-b25e99104819",
+          "atMs": 0,
+          "durationMs": 10000,
+          "action": "on"
+        }
+      ]
+    }
+  ],
+  "blocks": [
+    {
+      "id": "eb8e661d-ac8d-492a-93a5-b8cdeb488862",
+      "sequence": "abbf55ef-0837-4b7b-b4bb-3979727300df",
+      "atMs": 500,
+      "arguments": [
+        {
+          "parameter": "f4cafd83-8b33-4871-bab6-dc2602f84758",
+          "element": "abe91183-5c31-49cb-8a09-78c78f8705f5"
+        },
+        {
+          "parameter": "630288c8-8003-49c1-a223-918ae491192f",
+          "value": 2
+        }
+      ]
+    }
+  ]
+}

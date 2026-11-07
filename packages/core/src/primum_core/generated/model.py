@@ -204,6 +204,8 @@ class Sequence:
     schema_version: Literal[1] = 1
     name: str
     description: str | None = None
+    priority: int = 0
+    exclusive_group: str | None = None
     parameters: tuple[Parameter, ...] = ()
     tracks: tuple[Track, ...]
     blocks: tuple[Block, ...] = ()
@@ -473,6 +475,8 @@ def parse_sequence(data: JsonObject) -> Sequence:
         id=as_uuid(data["id"]),
         name=as_str(data["name"]),
         description=as_str(data["description"]) if "description" in data else None,
+        priority=as_int(data["priority"]) if "priority" in data else 0,
+        exclusive_group=as_str(data["exclusiveGroup"]) if "exclusiveGroup" in data else None,
         parameters=tuple(parse_parameter(as_object(item)) for item in as_list(data["parameters"])) if "parameters" in data else (),
         tracks=tuple(parse_track(as_object(item)) for item in as_list(data["tracks"])),
         blocks=tuple(parse_block(as_object(item)) for item in as_list(data["blocks"])) if "blocks" in data else (),

@@ -13,7 +13,7 @@ A project is a folder of files (decision 0004). This spec says what the folder h
 |---|---|---|
 | `.hw` | `hardware` | Boards (`model` names a board profile) and the elements wired to them |
 | `.vars` | `variables` | Constants and variables of its folder; names exported and imported |
-| `.sec` | `sequence` | Tracks of clips per element; blocks that include other sequences; parameters (a component) |
+| `.sec` | `sequence` | Tracks of clips per element; blocks that include other sequences; parameters (a component); `priority` and `exclusiveGroup` (decision 0006) |
 | `.evt` | `event` | Something from outside: an input element, a button of the phone UI, the local API |
 | `.sched` | `schedule` | Times of day (start automations) and windows of time (conditions) |
 | `.auto` | `automation` | When events or schedules fire, if a condition holds, do actions |
@@ -75,6 +75,26 @@ stages, so each problem is reported once, where it is:
 
 Without `project.json` the folder is not a project (`project.manifest_missing`). Warnings do
 not make a project invalid; errors do. Block 2.6 adds overlapping sequences.
+
+## Sequences in time
+
+Each clip of a track runs from `atMs` for `durationMs`, in the time of its sequence; a block
+runs the included sequence from its `atMs`, its parameters bound to the block's arguments. For
+the checks, a sequence is **flattened**: its own clips plus the clips of what it includes, at
+their offsets, each sequence flattened once (`primum_core.overlaps`).
+
+- **Within a sequence**, two clips of one element whose times overlap are an error,
+  `track.clips_overlap` (`element`, `atMs`: where the later one starts). It points at the later
+  clip, or at the block if the clip comes through one. A clip of `durationMs: 0` takes no time
+  and overlaps nothing. Clips that only touch (one ends where the next starts) do not overlap.
+- **Between sequences**, the engine arbitrates (decision 0006, phase 4): by `priority` (a higher
+  one layers over a lower one while it runs; within one priority the latest command wins) and
+  by `exclusiveGroup` (starting one sequence of a group stops the others). What can be said
+  without the engine is a warning: two sequences that **automations start**, on the **same
+  priority**, **not in one exclusive group**, that touch the **same element**, may run at the
+  same time: `sequence.may_overlap` (`sequence`, `other`, `element`), once per pair, at the
+  second sequence by path. Sequences nothing starts are not compared; a component's own
+  parameters, bound to nothing, count as no element.
 
 ## From the command line
 

@@ -1,0 +1,204 @@
+"""Sequences that ask one element to do two things at once (decision 0006).
+
+Within a sequence, the clips of one element never overlap in time, the sequences it includes
+counted at their offset: an error. Between sequences, the engine arbitrates (phase 4), so two
+sequences that may run at the same time and touch the same element are a warning, unless they
+are in one exclusive group (they cancel each other) or on different priorities (one layers over
+the other). Which sequences may run at the same time is approximated statically: those that
+automations start.
+"""
+
+from collections.abc import Iterable, Iterator, Mapping
+from dataclasses import dataclass, replace
+from itertools import combinations
+from uuid import UUID
+
+from primum_core.errors import CoreErrorCode, Issue, Location, Severity
+from primum_core.generated.model import Automation, Hardware, Sequence
+from primum_core.pointers import Step, pointer
+from primum_core.references import LocatedContent
+
+type Sequences = Mapping[UUID, tuple[Sequence, Location]]
+type Flattened = Mapping[UUID, list["_Clip"]]
+type Bindings = Mapping[UUID, UUID]  # a parameter → the element given for it
+
+
+@dataclass(frozen=True)
+class _Clip:
+    """A clip in the flattened time of a sequence: ``[start, end)`` on ``element``.
+
+    ``element`` is a concrete element, or a parameter of the sequence being flattened. ``at`` is
+    where to report it: the clip itself, or the block that includes the sequence it comes from.
+    """
+
+    element: UUID
+    start: int
+    end: int
+    at: Location
+
+
+@dataclass(frozen=True)
+class _Started:
+    """A sequence that automations start, with everything it touches once flattened."""
+
+    sequence: Sequence
+    location: Location
+    elements: frozenset[UUID]
+
+
+def check_overlaps(files: Iterable[LocatedContent]) -> tuple[Issue, ...]:
+    """Clips of one element overlapping within a sequence; sequences that may overlap."""
+    files = tuple(files)
+    sequences: Sequences = {
+        file.content.id: (file.content, file.location)
+        for file in files
+        if isinstance(file.content, Sequence)
+    }
+    names = _names(files, sequences)
+    flattened = _flatten_all(sequences)
+    issues: list[Issue] = []
+    for sequence_id in sequences:
+        issues += _clip_overlaps(flattened[sequence_id], names)
+    started = [
+        _Started(*sequences[sequence_id], _concrete(sequence_id, sequences, flattened))
+        for sequence_id in _started_by_automations(files)
+        if sequence_id in sequences
+    ]
+    issues += _may_overlap(started, names)
+    return tuple(issues)
+
+
+def _names(files: tuple[LocatedContent, ...], sequences: Sequences) -> dict[UUID, str]:
+    """Elements by id, and parameters by id: what the messages call them."""
+    names: dict[UUID, str] = {}
+    for file in files:
+        if isinstance(file.content, Hardware):
+            names.update((element.id, element.name) for element in file.content.elements)
+    for sequence, _ in sequences.values():
+        names.update((parameter.id, parameter.name) for parameter in sequence.parameters)
+    return names
+
+
+def _at(location: Location, *steps: Step) -> Location:
+    return replace(location, pointer=pointer(steps))
+
+
+def _flatten_all(sequences: Sequences) -> dict[UUID, list[_Clip]]:
+    """Every clip of each sequence and of what it includes, in the sequence's own time.
+
+    Clips that come through a block are reported at that block. Parameters stay as they are:
+    the sequence that includes a component binds them (``_compose``). Each sequence is flattened
+    once, after the ones it includes, by a walk with its own stack: no recursion, however deep
+    the inclusions. A loop of inclusions is skipped here: the components check reports it.
+    """
+    flattened: dict[UUID, list[_Clip]] = {}
+    for root in sequences:
+        stack = [root]
+        in_progress: set[UUID] = set()
+        while stack:
+            sequence_id = stack[-1]
+            if sequence_id in flattened:
+                stack.pop()
+                continue
+            if sequence_id not in in_progress:
+                in_progress.add(sequence_id)
+                pending = [
+                    block.sequence
+                    for block in sequences[sequence_id][0].blocks
+                    if block.sequence in sequences
+                    and block.sequence not in flattened
+                    and block.sequence not in in_progress
+                ]
+                if pending:
+                    stack += pending
+                    continue
+            flattened[sequence_id] = _compose(sequence_id, sequences, flattened)
+            in_progress.discard(sequence_id)
+            stack.pop()
+    return flattened
+
+
+def _compose(sequence_id: UUID, sequences: Sequences, flattened: Flattened) -> list[_Clip]:
+    """The clips of one sequence: its own, and the included ones shifted and bound."""
+    sequence, location = sequences[sequence_id]
+    clips: list[_Clip] = []
+    for track_index, track in enumerate(sequence.tracks):
+        for index, clip in enumerate(track.clips):
+            if clip.duration_ms == 0:  # takes no time: cannot overlap anything
+                continue
+            at = _at(location, "tracks", track_index, "clips", index)
+            clips.append(_Clip(track.element, clip.at_ms, clip.at_ms + clip.duration_ms, at))
+    for index, block in enumerate(sequence.blocks):
+        included = flattened.get(block.sequence)  # absent: unknown, or a loop
+        if included is None:
+            continue
+        bindings: Bindings = {
+            argument.parameter: argument.element
+            for argument in block.arguments
+            if argument.element is not None
+        }
+        at = _at(location, "blocks", index)
+        clips += [
+            _Clip(
+                bindings.get(clip.element, clip.element),
+                clip.start + block.at_ms,
+                clip.end + block.at_ms,
+                at,
+            )
+            for clip in included
+        ]
+    return clips
+
+
+def _clip_overlaps(clips: list[_Clip], names: Mapping[UUID, str]) -> Iterator[Issue]:
+    """Each clip that starts before the previous clip of its element has ended."""
+    by_element: dict[UUID, list[_Clip]] = {}
+    for clip in clips:
+        by_element.setdefault(clip.element, []).append(clip)
+    for element, own in by_element.items():
+        end = 0
+        for clip in sorted(own, key=lambda clip: clip.start):
+            if clip.start < end:
+                params = {"element": names.get(element, str(element)), "atMs": clip.start}
+                yield Issue(CoreErrorCode.TRACK_CLIPS_OVERLAP, params, clip.at)
+            end = max(end, clip.end)
+
+
+def _started_by_automations(files: tuple[LocatedContent, ...]) -> list[UUID]:
+    started: dict[UUID, None] = {}  # in order of first appearance, without repeats
+    for file in files:
+        if isinstance(file.content, Automation):
+            for action in file.content.do:
+                if action.action == "start_sequence" and action.sequence is not None:
+                    started.setdefault(action.sequence)
+    return list(started)
+
+
+def _concrete(sequence_id: UUID, sequences: Sequences, flattened: Flattened) -> frozenset[UUID]:
+    """The elements a sequence touches; its own parameters, bound to nothing, are not elements."""
+    parameters = {parameter.id for parameter in sequences[sequence_id][0].parameters}
+    return frozenset(
+        clip.element for clip in flattened[sequence_id] if clip.element not in parameters
+    )
+
+
+def _may_overlap(started: list[_Started], names: Mapping[UUID, str]) -> Iterator[Issue]:
+    """Pairs of started sequences on one priority, not in one exclusive group, sharing an element.
+
+    Reported once, at the second sequence by path, naming the first shared element.
+    """
+    for first, second in combinations(sorted(started, key=lambda s: s.location.path), 2):
+        if first.sequence.priority != second.sequence.priority:
+            continue
+        group = first.sequence.exclusive_group
+        if group is not None and group == second.sequence.exclusive_group:
+            continue
+        shared = sorted(names.get(e, str(e)) for e in first.elements & second.elements)
+        if not shared:
+            continue
+        params = {
+            "sequence": second.sequence.name,
+            "other": first.sequence.name,
+            "element": shared[0],
+        }
+        yield Issue(CoreErrorCode.SEQUENCE_MAY_OVERLAP, params, second.location, Severity.WARNING)

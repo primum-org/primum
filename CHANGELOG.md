@@ -32,7 +32,10 @@ All notable changes to this project are documented here. The format follows
   per parameter, and sequences never include each other in a loop). It checks the wiring
   against the board: a GPIO the board does not have or reserves, two elements on one GPIO, a
   GPIO taken by the I2C bus, PWM outputs without hardware PWM or sharing a channel, and I2C
-  devices on a missing bus or at the same address (`examples/invalid/` shows each case).
+  devices on a missing bus or at the same address (`examples/invalid/` shows each case). Clips
+  of one element that overlap in time are an error, and sequences that may run at once on the
+  same element a warning; sequences have a `priority` and an `exclusiveGroup`.
+  `examples/shop-window/` is a complete project.
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.

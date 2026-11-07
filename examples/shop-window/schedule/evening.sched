@@ -1,0 +1,33 @@
+{
+  "id": "58be65f2-0138-403d-b543-246654f12032",
+  "kind": "schedule",
+  "schemaVersion": 1,
+  "name": "Evening",
+  "times": [
+    {
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat"
+      ],
+      "at": "20:30"
+    }
+  ],
+  "windows": [
+    {
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat"
+      ],
+      "from": "10:00",
+      "to": "20:30"
+    }
+  ]
+}

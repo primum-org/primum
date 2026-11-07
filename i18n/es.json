@@ -199,6 +199,14 @@
       "message": "La secuencia {sequence} se incluye a sí misma a través de {chain}.",
       "hint": "Las secuencias no pueden incluirse unas a otras en bucle: quita uno de esos bloques."
     },
+    "track.clips_overlap": {
+      "message": "Dos clips de {element} se solapan en el milisegundo {atMs}.",
+      "hint": "Un elemento hace una sola cosa a la vez: mueve o acorta uno de los dos."
+    },
+    "sequence.may_overlap": {
+      "message": "{sequence} y {other} pueden ejecutarse a la vez, y las dos usan {element}.",
+      "hint": "Si no es lo que quieres, ponlas en el mismo grupo exclusivo o dale más prioridad a una de ellas."
+    },
     "board.unknown_model": {
       "message": "La placa {board} es una {model}, y esta versión de Primum no tiene perfil para ese modelo.",
       "hint": "Usa un modelo que Primum conozca (rpi4b) o añade su perfil en boards/."

@@ -7,7 +7,7 @@ when a phase starts or finishes.
 |---|---|---|
 | 0 | Repository skeleton: structure, docs, rules, tooling, CI | Done |
 | 1 | End-to-end skeleton: toggle an LED from a phone | Done |
-| 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | In progress |
+| 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Done |
 | 3 | HAL, basic drivers and safety | Not started |
 | 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Not started |
 | 5 | Local web UI v1 | Not started |
@@ -274,18 +274,35 @@ pull request per block.
   every run: cache them when there are many boards.
 - `examples/invalid/<code>/`: one project per code; a test checks each gives exactly its code.
 
-**2.6 · Overlapping sequences and closing the phase**
-- Within a sequence, clips overlapping in time on the same element are an error
-  (`track.clips_overlap`), included sequences flattened. Between sequences that can start
-  independently, touching the same element outside an exclusive group, a warning
-  (`sequence.may_overlap`): a static approximation until the engine of phase 4.
-- A complete example (a shop window: relay, LED, sensor, variables in folders, components, an
-  automation); CHANGELOG; phase marked done.
+**2.6 · Overlapping sequences and closing the phase** · **done** (`docs/specs/workspace.md`,
+"Sequences in time")
+- `.sec` gains `priority` (0–100, default 0) and `exclusiveGroup` (decision 0006).
+- `primum_core.overlaps`: each sequence flattened once (own clips plus included ones at their
+  offset, parameters bound to arguments; a walk with its own stack, no recursion).
+  `track.clips_overlap` (error, at the later clip or at the block it comes through);
+  `sequence.may_overlap` (warning) between sequences that automations start, on one priority,
+  not in one exclusive group, touching one element. Zero-length clips overlap nothing.
+- `examples/shop-window/`: relay, PWM LED and presence sensor; variables in folders with an
+  export and an import; a component; two automations and a schedule; valid without warnings.
 
 **Done when:** example projects validate, and typical conflicts are reported clearly, without the Pi.
+Met: `examples/minimal` and `examples/shop-window` validate with `--strict`; each of the nine
+projects in `examples/invalid/` reports exactly its conflict, in English or Spanish.
 
 Not in this phase: editing operations and the `.primum` archive (with the UI in phase 5 and the
 MCP server in phase 8).
+
+**Left for later phases, found in phase 2**
+- Phase 3: the elements' `action` strings (`on`, `fade_in`) are free text until the drivers
+  declare their actions; a `.hw` element type maps to a driver.
+- Phase 4: the expression language of `if` (today a word in a condition counts as a use of a
+  name, even inside a text literal); which board owns a variable; the re-trigger policy of a
+  sequence (decision 0006); the engine's real arbitration, which `sequence.may_overlap` only
+  approximates; an automation starting a component (it would need arguments).
+- Phase 5: sort issues by file and pointer; lazy reading of a folder before projects carry
+  audio; the `.primum` archive and editing operations.
+- Small: limits of an `integer` variable against its type; exported names nothing imports;
+  caching board profiles in the CLI once there are many.
 
 ## Phase 3 · HAL, basic drivers and safety
 

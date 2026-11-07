@@ -10,8 +10,8 @@ Extensions are matched without regard to case (``SHOW.SEC`` is a sequence), as W
 
 Checks come in stages, so a problem is reported once, where it is: first each file on its own
 (text, JSON, schema, then the fields that depend on the case), and, once every file reads, the
-project as a whole (ids and references, which need every file; then the scopes of names and
-the components). Later blocks add pins and overlapping sequences.
+project as a whole: ids and references, which need every file; then the scopes of names, the
+components, the clips and sequences that overlap, and the resources of each board.
 """
 
 from collections.abc import Mapping
@@ -28,6 +28,7 @@ from primum_core.formats import (
     read_project_file,
 )
 from primum_core.generated.model import Project
+from primum_core.overlaps import check_overlaps
 from primum_core.references import LocatedContent, check_references
 from primum_core.resources import Profiles, check_resources
 from primum_core.scopes import check_scopes
@@ -82,6 +83,7 @@ def load_workspace(files: Mapping[PurePosixPath, bytes], profiles: Profiles) -> 
         issues += check_references(located, (manifest.id, Location(MANIFEST, file_id=manifest.id)))
         issues += check_scopes(located)
         issues += check_components(located)
+        issues += check_overlaps(located)
         issues += check_resources(located, profiles)
     if manifest is None or any(issue.severity is Severity.ERROR for issue in issues):
         return Parsed(None, tuple(issues))
