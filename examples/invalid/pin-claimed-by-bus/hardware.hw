@@ -1,0 +1,29 @@
+{
+  "id": "51f7c65d-912c-47db-a299-846d8300a823",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "ec265a4d-e2e3-427a-b68e-920d9a56ad12",
+      "name": "Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "221ea869-a04e-402b-820d-8a122616b2a8",
+      "name": "LED",
+      "board": "ec265a4d-e2e3-427a-b68e-920d9a56ad12",
+      "type": "digital_output",
+      "pin": 2
+    },
+    {
+      "id": "3495efd1-01ab-4753-8eda-446beff8621c",
+      "name": "Expander",
+      "board": "ec265a4d-e2e3-427a-b68e-920d9a56ad12",
+      "type": "i2c_device",
+      "bus": "i2c1",
+      "address": 32
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "id": "64d6a462-7e24-4bf2-a7ae-8d5f0c012d56",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Pwm channel in use",
+  "description": "Two PWM outputs on GPIO 12 and 18, which share a channel."
+}

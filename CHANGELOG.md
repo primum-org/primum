@@ -29,7 +29,10 @@ All notable changes to this project are documented here. The format follows
   `examples/minimal/`. It also checks constants and variables (values of their type, limits,
   where names are visible: a file sees the names of its folder and of the folders above, and a
   name is never defined twice), and components (a sequence with parameters gets one argument
-  per parameter, and sequences never include each other in a loop).
+  per parameter, and sequences never include each other in a loop). It checks the wiring
+  against the board: a GPIO the board does not have or reserves, two elements on one GPIO, a
+  GPIO taken by the I2C bus, PWM outputs without hardware PWM or sharing a channel, and I2C
+  devices on a missing bus or at the same address (`examples/invalid/` shows each case).
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.

@@ -69,12 +69,12 @@ stages, so each problem is reported once, where it is:
    depend on the case (`schema.missing_field`, `schema.unexpected_field`);
 2. once every file reads, the project as a whole: unique ids (`id.duplicate`) and references
    (`ref.unknown`, `ref.wrong_kind`), which need every file: a file that does not read would
-   make references to what it defines look wrong; then the names and their scopes, and the
-   components (`variables-and-scopes.md`).
+   make references to what it defines look wrong; then the names and their scopes, the
+   components (`variables-and-scopes.md`) and the resources of each board
+   (`board-profiles.md`).
 
 Without `project.json` the folder is not a project (`project.manifest_missing`). Warnings do
-not make a project invalid; errors do. Later blocks add pins (2.5) and overlapping sequences
-(2.6).
+not make a project invalid; errors do. Block 2.6 adds overlapping sequences.
 
 ## From the command line
 

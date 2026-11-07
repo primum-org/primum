@@ -1,0 +1,7 @@
+{
+  "id": "a44a101a-6816-4a91-bdf8-0c7808fac383",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Pin in use",
+  "description": "An LED and a relay on the same GPIO 17."
+}

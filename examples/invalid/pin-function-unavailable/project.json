@@ -1,0 +1,7 @@
+{
+  "id": "662a5de8-d7b2-41f1-a1d5-69d157c03191",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Pin function unavailable",
+  "description": "A PWM output on GPIO 17, which has no hardware PWM."
+}

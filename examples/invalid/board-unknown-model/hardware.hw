@@ -1,0 +1,21 @@
+{
+  "id": "f5c4f2ac-2c6b-4f0b-af62-86894e6f3590",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "f4aa31b8-2cc6-4ee8-84c7-156d1ec159e4",
+      "name": "Pi",
+      "model": "rpi9"
+    }
+  ],
+  "elements": [
+    {
+      "id": "29003847-c80b-4d28-a884-8a5f7cf76967",
+      "name": "LED",
+      "board": "f4aa31b8-2cc6-4ee8-84c7-156d1ec159e4",
+      "type": "digital_output",
+      "pin": 17
+    }
+  ]
+}

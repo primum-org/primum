@@ -3,11 +3,28 @@
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from uuid import UUID
 
 from primum_core.errors import CoreErrorCode, Severity
+from primum_core.formats import read_board_profile
+from primum_core.generated.model import BoardProfile
 from primum_core.workspace import load_workspace
+
+BOARDS = Path(__file__).resolve().parents[3] / "boards"
+
+
+def shipped_profiles() -> dict[str, BoardProfile]:
+    """The board profiles of ``boards/``, as the CLI passes them (by model)."""
+    profiles: dict[str, BoardProfile] = {}
+    for path in sorted(BOARDS.glob("*.json")):
+        parsed = read_board_profile(PurePosixPath(path.name), path.read_bytes())
+        assert parsed.value is not None, parsed.issues
+        profiles[parsed.value.model] = parsed.value
+    return profiles
+
+
+PROFILES = shipped_profiles()
 
 type Found = tuple[CoreErrorCode, dict[str, object], str, str]
 type Ids = Callable[[int], str]
@@ -38,9 +55,9 @@ class Project:
                 str(issue.location.path) if issue.location else "",
                 issue.location.pointer if issue.location else "",
             )
-            for issue in load_workspace(self.files).issues
+            for issue in load_workspace(self.files, PROFILES).issues
             if severity is None or issue.severity is severity
         ]
 
     def is_valid(self) -> bool:
-        return load_workspace(self.files).value is not None
+        return load_workspace(self.files, PROFILES).value is not None

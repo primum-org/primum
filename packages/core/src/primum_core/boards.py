@@ -26,6 +26,11 @@ def gpio_lines(profile: BoardProfile) -> Mapping[int, int]:
     }
 
 
+def physical_pins(profile: BoardProfile) -> Mapping[int, int]:
+    """The physical pin of each GPIO on the header, by GPIO number."""
+    return {pin.gpio: pin.physical for pin in profile.pins if pin.gpio is not None}
+
+
 def _pin_issues(pins: tuple[HeaderPin, ...], location: Location) -> Iterator[Issue]:
     physical: set[int] = set()
     gpios: set[int] = set()
