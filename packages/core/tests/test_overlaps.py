@@ -411,3 +411,78 @@ def test_started_sequences_sharing_only_an_undefined_element_do_not_warn(
     _started(project, ids, 20, 23)
 
     assert [code for code, *_ in project.found()] == [CoreErrorCode.REF_UNKNOWN] * 2
+
+
+def test_a_component_included_twice_is_one_problem_per_block_not_one_per_clip(
+    project: Project, ids: Ids
+) -> None:
+    clips = [_clip(ids, 40 + n, n * 100, 100) for n in range(20)]
+    _sequence(project, ids, 20, "Chase", [{"element": ids(LED), "clips": clips}])
+    _sequence(
+        project,
+        ids,
+        23,
+        "Show",
+        [],
+        blocks=[
+            {"id": ids(24), "sequence": ids(20), "atMs": 0},
+            {"id": ids(25), "sequence": ids(20), "atMs": 50},
+        ],
+    )
+
+    # One per block that takes part, at its first overlap: not one per clip.
+    assert project.found() == [
+        (
+            CoreErrorCode.TRACK_CLIPS_OVERLAP,
+            {"element": "LED", "atMs": 50},
+            "show.sec",
+            "/blocks/1",
+        ),
+        (
+            CoreErrorCode.TRACK_CLIPS_OVERLAP,
+            {"element": "LED", "atMs": 100},
+            "show.sec",
+            "/blocks/0",
+        ),
+    ]
+
+
+def test_a_component_included_without_its_element_argument_shares_no_element(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(
+        project,
+        ids,
+        20,
+        "Blink",
+        [{"element": ids(30), "clips": [_clip(ids, 21, 0, 500)]}],
+        parameters=[{"id": ids(30), "name": "target", "type": "element"}],
+    )
+    for number, name in ((23, "Welcome"), (26, "Close")):
+        _sequence(
+            project,
+            ids,
+            number,
+            name,
+            [],
+            blocks=[{"id": ids(number + 1), "sequence": ids(20), "atMs": 0}],
+        )
+    _started(project, ids, 23, 26)
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.ARGUMENT_MISSING] * 2
+
+
+def test_a_chain_with_a_clip_at_every_level_flattens_and_passes(project: Project, ids: Ids) -> None:
+    depth = 300
+    for number in range(depth):
+        blocks = [{"id": ids(10_000 + number), "sequence": ids(100 + number + 1), "atMs": 1000}]
+        project.add(
+            f"s{number}.sec",
+            "sequence",
+            ids(100 + number),
+            name=f"S{number}",
+            tracks=[{"element": ids(LED), "clips": [_clip(ids, 20_000 + number, 0, 500)]}],
+            blocks=blocks if number < depth - 1 else [],
+        )
+
+    assert project.found() == []

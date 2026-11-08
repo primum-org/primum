@@ -298,7 +298,9 @@ MCP server in phase 8).
 - Phase 4: the expression language of `if` (today a word in a condition counts as a use of a
   name, even inside a text literal); which board owns a variable; the re-trigger policy of a
   sequence (decision 0006); the engine's real arbitration, which `sequence.may_overlap` only
-  approximates; an automation starting a component (it would need arguments).
+  approximates; an automation starting a component (it would need arguments). Once drivers
+  declare exclusive elements (motors, servos; phase 3), `sequence.may_overlap` on one of them
+  becomes an error.
 - Phase 5: sort issues by file and pointer; lazy reading of a folder before projects carry
   audio; the `.primum` archive and editing operations.
 - Small: limits of an `integer` variable against its type; exported names nothing imports;

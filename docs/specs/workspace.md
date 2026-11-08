@@ -74,7 +74,7 @@ stages, so each problem is reported once, where it is:
    (`board-profiles.md`).
 
 Without `project.json` the folder is not a project (`project.manifest_missing`). Warnings do
-not make a project invalid; errors do. Block 2.6 adds overlapping sequences.
+not make a project invalid; errors do.
 
 ## Sequences in time
 
@@ -88,18 +88,20 @@ their offsets, each sequence flattened once (`primum_core.overlaps`).
   clip, or at the block if the clip comes through one. Two clips that come through the same
   block on the same element of the included sequence are not compared: their overlap belongs
   to it, and is reported there once. Two that only meet because the block bound a parameter to
-  an element the component also uses directly are new, and are reported at the block. A clip of `durationMs: 0` takes no time and overlaps nothing. Clips that only touch (one
-  ends where the next starts) do not overlap. A clip on an element the project does not define
-  is only `ref.unknown`.
+  an element the component also uses directly are new, and are reported at the block, once per
+  element (a component of twenty clips included twice is one problem, not twenty). A clip of
+  `durationMs: 0` takes no time and overlaps nothing. Clips that only touch (one ends where the
+  next starts) do not overlap. A clip on an element the project does not define is only
+  `ref.unknown`.
 - **Between sequences**, the engine arbitrates (decision 0006, phase 4): by `priority` (a higher
   one layers over a lower one while it runs; within one priority the latest command wins) and
   by `exclusiveGroup` (starting one sequence of a group stops the others). What can be said
   without the engine is a warning: two sequences that **automations start**, on the **same
   priority**, **not in one exclusive group**, that touch the **same element**, may run at the
   same time: `sequence.may_overlap` (`sequence`, `other`, `element`), once per pair, at the
-  second sequence by path. Sequences nothing starts are not compared; a component's own
-  parameters, bound to nothing, count as no element, and so does an element the project does
-  not define. The `priority` and `exclusiveGroup` of an included sequence play no part when it
+  second sequence by path. Sequences nothing starts are not compared; a parameter bound to
+  nothing (a component's own, or one of a component included without that argument) counts as
+  no element, and so does an element the project does not define. The `priority` and `exclusiveGroup` of an included sequence play no part when it
   runs inside another: the including sequence's apply to everything it flattens. They matter
   when the included sequence is started on its own.
 

@@ -162,28 +162,33 @@ def _compose(sequence_id: UUID, sequences: Sequences, flattened: Flattened) -> l
 def _clip_overlaps(clips: list[_Clip], names: Mapping[UUID, str]) -> Iterator[Issue]:
     """Each clip that starts while an earlier clip of its element is still running.
 
-    An element the project does not define is the references check's. Two clips that arrive
-    through the same block on the same inner element are not compared: their overlap is the
-    included sequence's own.
+    An element the project does not define is the references check's. Clips that arrive
+    through one block on one inner element form a group: their overlaps are the included
+    sequence's own, so a clip is only compared with the sequence's own clips and with the other
+    groups. Clips reported at one place (a block) are reported once per element, at the first
+    overlap: a component of twenty clips included twice is one problem, not twenty.
     """
     by_element: dict[UUID, list[_Clip]] = {}
     for clip in clips:
         if clip.element in names:
             by_element.setdefault(clip.element, []).append(clip)
     for element, own in by_element.items():
-        earlier: list[_Clip] = []
+        own_end = 0  # how far the sequence's own clips reach
+        group_end: dict[tuple[UUID, UUID | None], int] = {}  # how far each block's clips reach
+        reported: set[Location] = set()
         for clip in sorted(own, key=lambda clip: clip.start):
-            if any(_overlap(previous, clip) for previous in earlier):
+            group = (clip.via, clip.inner) if clip.via is not None else None
+            overlapping = own_end > clip.start or any(
+                end > clip.start for other, end in group_end.items() if other != group
+            )
+            if overlapping and clip.at not in reported:
+                reported.add(clip.at)
                 params = {"element": names[element], "atMs": clip.start}
                 yield Issue(CoreErrorCode.TRACK_CLIPS_OVERLAP, params, clip.at)
-            earlier.append(clip)
-
-
-def _overlap(earlier: _Clip, later: _Clip) -> bool:
-    already_inside = (
-        earlier.via is not None and earlier.via == later.via and earlier.inner == later.inner
-    )
-    return not already_inside and earlier.end > later.start
+            if group is None:
+                own_end = max(own_end, clip.end)
+            else:
+                group_end[group] = max(group_end.get(group, 0), clip.end)
 
 
 def _started_by_automations(files: tuple[LocatedContent, ...]) -> list[UUID]:
@@ -197,8 +202,11 @@ def _started_by_automations(files: tuple[LocatedContent, ...]) -> list[UUID]:
 
 
 def _concrete(sequence_id: UUID, sequences: Sequences, flattened: Flattened) -> frozenset[UUID]:
-    """The elements a sequence touches; its own parameters, bound to nothing, are not elements."""
-    parameters = {parameter.id for parameter in sequences[sequence_id][0].parameters}
+    """The elements a sequence touches. A parameter bound to nothing (its own, or one of a
+    component included without that argument) is not an element."""
+    parameters = {
+        parameter.id for sequence, _ in sequences.values() for parameter in sequence.parameters
+    }
     return frozenset(
         clip.element for clip in flattened[sequence_id] if clip.element not in parameters
     )
