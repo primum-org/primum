@@ -47,6 +47,10 @@
       "message": "El canal PWM {channel} lo comparten los GPIO {pins}: solo uno puede usarlo.",
       "hint": "Usa un GPIO por canal PWM (en una Raspberry Pi: 12 o 18, y 13 o 19)."
     },
+    "hal.pwm_not_routed": {
+      "message": "El GPIO {pin} no está conectado al canal PWM {channel} en este sistema.",
+      "hint": "Activa el overlay que lleva el canal a este GPIO (en una Raspberry Pi, en config.txt) y reinicia, o usa el GPIO al que está llevado."
+    },
     "hal.pwm_chip_not_found": {
       "message": "No se ha encontrado el controlador PWM {device} en este sistema.",
       "hint": "Activa el PWM por hardware en la placa (en una Raspberry Pi, el overlay pwm en config.txt) y reinicia."
@@ -62,6 +66,10 @@
     "hal.pin_unavailable": {
       "message": "Otra cosa de esta placa está usando el pin {pin}.",
       "hint": "Libéralo (detén el programa o desactiva la interfaz que lo usa) o elige otro pin."
+    },
+    "hal.request_failed": {
+      "message": "La petición de los GPIO {pins} ha fallado.",
+      "hint": "Seguramente otro programa acaba de coger uno de ellos: libéralo y vuelve a intentarlo."
     },
     "hal.profile_mismatch": {
       "message": "El perfil de placa pone el pin {pin} en la línea {line}, pero el controlador GPIO {chip} tiene {lines} líneas.",

@@ -50,7 +50,13 @@ class GpiodHal(Hal):
     number can change with the kernel. It is opened when the HAL is created and closed with it,
     so a wrong chip is reported as such and not as the first pin requested. Each GPIO is
     requested on the line the profile gives it, after checking that line is free; whatever
-    ``request_lines`` raises after that means a line is unavailable.
+    ``request_lines`` raises after that is ``hal.request_failed``, naming every GPIO, since the
+    kernel does not say which line it refused.
+
+    A GPIO routed to the PWM controller is held by the kernel (``pinctrl`` on a Raspberry Pi, as
+    the overlay says), so a PWM output on a line the kernel reports as free is refused as
+    ``hal.pwm_not_routed``: the channel exists, but its signal would come out of another GPIO.
+    The hardware manager (phase 6) will know which overlay is on instead of inferring it.
 
     The kernel only knows the lines requested through the character device: programs that
     write ``/dev/gpiomem`` directly (RPi.GPIO, pigpio) own lines it reports as free.
@@ -81,6 +87,8 @@ class GpiodHal(Hal):
         for spec in claim.inputs:
             config[self._line(spec.pin)] = _input_settings(spec)
         channels = {spec.pin: self._board.pwm_channel(spec.pin) for spec in claim.pwms}
+        for pin, channel in channels.items():
+            self._check_routed(pin, channel)
         if config:
             gpio_pins = [spec.pin for spec in (*claim.outputs, *claim.inputs)]
             self._request = self._request_lines(config, gpio_pins)
@@ -121,9 +129,11 @@ class GpiodHal(Hal):
         return failures
 
     def _read_events(self) -> list[InputEvent]:
-        if self._request is None or not self._request.wait_edge_events(0):
+        if self._request is None:
             return []
-        events = self._request.read_edge_events()
+        events: list[gpiod.EdgeEvent] = []
+        while self._request.wait_edge_events(0):  # one read returns at most the buffer's worth
+            events.extend(self._request.read_edge_events())
         return [
             InputEvent(
                 self._pins_by_line[event.line_offset],
@@ -155,13 +165,13 @@ class GpiodHal(Hal):
         except (OSError, ValueError) as error:
             # Another process may take a line after the check; gpiod raises ValueError(EINVAL)
             # for some lines the kernel owns, so the exception type says nothing more. The
-            # request is all or nothing, so every pin is named.
+            # request is all or nothing and the kernel does not say which line it refused.
             raise PrimumError(
-                ErrorCode.HAL_PIN_UNAVAILABLE,
-                {"pin": pins[0], "pins": tuple(pins), "chip": self._path, "detail": _detail(error)},
+                ErrorCode.HAL_REQUEST_FAILED,
+                {"pins": tuple(pins), "chip": self._path, "detail": _detail(error)},
             ) from error
 
-    def _check_line(self, pin: int, line: int) -> None:
+    def _line_info(self, pin: int, line: int) -> gpiod.LineInfo:
         if line >= self._num_lines:
             # The pin exists on the board, but the profile puts it on a line this chip lacks:
             # the profile is wrong for this board, not the user's pin.
@@ -169,7 +179,14 @@ class GpiodHal(Hal):
                 ErrorCode.HAL_PROFILE_MISMATCH,
                 {"pin": pin, "line": line, "chip": self._path, "lines": self._num_lines},
             )
-        info = self._chip.get_line_info(line)
+        return self._chip.get_line_info(line)
+
+    def _check_routed(self, pin: int, channel: int) -> None:
+        if not self._line_info(pin, self._board.line(pin)).used:
+            raise PrimumError(ErrorCode.HAL_PWM_NOT_ROUTED, {"pin": pin, "channel": channel})
+
+    def _check_line(self, pin: int, line: int) -> None:
+        info = self._line_info(pin, line)
         if not info.used:
             return
         params: dict[str, ErrorParam] = {"pin": pin, "chip": self._path}

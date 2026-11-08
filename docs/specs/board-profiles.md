@@ -95,7 +95,8 @@ Rules of the allocation:
 - GPIO chip `pinctrl-bcm2711`; each GPIO on the line of the same number. PWM controller
   `fe20c000.pwm`, channel 0 on GPIO 12 or 18 and channel 1 on GPIO 13 or 19; which GPIO a
   channel is routed to is the overlay's (`pwm-2chan`: 18 and 19), the hardware manager's from
-  phase 6.
+  phase 6; the runtime refuses a PWM output on a GPIO the kernel does not hold
+  (`hal.pwm_not_routed`), since the signal would come out of the routed one.
 - Pull at power on: up on GPIO 0–8, down on GPIO 9–27 (BCM2711 datasheet).
 - Buses: I2C1 (SDA 2, SCL 3), SPI0 (MOSI 10, MISO 9, SCLK 11, CE0 8, CE1 7), UART0 (TX 14,
   RX 15). The other buses of the BCM2711 come with the hardware manager (phase 6).

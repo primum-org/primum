@@ -72,6 +72,7 @@ class FakeRequest:
     waits: list[timedelta | int] = field(default_factory=list[timedelta | int])
     released: bool = False
     release_error: Exception | None = None
+    event_buffer_size: int = 64  # gpiod's default: one read returns at most this many
 
     def set_value(self, line: int, value: Value) -> None:
         self.writes.append((line, value))
@@ -85,7 +86,8 @@ class FakeRequest:
         return bool(self.events)
 
     def read_edge_events(self) -> list[FakeEdgeEvent]:
-        events, self.events = self.events, []
+        size = self.event_buffer_size
+        events, self.events = self.events[:size], self.events[size:]
         return events
 
     def release(self) -> None:
@@ -205,7 +207,18 @@ def test_edge_events_become_input_events_by_pin(chip: FakeChip) -> None:
 
         assert hal.wait_events(0.5)
         assert hal.read_events() == [InputEvent(5, True, 1_000), InputEvent(5, False, 2_000)]
-        assert chip.requests[0].waits[-2] == timedelta(seconds=0.5)
+        assert timedelta(seconds=0.5) in chip.requests[0].waits
+
+
+def test_read_events_drains_a_burst_larger_than_the_event_buffer(chip: FakeChip) -> None:
+    with _claimed(Claim(inputs=(InputSpec(pin=5),))) as hal:
+        chip.requests[0].event_buffer_size = 2
+        chip.requests[0].events = [
+            FakeEdgeEvent(40, EdgeEvent.Type.RISING_EDGE, t) for t in (1_000, 2_000, 3_000)
+        ]
+
+        assert [event.timestamp_ns for event in hal.read_events()] == [1_000, 2_000, 3_000]
+        assert hal.read_events() == []
 
 
 def test_without_lines_there_is_no_request_and_nothing_to_wait_for(chip: FakeChip) -> None:
@@ -268,9 +281,9 @@ def test_a_failed_request_names_every_pin_it_covered(chip: FakeChip) -> None:
     with GpiodHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
         hal.claim(Claim(outputs=(OutputSpec(pin=2), LED)))
 
-    assert raised.value.code == "hal.pin_unavailable"
-    assert raised.value.params["pin"] == 2
+    assert raised.value.code == "hal.request_failed"
     assert raised.value.params["pins"] == (2, 17)
+    assert raised.value.params["chip"] == CHIP
     assert isinstance(raised.value.__cause__, ValueError)
 
 
@@ -278,6 +291,7 @@ def test_a_failed_request_names_only_the_gpios_it_covered_not_the_pwm_outputs(
     chip: FakeChip,
 ) -> None:
     chip.request_error = OSError(errno.EBUSY, "Device or resource busy")
+    chip.owners[18] = None  # routed to the PWM controller: held by the kernel
 
     with GpiodHal(PWM_BOARD) as hal, pytest.raises(PrimumError) as raised:
         hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
@@ -285,9 +299,22 @@ def test_a_failed_request_names_only_the_gpios_it_covered_not_the_pwm_outputs(
     assert raised.value.params["pins"] == (17,)
 
 
+def test_a_pwm_output_on_a_gpio_the_kernel_does_not_hold_is_not_routed(chip: FakeChip) -> None:
+    # Without the overlay routing channel 0 to GPIO 18, its line is free and the signal would
+    # come out of another GPIO.
+    with GpiodHal(PWM_BOARD) as hal, pytest.raises(PrimumError) as raised:
+        hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
+
+    assert raised.value.code == "hal.pwm_not_routed"
+    assert raised.value.params == {"pin": 18, "channel": 0}
+    assert chip.requests == []
+
+
 def test_a_claim_that_fails_after_the_request_releases_it_and_the_hal_can_claim_again(
     chip: FakeChip,
 ) -> None:
+    chip.owners[18] = None
+
     with GpiodHal(PWM_BOARD) as hal:
         with pytest.raises(PrimumError) as raised:
             hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
@@ -305,6 +332,7 @@ def test_a_release_that_fails_after_a_failed_claim_is_logged_not_raised(
     chip: FakeChip, caplog: pytest.LogCaptureFixture
 ) -> None:
     chip.release_error = OSError(errno.EIO, "Input/output error")
+    chip.owners[18] = None
 
     with (
         GpiodHal(PWM_BOARD) as hal,
@@ -317,13 +345,13 @@ def test_a_release_that_fails_after_a_failed_claim_is_logged_not_raised(
     assert "GPIO 17 was not released after a failed claim" in caplog.text
 
 
-def test_busy_line_raises_pin_unavailable_with_the_system_text(chip: FakeChip) -> None:
+def test_a_busy_line_fails_the_request_with_the_system_text(chip: FakeChip) -> None:
     chip.request_error = OSError(errno.EBUSY, "Device or resource busy")
 
     with GpiodHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
         hal.claim(Claim(outputs=(LED,)))
 
-    assert raised.value.code == "hal.pin_unavailable"
+    assert raised.value.code == "hal.request_failed"
     assert raised.value.params["detail"] == "Device or resource busy"
     assert isinstance(raised.value.__cause__, OSError)
 

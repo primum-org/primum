@@ -323,8 +323,9 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 **3.1 · The whole HAL** · **done** (decision 0015)
 - `Hal.claim(Claim(outputs, inputs, pwms))` once per board: one request per GPIO chip, pins
   checked against the profile first (`hal.already_claimed`, `hal.pin_in_use`,
-  `hal.pwm_unsupported_pin`, `hal.pwm_channel_in_use`); a failed request names every GPIO it
-  covered.
+  `hal.pwm_unsupported_pin`, `hal.pwm_channel_in_use`); a failed request is
+  `hal.request_failed` naming every GPIO it covered; a PWM output on a GPIO the overlay does not
+  route (its line is free) is `hal.pwm_not_routed`.
 - Digital inputs: `read()`, pull and debounce from the spec (the kernel's), every change an
   `InputEvent` with the monotonic timestamp (`read_events`, `wait_events`).
 - Hardware PWM through sysfs, the controller by device name from the profile (`pwmChip`,
@@ -356,6 +357,10 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   manifest on the HAL, with tests against the simulated HAL.
 - The `Controller` manages elements through drivers; the API and the page show inputs and PWM
   levels, and set levels.
+- Input events without blocking the API's event loop (`control` has no locks): the gpiod
+  request exposes its `fd`, so the loop watches it with `add_reader` and calls `read_events`
+  when it fires; no thread, no polling. A HAL without inputs registers nothing (`wait_events`
+  returns `False` at once there, so a waiting loop would spin).
 
 **3.4 · Safety**
 - Safe state on start, stop and crash: `Type=notify` and a systemd watchdog fed from the

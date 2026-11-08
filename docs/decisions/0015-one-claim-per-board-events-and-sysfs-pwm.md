@@ -46,7 +46,13 @@ the board drives. libgpiod v2 requests have a fixed set of lines, and the deploy
 
 ## Consequences
 - `Controller` passes every output at once; phase 4's package maps straight onto a `Claim`.
-- A request failure names every pin it covered (`pins`), since the request is all or nothing.
+- A request failure is `hal.request_failed` naming every GPIO it covered (`pins`): the request
+  is all or nothing and the kernel does not say which line it refused.
+- A PWM output on a GPIO the kernel does not hold is `hal.pwm_not_routed`: on a Raspberry Pi
+  the overlay that routes a channel to a GPIO makes `pinctrl` hold that line, so a free line
+  means the signal would come out of another GPIO (channel 0 on 18, not 12, with `pwm-2chan`).
+  It is an inference from the Pi's behaviour; the hardware manager (phase 6) will know which
+  overlay is on.
 - Hardware PWM needs the overlay before the service starts: a missing controller is
   `hal.pwm_chip_not_found`, with the hint to enable it. A freshly exported channel belongs to
   root until udev hands it to the `gpio` group (some 10 ms later on Raspberry Pi OS): the HAL

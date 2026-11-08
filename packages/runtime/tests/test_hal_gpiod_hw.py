@@ -18,6 +18,7 @@ import os
 import pytest
 
 from primum_runtime.board import load_board
+from primum_runtime.errors import PrimumError
 from primum_runtime.hal import Claim, InputSpec, OutputSpec, Pull, PwmSpec
 
 pytestmark = pytest.mark.hw
@@ -89,3 +90,20 @@ def test_a_pwm_output_starts_at_zero_and_reads_back_what_is_set() -> None:
 
         pwm.set(0.0)
         assert pwm.read() == 0.0
+
+
+def test_the_other_gpio_of_the_pwm_channel_is_refused_as_not_routed() -> None:
+    # With the pwm-2chan overlay, channel 0 reaches GPIO 18 and GPIO 12 stays free: a PWM output
+    # on 12 would come out of 18. Nothing is driven: the claim must fail before any request.
+    from primum_runtime.hal.gpiod_hal import GpiodHal
+
+    board = load_board("rpi4b")
+    routed = _optional_pin(PWM_VARIABLE)
+    channel = board.pwm_channels[routed]
+    (other,) = [pin for pin, ch in board.pwm_channels.items() if ch == channel and pin != routed]
+
+    with GpiodHal(board) as hal, pytest.raises(PrimumError) as raised:
+        hal.claim(Claim(pwms=(PwmSpec(pin=other),)))
+
+    assert raised.value.code == "hal.pwm_not_routed"
+    assert raised.value.params == {"pin": other, "channel": channel}
