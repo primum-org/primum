@@ -90,13 +90,15 @@ class GpiodHal(Hal):
         for spec in claim.inputs:
             config[self._line(spec.pin)] = _input_settings(spec)
         channels = {spec.pin: self._board.pwm_channel(spec.pin) for spec in claim.pwms}
+        # The controller first: without the overlay there is none, and no line is routed either;
+        # the missing controller is the cause to report.
+        chip = find_pwm_chip(self._board.pwm_device) if claim.pwms else None
         for pin, channel in channels.items():
             self._check_routed(pin, channel)
         if config:
             gpio_pins = [spec.pin for spec in (*claim.outputs, *claim.inputs)]
             self._request = self._request_lines(config, gpio_pins)
-        if claim.pwms:
-            chip = find_pwm_chip(self._board.pwm_device)
+        if chip is not None:
             for spec in claim.pwms:
                 channel = channels[spec.pin]
                 self._channels[spec.pin] = SysfsPwmChannel(

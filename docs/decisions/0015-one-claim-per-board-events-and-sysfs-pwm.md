@@ -59,4 +59,6 @@ the board drives. libgpiod v2 requests have a fixed set of lines, and the deploy
   waits for that, up to a second, before `hal.pwm_unavailable`.
 - A claim that fails halfway (the GPIO request made, a PWM channel refused) releases what it
   got, so nothing is left behind and the HAL can claim again.
+- A channel left exported by a crash is adopted: disabled, duty cycle to 0 and only then the
+  period (the kernel refuses a period shorter than the duty cycle it holds), then enabled.
 - `hw` tests take optional `PRIMUM_HW_INPUT_PIN` and `PRIMUM_HW_PWM_PIN`.

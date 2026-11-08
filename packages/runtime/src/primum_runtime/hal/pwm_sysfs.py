@@ -22,6 +22,7 @@ SYSFS_PWM = Path("/sys/class/pwm")
 NS_PER_S = 1_000_000_000
 EXPORT_SETTLE_ATTEMPTS = 100
 EXPORT_SETTLE_STEP_S = 0.01
+CHANNEL_FILES = ("enable", "duty_cycle", "period")
 
 
 class SysfsPwmChannel:
@@ -47,10 +48,12 @@ class SysfsPwmChannel:
         try:
             if not self._path.exists():
                 _write(chip / "export", channel)
-                _wait_until_writable(self._path / "enable", wait)
+                _wait_until_writable(self._path, wait)
             _write(self._path / "enable", 0)
-            _write(self._path / "period", self._period_ns)
+            # Duty cycle first: the kernel refuses a period shorter than the duty cycle a
+            # channel adopted after a crash still holds.
             _write(self._path / "duty_cycle", 0)
+            _write(self._path / "period", self._period_ns)
             _write(self._path / "enable", 1)
         except OSError as error:
             raise self._unavailable(error) from error
@@ -97,13 +100,14 @@ def find_pwm_chip(device: str, sysfs: Path = SYSFS_PWM) -> Path:
     raise PrimumError(ErrorCode.HAL_PWM_CHIP_NOT_FOUND, {"device": device, "detail": detail})
 
 
-def _wait_until_writable(path: Path, wait: Callable[[float], None]) -> None:
-    """Wait, briefly, for udev to make ``path`` writable; ``PermissionError`` if it never is."""
+def _wait_until_writable(channel: Path, wait: Callable[[float], None]) -> None:
+    """Wait, briefly, for udev to make the channel's files writable (it goes file by file);
+    ``PermissionError`` if they never are."""
     for _ in range(EXPORT_SETTLE_ATTEMPTS):
-        if os.access(path, os.W_OK):
+        if all(os.access(channel / name, os.W_OK) for name in CHANNEL_FILES):
             return
         wait(EXPORT_SETTLE_STEP_S)
-    raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), str(path))
+    raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), str(channel))
 
 
 def _write(path: Path, value: int) -> None:

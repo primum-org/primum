@@ -29,4 +29,5 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   when it is known to be reliable (the Pi 4 has no RTC).
 - Writable paths are configurable and default to `/data` (the root filesystem becomes
   read-only in the Primum OS image).
-- Only the hardware manager may write to `/boot/firmware`.
+- Only the hardware manager may write to `/boot/firmware`. The one exception, until it exists,
+  is `enable_pwm` in `image/provision.sh` for the development Pi: not a precedent.

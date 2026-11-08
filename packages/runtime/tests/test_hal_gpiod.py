@@ -3,7 +3,7 @@
 The real kernel interaction is covered by the `hw` tests on the Pi; these tests cover our side:
 the checks before the request, the one request with every line, the values written, the edge
 events, the release and the error mapping. PWM has its own tests (`test_hal_pwm.py`): here the
-board has no PWM controller and nothing claims one.
+controller is found or not (`pwm_chip`) and its channels refuse to export.
 """
 
 import errno
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from primum_runtime.errors import PrimumError
+from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.hal import (
     BoardGpio,
     Claim,
@@ -32,6 +32,7 @@ from gpiod.line import Bias, Direction, Edge, Value  # noqa: E402
 
 from primum_runtime.hal import gpiod_hal  # noqa: E402 (needs gpiod)
 from primum_runtime.hal.gpiod_hal import GpiodHal  # noqa: E402
+from primum_runtime.hal.pwm_sysfs import SysfsPwmChannel  # noqa: E402
 
 CHIP = "/dev/gpiochip7"
 LABEL = "pinctrl-test"
@@ -160,6 +161,23 @@ def chip(monkeypatch: pytest.MonkeyPatch, other_chip: FakeChip) -> FakeChip:
     fake = FakeChip(CHIP)
     _install(monkeypatch, other_chip, fake)
     return fake
+
+
+@pytest.fixture
+def pwm_chip(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """PWM_BOARD's controller is found, and every channel refuses to export: enough for a claim
+    to get past the controller and fail at the channel, after the GPIO request."""
+
+    def found(device: str) -> Path:
+        return tmp_path
+
+    def refuse(chip: Path, channel: int, pin: int, frequency_hz: int) -> SysfsPwmChannel:
+        params = {"pin": pin, "channel": channel, "detail": "refused by the test"}
+        raise PrimumError(ErrorCode.HAL_PWM_UNAVAILABLE, params)
+
+    monkeypatch.setattr(gpiod_hal, "find_pwm_chip", found)
+    monkeypatch.setattr(gpiod_hal, "SysfsPwmChannel", refuse)
+    return tmp_path
 
 
 def _claimed(claim: Claim) -> GpiodHal:
@@ -300,7 +318,7 @@ def test_a_failed_request_names_every_pin_it_covered(chip: FakeChip) -> None:
 
 
 def test_a_failed_request_names_only_the_gpios_it_covered_not_the_pwm_outputs(
-    chip: FakeChip,
+    chip: FakeChip, pwm_chip: Path
 ) -> None:
     chip.request_error = OSError(errno.EBUSY, "Device or resource busy")
     chip.owners[18] = None  # routed to the PWM controller: held by the kernel
@@ -311,9 +329,11 @@ def test_a_failed_request_names_only_the_gpios_it_covered_not_the_pwm_outputs(
     assert raised.value.params["pins"] == (17,)
 
 
-def test_a_pwm_output_on_a_gpio_the_kernel_does_not_hold_is_not_routed(chip: FakeChip) -> None:
-    # Without the overlay routing channel 0 to GPIO 18, its line is free and the signal would
-    # come out of another GPIO.
+def test_a_pwm_output_on_a_gpio_the_kernel_does_not_hold_is_not_routed(
+    chip: FakeChip, pwm_chip: Path
+) -> None:
+    # The controller is there but nothing routes channel 0 to GPIO 18: its line is free and the
+    # signal would come out of another GPIO.
     with GpiodHal(PWM_BOARD) as hal, pytest.raises(PrimumError) as raised:
         hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
 
@@ -322,8 +342,19 @@ def test_a_pwm_output_on_a_gpio_the_kernel_does_not_hold_is_not_routed(chip: Fak
     assert chip.requests == []
 
 
-def test_a_pwm_output_on_a_gpio_another_program_holds_is_unavailable_not_routed(
+def test_without_the_overlay_the_missing_controller_is_reported_not_the_routing(
     chip: FakeChip,
+) -> None:
+    # No overlay: no controller and no routed line. The controller is the cause.
+    with GpiodHal(PWM_BOARD) as hal, pytest.raises(PrimumError) as raised:
+        hal.claim(Claim(pwms=(PwmSpec(pin=18),)))
+
+    assert raised.value.code == "hal.pwm_chip_not_found"
+    assert chip.requests == []
+
+
+def test_a_pwm_output_on_a_gpio_another_program_holds_is_unavailable_not_routed(
+    chip: FakeChip, pwm_chip: Path
 ) -> None:
     chip.owners[18] = "other-app"  # used, but as that program's digital line, not by pinctrl
 
@@ -335,14 +366,14 @@ def test_a_pwm_output_on_a_gpio_another_program_holds_is_unavailable_not_routed(
 
 
 def test_a_claim_that_fails_after_the_request_releases_it_and_the_hal_can_claim_again(
-    chip: FakeChip,
+    chip: FakeChip, pwm_chip: Path
 ) -> None:
     chip.owners[18] = None
 
     with GpiodHal(PWM_BOARD) as hal:
         with pytest.raises(PrimumError) as raised:
             hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
-        assert raised.value.code == "hal.pwm_chip_not_found"
+        assert raised.value.code == "hal.pwm_unavailable"
         (request,) = chip.requests
         assert request.released
 
@@ -353,7 +384,7 @@ def test_a_claim_that_fails_after_the_request_releases_it_and_the_hal_can_claim_
 
 
 def test_a_release_that_fails_after_a_failed_claim_is_logged_not_raised(
-    chip: FakeChip, caplog: pytest.LogCaptureFixture
+    chip: FakeChip, pwm_chip: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     chip.release_error = OSError(errno.EIO, "Input/output error")
     chip.owners[18] = None
@@ -365,7 +396,7 @@ def test_a_release_that_fails_after_a_failed_claim_is_logged_not_raised(
     ):
         hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
 
-    assert raised.value.code == "hal.pwm_chip_not_found"
+    assert raised.value.code == "hal.pwm_unavailable"
     assert "GPIO 17 was not released after a failed claim" in caplog.text
 
 

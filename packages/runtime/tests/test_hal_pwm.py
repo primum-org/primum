@@ -1,5 +1,6 @@
 """Hardware PWM through sysfs, against a fake /sys/class/pwm tree in a temporary folder."""
 
+import errno
 import os
 import stat
 from collections.abc import Callable
@@ -144,6 +145,56 @@ def test_a_channel_udev_never_hands_over_is_unavailable(
     assert raised.value.code == "hal.pwm_unavailable"
     assert raised.value.params["detail"] == "Permission denied"
     assert len(waits) == pwm_sysfs.EXPORT_SETTLE_ATTEMPTS
+
+
+@not_as_root
+def test_every_file_of_the_channel_is_waited_for_not_only_enable(
+    sysfs: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    chip = sysfs / "pwmchip2"
+
+    def export_with_enable_handed_over_first(chip: Path) -> None:
+        _export_owned_by_root(chip)  # udev goes file by file: enable is writable, the rest not
+        (chip / "pwm0" / "enable").chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+    _write_and_act_as_the_kernel(monkeypatch, export_with_enable_handed_over_first)
+    waits: list[float] = []
+
+    def wait_as_udev_settles(seconds: float) -> None:
+        waits.append(seconds)
+        _settle(chip, 0)
+
+    channel = SysfsPwmChannel(chip, 0, pin=18, frequency_hz=1000, wait=wait_as_udev_settles)
+
+    assert waits == [pwm_sysfs.EXPORT_SETTLE_STEP_S]
+    assert channel.read() == 0.0
+
+
+def test_a_channel_adopted_with_a_long_duty_cycle_is_zeroed_before_its_period_shrinks(
+    sysfs: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Left by a crash: exported, 1 kHz, 50 %. The kernel refuses a period shorter than the duty
+    # cycle, so the order of the writes matters.
+    chip = sysfs / "pwmchip2"
+    (chip / "export").write_text("0")
+    _export(chip)
+    (chip / "pwm0" / "period").write_text("1000000\n")
+    (chip / "pwm0" / "duty_cycle").write_text("500000\n")
+    (chip / "pwm0" / "enable").write_text("1\n")
+    write = pwm_sysfs._write  # pyright: ignore[reportPrivateUsage] -- wrapped to play the kernel
+
+    def write_as_the_kernel_checks(path: Path, value: int) -> None:
+        if path.name == "period" and value < int((path.parent / "duty_cycle").read_text()):
+            raise OSError(errno.EINVAL, "Invalid argument")
+        write(path, value)
+
+    monkeypatch.setattr(pwm_sysfs, "_write", write_as_the_kernel_checks)
+
+    channel = SysfsPwmChannel(chip, 0, pin=18, frequency_hz=10_000)
+
+    assert (chip / "pwm0" / "period").read_text() == "100000\n"
+    assert (chip / "pwm0" / "duty_cycle").read_text() == "0\n"
+    assert channel.read() == 0.0
 
 
 def test_a_channel_already_exported_is_not_waited_for(sysfs: Path) -> None:
