@@ -5,20 +5,40 @@ because its chip number can change with the kernel. Each channel is a directory 
 and ``duty_cycle`` in nanoseconds and an ``enable`` flag. On a Raspberry Pi the controller only
 exists once the ``pwm`` overlay is enabled in ``config.txt`` (the hardware manager's job from
 phase 6; until then ``image/provision.sh`` enables it on the development Pi).
+
+A freshly exported channel belongs to root until udev hands it to the ``gpio`` group (Raspberry
+Pi OS does so some 10 ms after the export), so the HAL waits for it to become writable.
 """
 
+import errno
+import os
+from collections.abc import Callable
 from pathlib import Path
+from time import sleep
 
 from primum_runtime.errors import ErrorCode, PrimumError
 
 SYSFS_PWM = Path("/sys/class/pwm")
 NS_PER_S = 1_000_000_000
+EXPORT_SETTLE_ATTEMPTS = 100
+EXPORT_SETTLE_STEP_S = 0.01
 
 
 class SysfsPwmChannel:
-    """One exported channel, enabled at 0 %."""
+    """One exported channel, enabled at 0 %.
 
-    def __init__(self, chip: Path, channel: int, pin: int, frequency_hz: int) -> None:
+    ``wait`` pauses for a number of seconds while udev settles after an export; tests inject
+    their own.
+    """
+
+    def __init__(
+        self,
+        chip: Path,
+        channel: int,
+        pin: int,
+        frequency_hz: int,
+        wait: Callable[[float], None] = sleep,
+    ) -> None:
         self._chip = chip
         self._channel = channel
         self._pin = pin
@@ -27,6 +47,7 @@ class SysfsPwmChannel:
         try:
             if not self._path.exists():
                 _write(chip / "export", channel)
+                _wait_until_writable(self._path / "enable", wait)
             _write(self._path / "enable", 0)
             _write(self._path / "period", self._period_ns)
             _write(self._path / "duty_cycle", 0)
@@ -74,6 +95,15 @@ def find_pwm_chip(device: str, sysfs: Path = SYSFS_PWM) -> Path:
         found.append(f"{chip.name} ({name})")
     detail = f"found {', '.join(found)}" if found else "no PWM controller found"
     raise PrimumError(ErrorCode.HAL_PWM_CHIP_NOT_FOUND, {"device": device, "detail": detail})
+
+
+def _wait_until_writable(path: Path, wait: Callable[[float], None]) -> None:
+    """Wait, briefly, for udev to make ``path`` writable; ``PermissionError`` if it never is."""
+    for _ in range(EXPORT_SETTLE_ATTEMPTS):
+        if os.access(path, os.W_OK):
+            return
+        wait(EXPORT_SETTLE_STEP_S)
+    raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), str(path))
 
 
 def _write(path: Path, value: int) -> None:

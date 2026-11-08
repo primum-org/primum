@@ -42,5 +42,9 @@ the board drives. libgpiod v2 requests have a fixed set of lines, and the deploy
 - `Controller` passes every output at once; phase 4's package maps straight onto a `Claim`.
 - A request failure names every pin it covered (`pins`), since the request is all or nothing.
 - Hardware PWM needs the overlay before the service starts: a missing controller is
-  `hal.pwm_chip_not_found`, with the hint to enable it.
+  `hal.pwm_chip_not_found`, with the hint to enable it. A freshly exported channel belongs to
+  root until udev hands it to the `gpio` group (some 10 ms later on Raspberry Pi OS): the HAL
+  waits for that, up to a second, before `hal.pwm_unavailable`.
+- A claim that fails halfway (the GPIO request made, a PWM channel refused) releases what it
+  got, so nothing is left behind and the HAL can claim again.
 - `hw` tests take optional `PRIMUM_HW_INPUT_PIN` and `PRIMUM_HW_PWM_PIN`.

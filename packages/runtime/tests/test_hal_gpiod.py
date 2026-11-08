@@ -7,6 +7,7 @@ board has no PWM controller and nothing claims one.
 """
 
 import errno
+import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
@@ -14,7 +15,16 @@ from pathlib import Path
 import pytest
 
 from primum_runtime.errors import PrimumError
-from primum_runtime.hal import BoardGpio, Claim, InputEvent, InputSpec, OutputSpec, Pull, create_hal
+from primum_runtime.hal import (
+    BoardGpio,
+    Claim,
+    InputEvent,
+    InputSpec,
+    OutputSpec,
+    Pull,
+    PwmSpec,
+    create_hal,
+)
 
 gpiod = pytest.importorskip("gpiod", reason="gpiod is only installed on Linux")
 from gpiod import ChipInfo, EdgeEvent, LineSettings  # noqa: E402 (after the importorskip above)
@@ -32,6 +42,14 @@ BOARD = BoardGpio(
     model="test", chip_label=LABEL, lines={2: 2, 5: 40, 6: NUM_LINES, 17: 17, 22: 22, 27: 27}
 )
 LED = OutputSpec(pin=17)
+# A board with hardware PWM on GPIO 18, on a controller this machine does not have.
+PWM_BOARD = BoardGpio(
+    model="test",
+    chip_label=LABEL,
+    lines={17: 17, 18: 18},
+    pwm_device="missing.pwm",
+    pwm_channels={18: 0},
+)
 
 
 @dataclass(frozen=True)
@@ -53,6 +71,7 @@ class FakeRequest:
     events: list[FakeEdgeEvent] = field(default_factory=list[FakeEdgeEvent])
     waits: list[timedelta | int] = field(default_factory=list[timedelta | int])
     released: bool = False
+    release_error: Exception | None = None
 
     def set_value(self, line: int, value: Value) -> None:
         self.writes.append((line, value))
@@ -70,6 +89,8 @@ class FakeRequest:
         return events
 
     def release(self) -> None:
+        if self.release_error is not None:
+            raise self.release_error
         self.released = True
 
 
@@ -93,6 +114,7 @@ class FakeChip:
     label: str = LABEL
     owners: dict[int, str | None] = field(default_factory=dict[int, str | None])
     request_error: Exception | None = None
+    release_error: Exception | None = None
     info_error: Exception | None = None
     requests: list[FakeRequest] = field(default_factory=list[FakeRequest])
     closed: bool = False
@@ -110,7 +132,7 @@ class FakeChip:
     ) -> FakeRequest:
         if self.request_error is not None:
             raise self.request_error
-        request = FakeRequest(consumer, config)
+        request = FakeRequest(consumer, config, release_error=self.release_error)
         self.requests.append(request)
         return request
 
@@ -250,6 +272,38 @@ def test_a_failed_request_names_every_pin_it_covered(chip: FakeChip) -> None:
     assert raised.value.params["pin"] == 2
     assert raised.value.params["pins"] == (2, 17)
     assert isinstance(raised.value.__cause__, ValueError)
+
+
+def test_a_claim_that_fails_after_the_request_releases_it_and_the_hal_can_claim_again(
+    chip: FakeChip,
+) -> None:
+    with GpiodHal(PWM_BOARD) as hal:
+        with pytest.raises(PrimumError) as raised:
+            hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
+        assert raised.value.code == "hal.pwm_chip_not_found"
+        (request,) = chip.requests
+        assert request.released
+
+        hal.claim(Claim(outputs=(LED,)))
+
+        assert hal.outputs[17].read() is False
+        assert len(chip.requests) == 2
+
+
+def test_a_release_that_fails_after_a_failed_claim_is_logged_not_raised(
+    chip: FakeChip, caplog: pytest.LogCaptureFixture
+) -> None:
+    chip.release_error = OSError(errno.EIO, "Input/output error")
+
+    with (
+        GpiodHal(PWM_BOARD) as hal,
+        caplog.at_level(logging.WARNING, logger="primum_runtime.hal.base"),
+        pytest.raises(PrimumError) as raised,
+    ):
+        hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
+
+    assert raised.value.code == "hal.pwm_chip_not_found"
+    assert "GPIO 17 was not released after a failed claim" in caplog.text
 
 
 def test_busy_line_raises_pin_unavailable_with_the_system_text(chip: FakeChip) -> None:

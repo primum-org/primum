@@ -110,6 +110,7 @@ class GpiodHal(Hal):
             except Exception as error:  # the PWM channels are still released
                 failures.update(dict.fromkeys(self._pins_by_line.values(), error))
             self._request = None
+        self._pins_by_line.clear()
         for pin, channel in self._channels.items():
             try:
                 channel.release()

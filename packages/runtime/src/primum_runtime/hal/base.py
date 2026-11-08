@@ -15,6 +15,7 @@ Safety is best-effort across outputs: a failure on one line never stops the othe
 put in the safe state or released. The failures are reported together at the end.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -23,6 +24,8 @@ from types import MappingProxyType, TracebackType
 from typing import Protocol, Self
 
 from primum_runtime.errors import ErrorCode, PrimumError
+
+log = logging.getLogger(__name__)
 
 
 class Pull(StrEnum):
@@ -305,7 +308,8 @@ class Hal(ABC):
         Fails with ``hal.already_claimed`` the second time, ``hal.pin_invalid`` for a GPIO the
         board does not have, ``hal.pin_in_use`` for a pin asked for twice and
         ``hal.pwm_unsupported_pin`` for a PWM output on a pin without hardware PWM. The
-        implementation then reports the lines it cannot get.
+        implementation then reports the lines it cannot get; a claim that fails leaves nothing
+        behind.
         """
         self.ensure_open()
         if self._claimed:
@@ -318,7 +322,11 @@ class Hal(ABC):
             seen.add(pin)
         for spec in claim.pwms:
             self._board.pwm_channel(spec.pin)
-        drivers = self._claim(claim)
+        try:
+            drivers = self._claim(claim)
+        except Exception:
+            self._release_after_failed_claim()
+            raise
         self._claimed = True
         self._outputs = {
             spec.pin: DigitalOutput(spec, drivers.outputs[spec.pin], self) for spec in claim.outputs
@@ -399,6 +407,13 @@ class Hal(ABC):
                 ErrorCode.HAL_RELEASE_INCOMPLETE, {"pins": _pins(release_failures)}, errors
             )
 
+    def _release_after_failed_claim(self) -> None:
+        """Release whatever the implementation got before failing halfway (a GPIO request made
+        before a PWM channel was refused, for instance). A release that fails too is logged, not
+        raised: the claim's error is the one to report."""
+        for pin, error in self._release().items():
+            log.warning("GPIO %d was not released after a failed claim: %s", pin, error)
+
     def _safe_state_failures(self) -> tuple[dict[int, Exception], list[int]]:
         """Put every output in its safe state; the writes that failed, and the pins that
         read back as not safe although their write succeeded."""
@@ -433,8 +448,8 @@ class Hal(ABC):
 
     @abstractmethod
     def _release(self) -> dict[int, Exception]:
-        """Release everything claimed; the failures by pin (every pin a failed release
-        covers)."""
+        """Release everything claimed, or whatever a failed claim got; the failures by pin
+        (every pin a failed release covers). Nothing to release is not a failure."""
 
     @abstractmethod
     def _read_events(self) -> list[InputEvent]: ...

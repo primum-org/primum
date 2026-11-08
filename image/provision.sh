@@ -22,7 +22,7 @@ CONFIG=/etc/primum/runtime.env
 UNIT=/etc/systemd/system/primum.service
 JOURNAL_CONFIG=/etc/systemd/journald.conf.d/primum.conf
 BOOT_CONFIG=${BOOT_CONFIG:-/boot/firmware/config.txt}
-# Hardware PWM on GPIO 18 and 19 (channels 0 and 1). Until the hardware manager of phase 7
+# Hardware PWM on GPIO 18 and 19 (channels 0 and 1). Until the hardware manager of phase 6
 # owns config.txt, the development Pi gets it here; a reboot makes it take effect.
 PWM_OVERLAY="dtoverlay=pwm-2chan"
 STARTUP_TIMEOUT_S=15

@@ -1,5 +1,8 @@
 """Hardware PWM through sysfs, against a fake /sys/class/pwm tree in a temporary folder."""
 
+import os
+import stat
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -31,6 +34,37 @@ def _export(chip: Path) -> None:
     directory.mkdir()
     for name in ("period", "duty_cycle", "enable"):
         (directory / name).write_text("0\n")
+
+
+def _export_owned_by_root(chip: Path) -> None:
+    """An export as udev has not settled yet: the channel's files are not writable."""
+    _export(chip)
+    channel = int((chip / "export").read_text())
+    for name in ("period", "duty_cycle", "enable"):
+        (chip / f"pwm{channel}" / name).chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+
+
+def _settle(chip: Path, channel: int) -> None:
+    """What udev does a little after the export: hands the channel's files to the user."""
+    for name in ("period", "duty_cycle", "enable"):
+        (chip / f"pwm{channel}" / name).chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+
+def _write_and_act_as_the_kernel(
+    monkeypatch: pytest.MonkeyPatch, export: Callable[[Path], None]
+) -> None:
+    """Make every write of the HAL reach the fake tree, and ``export`` create ``pwmN``."""
+    write = pwm_sysfs._write  # pyright: ignore[reportPrivateUsage] -- wrapped to play the kernel
+
+    def write_and_act(path: Path, value: int) -> None:
+        write(path, value)
+        if path.name == "export":
+            export(path.parent)
+
+    monkeypatch.setattr(pwm_sysfs, "_write", write_and_act)
+
+
+not_as_root = pytest.mark.skipif(os.geteuid() == 0, reason="root may write anything")
 
 
 @pytest.fixture
@@ -66,20 +100,62 @@ def test_a_channel_is_exported_set_to_its_period_and_enabled_at_zero(
     sysfs: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     chip = sysfs / "pwmchip2"
-    write = pwm_sysfs._write  # pyright: ignore[reportPrivateUsage] -- wrapped to play the kernel
-
-    def write_and_act_as_the_kernel(path: Path, value: int) -> None:
-        write(path, value)
-        if path.name == "export":  # the kernel creates pwmN when N is written to export
-            _export(path.parent)
-
-    monkeypatch.setattr(pwm_sysfs, "_write", write_and_act_as_the_kernel)
+    _write_and_act_as_the_kernel(monkeypatch, _export)
 
     channel = SysfsPwmChannel(chip, 1, pin=19, frequency_hz=25_000)
 
     assert (chip / "pwm1" / "period").read_text() == "40000\n"
     assert (chip / "pwm1" / "duty_cycle").read_text() == "0\n"
     assert (chip / "pwm1" / "enable").read_text() == "1\n"
+    assert channel.read() == 0.0
+
+
+@not_as_root
+def test_a_fresh_export_is_waited_for_until_udev_makes_it_writable(
+    sysfs: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    chip = sysfs / "pwmchip2"
+    _write_and_act_as_the_kernel(monkeypatch, _export_owned_by_root)
+    waits: list[float] = []
+
+    def wait_as_udev_settles(seconds: float) -> None:
+        waits.append(seconds)
+        if len(waits) == 2:
+            _settle(chip, 0)
+
+    channel = SysfsPwmChannel(chip, 0, pin=18, frequency_hz=1000, wait=wait_as_udev_settles)
+
+    assert waits == [pwm_sysfs.EXPORT_SETTLE_STEP_S] * 2
+    assert (chip / "pwm0" / "enable").read_text() == "1\n"
+    assert channel.read() == 0.0
+
+
+@not_as_root
+def test_a_channel_udev_never_hands_over_is_unavailable(
+    sysfs: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    chip = sysfs / "pwmchip2"
+    _write_and_act_as_the_kernel(monkeypatch, _export_owned_by_root)
+    waits: list[float] = []
+
+    with pytest.raises(PrimumError) as raised:
+        SysfsPwmChannel(chip, 0, pin=18, frequency_hz=1000, wait=waits.append)
+
+    assert raised.value.code == "hal.pwm_unavailable"
+    assert raised.value.params["detail"] == "Permission denied"
+    assert len(waits) == pwm_sysfs.EXPORT_SETTLE_ATTEMPTS
+
+
+def test_a_channel_already_exported_is_not_waited_for(sysfs: Path) -> None:
+    chip = sysfs / "pwmchip2"
+    (chip / "export").write_text("0")
+    _export(chip)
+
+    def never(seconds: float) -> None:
+        pytest.fail("nothing to wait for: the channel was already exported")
+
+    channel = SysfsPwmChannel(chip, 0, pin=18, frequency_hz=1000, wait=never)
+
     assert channel.read() == 0.0
 
 
