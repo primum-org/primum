@@ -29,8 +29,11 @@ class _Clip:
 
     ``element`` is a concrete element, or a parameter of the sequence being flattened. ``at`` is
     where to report it: the clip itself, or the block that includes the sequence it comes from;
-    ``via`` is that block, ``None`` for the sequence's own clips. Two clips that come through
-    one block overlap inside the included sequence, which is where that is reported.
+    ``via`` is that block, ``None`` for the sequence's own clips, and ``inner`` the element as
+    the included sequence saw it, before the block bound its parameters. Two clips that come
+    through one block on one inner element overlap inside the included sequence, which is where
+    that is reported; two that only meet because the block bound a parameter to an element the
+    other already used are new here.
     """
 
     element: UUID
@@ -38,6 +41,7 @@ class _Clip:
     end: int
     at: Location
     via: UUID | None = None
+    inner: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -148,6 +152,7 @@ def _compose(sequence_id: UUID, sequences: Sequences, flattened: Flattened) -> l
                 clip.end + block.at_ms,
                 at,
                 block.id,
+                clip.element,
             )
             for clip in included
         ]
@@ -158,7 +163,8 @@ def _clip_overlaps(clips: list[_Clip], names: Mapping[UUID, str]) -> Iterator[Is
     """Each clip that starts while an earlier clip of its element is still running.
 
     An element the project does not define is the references check's. Two clips that arrive
-    through the same block are not compared: their overlap is the included sequence's own.
+    through the same block on the same inner element are not compared: their overlap is the
+    included sequence's own.
     """
     by_element: dict[UUID, list[_Clip]] = {}
     for clip in clips:
@@ -174,8 +180,10 @@ def _clip_overlaps(clips: list[_Clip], names: Mapping[UUID, str]) -> Iterator[Is
 
 
 def _overlap(earlier: _Clip, later: _Clip) -> bool:
-    same_block = earlier.via is not None and earlier.via == later.via
-    return not same_block and earlier.end > later.start
+    already_inside = (
+        earlier.via is not None and earlier.via == later.via and earlier.inner == later.inner
+    )
+    return not already_inside and earlier.end > later.start
 
 
 def _started_by_automations(files: tuple[LocatedContent, ...]) -> list[UUID]:
@@ -207,7 +215,8 @@ def _may_overlap(started: list[_Started], names: Mapping[UUID, str]) -> Iterator
         group = first.sequence.exclusive_group
         if group is not None and group == second.sequence.exclusive_group:
             continue
-        shared = sorted(names.get(e, str(e)) for e in first.elements & second.elements)
+        # An element the project does not define is the references check's.
+        shared = sorted(names[e] for e in first.elements & second.elements if e in names)
         if not shared:
             continue
         params = {

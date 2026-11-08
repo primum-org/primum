@@ -359,3 +359,55 @@ def test_a_clip_on_an_element_the_project_does_not_define_is_only_a_bad_referenc
     )
 
     assert [code for code, *_ in project.found()] == [CoreErrorCode.REF_UNKNOWN]
+
+
+def test_a_parameter_bound_to_an_element_the_component_also_uses_directly_overlaps(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(
+        project,
+        ids,
+        20,
+        "Blink",
+        [
+            {"element": ids(30), "clips": [_clip(ids, 21, 0, 500)]},
+            {"element": ids(LED), "clips": [_clip(ids, 22, 100, 500)]},
+        ],
+        parameters=[{"id": ids(30), "name": "target", "type": "element"}],
+    )
+    _sequence(
+        project,
+        ids,
+        23,
+        "Show",
+        [],
+        blocks=[
+            {
+                "id": ids(24),
+                "sequence": ids(20),
+                "atMs": 0,
+                "arguments": [{"parameter": ids(30), "element": ids(LED)}],
+            }
+        ],
+    )
+
+    assert project.found() == [
+        (
+            CoreErrorCode.TRACK_CLIPS_OVERLAP,
+            {"element": "LED", "atMs": 100},
+            "show.sec",
+            "/blocks/0",
+        )
+    ]
+
+
+def test_started_sequences_sharing_only_an_undefined_element_do_not_warn(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(
+        project, ids, 20, "Welcome", [{"element": ids(99), "clips": [_clip(ids, 21, 0, 500)]}]
+    )
+    _sequence(project, ids, 23, "Close", [{"element": ids(99), "clips": [_clip(ids, 24, 0, 500)]}])
+    _started(project, ids, 20, 23)
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.REF_UNKNOWN] * 2

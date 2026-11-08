@@ -86,8 +86,9 @@ their offsets, each sequence flattened once (`primum_core.overlaps`).
 - **Within a sequence**, two clips of one element whose times overlap are an error,
   `track.clips_overlap` (`element`, `atMs`: where the later one starts). It points at the later
   clip, or at the block if the clip comes through one. Two clips that come through the same
-  block are not compared: their overlap belongs to the included sequence, and is reported there
-  once. A clip of `durationMs: 0` takes no time and overlaps nothing. Clips that only touch (one
+  block on the same element of the included sequence are not compared: their overlap belongs
+  to it, and is reported there once. Two that only meet because the block bound a parameter to
+  an element the component also uses directly are new, and are reported at the block. A clip of `durationMs: 0` takes no time and overlaps nothing. Clips that only touch (one
   ends where the next starts) do not overlap. A clip on an element the project does not define
   is only `ref.unknown`.
 - **Between sequences**, the engine arbitrates (decision 0006, phase 4): by `priority` (a higher
@@ -97,7 +98,10 @@ their offsets, each sequence flattened once (`primum_core.overlaps`).
   priority**, **not in one exclusive group**, that touch the **same element**, may run at the
   same time: `sequence.may_overlap` (`sequence`, `other`, `element`), once per pair, at the
   second sequence by path. Sequences nothing starts are not compared; a component's own
-  parameters, bound to nothing, count as no element.
+  parameters, bound to nothing, count as no element, and so does an element the project does
+  not define. The `priority` and `exclusiveGroup` of an included sequence play no part when it
+  runs inside another: the including sequence's apply to everything it flattens. They matter
+  when the included sequence is started on its own.
 
 ## From the command line
 
