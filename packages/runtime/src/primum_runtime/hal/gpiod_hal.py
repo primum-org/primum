@@ -25,6 +25,9 @@ from primum_runtime.hal.pwm_sysfs import SysfsPwmChannel, find_pwm_chip
 
 CONSUMER = "primum"
 DEVICES = Path("/dev")
+# Reads of pending edge events per `read_events` call; what is left waits for the next call,
+# so a contact bouncing faster than it is drained cannot keep the loop going.
+MAX_EVENT_READS = 16
 BIAS = {Pull.UP: Bias.PULL_UP, Pull.DOWN: Bias.PULL_DOWN, Pull.NONE: Bias.DISABLED}
 
 
@@ -100,11 +103,14 @@ class GpiodHal(Hal):
                     chip, channel, spec.pin, spec.frequency_hz
                 )
         request = self._request
-        lines = {
-            spec.pin: GpiodLine(request, self._board.line(spec.pin))
-            for spec in (*claim.outputs, *claim.inputs)
-            if request is not None
-        }
+        lines = (
+            {}
+            if request is None
+            else {
+                spec.pin: GpiodLine(request, self._board.line(spec.pin))
+                for spec in (*claim.outputs, *claim.inputs)
+            }
+        )
         return Drivers(
             outputs={spec.pin: lines[spec.pin] for spec in claim.outputs},
             inputs={spec.pin: lines[spec.pin] for spec in claim.inputs},
@@ -132,7 +138,9 @@ class GpiodHal(Hal):
         if self._request is None:
             return []
         events: list[gpiod.EdgeEvent] = []
-        while self._request.wait_edge_events(0):  # one read returns at most the buffer's worth
+        for _ in range(MAX_EVENT_READS):  # one read returns at most the buffer's worth
+            if not self._request.wait_edge_events(0):
+                break
             events.extend(self._request.read_edge_events())
         return [
             InputEvent(
@@ -159,6 +167,8 @@ class GpiodHal(Hal):
         self, config: dict[int, gpiod.LineSettings], pins: list[int]
     ) -> gpiod.LineRequest:
         try:
+            # Rebuilt for the type checker only: gpiod takes a wider key type, and dict keys are
+            # invariant.
             return self._chip.request_lines(
                 {line: settings for line, settings in config.items()}, consumer=CONSUMER
             )
@@ -182,19 +192,26 @@ class GpiodHal(Hal):
         return self._chip.get_line_info(line)
 
     def _check_routed(self, pin: int, channel: int) -> None:
-        if not self._line_info(pin, self._board.line(pin)).used:
+        """The line of a routed PWM GPIO is held by the kernel: used, with no consumer. Free, it
+        is not routed; used by a named program, it is that program's, as for any other line."""
+        info = self._line_info(pin, self._board.line(pin))
+        if not info.used:
             raise PrimumError(ErrorCode.HAL_PWM_NOT_ROUTED, {"pin": pin, "channel": channel})
+        if info.consumer:
+            raise self._unavailable(pin, info)
 
     def _check_line(self, pin: int, line: int) -> None:
         info = self._line_info(pin, line)
-        if not info.used:
-            return
+        if info.used:
+            raise self._unavailable(pin, info)
+
+    def _unavailable(self, pin: int, info: gpiod.LineInfo) -> PrimumError:
         params: dict[str, ErrorParam] = {"pin": pin, "chip": self._path}
         # Lines held by kernel drivers (I2C, SPI…) report no consumer; gpioinfo prints "kernel"
         # for them, but an unlabelled userspace request looks the same, so nothing is guessed.
         if info.consumer:
             params["consumer"] = info.consumer
-        raise PrimumError(ErrorCode.HAL_PIN_UNAVAILABLE, params)
+        return PrimumError(ErrorCode.HAL_PIN_UNAVAILABLE, params)
 
 
 def _input_settings(spec: InputSpec) -> gpiod.LineSettings:

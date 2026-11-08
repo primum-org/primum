@@ -221,6 +221,18 @@ def test_read_events_drains_a_burst_larger_than_the_event_buffer(chip: FakeChip)
         assert hal.read_events() == []
 
 
+def test_read_events_stops_after_a_bounded_number_of_reads(chip: FakeChip) -> None:
+    with _claimed(Claim(inputs=(InputSpec(pin=5),))) as hal:
+        chip.requests[0].event_buffer_size = 1
+        chip.requests[0].events = [
+            FakeEdgeEvent(40, EdgeEvent.Type.RISING_EDGE, t)
+            for t in range(gpiod_hal.MAX_EVENT_READS + 1)
+        ]
+
+        assert len(hal.read_events()) == gpiod_hal.MAX_EVENT_READS
+        assert hal.read_events() == [InputEvent(5, True, gpiod_hal.MAX_EVENT_READS)]
+
+
 def test_without_lines_there_is_no_request_and_nothing_to_wait_for(chip: FakeChip) -> None:
     with _claimed(Claim()) as hal:
         assert chip.requests == []
@@ -308,6 +320,18 @@ def test_a_pwm_output_on_a_gpio_the_kernel_does_not_hold_is_not_routed(chip: Fak
     assert raised.value.code == "hal.pwm_not_routed"
     assert raised.value.params == {"pin": 18, "channel": 0}
     assert chip.requests == []
+
+
+def test_a_pwm_output_on_a_gpio_another_program_holds_is_unavailable_not_routed(
+    chip: FakeChip,
+) -> None:
+    chip.owners[18] = "other-app"  # used, but as that program's digital line, not by pinctrl
+
+    with GpiodHal(PWM_BOARD) as hal, pytest.raises(PrimumError) as raised:
+        hal.claim(Claim(pwms=(PwmSpec(pin=18),)))
+
+    assert raised.value.code == "hal.pin_unavailable"
+    assert raised.value.params == {"pin": 18, "chip": CHIP, "consumer": "other-app"}
 
 
 def test_a_claim_that_fails_after_the_request_releases_it_and_the_hal_can_claim_again(

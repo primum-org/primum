@@ -370,6 +370,9 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   (decision 0006).
 - `docs/specs/safety.md`, `docs/specs/drivers.md`; on the Pi: `kill -9`, restart, exhausted
   restarts, with the LED as witness.
+- A sysfs PWM channel has no owner: the HAL adopts one already exported (what recovers it after
+  a crash) and would take it from another program just the same. `check-gpio-users.sh` looks
+  at the exported `pwmN` of `/sys/class/pwm` too, and the runtime logs a channel it adopted.
 
 **Done when:** after `kill -9` of the service every output is in its safe state.
 
@@ -410,7 +413,10 @@ Starts from the 1.5 spike (decision 0013): rpi-image-gen on `ubuntu-24.04-arm`, 
 overlays, the Wi-Fi country asked at first boot, mDNS, a status report on the boot partition,
 and a networking stack chosen for the access point (the minimal base uses iwd + networkd).
 `provision.sh` installs `uv` with `curl | sh` from a pinned version but no checksum: fine for the
-development Pi, the image must verify what it downloads.
+development Pi, the image must verify what it downloads. The HAL's wait for a freshly exported
+PWM channel to become writable counts on the udev rule of Raspberry Pi OS (`99-com.rules`) that
+hands `/sys/class/pwm` to the `gpio` group; a plain Debian has none and gives
+`hal.pwm_unavailable`, so the image ships that rule or an equivalent, and provisioning checks it.
 
 ## Phase 8 · Local MCP server
 

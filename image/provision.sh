@@ -105,6 +105,8 @@ persist_journal() {
   journalctl --flush
 }
 
+# Appended at the end of config.txt, which only works while its last section is [all], as on
+# Raspberry Pi OS: enough for the development Pi; the hardware manager will place it properly.
 enable_pwm() {
   grep -qxF "$PWM_OVERLAY" "$BOOT_CONFIG" && return 0
   log "enabling hardware PWM in $BOOT_CONFIG (takes effect after a reboot)"

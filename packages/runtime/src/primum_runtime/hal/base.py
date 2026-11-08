@@ -362,7 +362,8 @@ class Hal(ABC):
             raise PrimumError(ErrorCode.HAL_SAFE_STATE_UNVERIFIED, {"pins": _pins(unverified)})
 
     def read_events(self) -> list[InputEvent]:
-        """Every input change since the last call, oldest first; never blocks."""
+        """The input changes since the last call, oldest first; never blocks. An implementation
+        may stop after a bounded amount: what is left comes with the next call."""
         self.ensure_open()
         return self._read_events()
 
