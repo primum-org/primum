@@ -199,6 +199,14 @@
       "message": "The sequence {sequence} includes itself through {chain}.",
       "hint": "Sequences cannot include each other in a loop: remove one of those blocks."
     },
+    "track.clips_overlap": {
+      "message": "Two clips of {element} overlap at {atMs} ms.",
+      "hint": "An element does one thing at a time: move or shorten one of them."
+    },
+    "sequence.may_overlap": {
+      "message": "{sequence} and {other} may run at the same time, and both use {element}.",
+      "hint": "If that is not what you want, put them in the same exclusive group, or give one of them a higher priority."
+    },
     "board.unknown_model": {
       "message": "The board {board} is a {model}, and this version of Primum has no profile for that model.",
       "hint": "Use a model Primum knows (rpi4b), or add its profile to boards/."

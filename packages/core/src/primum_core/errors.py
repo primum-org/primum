@@ -48,6 +48,8 @@ class CoreErrorCode(StrEnum):
     ARGUMENT_EXPECTED_VALUE = "argument.expected_value"  # parameter
     SEQUENCE_INCLUDES_ITSELF = "sequence.includes_itself"  # sequence
     SEQUENCE_CYCLE = "sequence.cycle"  # sequence, chain
+    TRACK_CLIPS_OVERLAP = "track.clips_overlap"  # element, atMs
+    SEQUENCE_MAY_OVERLAP = "sequence.may_overlap"  # (warning) sequence, other, element
     # Resources: what a board profile offers, given out to the elements wired to the board.
     BOARD_UNKNOWN_MODEL = "board.unknown_model"  # model, board
     PIN_NOT_ON_BOARD = "pin.not_on_board"  # pin, board

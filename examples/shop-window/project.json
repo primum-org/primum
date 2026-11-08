@@ -1,0 +1,7 @@
+{
+  "id": "4eee7d1a-4a13-48f8-9093-48dfa1347770",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Shop window",
+  "description": "A shop window: a presence sensor starts a welcome scene on the LED and the sign's relay; a schedule closes the shop in the evening. Variables count the visits and set the brightness from the phone."
+}

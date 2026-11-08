@@ -1,0 +1,38 @@
+{
+  "id": "abbf55ef-0837-4b7b-b4bb-3979727300df",
+  "kind": "sequence",
+  "schemaVersion": 1,
+  "name": "Fade",
+  "description": "A component: fades an element up, then down. Used by Welcome on the LED.",
+  "parameters": [
+    {
+      "id": "f4cafd83-8b33-4871-bab6-dc2602f84758",
+      "name": "target",
+      "type": "element"
+    },
+    {
+      "id": "630288c8-8003-49c1-a223-918ae491192f",
+      "name": "times",
+      "type": "integer"
+    }
+  ],
+  "tracks": [
+    {
+      "element": "f4cafd83-8b33-4871-bab6-dc2602f84758",
+      "clips": [
+        {
+          "id": "8c990fb3-84f7-453b-8309-2ee5ee3a511e",
+          "atMs": 0,
+          "durationMs": 1500,
+          "action": "fade_in"
+        },
+        {
+          "id": "2b1cb57b-fb06-46ea-bab6-25bbb51b4044",
+          "atMs": 1500,
+          "durationMs": 1500,
+          "action": "fade_out"
+        }
+      ]
+    }
+  ]
+}

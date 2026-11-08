@@ -28,6 +28,19 @@
     "description": {
       "$ref": "common.schema.json#/$defs/description"
     },
+    "priority": {
+      "description": "The layer the sequence commands its elements on (decision 0006): a higher priority overrides a lower one while it runs; within one priority the latest command wins.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "default": 0
+    },
+    "exclusiveGroup": {
+      "description": "Sequences in the same exclusive group cancel each other: starting one stops the others, so they never run at once.",
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+      "maxLength": 40
+    },
     "parameters": {
       "type": "array",
       "items": {

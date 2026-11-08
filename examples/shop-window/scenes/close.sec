@@ -1,0 +1,20 @@
+{
+  "id": "eceb409a-7d96-483a-9785-8afdea0f3b3e",
+  "kind": "sequence",
+  "schemaVersion": 1,
+  "name": "Close",
+  "exclusiveGroup": "shop",
+  "tracks": [
+    {
+      "element": "4e6c4a57-3921-4ed7-98e6-26fa70e33ad4",
+      "clips": [
+        {
+          "id": "d720f07d-e920-4fb9-8c0b-3f3d446c0511",
+          "atMs": 0,
+          "durationMs": 1000,
+          "action": "off"
+        }
+      ]
+    }
+  ]
+}

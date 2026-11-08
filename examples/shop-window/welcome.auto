@@ -1,0 +1,20 @@
+{
+  "id": "acc6fbd1-71ed-4b66-baa3-f13b0e8aea8a",
+  "kind": "automation",
+  "schemaVersion": 1,
+  "name": "Welcome a visitor",
+  "when": [
+    "0b5c41b2-bc43-4c10-a871-5b52677845bc"
+  ],
+  "if": "visits < max_visits",
+  "do": [
+    {
+      "action": "start_sequence",
+      "sequence": "aed99736-2724-433e-b487-3f8ecb584ea1"
+    },
+    {
+      "action": "increment_variable",
+      "variable": "visits"
+    }
+  ]
+}

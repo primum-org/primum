@@ -1,0 +1,20 @@
+{
+  "id": "e86555d5-dd21-4b02-b627-f19db57d7abe",
+  "kind": "automation",
+  "schemaVersion": 1,
+  "name": "Close in the evening",
+  "when": [
+    "58be65f2-0138-403d-b543-246654f12032"
+  ],
+  "do": [
+    {
+      "action": "start_sequence",
+      "sequence": "eceb409a-7d96-483a-9785-8afdea0f3b3e"
+    },
+    {
+      "action": "set_variable",
+      "variable": "visits",
+      "value": 0
+    }
+  ]
+}

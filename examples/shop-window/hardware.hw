@@ -1,0 +1,36 @@
+{
+  "id": "41a3d018-a82c-4234-9c4a-d7c660ce3069",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "8dcf0ea7-1b21-4f87-b33c-213ece6b96da",
+      "name": "Raspberry Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "4e6c4a57-3921-4ed7-98e6-26fa70e33ad4",
+      "name": "Sign relay",
+      "board": "8dcf0ea7-1b21-4f87-b33c-213ece6b96da",
+      "type": "digital_output",
+      "pin": 27,
+      "activeLow": true
+    },
+    {
+      "id": "abe91183-5c31-49cb-8a09-78c78f8705f5",
+      "name": "Window LED",
+      "board": "8dcf0ea7-1b21-4f87-b33c-213ece6b96da",
+      "type": "pwm_output",
+      "pin": 18
+    },
+    {
+      "id": "019556e9-6666-48d0-a08a-468b54b30c43",
+      "name": "Presence sensor",
+      "board": "8dcf0ea7-1b21-4f87-b33c-213ece6b96da",
+      "type": "digital_input",
+      "pin": 22
+    }
+  ]
+}
