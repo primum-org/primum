@@ -5,39 +5,72 @@
   "description": "What a board model offers: its header pins, buses, PWM channels and reserved pins, and how its GPIOs map to the lines of its GPIO chip. One file per model in boards/.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "kind", "schemaVersion", "model", "name", "gpioChip", "pins", "buses", "pwmChannels", "reserved"],
+  "required": [
+    "id",
+    "kind",
+    "schemaVersion",
+    "model",
+    "name",
+    "gpioChip",
+    "pwmChip",
+    "pins",
+    "buses",
+    "pwmChannels",
+    "reserved"
+  ],
   "properties": {
-    "id": { "$ref": "common.schema.json#/$defs/id" },
-    "kind": { "const": "board_profile" },
-    "schemaVersion": { "const": 1 },
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "kind": {
+      "const": "board_profile"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
     "model": {
       "description": "Short, stable identifier of the model, used by project files and the runtime (rpi4b). It is the profile's file name.",
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9-]*$",
       "maxLength": 40
     },
-    "name": { "$ref": "common.schema.json#/$defs/name" },
-    "gpioChip": { "$ref": "#/$defs/gpioChip" },
+    "name": {
+      "$ref": "common.schema.json#/$defs/name"
+    },
+    "gpioChip": {
+      "$ref": "#/$defs/gpioChip"
+    },
+    "pwmChip": {
+      "$ref": "#/$defs/pwmChip"
+    },
     "pins": {
       "description": "Every pin of the header, by physical number.",
       "type": "array",
-      "items": { "$ref": "#/$defs/headerPin" },
+      "items": {
+        "$ref": "#/$defs/headerPin"
+      },
       "minItems": 1
     },
     "buses": {
       "description": "Buses on the header and the GPIOs each signal uses when it is enabled.",
       "type": "array",
-      "items": { "$ref": "#/$defs/bus" }
+      "items": {
+        "$ref": "#/$defs/bus"
+      }
     },
     "pwmChannels": {
       "description": "Hardware PWM channels: the GPIOs listed for a channel share it, so only one of them can use it at a time.",
       "type": "array",
-      "items": { "$ref": "#/$defs/pwmChannel" }
+      "items": {
+        "$ref": "#/$defs/pwmChannel"
+      }
     },
     "reserved": {
       "description": "GPIOs Primum never assigns to an element.",
       "type": "array",
-      "items": { "$ref": "#/$defs/reservedGpio" }
+      "items": {
+        "$ref": "#/$defs/reservedGpio"
+      }
     }
   },
   "$defs": {
@@ -45,59 +78,162 @@
       "description": "The GPIO chip that drives the header, found by its label: the device number (/dev/gpiochipN) can change with the kernel.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["label"],
+      "required": [
+        "label"
+      ],
       "properties": {
-        "label": { "type": "string", "minLength": 1, "maxLength": 80 }
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        }
       }
     },
     "headerPin": {
       "description": "A pin of the header. A gpio pin has its GPIO number, its line on the GPIO chip and its pull at power on; other pins have none of them.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["physical", "kind"],
+      "required": [
+        "physical",
+        "kind"
+      ],
       "properties": {
-        "physical": { "type": "integer", "minimum": 1 },
-        "kind": { "enum": ["gpio", "power_3v3", "power_5v", "ground"] },
-        "gpio": { "type": "integer", "minimum": 0 },
-        "line": { "type": "integer", "minimum": 0 },
-        "defaultPull": { "enum": ["up", "down"] }
+        "physical": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": {
+          "enum": [
+            "gpio",
+            "power_3v3",
+            "power_5v",
+            "ground"
+          ]
+        },
+        "gpio": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "defaultPull": {
+          "enum": [
+            "up",
+            "down"
+          ]
+        }
       }
     },
     "bus": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "kind", "signals"],
+      "required": [
+        "id",
+        "kind",
+        "signals"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-z][a-z0-9]*$" },
-        "kind": { "enum": ["i2c", "spi", "uart"] },
-        "signals": { "type": "array", "items": { "$ref": "#/$defs/busSignal" }, "minItems": 1 }
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*$"
+        },
+        "kind": {
+          "enum": [
+            "i2c",
+            "spi",
+            "uart"
+          ]
+        },
+        "signals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/busSignal"
+          },
+          "minItems": 1
+        }
       }
     },
     "busSignal": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "gpio"],
+      "required": [
+        "name",
+        "gpio"
+      ],
       "properties": {
-        "name": { "type": "string", "pattern": "^[a-z][a-z0-9]*$" },
-        "gpio": { "type": "integer", "minimum": 0 }
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*$"
+        },
+        "gpio": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "pwmChannel": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "gpios"],
+      "required": [
+        "id",
+        "channel",
+        "gpios"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-z][a-z0-9]*$" },
-        "gpios": { "type": "array", "items": { "type": "integer", "minimum": 0 }, "minItems": 1, "uniqueItems": true }
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*$"
+        },
+        "channel": {
+          "description": "The channel's index on the PWM controller.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "gpios": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
       }
     },
     "reservedGpio": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["gpio", "reason"],
+      "required": [
+        "gpio",
+        "reason"
+      ],
       "properties": {
-        "gpio": { "type": "integer", "minimum": 0 },
-        "reason": { "enum": ["hat_eeprom"] }
+        "gpio": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "enum": [
+            "hat_eeprom"
+          ]
+        }
+      }
+    },
+    "pwmChip": {
+      "description": "The hardware PWM controller, found by its device name in the kernel (the directory /sys/class/pwm/pwmchipN/device points at): the chip number can change with the kernel.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "device"
+      ],
+      "properties": {
+        "device": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        }
       }
     }
   }

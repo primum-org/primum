@@ -8,7 +8,7 @@ when a phase starts or finishes.
 | 0 | Repository skeleton: structure, docs, rules, tooling, CI | Done |
 | 1 | End-to-end skeleton: toggle an LED from a phone | Done |
 | 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Done |
-| 3 | HAL, basic drivers and safety | Not started |
+| 3 | HAL, basic drivers and safety | In progress |
 | 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Not started |
 | 5 | Local web UI v1 | Not started |
 | 6 | Hardware manager (`config.txt`, tryboot) and I2C, LED strip and audio drivers | Not started |
@@ -313,13 +313,52 @@ MCP server in phase 8).
 
 ## Phase 3 · HAL, basic drivers and safety
 
-1. Extend the HAL started in phase 1: digital inputs, hardware PWM, crash safety; one line
-   request per chip instead of one per output, for the per-board arbiter; verify after write:
-   the safe state re-reads each line with `read()` and reports any that did not turn off
-   (needed before relays).
-2. Driver manifest (capabilities, config, platforms, safe state, limits, conflict policy).
-3. Drivers: digital output, digital input (debounce, pull), hardware PWM.
-4. Safe state on start/stop/crash, panic, test mode with expiring commands, systemd watchdog.
+The runtime drives digital outputs, digital inputs and hardware PWM through drivers with a
+declared safe state and limits, and the outputs end in their safe state even when the service
+dies at once. Blocks 3.2 and 3.3 need no Pi; 3.1 and 3.4 are checked on `primum-dev` (the LED
+on GPIO 17, a button to ground on another GPIO, and an LED on GPIO 18 for PWM once the overlay
+is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `config.txt` (phase
+6), the new UI (phase 5). One pull request per block.
+
+**3.1 · The whole HAL** · **done** (decision 0015)
+- `Hal.claim(Claim(outputs, inputs, pwms))` once per board: one request per GPIO chip, pins
+  checked against the profile first (`hal.already_claimed`, `hal.pin_in_use`,
+  `hal.pwm_unsupported_pin`); a failed request names every pin it covered.
+- Digital inputs: `read()`, pull and debounce from the spec (the kernel's), every change an
+  `InputEvent` with the monotonic timestamp (`read_events`, `wait_events`).
+- Hardware PWM through sysfs, the controller by device name from the profile (`pwmChip`,
+  `pwmChannels[].channel`), levels 0–1, safe state 0 % (`hal.pwm_chip_not_found`,
+  `hal.pwm_unavailable`, `hal.duty_out_of_range`).
+- The safe state is read back: `hal.safe_state_unverified` for a line that reads otherwise.
+- The simulated HAL mirrors it (`simulate_input`, `stick`); `hw` tests take optional
+  `PRIMUM_HW_INPUT_PIN` and `PRIMUM_HW_PWM_PIN`; `provision.sh` enables `pwm-2chan`.
+- From review of 2.6, in passing: `overlaps` names and the note on loops.
+
+**3.2 · Driver manifests and what a clip is**
+- `schemas/driver.schema.json` and `drivers/`: one manifest per driver, the element type it
+  serves, capabilities (`switch`, `level`, `read`), actions with parameters, configuration,
+  platforms, safe state, limits, conflict policy (latest wins / exclusive). Data, like the
+  board profiles: `core` gets them from the caller.
+- `core` validates clip `action`s against the manifest of the element's type (`action.unknown`,
+  `action.param_missing`, `action.param_out_of_range`).
+- Decision: what a clip is (duration, an instant command of 0 ms, what happens when it ends);
+  `overlaps` adjusted so 0 ms clips count. `sequence.may_overlap` becomes an error on elements
+  whose driver is exclusive.
+
+**3.3 · The three drivers**
+- `digital_output`, `digital_input` (debounce, pull), `pwm_output`, each implementing its
+  manifest on the HAL, with tests against the simulated HAL.
+- The `Controller` manages elements through drivers; the API and the page show inputs and PWM
+  levels, and set levels.
+
+**3.4 · Safety**
+- Safe state on start, stop and crash: `Type=notify` and a systemd watchdog fed from the
+  runtime; `OnFailure=primum-safe.service` drives the lines the runtime declared in `/data` to
+  their safe state when the service does not come back (the 1.4 finding, `StartLimitBurst`).
+- Test mode: manual commands that expire on their own, above sequences and below panic
+  (decision 0006).
+- `docs/specs/safety.md`, `docs/specs/drivers.md`; on the Pi: `kill -9`, restart, exhausted
+  restarts, with the LED as witness.
 
 **Done when:** after `kill -9` of the service every output is in its safe state.
 

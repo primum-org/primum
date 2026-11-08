@@ -99,7 +99,9 @@ def _flatten_all(sequences: Sequences) -> dict[UUID, list[_Clip]]:
     Clips that come through a block are reported at that block. Parameters stay as they are:
     the sequence that includes a component binds them (``_compose``). Each sequence is flattened
     once, after the ones it includes, by a walk with its own stack: no recursion, however deep
-    the inclusions. A loop of inclusions is skipped here: the components check reports it.
+    the inclusions. A loop of inclusions is skipped here: the components check reports it, so
+    the project is invalid anyway; until then the sequences in the loop are flattened without
+    the clips that come back through it, and so are the sequences that include them.
     """
     flattened: dict[UUID, list[_Clip]] = {}
     for root in sequences:
@@ -175,11 +177,11 @@ def _clip_overlaps(clips: list[_Clip], names: Mapping[UUID, str]) -> Iterator[Is
     for clip in clips:
         if clip.element in names:
             by_element.setdefault(clip.element, []).append(clip)
-    for element, own in by_element.items():
+    for element, element_clips in by_element.items():
         own_end = 0  # how far the sequence's own clips reach
         group_end: dict[tuple[UUID, UUID | None], int] = {}  # how far each block's clips reach
         reported: set[Location] = set()
-        for clip in sorted(own, key=lambda clip: clip.start):
+        for clip in sorted(element_clips, key=lambda clip: clip.start):
             group = (clip.via, clip.inner) if clip.via is not None else None
             overlapping = own_end > clip.start or any(
                 end > clip.start for other, end in group_end.items() if other != group

@@ -1,22 +1,24 @@
 """GpiodHal without a Pi: `gpiod.Chip` is replaced by a fake that records the calls.
 
-The real kernel interaction is covered by the `hw` test on the Pi; these tests cover our side:
-the checks before a line is requested, the requested configuration, the values written, the
-release and the error mapping.
+The real kernel interaction is covered by the `hw` tests on the Pi; these tests cover our side:
+the checks before the request, the one request with every line, the values written, the edge
+events, the release and the error mapping. PWM has its own tests (`test_hal_pwm.py`): here the
+board has no PWM controller and nothing claims one.
 """
 
 import errno
 from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
 
 from primum_runtime.errors import PrimumError
-from primum_runtime.hal import BoardGpio, OutputSpec, create_hal
+from primum_runtime.hal import BoardGpio, Claim, InputEvent, InputSpec, OutputSpec, Pull, create_hal
 
 gpiod = pytest.importorskip("gpiod", reason="gpiod is only installed on Linux")
-from gpiod import ChipInfo, LineSettings  # noqa: E402 (after the importorskip above)
-from gpiod.line import Direction, Value  # noqa: E402
+from gpiod import ChipInfo, EdgeEvent, LineSettings  # noqa: E402 (after the importorskip above)
+from gpiod.line import Bias, Direction, Edge, Value  # noqa: E402
 
 from primum_runtime.hal import gpiod_hal  # noqa: E402 (needs gpiod)
 from primum_runtime.hal.gpiod_hal import GpiodHal  # noqa: E402
@@ -26,16 +28,30 @@ LABEL = "pinctrl-test"
 NUM_LINES = 58  # as the GPIO chip of a Raspberry Pi 4
 # GPIO 5 sits on line 40 to show the HAL uses the profile's line, not the GPIO number; GPIO 6
 # names a line the chip does not have (a profile that disagrees with the chip).
-BOARD = BoardGpio(model="test", chip_label=LABEL, lines={2: 2, 5: 40, 6: NUM_LINES, 17: 17})
+BOARD = BoardGpio(
+    model="test", chip_label=LABEL, lines={2: 2, 5: 40, 6: NUM_LINES, 17: 17, 22: 22, 27: 27}
+)
+LED = OutputSpec(pin=17)
+
+
+@dataclass(frozen=True)
+class FakeEdgeEvent:
+    """The fields of `gpiod.EdgeEvent` the HAL reads."""
+
+    line_offset: int
+    event_type: EdgeEvent.Type
+    timestamp_ns: int
 
 
 @dataclass
 class FakeRequest:
-    """Stands in for `gpiod.LineRequest`: records what the HAL asks of the line."""
+    """Stands in for `gpiod.LineRequest`: records what the HAL asks of the lines."""
 
     consumer: str | None
     config: dict[int, LineSettings]
     writes: list[tuple[int, Value]] = field(default_factory=list[tuple[int, Value]])
+    events: list[FakeEdgeEvent] = field(default_factory=list[FakeEdgeEvent])
+    waits: list[timedelta | int] = field(default_factory=list[timedelta | int])
     released: bool = False
 
     def set_value(self, line: int, value: Value) -> None:
@@ -44,6 +60,14 @@ class FakeRequest:
     def get_value(self, line: int) -> Value:
         values = [value for written_line, value in self.writes if written_line == line]
         return values[-1] if values else Value.INACTIVE
+
+    def wait_edge_events(self, timeout: timedelta | int) -> bool:
+        self.waits.append(timeout)
+        return bool(self.events)
+
+    def read_edge_events(self) -> list[FakeEdgeEvent]:
+        events, self.events = self.events, []
+        return events
 
     def release(self) -> None:
         self.released = True
@@ -114,21 +138,33 @@ def chip(monkeypatch: pytest.MonkeyPatch, other_chip: FakeChip) -> FakeChip:
     return fake
 
 
-def test_output_requests_one_inactive_output_line(chip: FakeChip) -> None:
-    with GpiodHal(BOARD) as hal:
-        hal.digital_output(OutputSpec(pin=17, active_low=True))
+def _claimed(claim: Claim) -> GpiodHal:
+    hal = GpiodHal(BOARD)
+    hal.claim(claim)
+    return hal
 
+
+def test_every_line_goes_in_one_request(chip: FakeChip) -> None:
+    button = InputSpec(pin=22, pull=Pull.UP, active_low=True, debounce_ms=20)
+    with _claimed(Claim(outputs=(OutputSpec(pin=17, active_low=True),), inputs=(button,))):
         (request,) = chip.requests
-        settings = request.config[17]
         assert request.consumer == "primum"
-        assert settings.direction == Direction.OUTPUT
-        assert settings.output_value == Value.INACTIVE
-        assert settings.active_low
+        assert set(request.config) == {17, 22}
+        output = request.config[17]
+        assert output.direction == Direction.OUTPUT
+        assert output.output_value == Value.INACTIVE
+        assert output.active_low
+        line = request.config[22]
+        assert line.direction == Direction.INPUT
+        assert line.edge_detection == Edge.BOTH
+        assert line.bias == Bias.PULL_UP
+        assert line.active_low
+        assert line.debounce_period == timedelta(milliseconds=20)
 
 
 def test_set_writes_active_and_inactive_values(chip: FakeChip) -> None:
-    with GpiodHal(BOARD) as hal:
-        output = hal.digital_output(OutputSpec(pin=17))
+    with _claimed(Claim(outputs=(LED,))) as hal:
+        output = hal.outputs[17]
 
         output.set(True)
         assert output.read()
@@ -137,11 +173,31 @@ def test_set_writes_active_and_inactive_values(chip: FakeChip) -> None:
         assert chip.requests[0].writes == [(17, Value.ACTIVE), (17, Value.INACTIVE)]
 
 
-def test_close_writes_the_safe_state_releases_the_line_and_closes_the_chip(
+def test_edge_events_become_input_events_by_pin(chip: FakeChip) -> None:
+    with _claimed(Claim(inputs=(InputSpec(pin=5),))) as hal:
+        assert hal.read_events() == []
+        chip.requests[0].events = [
+            FakeEdgeEvent(40, EdgeEvent.Type.RISING_EDGE, 1_000),
+            FakeEdgeEvent(40, EdgeEvent.Type.FALLING_EDGE, 2_000),
+        ]
+
+        assert hal.wait_events(0.5)
+        assert hal.read_events() == [InputEvent(5, True, 1_000), InputEvent(5, False, 2_000)]
+        assert chip.requests[0].waits[-2] == timedelta(seconds=0.5)
+
+
+def test_without_lines_there_is_no_request_and_nothing_to_wait_for(chip: FakeChip) -> None:
+    with _claimed(Claim()) as hal:
+        assert chip.requests == []
+        assert not hal.wait_events(1.0)
+        assert hal.read_events() == []
+
+
+def test_close_writes_the_safe_state_releases_the_request_and_closes_the_chip(
     chip: FakeChip,
 ) -> None:
-    hal = GpiodHal(BOARD)
-    hal.digital_output(OutputSpec(pin=17)).set(True)
+    hal = _claimed(Claim(outputs=(LED,)))
+    hal.outputs[17].set(True)
 
     hal.close()
 
@@ -152,7 +208,7 @@ def test_close_writes_the_safe_state_releases_the_line_and_closes_the_chip(
 
 def test_a_profile_line_the_chip_does_not_have_raises_profile_mismatch(chip: FakeChip) -> None:
     with GpiodHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
-        hal.digital_output(OutputSpec(pin=6))
+        hal.claim(Claim(outputs=(OutputSpec(pin=6),)))
 
     assert raised.value.code == "hal.profile_mismatch"
     assert raised.value.params == {"pin": 6, "line": NUM_LINES, "chip": CHIP, "lines": NUM_LINES}
@@ -166,7 +222,7 @@ def test_line_held_by_a_kernel_driver_raises_pin_unavailable_without_consumer(
     chip.owners[2] = None
 
     with GpiodHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
-        hal.digital_output(OutputSpec(pin=2))
+        hal.claim(Claim(outputs=(OutputSpec(pin=2),)))
 
     assert raised.value.code == "hal.pin_unavailable"
     assert raised.value.params == {"pin": 2, "chip": CHIP}
@@ -177,21 +233,22 @@ def test_line_held_by_a_named_consumer_raises_pin_unavailable_with_it(chip: Fake
     chip.owners[17] = "other-app"
 
     with GpiodHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
-        hal.digital_output(OutputSpec(pin=17))
+        hal.claim(Claim(outputs=(LED,)))
 
     assert raised.value.params == {"pin": 17, "chip": CHIP, "consumer": "other-app"}
     assert chip.requests == []
 
 
-def test_einval_from_the_request_raises_pin_unavailable(chip: FakeChip) -> None:
+def test_a_failed_request_names_every_pin_it_covered(chip: FakeChip) -> None:
     # What gpiod raises on a Pi 4 for GPIO 2 owned by the kernel, if the check missed it.
     chip.request_error = ValueError(errno.EINVAL, "Invalid argument")
 
     with GpiodHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
-        hal.digital_output(OutputSpec(pin=2))
+        hal.claim(Claim(outputs=(OutputSpec(pin=2), LED)))
 
     assert raised.value.code == "hal.pin_unavailable"
     assert raised.value.params["pin"] == 2
+    assert raised.value.params["pins"] == (2, 17)
     assert isinstance(raised.value.__cause__, ValueError)
 
 
@@ -199,26 +256,26 @@ def test_busy_line_raises_pin_unavailable_with_the_system_text(chip: FakeChip) -
     chip.request_error = OSError(errno.EBUSY, "Device or resource busy")
 
     with GpiodHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
-        hal.digital_output(OutputSpec(pin=17))
+        hal.claim(Claim(outputs=(LED,)))
 
     assert raised.value.code == "hal.pin_unavailable"
-    assert raised.value.params == {"pin": 17, "chip": CHIP, "detail": "Device or resource busy"}
+    assert raised.value.params["detail"] == "Device or resource busy"
     assert isinstance(raised.value.__cause__, OSError)
 
 
 def test_the_chip_is_found_by_its_label_and_the_others_are_closed(
     chip: FakeChip, other_chip: FakeChip
 ) -> None:
-    with GpiodHal(BOARD) as hal:
-        hal.digital_output(OutputSpec(pin=17))
+    with _claimed(Claim(outputs=(LED,))):
+        pass
 
     assert other_chip.closed
     assert chip.requests
 
 
 def test_each_gpio_is_requested_on_the_line_the_profile_gives_it(chip: FakeChip) -> None:
-    with GpiodHal(BOARD) as hal:
-        hal.digital_output(OutputSpec(pin=5)).set(True)
+    with _claimed(Claim(outputs=(OutputSpec(pin=5),))) as hal:
+        hal.outputs[5].set(True)
 
     assert list(chip.requests[0].config) == [40]
     assert chip.requests[0].writes[0] == (40, Value.ACTIVE)
@@ -228,10 +285,10 @@ def test_a_gpio_the_board_does_not_have_raises_pin_invalid_before_any_request(
     chip: FakeChip,
 ) -> None:
     with GpiodHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
-        hal.digital_output(OutputSpec(pin=27))
+        hal.claim(Claim(outputs=(OutputSpec(pin=9),)))
 
     assert raised.value.code == "hal.pin_invalid"
-    assert raised.value.params == {"pin": 27, "board": "test"}
+    assert raised.value.params == {"pin": 9, "board": "test"}
     assert chip.requests == []
 
 
@@ -268,8 +325,8 @@ def test_a_chip_that_fails_is_skipped_and_the_search_goes_on(
     chip = FakeChip(CHIP)
     _install(monkeypatch, other_chip, chip)
 
-    with GpiodHal(BOARD) as hal:
-        hal.digital_output(OutputSpec(pin=17))
+    with _claimed(Claim(outputs=(LED,))):
+        pass
 
     assert other_chip.closed
     assert chip.requests
@@ -300,8 +357,8 @@ def test_a_chip_without_permission_is_skipped_if_another_has_the_label(
     monkeypatch.setattr(gpiod_hal, "_chip_paths", lambda: ["/dev/gpiochip0", CHIP])
     monkeypatch.setattr(gpiod, "Chip", open_chip)
 
-    with GpiodHal(BOARD) as hal:
-        hal.digital_output(OutputSpec(pin=17))
+    with _claimed(Claim(outputs=(LED,))):
+        pass
 
     assert chip.requests
 
@@ -325,7 +382,7 @@ def test_no_permission_and_no_label_raises_chip_access_denied(
 def test_create_hal_returns_the_gpio_hal_for_the_board(chip: FakeChip) -> None:
     with create_hal(simulate=False, board=BOARD) as hal:
         assert isinstance(hal, GpiodHal)
-        hal.digital_output(OutputSpec(pin=17))
+        hal.claim(Claim(outputs=(LED,)))
 
     assert chip.requests
 
@@ -338,4 +395,7 @@ def test_links_to_a_chip_are_not_opened_twice(
     (tmp_path / "gpiochip4").symlink_to(tmp_path / "gpiochip0")
     monkeypatch.setattr(gpiod_hal, "DEVICES", tmp_path)
 
-    assert gpiod_hal._chip_paths() == [str(tmp_path / "gpiochip0"), str(tmp_path / "gpiochip1")]  # pyright: ignore[reportPrivateUsage] -- what the HAL opens
+    assert gpiod_hal._chip_paths() == [  # pyright: ignore[reportPrivateUsage] -- what the HAL opens
+        str(tmp_path / "gpiochip0"),
+        str(tmp_path / "gpiochip1"),
+    ]

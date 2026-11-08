@@ -31,9 +31,29 @@
       "message": "Pin {pin} is already used by another output.",
       "hint": "Choose a different pin for one of them."
     },
+    "hal.already_claimed": {
+      "message": "The board's lines were already claimed.",
+      "hint": "Primum claims everything it needs when it starts: this is a bug, please report it."
+    },
     "hal.pin_invalid": {
       "message": "Pin {pin} does not exist on this board.",
       "hint": "Check the pin number against the board's pinout."
+    },
+    "hal.pwm_unsupported_pin": {
+      "message": "GPIO {pin} has no hardware PWM on {board}.",
+      "hint": "Use a GPIO with PWM (on a Raspberry Pi: 12, 13, 18 or 19)."
+    },
+    "hal.pwm_chip_not_found": {
+      "message": "The PWM controller {device} was not found on this system.",
+      "hint": "Enable hardware PWM on the board (on a Raspberry Pi, the pwm overlay in config.txt) and restart."
+    },
+    "hal.pwm_unavailable": {
+      "message": "PWM channel {channel} for GPIO {pin} cannot be used.",
+      "hint": "Check that nothing else uses it and that Primum may access the PWM controller."
+    },
+    "hal.duty_out_of_range": {
+      "message": "The level {duty} is not between 0 and 1.",
+      "hint": "Use 0 for off, 1 for fully on, or a value in between."
     },
     "hal.pin_unavailable": {
       "message": "Pin {pin} is being used by something else on this board.",
@@ -66,6 +86,10 @@
     "hal.safe_state_incomplete": {
       "message": "Pins {pins} could not be put in their safe state.",
       "hint": "Cut the power of what is wired to them, then check the wiring."
+    },
+    "hal.safe_state_unverified": {
+      "message": "Pins {pins} were told to go to their safe state but read back otherwise.",
+      "hint": "Check the wiring of those pins and that nothing else drives them."
     },
     "hal.release_incomplete": {
       "message": "Pins {pins} could not be released.",

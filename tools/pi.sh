@@ -3,7 +3,8 @@
 #
 #   tools/pi.sh provision PIN  copy the source and provision the Pi (first time: the LED's pin)
 #   tools/pi.sh sync           copy the source, install it and restart the service
-#   tools/pi.sh test           run the `hw` tests on the Pi, on the LED's pin
+#   tools/pi.sh test           run the `hw` tests on the Pi, on the LED's pin (and on
+#                              PRIMUM_HW_INPUT_PIN / PRIMUM_HW_PWM_PIN when set)
 #   tools/pi.sh logs           follow the service's log
 #
 # The Pi is the SSH host in PRIMUM_PI_HOST, `primum-dev` by default: an alias of ~/.ssh/config
@@ -56,9 +57,12 @@ test_hw() {
   local pi
   pi=$(host)
   sync_source "$pi"
-  ssh "$pi" bash -s -- "$REMOTE_SOURCE" <<'REMOTE'
+  ssh "$pi" bash -s -- "$REMOTE_SOURCE" "${PRIMUM_HW_INPUT_PIN:-}" "${PRIMUM_HW_PWM_PIN:-}" <<'REMOTE'
 set -euo pipefail
 cd "$1"
+# Optional pins for the input and PWM tests, forwarded from the laptop when set.
+[[ -n $2 ]] && export PRIMUM_HW_INPUT_PIN=$2
+[[ -n $3 ]] && export PRIMUM_HW_PWM_PIN=$3
 sudo ./image/check-gpio-users.sh
 pin=$(sed -n 's/^PRIMUM_PIN=//p' /etc/primum/runtime.env)
 sudo systemctl stop primum.service

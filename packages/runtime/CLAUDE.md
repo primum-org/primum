@@ -5,8 +5,10 @@ The service that runs on Linux boards. It executes deployment packages from `pri
 - Talks to hardware only through the HAL (`primum_runtime.hal`, decision 0010): get one with
   `create_hal(simulate=..., board=...)` and keep it in a `with` block. A HAL drives one board
   (`board.load_board("rpi4b")`, from the profiles of `boards/`): it only hands out the GPIOs
-  the profile lists, simulated or not. Every HAL has a simulated implementation, and tests use
-  it; tests that need a real board are marked `@pytest.mark.hw`.
+  the profile lists, simulated or not. Everything is claimed at once (`hal.claim(Claim(...))`,
+  decision 0015): one request per chip, inputs with edge events, PWM through sysfs. Every HAL
+  has a simulated implementation, and tests use it; tests that need a real board are marked
+  `@pytest.mark.hw`.
 - `gpiod` is imported only by `hal/gpiod_hal.py` (`just arch` enforces it).
 - Layers: `cli` → `api` → `config` → `board` → `control` → `hal` → `errors`; each imports only
   the ones below it, and FastAPI, uvicorn and pydantic stay in `api` and `cli` (`just arch`,
