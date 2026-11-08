@@ -361,11 +361,18 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   request exposes its `fd`, so the loop watches it with `add_reader` and calls `read_events`
   when it fires; no thread, no polling. A HAL without inputs registers nothing (`wait_events`
   returns `False` at once there, so a waiting loop would spin).
+- An `hw` test with a real edge and no finger: reconfiguring the input's bias from pull-up to
+  pull-down (`reconfigure_lines`) flips a line nothing drives, which covers the logical polarity
+  and the timestamps of the events; today's `hw` test only reads the idle state.
+- The PWM driver compares a read level with tolerance: sysfs holds the duty cycle in whole
+  nanoseconds, so `read()` is quantised to the period (`set(1/3)` reads back `0.33333` at 1 kHz).
 
 **3.4 · Safety**
 - Safe state on start, stop and crash: `Type=notify` and a systemd watchdog fed from the
-  runtime; `OnFailure=primum-safe.service` drives the lines the runtime declared in `/data` to
-  their safe state when the service does not come back (the 1.4 finding, `StartLimitBurst`).
+  runtime; `OnFailure=primum-safe.service` drives what the runtime declared in `/data` to its
+  safe state when the service does not come back (the 1.4 finding, `StartLimitBurst`): the GPIO
+  lines, and the PWM channels too (`duty_cycle` 0 and `enable` 0 through sysfs; seen on the
+  Pi: after `kill -9` a channel stays at 50 % and its pin high).
 - Test mode: manual commands that expire on their own, above sequences and below panic
   (decision 0006).
 - `docs/specs/safety.md`, `docs/specs/drivers.md`; on the Pi: `kill -9`, restart, exhausted
@@ -374,7 +381,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   a crash) and would take it from another program just the same. `check-gpio-users.sh` looks
   at the exported `pwmN` of `/sys/class/pwm` too, and the runtime logs a channel it adopted.
 
-**Done when:** after `kill -9` of the service every output is in its safe state.
+**Done when:** after `kill -9` of the service every output, PWM included, is in its safe state.
 
 Found in 1.4: after `SIGKILL` a line keeps its last value until the service starts again, and
 if systemd gives up restarting (`StartLimitBurst`) it stays so. The watchdog and the safe state

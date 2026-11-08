@@ -51,7 +51,9 @@ class SysfsPwmChannel:
                 _wait_until_writable(self._path, wait)
             _write(self._path / "enable", 0)
             # Duty cycle first: the kernel refuses a period shorter than the duty cycle a
-            # channel adopted after a crash still holds.
+            # channel adopted after a crash still holds. Every write here counts on the period
+            # being non-zero already: the kernel refuses any change to a channel with period 0
+            # except the period itself. The Pi's driver exports a channel at 1 ms (1 kHz).
             _write(self._path / "duty_cycle", 0)
             _write(self._path / "period", self._period_ns)
             _write(self._path / "enable", 1)

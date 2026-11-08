@@ -238,7 +238,8 @@ class PwmOutput:
 
     def read(self) -> float:
         """The level the controller is set to, 0 to 1: what the kernel reports for the channel,
-        not a measurement of the pin."""
+        not a measurement of the pin, quantised to the period (the duty cycle is held in whole
+        nanoseconds). Exactly 0.0 after ``set(0.0)``, which is what ``in_safe_state`` needs."""
         self._hal.ensure_open()
         return self._driver.read()
 

@@ -28,13 +28,18 @@ def _chip(sysfs: Path, name: str, device: str, channels: int = 2) -> Path:
     return chip
 
 
+# A freshly exported channel on the Pi's kernel: 1 ms period, 0 duty cycle, disabled. The
+# HAL counts on the period being non-zero (see pwm_sysfs.py).
+FRESH_CHANNEL = {"period": 1_000_000, "duty_cycle": 0, "enable": 0}
+
+
 def _export(chip: Path) -> None:
     """What the kernel does when a channel number is written to ``export``: creates pwmN."""
     channel = int((chip / "export").read_text())
     directory = chip / f"pwm{channel}"
     directory.mkdir()
-    for name in ("period", "duty_cycle", "enable"):
-        (directory / name).write_text("0\n")
+    for name, value in FRESH_CHANNEL.items():
+        (directory / name).write_text(f"{value}\n")
 
 
 def _export_owned_by_root(chip: Path) -> None:
