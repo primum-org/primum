@@ -66,8 +66,11 @@ def check_overlaps(files: Iterable[LocatedContent]) -> tuple[Issue, ...]:
     issues: list[Issue] = []
     for sequence_id in sequences:
         issues += _clip_overlaps(flattened[sequence_id], names)
+    parameters = {
+        parameter.id for sequence, _ in sequences.values() for parameter in sequence.parameters
+    }
     started = [
-        _Started(*sequences[sequence_id], _concrete(sequence_id, sequences, flattened))
+        _Started(*sequences[sequence_id], _concrete(flattened[sequence_id], parameters))
         for sequence_id in _started_by_automations(files)
         if sequence_id in sequences
     ]
@@ -201,15 +204,10 @@ def _started_by_automations(files: tuple[LocatedContent, ...]) -> list[UUID]:
     return list(started)
 
 
-def _concrete(sequence_id: UUID, sequences: Sequences, flattened: Flattened) -> frozenset[UUID]:
-    """The elements a sequence touches. A parameter bound to nothing (its own, or one of a
-    component included without that argument) is not an element."""
-    parameters = {
-        parameter.id for sequence, _ in sequences.values() for parameter in sequence.parameters
-    }
-    return frozenset(
-        clip.element for clip in flattened[sequence_id] if clip.element not in parameters
-    )
+def _concrete(clips: list[_Clip], parameters: set[UUID]) -> frozenset[UUID]:
+    """The elements the clips touch. A parameter bound to nothing (the sequence's own, or one of
+    a component included without that argument) is not an element."""
+    return frozenset(clip.element for clip in clips if clip.element not in parameters)
 
 
 def _may_overlap(started: list[_Started], names: Mapping[UUID, str]) -> Iterator[Issue]:

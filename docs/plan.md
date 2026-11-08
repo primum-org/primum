@@ -300,9 +300,12 @@ MCP server in phase 8).
   sequence (decision 0006); the engine's real arbitration, which `sequence.may_overlap` only
   approximates; an automation starting a component (it would need arguments). Once drivers
   declare exclusive elements (motors, servos; phase 3), `sequence.may_overlap` on one of them
-  becomes an error.
+  becomes an error. What a clip of `durationMs: 0` means: today it overlaps nothing, but with
+  "the latest command wins" (decision 0006) an instant `off` inside a 10 s `on` does change the
+  element; decide with the meaning of a clip.
 - Phase 5: sort issues by file and pointer; lazy reading of a folder before projects carry
-  audio; the `.primum` archive and editing operations.
+  audio; the `.primum` archive and editing operations; sequences the phone UI or the API start
+  are not among the ones `sequence.may_overlap` compares.
 - Small: limits of an `integer` variable against its type; exported names nothing imports;
   caching board profiles in the CLI once there are many; the flattening of sequences copies the
   clips of each level into the one above (quadratic on a long chain with clips at every link),

@@ -99,11 +99,14 @@ their offsets, each sequence flattened once (`primum_core.overlaps`).
   without the engine is a warning: two sequences that **automations start**, on the **same
   priority**, **not in one exclusive group**, that touch the **same element**, may run at the
   same time: `sequence.may_overlap` (`sequence`, `other`, `element`), once per pair, at the
-  second sequence by path. Sequences nothing starts are not compared; a parameter bound to
-  nothing (a component's own, or one of a component included without that argument) counts as
-  no element, and so does an element the project does not define. The `priority` and `exclusiveGroup` of an included sequence play no part when it
-  runs inside another: the including sequence's apply to everything it flattens. They matter
-  when the included sequence is started on its own.
+  second sequence by path. Sequences nothing starts are not compared (those the phone UI or
+  the API will start, phase 5, are not known here); a parameter bound to nothing (a component's
+  own, or one of a component included without that argument) counts as no element, and so does
+  an element the project does not define. An `exclusiveGroup` is one name for the whole
+  project, outside the folder scopes of names (`variables-and-scopes.md`): two sequences in any
+  folders with the same group are in the same group. The `priority` and `exclusiveGroup` of an
+  included sequence play no part when it runs inside another: the including sequence's apply to
+  everything it flattens. They matter when the included sequence is started on its own.
 
 ## From the command line
 
