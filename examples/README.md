@@ -16,6 +16,12 @@ Check one with `uv run primum validate examples/<name>`; a test keeps every exam
     `visits < max_visits`;
   - `schedule/evening.sched` + `schedule/close.auto`: at 20:30 *Close* runs and the count
     resets; `schedule/schedule.vars` imports `visits` from the root, which exports it.
+
+  Four things in it are previews of later phases and do nothing yet: the `if` condition of
+  `welcome.auto` (the expression language, phase 4), the `times` parameter of *Fade* and the
+  `brightness` setting (clip parameters and the phone UI, phases 4 and 5), and the time window
+  of `evening.sched` (conditions on schedules, phase 4). They show the shape; validation
+  accepts them and checks their types.
 - `invalid/<code>/`: one project per pin conflict, each giving exactly that code (see its README).
 
 A project folder holds only project files: a README inside one would be reported as a file of

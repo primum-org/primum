@@ -302,7 +302,9 @@ MCP server in phase 8).
 - Phase 5: sort issues by file and pointer; lazy reading of a folder before projects carry
   audio; the `.primum` archive and editing operations.
 - Small: limits of an `integer` variable against its type; exported names nothing imports;
-  caching board profiles in the CLI once there are many.
+  caching board profiles in the CLI once there are many; the flattening of sequences copies the
+  clips of each level into the one above (quadratic on a long chain with clips at every link),
+  fine today, revisit with the compiler of phase 4.
 
 ## Phase 3 · HAL, basic drivers and safety
 

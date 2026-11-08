@@ -85,8 +85,11 @@ their offsets, each sequence flattened once (`primum_core.overlaps`).
 
 - **Within a sequence**, two clips of one element whose times overlap are an error,
   `track.clips_overlap` (`element`, `atMs`: where the later one starts). It points at the later
-  clip, or at the block if the clip comes through one. A clip of `durationMs: 0` takes no time
-  and overlaps nothing. Clips that only touch (one ends where the next starts) do not overlap.
+  clip, or at the block if the clip comes through one. Two clips that come through the same
+  block are not compared: their overlap belongs to the included sequence, and is reported there
+  once. A clip of `durationMs: 0` takes no time and overlaps nothing. Clips that only touch (one
+  ends where the next starts) do not overlap. A clip on an element the project does not define
+  is only `ref.unknown`.
 - **Between sequences**, the engine arbitrates (decision 0006, phase 4): by `priority` (a higher
   one layers over a lower one while it runs; within one priority the latest command wins) and
   by `exclusiveGroup` (starting one sequence of a group stops the others). What can be said

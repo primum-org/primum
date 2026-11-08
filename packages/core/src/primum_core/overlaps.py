@@ -28,13 +28,16 @@ class _Clip:
     """A clip in the flattened time of a sequence: ``[start, end)`` on ``element``.
 
     ``element`` is a concrete element, or a parameter of the sequence being flattened. ``at`` is
-    where to report it: the clip itself, or the block that includes the sequence it comes from.
+    where to report it: the clip itself, or the block that includes the sequence it comes from;
+    ``via`` is that block, ``None`` for the sequence's own clips. Two clips that come through
+    one block overlap inside the included sequence, which is where that is reported.
     """
 
     element: UUID
     start: int
     end: int
     at: Location
+    via: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -144,6 +147,7 @@ def _compose(sequence_id: UUID, sequences: Sequences, flattened: Flattened) -> l
                 clip.start + block.at_ms,
                 clip.end + block.at_ms,
                 at,
+                block.id,
             )
             for clip in included
         ]
@@ -151,17 +155,27 @@ def _compose(sequence_id: UUID, sequences: Sequences, flattened: Flattened) -> l
 
 
 def _clip_overlaps(clips: list[_Clip], names: Mapping[UUID, str]) -> Iterator[Issue]:
-    """Each clip that starts before the previous clip of its element has ended."""
+    """Each clip that starts while an earlier clip of its element is still running.
+
+    An element the project does not define is the references check's. Two clips that arrive
+    through the same block are not compared: their overlap is the included sequence's own.
+    """
     by_element: dict[UUID, list[_Clip]] = {}
     for clip in clips:
-        by_element.setdefault(clip.element, []).append(clip)
+        if clip.element in names:
+            by_element.setdefault(clip.element, []).append(clip)
     for element, own in by_element.items():
-        end = 0
+        earlier: list[_Clip] = []
         for clip in sorted(own, key=lambda clip: clip.start):
-            if clip.start < end:
-                params = {"element": names.get(element, str(element)), "atMs": clip.start}
+            if any(_overlap(previous, clip) for previous in earlier):
+                params = {"element": names[element], "atMs": clip.start}
                 yield Issue(CoreErrorCode.TRACK_CLIPS_OVERLAP, params, clip.at)
-            end = max(end, clip.end)
+            earlier.append(clip)
+
+
+def _overlap(earlier: _Clip, later: _Clip) -> bool:
+    same_block = earlier.via is not None and earlier.via == later.via
+    return not same_block and earlier.end > later.start
 
 
 def _started_by_automations(files: tuple[LocatedContent, ...]) -> list[UUID]:

@@ -228,3 +228,134 @@ def test_a_sequence_nothing_starts_is_not_compared(project: Project, ids: Ids) -
     _started(project, ids, 20)
 
     assert project.found() == []
+
+
+def test_an_overlap_inside_an_included_sequence_is_reported_there_only(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(
+        project,
+        ids,
+        20,
+        "Blink",
+        [{"element": ids(LED), "clips": [_clip(ids, 21, 0, 500), _clip(ids, 22, 400, 500)]}],
+    )
+    _sequence(
+        project, ids, 23, "Show", [], blocks=[{"id": ids(25), "sequence": ids(20), "atMs": 0}]
+    )
+    _sequence(
+        project, ids, 26, "Show2", [], blocks=[{"id": ids(27), "sequence": ids(23), "atMs": 0}]
+    )
+
+    assert project.found() == [
+        (
+            CoreErrorCode.TRACK_CLIPS_OVERLAP,
+            {"element": "LED", "atMs": 400},
+            "blink.sec",
+            "/tracks/0/clips/1",
+        )
+    ]
+
+
+def test_the_same_component_included_twice_with_crossing_offsets_overlaps(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(project, ids, 20, "Blink", [{"element": ids(LED), "clips": [_clip(ids, 21, 0, 500)]}])
+    _sequence(
+        project,
+        ids,
+        23,
+        "Show",
+        [],
+        blocks=[
+            {"id": ids(24), "sequence": ids(20), "atMs": 0},
+            {"id": ids(25), "sequence": ids(20), "atMs": 300},
+        ],
+    )
+
+    assert project.found() == [
+        (
+            CoreErrorCode.TRACK_CLIPS_OVERLAP,
+            {"element": "LED", "atMs": 300},
+            "show.sec",
+            "/blocks/1",
+        )
+    ]
+
+
+def test_a_parameter_passed_through_two_levels_of_components_reaches_the_element(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(
+        project,
+        ids,
+        20,
+        "Pulse",
+        [{"element": ids(30), "clips": [_clip(ids, 21, 0, 500)]}],
+        parameters=[{"id": ids(30), "name": "target", "type": "element"}],
+    )
+    _sequence(
+        project,
+        ids,
+        23,
+        "Blink",
+        [],
+        parameters=[{"id": ids(31), "name": "light", "type": "element"}],
+        blocks=[
+            {
+                "id": ids(24),
+                "sequence": ids(20),
+                "atMs": 0,
+                "arguments": [{"parameter": ids(30), "element": ids(31)}],
+            }
+        ],
+    )
+    _sequence(
+        project,
+        ids,
+        26,
+        "Show",
+        [{"element": ids(LED), "clips": [_clip(ids, 27, 100, 100)]}],
+        blocks=[
+            {
+                "id": ids(28),
+                "sequence": ids(23),
+                "atMs": 0,
+                "arguments": [{"parameter": ids(31), "element": ids(LED)}],
+            }
+        ],
+    )
+
+    assert project.found() == [
+        (
+            CoreErrorCode.TRACK_CLIPS_OVERLAP,
+            {"element": "LED", "atMs": 100},
+            "show.sec",
+            "/tracks/0/clips/0",
+        )
+    ]
+
+
+def test_a_sequence_started_by_two_automations_is_not_compared_with_itself(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(
+        project, ids, 20, "Welcome", [{"element": ids(LED), "clips": [_clip(ids, 21, 0, 500)]}]
+    )
+    _started(project, ids, 20, 20)
+
+    assert project.found() == []
+
+
+def test_a_clip_on_an_element_the_project_does_not_define_is_only_a_bad_reference(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(
+        project,
+        ids,
+        20,
+        "Blink",
+        [{"element": ids(99), "clips": [_clip(ids, 21, 0, 500), _clip(ids, 22, 100, 500)]}],
+    )
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.REF_UNKNOWN]
