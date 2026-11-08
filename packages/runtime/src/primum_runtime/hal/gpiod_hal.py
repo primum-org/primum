@@ -82,7 +82,8 @@ class GpiodHal(Hal):
             config[self._line(spec.pin)] = _input_settings(spec)
         channels = {spec.pin: self._board.pwm_channel(spec.pin) for spec in claim.pwms}
         if config:
-            self._request = self._request_lines(config, claim.pins())
+            gpio_pins = [spec.pin for spec in (*claim.outputs, *claim.inputs)]
+            self._request = self._request_lines(config, gpio_pins)
         if claim.pwms:
             chip = find_pwm_chip(self._board.pwm_device)
             for spec in claim.pwms:

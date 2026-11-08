@@ -323,15 +323,21 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 **3.1 · The whole HAL** · **done** (decision 0015)
 - `Hal.claim(Claim(outputs, inputs, pwms))` once per board: one request per GPIO chip, pins
   checked against the profile first (`hal.already_claimed`, `hal.pin_in_use`,
-  `hal.pwm_unsupported_pin`); a failed request names every pin it covered.
+  `hal.pwm_unsupported_pin`, `hal.pwm_channel_in_use`); a failed request names every GPIO it
+  covered.
 - Digital inputs: `read()`, pull and debounce from the spec (the kernel's), every change an
   `InputEvent` with the monotonic timestamp (`read_events`, `wait_events`).
 - Hardware PWM through sysfs, the controller by device name from the profile (`pwmChip`,
   `pwmChannels[].channel`), levels 0–1, safe state 0 % (`hal.pwm_chip_not_found`,
   `hal.pwm_unavailable`, `hal.duty_out_of_range`).
-- The safe state is read back: `hal.safe_state_unverified` for a line that reads otherwise.
+- The safe state is read back: `hal.safe_state_unverified` for a line that reads otherwise
+  (the line itself for GPIO; the controller's setting for PWM).
 - The simulated HAL mirrors it (`simulate_input`, `stick`); `hw` tests take optional
-  `PRIMUM_HW_INPUT_PIN` and `PRIMUM_HW_PWM_PIN`; `provision.sh` enables `pwm-2chan`.
+  `PRIMUM_HW_INPUT_PIN` and `PRIMUM_HW_PWM_PIN`; `provision.sh` enables `pwm-2chan` (full
+  provisioning, not `--app-only`). Checked on `primum-dev`: LED, button and PWM LED.
+- Left for 3.3, with the driver limits: `PwmSpec.frequency_hz` is not checked (0 divides by
+  zero, a huge value gives a period of 0 ns and a misleading `hal.pwm_unavailable`); a channel
+  exported by `SysfsPwmChannel` that then fails to configure stays exported until the next claim.
 - From review of 2.6, in passing: `overlaps` names and the note on loops.
 
 **3.2 · Driver manifests and what a clip is**

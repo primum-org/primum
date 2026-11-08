@@ -3,7 +3,8 @@
 A ``Hal`` drives one board. The runtime claims everything it needs at once (``claim``): digital
 outputs, digital inputs and hardware PWM outputs, so the real HAL makes one request per GPIO
 chip (decision 0015). The safe state is guaranteed: every output starts in it, ``apply_safe_state``
-returns all of them to it and reads them back to be sure, and ``close`` applies it before
+returns all of them to it and reads them back to be sure (the line's level for a digital
+output, the controller's setting for a PWM output), and ``close`` applies it before
 releasing the lines, also when leaving a ``with`` block because of an exception. The safe state
 of a digital output is *off* (inactive) and of a PWM output *0 %*; ``active_low`` only changes
 which electrical level means *on*.
@@ -236,6 +237,8 @@ class PwmOutput:
         return self._duty
 
     def read(self) -> float:
+        """The level the controller is set to, 0 to 1: what the kernel reports for the channel,
+        not a measurement of the pin."""
         self._hal.ensure_open()
         return self._driver.read()
 
@@ -307,9 +310,10 @@ class Hal(ABC):
 
         Fails with ``hal.already_claimed`` the second time, ``hal.pin_invalid`` for a GPIO the
         board does not have, ``hal.pin_in_use`` for a pin asked for twice and
-        ``hal.pwm_unsupported_pin`` for a PWM output on a pin without hardware PWM. The
-        implementation then reports the lines it cannot get; a claim that fails leaves nothing
-        behind.
+        ``hal.pwm_unsupported_pin`` for a PWM output on a pin without hardware PWM and
+        ``hal.pwm_channel_in_use`` for two PWM outputs on one channel (GPIO 12 and 18 on a
+        Raspberry Pi: the controller has one channel for both). The implementation then reports
+        the lines it cannot get; a claim that fails leaves nothing behind.
         """
         self.ensure_open()
         if self._claimed:
@@ -320,8 +324,13 @@ class Hal(ABC):
             if pin in seen:
                 raise PrimumError(ErrorCode.HAL_PIN_IN_USE, {"pin": pin})
             seen.add(pin)
+        pin_by_channel: dict[int, int] = {}
         for spec in claim.pwms:
-            self._board.pwm_channel(spec.pin)
+            channel = self._board.pwm_channel(spec.pin)
+            other = pin_by_channel.setdefault(channel, spec.pin)
+            if other != spec.pin:
+                params = {"channel": channel, "pins": (other, spec.pin)}
+                raise PrimumError(ErrorCode.HAL_PWM_CHANNEL_IN_USE, params)
         try:
             drivers = self._claim(claim)
         except Exception:

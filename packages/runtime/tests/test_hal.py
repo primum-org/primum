@@ -131,6 +131,17 @@ def test_a_pwm_output_needs_a_pin_with_hardware_pwm() -> None:
     assert raised.value.params == {"pin": 17, "board": "rpi4b"}
 
 
+def test_two_pwm_outputs_on_one_channel_are_refused_before_anything_is_claimed() -> None:
+    hal = SimulatedHal(BOARD)
+
+    with pytest.raises(PrimumError) as raised:
+        hal.claim(Claim(pwms=(PwmSpec(pin=12), PwmSpec(pin=18))))  # both channel 0 on a Pi 4
+
+    assert raised.value.code == "hal.pwm_channel_in_use"
+    assert raised.value.params == {"channel": 0, "pins": (12, 18)}
+    assert hal.pwm_lines == {}
+
+
 def test_apply_safe_state_turns_every_output_off_and_every_pwm_to_zero() -> None:
     with _claimed() as hal:
         hal.outputs[17].set(True)

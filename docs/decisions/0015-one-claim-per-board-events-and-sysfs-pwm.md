@@ -27,6 +27,12 @@ the board drives. libgpiod v2 requests have a fixed set of lines, and the deploy
 - **The safe state is verified.** After writing it, the HAL reads every output back; a line
   that reads otherwise is `hal.safe_state_unverified`, apart from `hal.safe_state_incomplete`
   for writes that failed. What the hardware reports is what matters, not what was written.
+  For a digital output the kernel reads the line itself; for a PWM output sysfs reports the
+  setting the controller holds, not the pin, so that check is nominal.
+- Two PWM outputs on one channel (GPIO 12 and 18 share channel 0 on a Pi 4) are refused in
+  `claim` as `hal.pwm_channel_in_use`: the second export would succeed and both would drive the
+  same channel, and the second release would fail. `core` refuses the same at validation
+  (`pwm.channel_in_use`); the HAL defends itself anyway.
 - The simulated HAL mirrors all of it: `simulate_input` queues events with a given timestamp,
   `stick` makes a line read back wrong, `wait_events` never waits (no clock in tests).
 

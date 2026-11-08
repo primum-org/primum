@@ -274,6 +274,17 @@ def test_a_failed_request_names_every_pin_it_covered(chip: FakeChip) -> None:
     assert isinstance(raised.value.__cause__, ValueError)
 
 
+def test_a_failed_request_names_only_the_gpios_it_covered_not_the_pwm_outputs(
+    chip: FakeChip,
+) -> None:
+    chip.request_error = OSError(errno.EBUSY, "Device or resource busy")
+
+    with GpiodHal(PWM_BOARD) as hal, pytest.raises(PrimumError) as raised:
+        hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
+
+    assert raised.value.params["pins"] == (17,)
+
+
 def test_a_claim_that_fails_after_the_request_releases_it_and_the_hal_can_claim_again(
     chip: FakeChip,
 ) -> None:

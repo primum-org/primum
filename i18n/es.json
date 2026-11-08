@@ -28,8 +28,8 @@
   },
   "errors": {
     "hal.pin_in_use": {
-      "message": "El pin {pin} ya lo usa otra salida.",
-      "hint": "Elige un pin distinto para una de las dos."
+      "message": "El pin {pin} lo piden varios elementos.",
+      "hint": "Da a cada elemento su propio pin."
     },
     "hal.already_claimed": {
       "message": "Las líneas de la placa ya se habían reclamado.",
@@ -42,6 +42,10 @@
     "hal.pwm_unsupported_pin": {
       "message": "El GPIO {pin} no tiene PWM por hardware en {board}.",
       "hint": "Usa un GPIO con PWM (en una Raspberry Pi: 12, 13, 18 o 19)."
+    },
+    "hal.pwm_channel_in_use": {
+      "message": "El canal PWM {channel} lo comparten los GPIO {pins}: solo uno puede usarlo.",
+      "hint": "Usa un GPIO por canal PWM (en una Raspberry Pi: 12 o 18, y 13 o 19)."
     },
     "hal.pwm_chip_not_found": {
       "message": "No se ha encontrado el controlador PWM {device} en este sistema.",

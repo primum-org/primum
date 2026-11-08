@@ -19,6 +19,7 @@ class ErrorCode(StrEnum):
     HAL_ALREADY_CLAIMED = "hal.already_claimed"
     HAL_PIN_INVALID = "hal.pin_invalid"
     HAL_PWM_UNSUPPORTED_PIN = "hal.pwm_unsupported_pin"
+    HAL_PWM_CHANNEL_IN_USE = "hal.pwm_channel_in_use"
     HAL_PWM_CHIP_NOT_FOUND = "hal.pwm_chip_not_found"
     HAL_PWM_UNAVAILABLE = "hal.pwm_unavailable"
     HAL_DUTY_OUT_OF_RANGE = "hal.duty_out_of_range"
