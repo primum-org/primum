@@ -8,6 +8,9 @@ they are in one exclusive group (they cancel each other) or on different priorit
 over the other); on an element whose driver is exclusive (one sequence owns it while it runs)
 it is an error. Which sequences may run at the same time is approximated statically: those that
 automations start.
+
+A sequence ends when its last clip ends, so an instant clip that is the last thing of a sequence
+is never seen: a warning on the sequences automations start, the ones known to run on their own.
 """
 
 from collections.abc import Iterable, Iterator, Mapping
@@ -17,7 +20,7 @@ from uuid import UUID
 
 from primum_core.drivers import Drivers
 from primum_core.errors import CoreErrorCode, Issue, Location, Severity
-from primum_core.generated.model import Automation, Hardware, Sequence
+from primum_core.generated.model import Automation, Driver, Hardware, Sequence
 from primum_core.references import LocatedContent
 from primum_core.timeline import FlatClip, Sequences, flatten_all, sequences_of
 
@@ -45,23 +48,39 @@ def check_overlaps(files: Iterable[LocatedContent], drivers: Drivers) -> tuple[I
     parameters = {
         parameter.id for sequence, _ in sequences.values() for parameter in sequence.parameters
     }
+    started_ids = [
+        sequence_id for sequence_id in _started_by_automations(files) if sequence_id in sequences
+    ]
     started = [
         _Started(*sequences[sequence_id], _concrete(flattened[sequence_id], parameters))
-        for sequence_id in _started_by_automations(files)
-        if sequence_id in sequences
+        for sequence_id in started_ids
     ]
-    issues += _may_overlap(started, names, _exclusive(files, drivers))
+    element_drivers = _drivers_of_elements(files, drivers)
+    issues += _may_overlap(started, names, _exclusive(element_drivers))
+    for sequence_id in started_ids:
+        sequence = sequences[sequence_id][0]
+        issues += _unseen_instants(sequence, flattened[sequence_id], names, element_drivers)
     return tuple(issues)
 
 
-def _exclusive(files: tuple[LocatedContent, ...], drivers: Drivers) -> frozenset[UUID]:
-    """The elements only one sequence can use at a time: those of a driver that says so."""
-    return frozenset(
-        element.id
+def _drivers_of_elements(
+    files: tuple[LocatedContent, ...], drivers: Drivers
+) -> dict[UUID, Driver | None]:
+    """Every element of the project with the driver of its type, if its type has one."""
+    return {
+        element.id: drivers.get(element.type)
         for file in files
         if isinstance(file.content, Hardware)
         for element in file.content.elements
-        if (driver := drivers.get(element.type)) is not None and driver.conflict_policy == EXCLUSIVE
+    }
+
+
+def _exclusive(element_drivers: Mapping[UUID, Driver | None]) -> frozenset[UUID]:
+    """The elements only one sequence can use at a time: those of a driver that says so."""
+    return frozenset(
+        element
+        for element, driver in element_drivers.items()
+        if driver is not None and driver.conflict_policy == EXCLUSIVE
     )
 
 
@@ -160,3 +179,32 @@ def _may_overlap(
         else:
             code = CoreErrorCode.SEQUENCE_MAY_OVERLAP
             yield Issue(code, params, second.location, Severity.WARNING)
+
+
+def _unseen_instants(
+    sequence: Sequence,
+    clips: list[FlatClip],
+    names: Mapping[UUID, str],
+    element_drivers: Mapping[UUID, Driver | None],
+) -> Iterator[Issue]:
+    """Instant clips at the very end of a sequence that runs on its own: it ends there, so what
+    they ask is never seen.
+
+    One that asks for its element's safe state is left alone: that is where the element goes
+    when the sequence ends anyway (an instant ``on``, and an instant ``off`` to end with). A
+    parameter bound to nothing is not an element.
+    """
+    end = max((clip.end for clip in clips), default=0)
+    for clip in clips:
+        if clip.start != end or clip.end != end or clip.element not in element_drivers:
+            continue
+        driver = element_drivers[clip.element]
+        # A track on an element that takes no clips is the actions check's.
+        if driver is None or not driver.actions or clip.clip.action == driver.safe_state:
+            continue
+        params = {
+            "sequence": sequence.name,
+            "element": names[clip.element],
+            "action": clip.clip.action,
+        }
+        yield Issue(CoreErrorCode.CLIP_INSTANT_AT_END, params, clip.at, Severity.WARNING)

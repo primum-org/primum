@@ -37,7 +37,8 @@ The schema checks the shape; `core` (`primum_core.drivers`, run by
 - each action has its own name (`driver.duplicate_action`), and so has each parameter of an
   action and each option (`driver.duplicate_parameter`);
 - limits only on numbers and in pairs, choices only on texts (`schema.unexpected_field`,
-  `schema.missing_field`), the minimum not above the maximum (`driver.limits_invalid`);
+  `schema.missing_field`), whole numbers for an `integer` (`value.expected_integer`), the
+  minimum not above the maximum (`driver.limits_invalid`);
 - a default of the parameter's type (`value.expected_*`), within its limits or among its choices
   (`driver.default_not_allowed`);
 - a driver with actions has a `safeState` and a `conflictPolicy` (`schema.missing_field`), and

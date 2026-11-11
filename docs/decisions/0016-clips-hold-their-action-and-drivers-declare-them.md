@@ -14,8 +14,10 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
   type in `drivers/` (`schemas/driver.schema.json`), with its capabilities, platforms, the
   actions a clip may ask with their parameters, the options an element takes in a `.hw` file
   (its `config`), its safe state and its conflict policy. `core` gets them from the caller and
-  checks every clip and every element against them. A new driver is a new manifest, not a
-  change of the formats.
+  checks every clip and every element against them. A new driver is a new manifest and no
+  change to the format of sequences. It is not yet only a manifest: the element types are
+  still a closed list in the hardware schema, and `core` knows how each one is wired (a pin,
+  a bus and an address); a manifest that also declares its wiring would open that list.
 - **A clip holds its action while it lasts.** From `atMs`, for `durationMs`, its sequence
   commands the element with that action. When the clip ends the sequence stops commanding the
   element: it returns to what a sequence on a lower priority says (decision 0006) or, if none

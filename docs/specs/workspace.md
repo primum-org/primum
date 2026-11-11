@@ -95,7 +95,7 @@ What a clip does (decision 0016):
   that element starts or the sequence ends, both read in the flattened sequence. The element
   takes the state the action ends in: a `fade`, its `to`.
 - **A sequence ends when its last clip ends**, an instant clip ending where it starts. So an
-  instant clip that is the last thing of its sequence shows nothing.
+  instant clip that is the last thing of its sequence shows nothing: a warning (below).
 
 The checks (`primum_core.overlaps`):
 
@@ -111,6 +111,12 @@ The checks (`primum_core.overlaps`):
   millisecond later (that clip takes over). Clips that only touch (one ends where the next
   starts) do not overlap. A clip on an element the project does not define is only
   `ref.unknown`.
+- **An instant clip at the very end of a sequence that automations start** is never seen: the
+  sequence ends there. A warning, `clip.instant_at_end` (`sequence`, `element`, `action`), at
+  the clip, or at the block it comes through. Not reported: one that asks for the safe state
+  of its element's driver (an instant `on`, and an instant `off` to end with: the element goes
+  there anyway), one that another element's later clip keeps alive, and the sequences nothing
+  starts (those the phone UI or the API will start, phase 5, are not known here).
 - **Between sequences**, the engine arbitrates (decision 0006, phase 4): by `priority` (a higher
   one layers over a lower one while it runs; within one priority the latest command wins) and
   by `exclusiveGroup` (starting one sequence of a group stops the others). What can be said

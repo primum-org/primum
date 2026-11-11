@@ -161,7 +161,8 @@ def _parameter_issues(
 def _coherence_issues(
     parameter: DriverParameter, steps: tuple[Step, ...], location: Location
 ) -> Iterator[Issue]:
-    """Limits only on numbers and in pairs, the right way round; choices only on texts; a
+    """Limits only on numbers and in pairs, of the parameter's type (whole numbers for an
+    integer) and the right way round; choices only on texts; a
     default of the parameter's type, within its limits or among its choices."""
     name = {"parameter": parameter.name}
     limits = {"min": parameter.min, "max": parameter.max}
@@ -172,6 +173,9 @@ def _coherence_issues(
             yield Issue(CoreErrorCode.SCHEMA_UNEXPECTED_FIELD, field, _at(location, *steps, key))
         elif limit is None and numeric and any(other is not None for other in limits.values()):
             yield Issue(CoreErrorCode.SCHEMA_MISSING_FIELD, field, _at(location, *steps))
+        elif limit is not None and parameter.type == "integer" and not float(limit).is_integer():
+            code = CoreErrorCode.VALUE_EXPECTED_INTEGER
+            yield Issue(code, field, _at(location, *steps, key))
     if parameter.choices and parameter.type != "text":
         field = {"field": field_name((*steps, "choices"))}
         yield Issue(CoreErrorCode.SCHEMA_UNEXPECTED_FIELD, field, _at(location, *steps, "choices"))

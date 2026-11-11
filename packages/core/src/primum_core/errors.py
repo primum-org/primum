@@ -52,6 +52,8 @@ class CoreErrorCode(StrEnum):
     SEQUENCE_MAY_OVERLAP = "sequence.may_overlap"  # (warning) sequence, other, element
     # On an element only one sequence can use at a time (its driver is exclusive).
     SEQUENCE_EXCLUSIVE_ELEMENT_SHARED = "sequence.exclusive_element_shared"  # the same params
+    # An instant clip that is the last thing of a sequence automations start: never seen.
+    CLIP_INSTANT_AT_END = "clip.instant_at_end"  # (warning) sequence, element, action
     # Clips against the driver of their element (decision 0016): its actions and their
     # parameters; and the configuration of an element against the same driver.
     TRACK_ELEMENT_WITHOUT_ACTIONS = "track.element_without_actions"  # element

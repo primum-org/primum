@@ -251,6 +251,10 @@
       "message": "{sequence} y {other} pueden ejecutarse a la vez, y las dos usan {element}, que solo puede usar una secuencia a la vez.",
       "hint": "Ponlas en el mismo grupo exclusivo o dale más prioridad a una de ellas."
     },
+    "clip.instant_at_end": {
+      "message": "{action} en {element} es lo último que hace {sequence} y dura 0 ms, así que no llegará a verse.",
+      "hint": "Una secuencia termina con su último clip. Dale una duración al clip: el tiempo que {element} debe seguir así."
+    },
     "track.element_without_actions": {
       "message": "{element} no admite acciones, así que no puede tener una pista.",
       "hint": "Una pista es para un elemento que hace algo, como una luz o un relé. Para reaccionar a {element}, usa un evento."

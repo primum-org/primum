@@ -10,6 +10,11 @@ def _clip(ids: Ids, number: int, at_ms: int, duration_ms: int) -> dict[str, obje
     return {"id": ids(number), "atMs": at_ms, "durationMs": duration_ms, "action": "on"}
 
 
+def _instant_off(ids: Ids, number: int, at_ms: int) -> dict[str, object]:
+    """An instant clip that asks for the safe state: a sequence may end with it."""
+    return {**_clip(ids, number, at_ms, 0), "action": "off"}
+
+
 def _sequence(
     project: Project,
     ids: Ids,
@@ -522,8 +527,8 @@ def test_sequences_that_share_an_element_only_through_instant_clips_may_overlap(
     project: Project, ids: Ids
 ) -> None:
     for number, name in ((20, "Open"), (30, "Close")):
-        clip = _clip(ids, number + 1, 0, 0)
-        _sequence(project, ids, number, name, [{"element": ids(LED), "clips": [clip]}])
+        clips = [_clip(ids, number + 1, 0, 0), _instant_off(ids, number + 2, 500)]
+        _sequence(project, ids, number, name, [{"element": ids(LED), "clips": clips}])
     _started(project, ids, 20, 30)
 
     assert [code for code, *_ in project.found()] == [CoreErrorCode.SEQUENCE_MAY_OVERLAP]
@@ -569,3 +574,98 @@ def test_an_exclusive_element_shared_on_different_priorities_is_fine(
     _started(project, ids, 20, 30)
 
     assert project.found() == []
+
+
+def _blink(project: Project, ids: Ids, *clips: dict[str, object]) -> Project:
+    """A sequence on the LED with these clips, started by an automation."""
+    _sequence(project, ids, 20, "Blink", [{"element": ids(LED), "clips": list(clips)}])
+    return _started(project, ids, 20)
+
+
+def test_an_instant_clip_that_ends_a_started_sequence_is_never_seen(
+    project: Project, ids: Ids
+) -> None:
+    _blink(project, ids, _clip(ids, 21, 0, 0))
+
+    assert project.found(severity=Severity.WARNING) == [
+        (
+            CoreErrorCode.CLIP_INSTANT_AT_END,
+            {"sequence": "Blink", "element": "LED", "action": "on"},
+            "blink.sec",
+            "/tracks/0/clips/0",
+        )
+    ]
+    assert project.found(severity=Severity.ERROR) == []
+
+
+def test_an_instant_clip_at_the_end_of_a_sequence_nothing_starts_is_not_reported(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(project, ids, 20, "Blink", [{"element": ids(LED), "clips": [_clip(ids, 21, 0, 0)]}])
+
+    assert project.found() == []
+
+
+def test_a_sequence_may_end_with_an_instant_clip_that_asks_for_the_safe_state(
+    project: Project, ids: Ids
+) -> None:
+    _blink(project, ids, _clip(ids, 21, 0, 0), _instant_off(ids, 22, 5000))
+
+    assert project.found() == []
+
+
+def test_an_instant_clip_is_seen_while_another_element_keeps_the_sequence_going(
+    project: Project, ids: Ids
+) -> None:
+    _with_lamp(project, ids)
+    tracks: list[dict[str, object]] = [
+        {"element": ids(LED), "clips": [_clip(ids, 21, 0, 0)]},
+        {"element": ids(LAMP), "clips": [_clip(ids, 22, 0, 500)]},
+    ]
+    _sequence(project, ids, 20, "Blink", tracks)
+    _started(project, ids, 20)
+
+    assert project.found() == []
+
+
+def test_an_instant_clip_where_the_last_clip_of_another_element_ends_is_never_seen(
+    project: Project, ids: Ids
+) -> None:
+    _with_lamp(project, ids)
+    tracks: list[dict[str, object]] = [
+        {"element": ids(LED), "clips": [_clip(ids, 21, 500, 0)]},
+        {"element": ids(LAMP), "clips": [_clip(ids, 22, 0, 500)]},
+    ]
+    _sequence(project, ids, 20, "Blink", tracks)
+    _started(project, ids, 20)
+
+    assert [(code, pointer) for code, _, _, pointer in project.found()] == [
+        (CoreErrorCode.CLIP_INSTANT_AT_END, "/tracks/0/clips/0")
+    ]
+
+
+def test_an_instant_clip_that_ends_a_started_sequence_through_a_block_is_reported_at_the_block(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(project, ids, 30, "Flash", [{"element": ids(LED), "clips": [_clip(ids, 31, 0, 0)]}])
+    block = {"id": ids(41), "sequence": ids(30), "atMs": 1000}
+    _sequence(project, ids, 20, "Show", [], blocks=[block])
+    _started(project, ids, 20)
+
+    assert project.found() == [
+        (
+            CoreErrorCode.CLIP_INSTANT_AT_END,
+            {"sequence": "Show", "element": "LED", "action": "on"},
+            "show.sec",
+            "/blocks/0",
+        )
+    ]
+
+
+def test_an_instant_clip_on_an_element_that_takes_no_clips_is_only_that_problem(
+    project: Project, ids: Ids
+) -> None:
+    project.drivers.pop("digital_output")
+    _blink(project, ids, _clip(ids, 21, 0, 0))
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.TRACK_ELEMENT_WITHOUT_DRIVER]

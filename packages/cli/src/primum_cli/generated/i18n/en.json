@@ -251,6 +251,10 @@
       "message": "{sequence} and {other} may run at the same time, and both use {element}, which only one sequence can use at a time.",
       "hint": "Put them in the same exclusive group, or give one of them a higher priority."
     },
+    "clip.instant_at_end": {
+      "message": "{action} on {element} is the last thing {sequence} does and lasts 0 ms, so it will not be seen.",
+      "hint": "A sequence ends with its last clip. Give the clip a duration: how long {element} should stay that way."
+    },
     "track.element_without_actions": {
       "message": "{element} takes no actions, so it cannot have a track.",
       "hint": "A track is for an element that does something, like a light or a relay. To react to {element}, use an event."

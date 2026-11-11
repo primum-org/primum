@@ -365,11 +365,24 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - Not here, for the compiler (phase 4): a clip that takes the value of a component's parameter
   or of a variable; the limits the HAL showed (frequency, debounce) are in the
   manifests as provisional values: they belong to the board, and 3.3 moves them to its profile.
-- Worth a look later: an instant clip that is the last thing of a sequence shows nothing (the
-  sequence ends there); a warning for it needs to know which sequences run on their own.
-- For the engine (phase 4): an instant `on` followed later by a clip leaves the element, when
-  that clip ends, at the layer below or its safe state, not back at `on` (decision 0016: the
-  command stays until the next clip); `fade` needs its `from`, so "from where it is" cannot be
+- An instant clip that is the last thing of a sequence shows nothing (the sequence ends
+  there): a warning, `clip.instant_at_end`, on the sequences automations start, unless it asks
+  for the safe state. The sequences the phone UI or the API start join it in phase 5.
+- A candidate check for `core`, with the compiler (phase 4): an instant command followed
+  later by a clip of the same element, with nothing after. `on` at 0 s and `set(30)` from 5 to
+  6 s leaves the element in its safe state from 6 s, not back at `on`. Right by decision 0016
+  and a surprise all the same; but "on, dim, off" is also what people mean, so decide between
+  a warning and showing it in the timeline.
+- A new driver is not yet only a manifest: the element types are a closed `enum` in
+  `hardware.schema.json`, and `variants`, `resources` and `references` know each type by name
+  (its fields, its resources, whether it is an input). Opening the list needs manifests that
+  declare their wiring and whether they are listened to.
+- Nothing reads `platforms` and `capabilities` yet. A board profile has no platform, so "this
+  driver exists on the element's board" cannot be checked: with 3.3, together with moving the
+  limits to the profile.
+- Later, no date: the safe state is per element type. `off` is right for everything there is
+  today; an element whose safe rest is another (a work light, a fan) needs it per element.
+- For the engine (phase 4): `fade` needs its `from`, so "from where it is" cannot be
   said and a fade that enters over another layer jumps: it needs a parameter that may be left
   out without having a default, a small change of the manifest format, not of the sequences.
 - For the UI (phase 5): a problem inside a component is reported at the block that gives it

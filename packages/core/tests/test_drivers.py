@@ -74,6 +74,14 @@ def test_two_actions_may_each_have_a_parameter_of_the_same_name() -> None:
             ),
         ),
         (
+            {"name": "steps", "type": "integer", "min": 0.5, "max": 10, "default": 5},
+            (
+                CoreErrorCode.VALUE_EXPECTED_INTEGER,
+                {"field": "config[0].min"},
+                "/config/0/min",
+            ),
+        ),
+        (
             {"name": "level", "type": "number", "min": 0, "default": 50},
             (CoreErrorCode.SCHEMA_MISSING_FIELD, {"field": "config[0].max"}, "/config/0"),
         ),
