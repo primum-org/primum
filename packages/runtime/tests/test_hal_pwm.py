@@ -249,6 +249,25 @@ def test_writing_zero_puts_an_inverted_polarity_back_so_the_pin_is_low(sysfs: Pa
     assert channel.read() == 0.0
 
 
+def test_writing_zero_still_writes_the_duty_cycle_when_the_polarity_cannot_be_read(
+    sysfs: Path,
+) -> None:
+    # Putting the polarity back is secondary: failing at it must not keep the output on.
+    chip = sysfs / "pwmchip2"
+    (chip / "export").write_text("0")
+    _export(chip)
+    channel = SysfsPwmChannel(chip, 0, pin=18, frequency_hz=1000)
+    channel.write(0.5)
+    (chip / "pwm0" / "polarity").unlink()
+    (chip / "pwm0" / "polarity").mkdir()  # reading a directory fails as the kernel would
+
+    with pytest.raises(PrimumError) as raised:
+        channel.write(0.0)
+
+    assert raised.value.code == "hal.pwm_unavailable"
+    assert (chip / "pwm0" / "duty_cycle").read_text() == "0\n"
+
+
 def test_release_puts_an_inverted_polarity_back(sysfs: Path) -> None:
     chip = sysfs / "pwmchip2"
     channel = _inverted_after_the_claim(chip)

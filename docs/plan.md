@@ -336,6 +336,8 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - The simulated HAL mirrors it (`simulate_input`, `stick`); `hw` tests take optional
   `PRIMUM_HW_INPUT_PIN` and `PRIMUM_HW_PWM_PIN`; `provision.sh` enables `pwm-2chan` (full
   provisioning, not `--app-only`). Checked on `primum-dev`: LED, button and PWM LED.
+- Until 3.4, after `kill -9` a PWM output stays at its last level: wire nothing but an LED to
+  one. It is the safety gap this block leaves open.
 - Left for 3.3, with the driver limits: `PwmSpec.frequency_hz` is not checked (0 divides by
   zero, a huge value gives a period of 0 ns and a misleading `hal.pwm_unavailable`), nor is
   `InputSpec.debounce_ms` (a negative value ends as a misleading `hal.request_failed`); a channel

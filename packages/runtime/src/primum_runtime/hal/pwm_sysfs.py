@@ -70,11 +70,17 @@ class SysfsPwmChannel:
             raise self._unavailable(error) from error
 
     def write(self, duty: float) -> None:
-        """Set the level; 0 % also puts an inversed polarity back, so that it is a pin held low."""
+        """Set the level; 0 % also puts an inversed polarity back, so that it is a pin held low.
+
+        The duty cycle is written whatever happens to the polarity: failing at the secondary
+        step must not keep the output on.
+        """
         try:
-            if duty == 0.0:
-                self._restore_polarity()
-            _write(self._path / "duty_cycle", round(duty * self._period_ns))
+            try:
+                if duty == 0.0:
+                    self._restore_polarity()
+            finally:
+                _write(self._path / "duty_cycle", round(duty * self._period_ns))
         except OSError as error:
             raise self._unavailable(error) from error
 

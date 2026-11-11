@@ -73,7 +73,9 @@ the board drives. libgpiod v2 requests have a fixed set of lines, and the deploy
   `check-gpio-users.sh` in 3.4 are where that is handled).
 - What is known of the kernel comes from the Pi (6.18): a channel not used since boot is
   exported with period 0 and takes the writes before the period; a later export keeps the last
-  period and polarity. Older kernels have not been checked.
+  period and polarity; the line of a routed PWM GPIO is marked as used. Other kernels have not
+  been checked: one that did not mark the routed line would make every PWM claim fail as
+  `hal.pwm_not_routed`, which the `hw` tests would show.
 - `hal.safe_state_incomplete` names in `pins` every output not confirmed safe: those whose
   write failed and those that read back wrong (`unverified_pins`), so the report leaves out
   nothing that may still be on.
