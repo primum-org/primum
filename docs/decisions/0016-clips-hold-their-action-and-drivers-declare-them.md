@@ -57,8 +57,11 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
 ## Consequences
 - `primum validate` reports an action its element cannot do, an argument or an option that is
   missing, unknown or outside its limits, before anything reaches a board.
-- The limits found while building the HAL (the PWM frequency, the debounce time) are data in the
-  manifests; the drivers of block 3.3 enforce them again on the board.
+- A manifest holds what is true of an element type on every platform. Two limits in the first
+  manifests are not that: the PWM frequency and the debounce time are what building the HAL
+  showed on one Raspberry Pi 4. They stay as provisional values until block 3.3 moves them to
+  the board profile, sourced from the manufacturer's documentation, where `core` checks each
+  element against the profile of its board and the drivers enforce them again.
 - A component is checked where a block gives its parameter an element: only there is the
   element's type known.
 - The engine (phase 4) implements exactly this: hold, release to the layer below or the safe

@@ -362,8 +362,8 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   of the element or the end of the sequence, and counts for overlaps. Two started sequences on
   an element of an exclusive driver are an error (`sequence.exclusive_element_shared`).
 - Not here, for the compiler (phase 4): a clip that takes the value of a component's parameter
-  or of a variable; the limits the HAL showed (frequency, debounce) are now data in the
-  manifests and are enforced on the board by the drivers of 3.3.
+  or of a variable; the limits the HAL showed (frequency, debounce) are in the
+  manifests as provisional values: they belong to the board, and 3.3 moves them to its profile.
 - Worth a look later: an instant clip that is the last thing of a sequence shows nothing (the
   sequence ends there); a warning for it needs to know which sequences run on their own.
 
@@ -372,6 +372,19 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   manifest on the HAL, with tests against the simulated HAL.
 - The `Controller` manages elements through drivers; the API and the page show inputs and PWM
   levels, and set levels.
+- What a board can do is data of its profile, taken from the manufacturer's documentation and
+  cited there, never a limit in a driver manifest (a manifest is for every platform): the
+  profile gains the limits of its PWM and of its inputs, the manifests keep the option, its
+  type and its default, and `core` checks each element against the profile of its board.
+  What the sources say for `rpi4b`: the Raspberry Pi kernel clocks the PWM at 50 MHz
+  (`assigned-clock-rates` in `bcm283x.dtsi`; mainline says 10 MHz and the `pwm-2chan` overlay
+  takes a `clock` parameter, so the profile describes the board with the system Primum
+  ships); `pwm-bcm2835` takes a period of 2 clock cycles at least and of 2^32 at most (40 ns
+  to about 85 s at 50 MHz, in steps of 20 ns); the BCM2711 peripherals datasheet gives the
+  32-bit range and data registers and no frequency limit. So the useful maximum is a choice
+  of resolution (steps between 0 and 100 %), derived from the clock. For inputs, the kernel's
+  GPIO documentation sets no limit on the debounce time (32 bits of microseconds) and the Pi
+  debounces in software: its limit is Primum's own, not a board's.
 - PWM is not exposed through the API before `primum-safe` covers PWM channels: today the
   `Controller` claims digital outputs only, so the `kill -9` gap of a PWM output cannot be
   reached from the service. Either the PWM part of 3.4 comes first, or 3.3 and 3.4 are merged

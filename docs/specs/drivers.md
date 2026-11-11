@@ -58,8 +58,12 @@ problem of a project.
 - A `level`, and the `from` and `to` of a fade, are percentages: 0 to 100, decimals allowed.
 - `fade` goes from one level to the other over the length of its clip; as an instant clip it
   jumps to `to`.
-- `frequencyHz` stops at 100 kHz: the Pi's PWM counts in nanoseconds, so a higher frequency
-  leaves too few steps between 0 and 100 %.
+- The limits of `frequencyHz` and `debounceMs` are provisional: they are what building the HAL
+  showed on one Raspberry Pi 4, not something of the element type. A manifest holds what is
+  true on every platform (that the option exists, its type, its default); what a board's PWM
+  and inputs can do is data of its [board profile](board-profiles.md), taken from the
+  manufacturer's documentation. Block 3.3 moves these limits there and checks each element
+  against the profile of its board.
 - `i2c_device` has no driver yet (phase 6): it takes no actions and no options.
 
 ## What `core` checks in a project
