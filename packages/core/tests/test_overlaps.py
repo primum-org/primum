@@ -556,3 +556,16 @@ def test_an_exclusive_element_shared_within_one_exclusive_group_is_fine(
     _two_started_sequences_on_a_motor(project, ids, exclusiveGroup="door")
 
     assert project.found() == []
+
+
+def test_an_exclusive_element_shared_on_different_priorities_is_fine(
+    project: Project, ids: Ids
+) -> None:
+    """One sequence layers over the other (decision 0006): what the error's hint suggests."""
+    project.drivers["digital_output"] = driver("digital_output", conflictPolicy="exclusive")
+    for number, name, priority in ((20, "Open", 0), (30, "Close", 5)):
+        track: dict[str, object] = {"element": ids(LED), "clips": [_clip(ids, number + 1, 0, 500)]}
+        _sequence(project, ids, number, name, [track], priority=priority)
+    _started(project, ids, 20, 30)
+
+    assert project.found() == []

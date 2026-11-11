@@ -90,6 +90,7 @@ every case:
 | Problem | Code | Also |
 |---|---|---|
 | A track on an element that takes no actions (an input) | `track.element_without_actions` | `element` only |
+| A track on an element whose type has no driver yet (`i2c_device`) | `track.element_without_driver` | `element` and `type` only |
 | An action the element's driver does not have | `action.unknown` | `available` |
 | An argument for a parameter the action does not have | `action.param_unknown` | `parameter` |
 | An argument given twice | `action.param_duplicate` | `parameter` |

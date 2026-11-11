@@ -1,0 +1,12 @@
+{
+  "id": "876ff932-eead-4e6b-a1fe-506de0219619",
+  "kind": "sequence",
+  "schemaVersion": 1,
+  "name": "Show",
+  "tracks": [
+    {
+      "element": "355287eb-4bc8-4ad5-9119-a144bd5d4b9d",
+      "clips": []
+    }
+  ]
+}

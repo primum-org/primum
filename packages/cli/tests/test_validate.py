@@ -45,6 +45,7 @@ INVALID_CODES = {
     "action-param-missing": "action.param_missing",
     "action-param-out-of-range": "action.param_out_of_range",
     "track-element-without-actions": "track.element_without_actions",
+    "track-element-without-driver": "track.element_without_driver",
     "config-out-of-range": "config.out_of_range",
     "config-not-allowed": "config.not_allowed",
 }

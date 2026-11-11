@@ -255,6 +255,10 @@
       "message": "{element} takes no actions, so it cannot have a track.",
       "hint": "A track is for an element that does something, like a light or a relay. To react to {element}, use an event."
     },
+    "track.element_without_driver": {
+      "message": "{element} is of a type Primum cannot command yet, so it cannot have a track.",
+      "hint": "Remove the track. Tracks are for elements that do something Primum knows how to ask for, like a light or a relay."
+    },
     "action.unknown": {
       "message": "{element} cannot do {action}.",
       "hint": "It can do: {available}."

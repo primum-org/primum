@@ -55,6 +55,7 @@ class CoreErrorCode(StrEnum):
     # Clips against the driver of their element (decision 0016): its actions and their
     # parameters; and the configuration of an element against the same driver.
     TRACK_ELEMENT_WITHOUT_ACTIONS = "track.element_without_actions"  # element
+    TRACK_ELEMENT_WITHOUT_DRIVER = "track.element_without_driver"  # element, type
     ACTION_UNKNOWN = "action.unknown"  # action, element, available
     ACTION_PARAM_UNKNOWN = "action.param_unknown"  # action, element, parameter
     ACTION_PARAM_DUPLICATE = "action.param_duplicate"  # action, element, parameter

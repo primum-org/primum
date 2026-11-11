@@ -2,7 +2,8 @@
 
 A clip asks its element for one of the actions its driver declares, with a value for each
 parameter that has no default. A track on an element whose driver has no actions (an input) is
-an error: such an element is listened to, with an event, not commanded.
+an error: such an element is listened to, with an event, not commanded. So is a track on an
+element whose type has no driver yet, with its own code: there is nothing to listen to either.
 
 A track of a component plays a parameter, so what its clips ask can only be checked where a
 block gives that parameter an element: there, at the block, once per different problem.
@@ -12,7 +13,7 @@ from collections.abc import Iterable, Iterator, Mapping
 from uuid import UUID
 
 from primum_core.drivers import Drivers, GivenCodes, Where, check_given
-from primum_core.errors import CoreErrorCode, Issue
+from primum_core.errors import CoreErrorCode, Issue, Location
 from primum_core.generated.model import Clip, DriverAction, Element, Hardware
 from primum_core.references import LocatedContent
 from primum_core.timeline import at, flatten_all, sequences_of
@@ -49,33 +50,38 @@ def check_actions(files: Iterable[LocatedContent], drivers: Drivers) -> tuple[Is
             if element is None:
                 continue
             steps = ("tracks", track_index)
-            actions = _actions_of(element, drivers)
-            if not actions:
-                params = {"element": element.name}
-                place = at(location, *steps, "element")
-                issues.append(Issue(CoreErrorCode.TRACK_ELEMENT_WITHOUT_ACTIONS, params, place))
-                continue
-            for index, clip in enumerate(track.clips):
-                where = Where(location, (*steps, "clips", index), ARGUMENTS)
-                issues += _clip_issues(clip, element, actions, where)
+            clips = [
+                (clip, Where(location, (*steps, "clips", index), ARGUMENTS))
+                for index, clip in enumerate(track.clips)
+            ]
+            issues += _asked(element, drivers, at(location, *steps, "element"), clips)
         for flat in flattened[sequence_id]:
             element = elements.get(flat.element)
-            if element is None or not flat.bound_here:
-                continue
-            actions = _actions_of(element, drivers)
-            if not actions:
-                params = {"element": element.name}
-                issues.append(Issue(CoreErrorCode.TRACK_ELEMENT_WITHOUT_ACTIONS, params, flat.at))
-                continue
-            issues += _clip_issues(flat.clip, element, actions, Where(flat.at, None, ARGUMENTS))
+            if element is not None and flat.bound_here:
+                clips = [(flat.clip, Where(flat.at, None, ARGUMENTS))]
+                issues += _asked(element, drivers, flat.at, clips)
     # A component of twenty clips bound to the wrong element is one problem per block.
     return tuple(dict.fromkeys(issues))
 
 
-def _actions_of(element: Element, drivers: Drivers) -> _Actions:
-    """The actions of the element's driver, by name; none if its type has no driver."""
+def _asked(
+    element: Element, drivers: Drivers, place: Location, clips: Iterable[tuple[Clip, Where]]
+) -> Iterator[Issue]:
+    """What is wrong in what the clips ask of the element. An element that cannot be on a track
+    at all is one problem, at ``place``: its type has no driver yet, or its driver has no
+    actions (an input)."""
     driver = drivers.get(element.type)
-    return {action.name: action for action in driver.actions} if driver is not None else {}
+    if driver is None:
+        params = {"element": element.name, "type": element.type}
+        yield Issue(CoreErrorCode.TRACK_ELEMENT_WITHOUT_DRIVER, params, place)
+        return
+    if not driver.actions:
+        params = {"element": element.name}
+        yield Issue(CoreErrorCode.TRACK_ELEMENT_WITHOUT_ACTIONS, params, place)
+        return
+    actions = {action.name: action for action in driver.actions}
+    for clip, where in clips:
+        yield from _clip_issues(clip, element, actions, where)
 
 
 def _clip_issues(clip: Clip, element: Element, actions: _Actions, where: Where) -> Iterator[Issue]:

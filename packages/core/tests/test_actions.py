@@ -90,7 +90,14 @@ def test_a_track_on_an_element_whose_type_has_no_driver(project: Project, ids: I
     project.drivers.pop("digital_output")
     _show(project, ids, LED, _clip(ids, 21, "on"))
 
-    assert [code for code, *_ in project.found()] == [CoreErrorCode.TRACK_ELEMENT_WITHOUT_ACTIONS]
+    assert project.found() == [
+        (
+            CoreErrorCode.TRACK_ELEMENT_WITHOUT_DRIVER,
+            {"element": "LED", "type": "digital_output"},
+            "show.sec",
+            "/tracks/0/element",
+        )
+    ]
 
 
 @pytest.mark.parametrize(
@@ -232,6 +239,18 @@ def test_a_component_given_an_input_is_an_error_at_the_block(project: Project, i
             "show.sec",
             "/blocks/0",
         )
+    ]
+
+
+def test_a_component_given_an_element_whose_type_has_no_driver_is_an_error_at_the_block(
+    project: Project, ids: Ids
+) -> None:
+    project.drivers.pop("digital_output")
+    _fade_component(project, ids, _clip(ids, 32, "on"), _clip(ids, 33, "off"))
+    _including_fade(project, ids, LED)
+
+    assert [(code, pointer) for code, _, _, pointer in project.found()] == [
+        (CoreErrorCode.TRACK_ELEMENT_WITHOUT_DRIVER, "/blocks/0")
     ]
 
 

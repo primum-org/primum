@@ -37,7 +37,8 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
 - **The first actions**: a digital output goes `on` and `off`; a PWM output goes `on`, `off`,
   `set` to a `level` and `fade`s `from` a level `to` another over the clip. A digital input has
   no actions: a track on one is an error (`track.element_without_actions`); it is listened to,
-  with an event.
+  with an event. A type without a driver yet takes no track either, with its own code
+  (`track.element_without_driver`): the advice for an input does not fit it.
 - **Two sequences that may run at once on an element of an exclusive driver are an error**
   (`sequence.exclusive_element_shared`), not the warning it is on the others: one sequence owns
   such an element while it runs (motors, servos; decision 0006).

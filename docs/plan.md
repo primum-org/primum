@@ -356,7 +356,8 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   (no actions; `pull`, `debounceMs`).
 - Clips take `arguments` and elements take `config`, both values by name. `core` checks them
   against the manifest of the element's type (`action.*`, `config.*`,
-  `track.element_without_actions`); a component, where a block gives it its element.
+  `track.element_without_actions`, and `track.element_without_driver` for a type with no
+  manifest yet); a component, where a block gives it its element.
 - What a clip is: it holds its action while it lasts and then releases the element to the layer
   below or its safe state; a clip of 0 ms is an instant command that stays until the next clip
   of the element or the end of the sequence, and counts for overlaps. Two started sequences on
@@ -366,6 +367,16 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   manifests as provisional values: they belong to the board, and 3.3 moves them to its profile.
 - Worth a look later: an instant clip that is the last thing of a sequence shows nothing (the
   sequence ends there); a warning for it needs to know which sequences run on their own.
+- For the engine (phase 4): an instant `on` followed later by a clip leaves the element, when
+  that clip ends, at the layer below or its safe state, not back at `on` (decision 0016: the
+  command stays until the next clip); `fade` needs its `from`, so "from where it is" cannot be
+  said and a fade that enters over another layer jumps: it needs a parameter that may be left
+  out without having a default, a small change of the manifest format, not of the sequences.
+- For the UI (phase 5): a problem inside a component is reported at the block that gives it
+  its element, without the clip of the component that has it (`FlatClip.clip` is at hand);
+  the timeline should show where an instant command stops holding.
+- Small: the sequences are flattened twice, once for the actions and once for the overlaps;
+  share it when the compiler (phase 4) needs it too.
 
 **3.3 · The three drivers**
 - `digital_output`, `digital_input` (debounce, pull), `pwm_output`, each implementing its

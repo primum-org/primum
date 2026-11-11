@@ -255,6 +255,10 @@
       "message": "{element} no admite acciones, así que no puede tener una pista.",
       "hint": "Una pista es para un elemento que hace algo, como una luz o un relé. Para reaccionar a {element}, usa un evento."
     },
+    "track.element_without_driver": {
+      "message": "{element} es de un tipo que Primum todavía no sabe manejar, así que no puede tener una pista.",
+      "hint": "Quita la pista. Las pistas son para elementos a los que Primum sabe pedirles algo, como una luz o un relé."
+    },
     "action.unknown": {
       "message": "{element} no puede hacer {action}.",
       "hint": "Puede hacer: {available}."
