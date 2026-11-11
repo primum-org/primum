@@ -338,11 +338,11 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   provisioning, not `--app-only`). Checked on `primum-dev`: LED, button and PWM LED.
 - Until 3.4, after `kill -9` a PWM output stays at its last level: wire nothing but an LED to
   one. It is the safety gap this block leaves open.
-- Left for 3.3, with the driver limits: `PwmSpec.frequency_hz` is not checked, at either end
-  (0 divides by zero; a huge value gives a period of 0 ns and a misleading
+- Left for 3.3, with the driver limits: `PwmSpec.frequency_hz` has no upper limit (under 1 Hz
+  it is `hal.pwm_frequency_invalid`; a huge value gives a period of 0 ns and a misleading
   `hal.pwm_unavailable`; a high one leaves few steps of level: at 20 MHz the period is 50 ns and
   `set(0.001)` reads back `0.0` with no error, so the limit is a maximum frequency or a minimum
-  resolution), nor is `InputSpec.debounce_ms` (a negative value ends as a misleading
+  resolution), and `InputSpec.debounce_ms` is not checked (a negative value ends as a misleading
   `hal.request_failed`).
 - From review of 2.6, in passing: `overlaps` names and the note on loops.
 
@@ -362,6 +362,12 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   manifest on the HAL, with tests against the simulated HAL.
 - The `Controller` manages elements through drivers; the API and the page show inputs and PWM
   levels, and set levels.
+- PWM is not exposed through the API before `primum-safe` covers PWM channels: today the
+  `Controller` claims digital outputs only, so the `kill -9` gap of a PWM output cannot be
+  reached from the service. Either the PWM part of 3.4 comes first, or 3.3 and 3.4 are merged
+  together; decided when 3.3 is planned.
+- The API and the page do not show the safe state of a PWM output as *verified* the way a
+  digital output's is: its read-back is the controller's setting, not the pin (decision 0015).
 - Input events without blocking the API's event loop (`control` has no locks): the gpiod
   request exposes its `fd`, so the loop watches it with `add_reader` and calls `read_events`
   when it fires; no thread, no polling. A HAL without inputs registers nothing (`wait_events`

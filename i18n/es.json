@@ -59,6 +59,10 @@
       "message": "El canal PWM {channel} del GPIO {pin} no se puede usar.",
       "hint": "Comprueba que nada más lo usa y que Primum puede acceder al controlador PWM."
     },
+    "hal.pwm_frequency_invalid": {
+      "message": "Una frecuencia de {frequency_hz} Hz no es válida para la salida PWM del GPIO {pin}.",
+      "hint": "Usa una frecuencia de 1 Hz o más (1000 Hz va bien para la mayoría de los LED)."
+    },
     "hal.duty_out_of_range": {
       "message": "El nivel {duty} no está entre 0 y 1.",
       "hint": "Usa 0 para apagado, 1 para encendido del todo, o un valor intermedio."

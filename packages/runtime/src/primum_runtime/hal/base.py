@@ -327,8 +327,10 @@ class Hal(ABC):
         board does not have, ``hal.pin_in_use`` for a pin asked for twice and
         ``hal.pwm_unsupported_pin`` for a PWM output on a pin without hardware PWM and
         ``hal.pwm_channel_in_use`` for two PWM outputs on one channel (GPIO 12 and 18 on a
-        Raspberry Pi: the controller has one channel for both). The implementation then reports
-        the lines it cannot get; a claim that fails leaves nothing behind.
+        Raspberry Pi: the controller has one channel for both) and ``hal.pwm_frequency_invalid``
+        for a frequency under 1 Hz (how high it may go is the driver's limit). The
+        implementation then reports the lines it cannot get; a claim that fails leaves nothing
+        behind.
         """
         self.ensure_open()
         if self._claimed:
@@ -342,6 +344,9 @@ class Hal(ABC):
         pin_by_channel: dict[int, int] = {}
         for spec in claim.pwms:
             channel = self._board.pwm_channel(spec.pin)
+            if spec.frequency_hz < 1:
+                params = {"pin": spec.pin, "frequency_hz": spec.frequency_hz}
+                raise PrimumError(ErrorCode.HAL_PWM_FREQUENCY_INVALID, params)
             other = pin_by_channel.setdefault(channel, spec.pin)
             if other != spec.pin:
                 params = {"channel": channel, "pins": (other, spec.pin)}

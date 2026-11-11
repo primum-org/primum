@@ -23,6 +23,7 @@ class ErrorCode(StrEnum):
     HAL_PWM_NOT_ROUTED = "hal.pwm_not_routed"
     HAL_PWM_CHIP_NOT_FOUND = "hal.pwm_chip_not_found"
     HAL_PWM_UNAVAILABLE = "hal.pwm_unavailable"
+    HAL_PWM_FREQUENCY_INVALID = "hal.pwm_frequency_invalid"
     HAL_DUTY_OUT_OF_RANGE = "hal.duty_out_of_range"
     HAL_PIN_UNAVAILABLE = "hal.pin_unavailable"
     HAL_REQUEST_FAILED = "hal.request_failed"

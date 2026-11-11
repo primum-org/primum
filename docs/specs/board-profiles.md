@@ -13,7 +13,7 @@ Format: `schemas/board-profile.schema.json`. Adding a compatible board means add
 | `model` | Short, stable identifier (`rpi4b`): the file name, used by projects and the runtime |
 | `name` | The model's name for people (`Raspberry Pi 4 Model B`) |
 | `gpioChip.label` | The label of the GPIO chip that drives the header (`pinctrl-bcm2711`) |
-| `pwmChip.device` | The device name of the hardware PWM controller (`fe20c000.pwm`), what `/sys/class/pwm/pwmchipN/device` points at: the chip number can change with the kernel |
+| `pwmChip.device` | The device name of the hardware PWM controller (`fe20c000.pwm`), what `/sys/class/pwm/pwmchipN/device` points at: the chip number can change with the kernel. Required today; it becomes optional with the first profile of a board without hardware PWM (the format is a draft, decision 0014) |
 | `pins` | Every pin of the header: `physical` number and `kind` (`gpio`, `power_3v3`, `power_5v`, `ground`) |
 | `buses` | Each bus (`i2c`, `spi`, `uart`) with the GPIO of each signal (`sda` → GPIO 2) |
 | `pwmChannels` | Each hardware PWM channel: its `channel` index on the controller and the GPIOs that can use it |

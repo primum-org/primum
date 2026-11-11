@@ -123,6 +123,20 @@ def test_a_pin_the_board_does_not_have_raises_pin_invalid(pin: int) -> None:
     assert hal.lines == {}
 
 
+@pytest.mark.parametrize("frequency_hz", [0, -50])
+def test_a_pwm_frequency_under_1_hz_is_refused_before_anything_is_claimed(
+    frequency_hz: int,
+) -> None:
+    hal = SimulatedHal(BOARD)
+
+    with pytest.raises(PrimumError) as raised:
+        hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18, frequency_hz=frequency_hz),)))
+
+    assert raised.value.code == "hal.pwm_frequency_invalid"
+    assert raised.value.params == {"pin": 18, "frequency_hz": frequency_hz}
+    assert hal.lines == {}
+
+
 def test_a_pwm_output_needs_a_pin_with_hardware_pwm() -> None:
     with SimulatedHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
         hal.claim(Claim(pwms=(PwmSpec(pin=17),)))
