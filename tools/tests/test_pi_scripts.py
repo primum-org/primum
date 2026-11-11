@@ -120,6 +120,46 @@ def test_pi_tasks_use_the_host_in_primum_pi_host(tmp_path: Path) -> None:
     assert "other-pi:primum-src/" in result.stderr
 
 
+def _fake_pi(directory: Path) -> str:
+    """A PATH whose rsync does nothing and whose ssh prints its command line instead of
+    running it on a Pi."""
+    (directory / "rsync").write_text("#!/bin/sh\nexit 0\n")
+    (directory / "ssh").write_text('#!/bin/sh\necho "ssh $*" >&2\ncat >/dev/null\n')
+    for name in ("rsync", "ssh"):
+        (directory / name).chmod(0o755)
+    return f"{directory}{os.pathsep}{os.environ['PATH']}"
+
+
+def _run_without_pins(*args: str, **env: str) -> subprocess.CompletedProcess[str]:
+    """Run pi.sh with the optional pins of the shell they run in forgotten."""
+    clean = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in ("PRIMUM_HW_INPUT_PIN", "PRIMUM_HW_PWM_PIN")
+    }
+    return subprocess.run(  # noqa: S603
+        ["bash", str(PI), *args],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**clean, **env},
+    )
+
+
+def test_pi_test_forwards_only_the_optional_pins_that_are_set(tmp_path: Path) -> None:
+    result = _run_without_pins("test", PRIMUM_HW_PWM_PIN="18", PATH=_fake_pi(tmp_path))
+
+    assert result.returncode == 0, result.stderr
+    assert "ssh primum-dev env PRIMUM_HW_PWM_PIN=18 bash -s -- primum-src" in result.stderr
+
+
+def test_pi_test_runs_with_no_optional_pin_at_all(tmp_path: Path) -> None:
+    result = _run_without_pins("test", PATH=_fake_pi(tmp_path))
+
+    assert result.returncode == 0, result.stderr
+    assert "ssh primum-dev env bash -s -- primum-src" in result.stderr
+
+
 def test_pi_provision_needs_the_pin_before_touching_the_pi() -> None:
     result = _run(PI, "provision", PRIMUM_PI_HOST="unreachable.invalid")
 

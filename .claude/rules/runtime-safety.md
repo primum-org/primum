@@ -19,5 +19,6 @@ paths:
 - Test-mode commands expire on their own.
 - Monotonic clock for durations; wall-clock only for schedules and only when reliable.
 - Writable paths are configurable and default to `/data`. Only the hardware manager writes
-  to `/boot/firmware`, and always through the tryboot flow.
+  to `/boot/firmware`, and always through the tryboot flow. The one exception, until it
+  exists, is `enable_pwm` in `image/provision.sh` for the development Pi: not a precedent.
 - Tests that need a real board are marked `@pytest.mark.hw` (`just test-hw` on the Pi).

@@ -32,4 +32,12 @@ def load_board(model: str) -> BoardGpio:
     if profile is None or profile.model != model:
         codes = ", ".join(issue.code for issue in parsed.issues) or "model differs from file name"
         raise ValueError(f"invalid board profile {path}: {codes}")
-    return BoardGpio(model=model, chip_label=profile.gpio_chip.label, lines=gpio_lines(profile))
+    return BoardGpio(
+        model=model,
+        chip_label=profile.gpio_chip.label,
+        lines=gpio_lines(profile),
+        pwm_device=profile.pwm_chip.device,
+        pwm_channels={
+            gpio: channel.channel for channel in profile.pwm_channels for gpio in channel.gpios
+        },
+    )

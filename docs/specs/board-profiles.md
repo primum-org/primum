@@ -13,9 +13,10 @@ Format: `schemas/board-profile.schema.json`. Adding a compatible board means add
 | `model` | Short, stable identifier (`rpi4b`): the file name, used by projects and the runtime |
 | `name` | The model's name for people (`Raspberry Pi 4 Model B`) |
 | `gpioChip.label` | The label of the GPIO chip that drives the header (`pinctrl-bcm2711`) |
+| `pwmChip.device` | The device name of the hardware PWM controller (`fe20c000.pwm`), what `/sys/class/pwm/pwmchipN/device` points at: the chip number can change with the kernel. Required today; it becomes optional with the first profile of a board without hardware PWM (the format is a draft, decision 0014) |
 | `pins` | Every pin of the header: `physical` number and `kind` (`gpio`, `power_3v3`, `power_5v`, `ground`) |
 | `buses` | Each bus (`i2c`, `spi`, `uart`) with the GPIO of each signal (`sda` → GPIO 2) |
-| `pwmChannels` | Each hardware PWM channel with the GPIOs that can use it |
+| `pwmChannels` | Each hardware PWM channel: its `channel` index on the controller and the GPIOs that can use it |
 | `reserved` | GPIOs never assigned to an element, with the reason (`hat_eeprom`) |
 
 A `gpio` pin also has `gpio` (its number, BCM on a Raspberry Pi), `line` (its line on the GPIO
@@ -91,7 +92,11 @@ Rules of the allocation:
 ## The Raspberry Pi 4 Model B (`rpi4b`)
 
 - 40 pins: GPIO 0–27, two 3V3, two 5V, eight ground. GPIO 17 is physical pin 11.
-- GPIO chip `pinctrl-bcm2711`; each GPIO on the line of the same number.
+- GPIO chip `pinctrl-bcm2711`; each GPIO on the line of the same number. PWM controller
+  `fe20c000.pwm`, channel 0 on GPIO 12 or 18 and channel 1 on GPIO 13 or 19; which GPIO a
+  channel is routed to is the overlay's (`pwm-2chan`: 18 and 19), the hardware manager's from
+  phase 6; the runtime refuses a PWM output on a GPIO the kernel does not hold
+  (`hal.pwm_not_routed`), since the signal would come out of the routed one.
 - Pull at power on: up on GPIO 0–8, down on GPIO 9–27 (BCM2711 datasheet).
 - Buses: I2C1 (SDA 2, SCL 3), SPI0 (MOSI 10, MISO 9, SCLK 11, CE0 8, CE1 7), UART0 (TX 14,
   RX 15). The other buses of the BCM2711 come with the hardware manager (phase 6).

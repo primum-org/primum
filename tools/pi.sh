@@ -3,7 +3,8 @@
 #
 #   tools/pi.sh provision PIN  copy the source and provision the Pi (first time: the LED's pin)
 #   tools/pi.sh sync           copy the source, install it and restart the service
-#   tools/pi.sh test           run the `hw` tests on the Pi, on the LED's pin
+#   tools/pi.sh test           run the `hw` tests on the Pi, on the LED's pin (and on
+#                              PRIMUM_HW_INPUT_PIN / PRIMUM_HW_PWM_PIN when set)
 #   tools/pi.sh logs           follow the service's log
 #
 # The Pi is the SSH host in PRIMUM_PI_HOST, `primum-dev` by default: an alias of ~/.ssh/config
@@ -49,6 +50,17 @@ sync() {
   ssh "$pi" "sudo $REMOTE_SOURCE/image/provision.sh --app-only"
 }
 
+# The optional pins of the input and PWM tests, as assignments for `env` on the Pi, only when
+# set here: ssh joins its arguments into one command line, so an empty argument would vanish
+# and shift the ones after it.
+optional_pins() {
+  local name
+  for name in PRIMUM_HW_INPUT_PIN PRIMUM_HW_PWM_PIN; do
+    [[ -n ${!name:-} ]] && printf '%s=%q ' "$name" "${!name}"
+  done
+  return 0
+}
+
 # The service holds the LED's line, so it is stopped for the tests and started again after,
 # whatever they return. The tests use the pin the service is configured with: the only line
 # known to have just an LED on it.
@@ -56,7 +68,8 @@ test_hw() {
   local pi
   pi=$(host)
   sync_source "$pi"
-  ssh "$pi" bash -s -- "$REMOTE_SOURCE" <<'REMOTE'
+  # shellcheck disable=SC2029 # expanded here on purpose: a constant path and %q-quoted pins
+  ssh "$pi" "env $(optional_pins)bash -s -- $REMOTE_SOURCE" <<'REMOTE'
 set -euo pipefail
 cd "$1"
 sudo ./image/check-gpio-users.sh

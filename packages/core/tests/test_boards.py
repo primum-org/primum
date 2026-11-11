@@ -116,7 +116,7 @@ def test_buses_channels_and_reserved_pins_must_name_gpios_the_board_has() -> Non
     change = {
         **_pins(GPIO_17),
         "buses": [{"id": "i2c1", "kind": "i2c", "signals": [{"name": "sda", "gpio": 2}]}],
-        "pwmChannels": [{"id": "pwm0", "gpios": [17, 18]}],
+        "pwmChannels": [{"id": "pwm0", "channel": 0, "gpios": [17, 18]}],
         "reserved": [{"gpio": 0, "reason": "hat_eeprom"}],
     }
 
@@ -130,7 +130,10 @@ def test_buses_channels_and_reserved_pins_must_name_gpios_the_board_has() -> Non
 def test_bus_and_channel_names_are_unique() -> None:
     change = {
         **_pins(GPIO_17),
-        "pwmChannels": [{"id": "pwm0", "gpios": [17]}, {"id": "pwm0", "gpios": [17]}],
+        "pwmChannels": [
+            {"id": "pwm0", "channel": 0, "gpios": [17]},
+            {"id": "pwm0", "channel": 1, "gpios": [17]},
+        ],
     }
 
     assert _issues(change) == [
@@ -141,7 +144,7 @@ def test_bus_and_channel_names_are_unique() -> None:
 def test_an_incomplete_gpio_pin_is_reported_once_not_again_by_each_reference() -> None:
     change = {
         **_pins({"physical": 11, "kind": "gpio", "gpio": 17}),
-        "pwmChannels": [{"id": "pwm0", "gpios": [17]}],
+        "pwmChannels": [{"id": "pwm0", "channel": 0, "gpios": [17]}],
     }
 
     assert _issues(change) == [

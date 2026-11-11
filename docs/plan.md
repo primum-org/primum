@@ -8,7 +8,7 @@ when a phase starts or finishes.
 | 0 | Repository skeleton: structure, docs, rules, tooling, CI | Done |
 | 1 | End-to-end skeleton: toggle an LED from a phone | Done |
 | 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Done |
-| 3 | HAL, basic drivers and safety | Not started |
+| 3 | HAL, basic drivers and safety | In progress |
 | 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Not started |
 | 5 | Local web UI v1 | Not started |
 | 6 | Hardware manager (`config.txt`, tryboot) and I2C, LED strip and audio drivers | Not started |
@@ -313,15 +313,94 @@ MCP server in phase 8).
 
 ## Phase 3 · HAL, basic drivers and safety
 
-1. Extend the HAL started in phase 1: digital inputs, hardware PWM, crash safety; one line
-   request per chip instead of one per output, for the per-board arbiter; verify after write:
-   the safe state re-reads each line with `read()` and reports any that did not turn off
-   (needed before relays).
-2. Driver manifest (capabilities, config, platforms, safe state, limits, conflict policy).
-3. Drivers: digital output, digital input (debounce, pull), hardware PWM.
-4. Safe state on start/stop/crash, panic, test mode with expiring commands, systemd watchdog.
+The runtime drives digital outputs, digital inputs and hardware PWM through drivers with a
+declared safe state and limits, and the outputs end in their safe state even when the service
+dies at once. Blocks 3.2 and 3.3 need no Pi; 3.1 and 3.4 are checked on `primum-dev` (the LED
+on GPIO 17, a button to ground on another GPIO, and an LED on GPIO 18 for PWM once the overlay
+is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `config.txt` (phase
+6), the new UI (phase 5). One pull request per block.
 
-**Done when:** after `kill -9` of the service every output is in its safe state.
+**3.1 · The whole HAL** · **done** (decision 0015)
+- `Hal.claim(Claim(outputs, inputs, pwms))` once per board: one request per GPIO chip, pins
+  checked against the profile first (`hal.already_claimed`, `hal.pin_in_use`,
+  `hal.pwm_unsupported_pin`, `hal.pwm_channel_in_use`); a failed request is
+  `hal.request_failed` naming every GPIO it covered; a PWM output on a GPIO the overlay does not
+  route (its line is free) is `hal.pwm_not_routed`.
+- Digital inputs: `read()`, pull and debounce from the spec (the kernel's), every change an
+  `InputEvent` with the monotonic timestamp (`read_events`, `wait_events`).
+- Hardware PWM through sysfs, the controller by device name from the profile (`pwmChip`,
+  `pwmChannels[].channel`), levels 0–1, safe state 0 % (`hal.pwm_chip_not_found`,
+  `hal.pwm_unavailable`, `hal.duty_out_of_range`).
+- The safe state is read back: `hal.safe_state_unverified` for a line that reads otherwise
+  (the line itself for GPIO; the controller's setting for PWM).
+- The simulated HAL mirrors it (`simulate_input`, `stick`); `hw` tests take optional
+  `PRIMUM_HW_INPUT_PIN` and `PRIMUM_HW_PWM_PIN`; `provision.sh` enables `pwm-2chan` (full
+  provisioning, not `--app-only`). Checked on `primum-dev`: LED, button and PWM LED.
+- Until 3.4, after `kill -9` a PWM output stays at its last level: wire nothing but an LED to
+  one. It is the safety gap this block leaves open.
+- Left for 3.3, with the driver limits: `PwmSpec.frequency_hz` has no upper limit (under 1 Hz
+  it is `hal.pwm_frequency_invalid`; a huge value gives a period of 0 ns and a misleading
+  `hal.pwm_unavailable`; a high one leaves few steps of level: at 20 MHz the period is 50 ns and
+  `set(0.001)` reads back `0.0` with no error, so the limit is a maximum frequency or a minimum
+  resolution), and `InputSpec.debounce_ms` is not checked (a negative value ends as a misleading
+  `hal.request_failed`).
+- From review of 2.6, in passing: `overlaps` names and the note on loops.
+
+**3.2 · Driver manifests and what a clip is**
+- `schemas/driver.schema.json` and `drivers/`: one manifest per driver, the element type it
+  serves, capabilities (`switch`, `level`, `read`), actions with parameters, configuration,
+  platforms, safe state, limits, conflict policy (latest wins / exclusive). Data, like the
+  board profiles: `core` gets them from the caller.
+- `core` validates clip `action`s against the manifest of the element's type (`action.unknown`,
+  `action.param_missing`, `action.param_out_of_range`).
+- Decision: what a clip is (duration, an instant command of 0 ms, what happens when it ends);
+  `overlaps` adjusted so 0 ms clips count. `sequence.may_overlap` becomes an error on elements
+  whose driver is exclusive.
+
+**3.3 · The three drivers**
+- `digital_output`, `digital_input` (debounce, pull), `pwm_output`, each implementing its
+  manifest on the HAL, with tests against the simulated HAL.
+- The `Controller` manages elements through drivers; the API and the page show inputs and PWM
+  levels, and set levels.
+- PWM is not exposed through the API before `primum-safe` covers PWM channels: today the
+  `Controller` claims digital outputs only, so the `kill -9` gap of a PWM output cannot be
+  reached from the service. Either the PWM part of 3.4 comes first, or 3.3 and 3.4 are merged
+  together; decided when 3.3 is planned.
+- The API and the page do not show the safe state of a PWM output as *verified* the way a
+  digital output's is: its read-back is the controller's setting, not the pin (decision 0015).
+- Input events without blocking the API's event loop (`control` has no locks): the gpiod
+  request exposes its `fd`, so the loop watches it with `add_reader` and calls `read_events`
+  when it fires; no thread, no polling. A HAL without inputs registers nothing (`wait_events`
+  returns `False` at once there, so a waiting loop would spin).
+- An `hw` test with a real edge and no finger: reconfiguring the input's bias from pull-up to
+  pull-down (`reconfigure_lines`) flips a line nothing drives, which covers the logical polarity
+  and the timestamps of the events; today's `hw` test only reads the idle state.
+- The PWM driver compares a read level with tolerance: sysfs holds the duty cycle in whole
+  nanoseconds, so `read()` is quantised to the period (`set(1/3)` reads back `0.33333` at 1 kHz).
+- Input events lost in a burst: the kernel drops the oldest once its buffer is full (60 unread
+  changes gave 32 on the Pi). The input driver decides what to do: detect the gap with the
+  event's `line_seqno` and report it, ask for a larger `event_buffer_size`, or both.
+- Two events of the same kind in a row: with both edges detected the kernel tells rising from
+  falling by reading the level after the interrupt, so a very short pulse can give two equal
+  events. The input driver takes the state from each event and never assumes they alternate;
+  the simulated HAL, which drops a change to the same state, learns to produce that case.
+
+**3.4 · Safety**
+- Safe state on start, stop and crash: `Type=notify` and a systemd watchdog fed from the
+  runtime; `OnFailure=primum-safe.service` drives what the runtime declared in `/data` to its
+  safe state when the service does not come back (the 1.4 finding, `StartLimitBurst`): the GPIO
+  lines, and the PWM channels too (`duty_cycle` 0, `polarity` normal and `enable` 0 through
+  sysfs; seen on the Pi: after `kill -9` a channel stays at 50 % and its pin high, and with an
+  inversed polarity a disabled channel holds it high).
+- Test mode: manual commands that expire on their own, above sequences and below panic
+  (decision 0006).
+- `docs/specs/safety.md`, `docs/specs/drivers.md`; on the Pi: `kill -9`, restart, exhausted
+  restarts, with the LED as witness.
+- A sysfs PWM channel has no owner: the HAL adopts one already exported (what recovers it after
+  a crash) and would take it from another program just the same. `check-gpio-users.sh` looks
+  at the exported `pwmN` of `/sys/class/pwm` too, and the runtime logs a channel it adopted.
+
+**Done when:** after `kill -9` of the service every output, PWM included, is in its safe state.
 
 Found in 1.4: after `SIGKILL` a line keeps its last value until the service starts again, and
 if systemd gives up restarting (`StartLimitBurst`) it stays so. The watchdog and the safe state
@@ -360,7 +439,10 @@ Starts from the 1.5 spike (decision 0013): rpi-image-gen on `ubuntu-24.04-arm`, 
 overlays, the Wi-Fi country asked at first boot, mDNS, a status report on the boot partition,
 and a networking stack chosen for the access point (the minimal base uses iwd + networkd).
 `provision.sh` installs `uv` with `curl | sh` from a pinned version but no checksum: fine for the
-development Pi, the image must verify what it downloads.
+development Pi, the image must verify what it downloads. The HAL's wait for a freshly exported
+PWM channel to become writable counts on the udev rule of Raspberry Pi OS (`99-com.rules`) that
+hands `/sys/class/pwm` to the `gpio` group; a plain Debian has none and gives
+`hal.pwm_unavailable`, so the image ships that rule or an equivalent, and provisioning checks it.
 
 ## Phase 8 · Local MCP server
 

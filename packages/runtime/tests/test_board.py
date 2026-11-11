@@ -22,6 +22,22 @@ def test_the_raspberry_pi_4_has_gpios_0_to_27_on_lines_of_the_same_number() -> N
     assert rpi4b.lines == {gpio: gpio for gpio in range(28)}
 
 
+def test_the_raspberry_pi_4_has_two_pwm_channels_on_its_controller() -> None:
+    rpi4b = load_board("rpi4b")
+
+    assert rpi4b.pwm_device == "fe20c000.pwm"
+    assert rpi4b.pwm_channels == {12: 0, 18: 0, 13: 1, 19: 1}
+    assert rpi4b.pwm_channel(18) == 0
+
+
+def test_a_pin_without_hardware_pwm_is_unsupported() -> None:
+    with pytest.raises(PrimumError) as raised:
+        load_board("rpi4b").pwm_channel(17)
+
+    assert raised.value.code == "hal.pwm_unsupported_pin"
+    assert raised.value.params == {"pin": 17, "board": "rpi4b"}
+
+
 def test_a_pin_the_board_does_not_have_is_invalid() -> None:
     with pytest.raises(PrimumError) as raised:
         load_board("rpi4b").line(28)

@@ -58,6 +58,7 @@ class BoardProfile:
     model: str
     name: str
     gpio_chip: GpioChip
+    pwm_chip: PwmChip
     pins: tuple[HeaderPin, ...]
     buses: tuple[Bus, ...]
     pwm_channels: tuple[PwmChannel, ...]
@@ -98,6 +99,7 @@ class BusSignal:
 @dataclass(frozen=True, kw_only=True, slots=True)
 class PwmChannel:
     id: str
+    channel: int
     gpios: tuple[int, ...]
 
 
@@ -105,6 +107,13 @@ class PwmChannel:
 class ReservedGpio:
     gpio: int
     reason: Literal["hat_eeprom"]
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PwmChip:
+    """The hardware PWM controller, found by its device name in the kernel (the directory /sys/class/pwm/pwmchipN/device points at): the chip number can change with the kernel."""
+
+    device: str
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -331,6 +340,7 @@ def parse_board_profile(data: JsonObject) -> BoardProfile:
         model=as_str(data["model"]),
         name=as_str(data["name"]),
         gpio_chip=parse_gpio_chip(as_object(data["gpioChip"])),
+        pwm_chip=parse_pwm_chip(as_object(data["pwmChip"])),
         pins=tuple(parse_header_pin(as_object(item)) for item in as_list(data["pins"])),
         buses=tuple(parse_bus(as_object(item)) for item in as_list(data["buses"])),
         pwm_channels=tuple(parse_pwm_channel(as_object(item)) for item in as_list(data["pwmChannels"])),
@@ -377,6 +387,7 @@ def parse_pwm_channel(data: JsonObject) -> PwmChannel:
     """Build a ``PwmChannel`` from a document that passed its schema."""
     return PwmChannel(
         id=as_str(data["id"]),
+        channel=as_int(data["channel"]),
         gpios=tuple(as_int(item) for item in as_list(data["gpios"])),
     )
 
@@ -386,6 +397,13 @@ def parse_reserved_gpio(data: JsonObject) -> ReservedGpio:
     return ReservedGpio(
         gpio=as_int(data["gpio"]),
         reason=as_choice(data["reason"], _RESERVED_GPIO_REASON),
+    )
+
+
+def parse_pwm_chip(data: JsonObject) -> PwmChip:
+    """Build a ``PwmChip`` from a document that passed its schema."""
+    return PwmChip(
+        device=as_str(data["device"]),
     )
 
 

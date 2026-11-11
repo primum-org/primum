@@ -7,15 +7,33 @@ in a ``with`` block so the safe state is applied when the runtime stops.
 import sys
 
 from primum_runtime.errors import ErrorCode, PrimumError
-from primum_runtime.hal.base import BoardGpio, DigitalOutput, Hal, LineDriver, OutputSpec
+from primum_runtime.hal.base import (
+    BoardGpio,
+    Claim,
+    DigitalInput,
+    DigitalOutput,
+    Hal,
+    InputEvent,
+    InputSpec,
+    OutputSpec,
+    Pull,
+    PwmOutput,
+    PwmSpec,
+)
 from primum_runtime.hal.simulated import SimulatedHal, SimulatedLine
 
 __all__ = [
     "BoardGpio",
+    "Claim",
+    "DigitalInput",
     "DigitalOutput",
     "Hal",
-    "LineDriver",
+    "InputEvent",
+    "InputSpec",
     "OutputSpec",
+    "Pull",
+    "PwmOutput",
+    "PwmSpec",
     "SimulatedHal",
     "SimulatedLine",
     "create_hal",

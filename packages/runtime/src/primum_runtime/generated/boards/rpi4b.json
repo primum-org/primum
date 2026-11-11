@@ -7,6 +7,9 @@
   "gpioChip": {
     "label": "pinctrl-bcm2711"
   },
+  "pwmChip": {
+    "device": "fe20c000.pwm"
+  },
   "pins": [
     {"physical": 1, "kind": "power_3v3"},
     {"physical": 2, "kind": "power_5v"},
@@ -81,10 +84,12 @@
   "pwmChannels": [
     {
       "id": "pwm0",
+      "channel": 0,
       "gpios": [12, 18]
     },
     {
       "id": "pwm1",
+      "channel": 1,
       "gpios": [13, 19]
     }
   ],

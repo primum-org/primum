@@ -21,6 +21,10 @@ PRIMUM_HOME=/opt/primum
 CONFIG=/etc/primum/runtime.env
 UNIT=/etc/systemd/system/primum.service
 JOURNAL_CONFIG=/etc/systemd/journald.conf.d/primum.conf
+BOOT_CONFIG=${BOOT_CONFIG:-/boot/firmware/config.txt}
+# Hardware PWM on GPIO 18 and 19 (channels 0 and 1). Until the hardware manager of phase 6
+# owns config.txt, the development Pi gets it here; a reboot makes it take effect.
+PWM_OVERLAY="dtoverlay=pwm-2chan"
 STARTUP_TIMEOUT_S=15
 MODEL_FILE=${MODEL_FILE:-/proc/device-tree/model}
 PACKAGES=(git build-essential curl rsync)
@@ -101,6 +105,14 @@ persist_journal() {
   journalctl --flush
 }
 
+# Appended at the end of config.txt, which only works while its last section is [all], as on
+# Raspberry Pi OS: enough for the development Pi; the hardware manager will place it properly.
+enable_pwm() {
+  grep -qxF "$PWM_OVERLAY" "$BOOT_CONFIG" && return 0
+  log "enabling hardware PWM in $BOOT_CONFIG (takes effect after a reboot)"
+  printf '\n# Primum: hardware PWM on GPIO 18 and 19\n%s\n' "$PWM_OVERLAY" >>"$BOOT_CONFIG"
+}
+
 create_user() {
   if ! id primum >/dev/null 2>&1; then
     log "creating user primum"
@@ -178,6 +190,7 @@ main() {
     install_packages
     install_uv
     persist_journal
+    enable_pwm
     create_user
     write_config
   fi

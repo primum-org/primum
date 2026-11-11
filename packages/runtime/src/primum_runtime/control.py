@@ -11,7 +11,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from primum_runtime.errors import ErrorCode, PrimumError
-from primum_runtime.hal import DigitalOutput, Hal, OutputSpec
+from primum_runtime.hal import Claim, DigitalOutput, Hal, OutputSpec
 
 type Listener = Callable[[State], None]
 
@@ -36,8 +36,9 @@ class Controller:
     def __init__(self, hal: Hal, specs: Mapping[str, OutputSpec]) -> None:
         """Claim an output for every spec, by name. They start in the safe state (off)."""
         self._hal = hal
+        hal.claim(Claim(outputs=tuple(specs.values())))
         self._outputs: dict[str, DigitalOutput] = {
-            name: hal.digital_output(spec) for name, spec in specs.items()
+            name: hal.outputs[spec.pin] for name, spec in specs.items()
         }
         self._panic = False
         self._listeners: list[Listener] = []

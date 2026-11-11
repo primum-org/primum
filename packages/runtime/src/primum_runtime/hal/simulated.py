@@ -1,16 +1,26 @@
 """A HAL without hardware, for tests and for running the runtime on a laptop (``--simulate``)."""
 
+from collections import deque
 from collections.abc import Mapping
 from types import MappingProxyType
 
-from primum_runtime.hal.base import BoardGpio, Hal, OutputSpec
+from primum_runtime.hal.base import (
+    BoardGpio,
+    Claim,
+    Drivers,
+    Hal,
+    InputEvent,
+    InputSpec,
+    OutputSpec,
+    PwmSpec,
+)
 
 
 class SimulatedLine:
     """A simulated output line that remembers every value written to it.
 
-    Faults can be injected (``fail_writes``, ``fail_release``) to test what happens when the
-    hardware misbehaves.
+    Faults can be injected to test what happens when the hardware misbehaves: ``fail_writes``,
+    ``fail_release``, and ``stick(True)`` for a line that reads back on whatever is written.
     """
 
     def __init__(self, spec: OutputSpec) -> None:
@@ -20,6 +30,7 @@ class SimulatedLine:
         self._history: list[bool] = []
         self._write_error: Exception | None = None
         self._release_error: Exception | None = None
+        self._stuck: bool | None = None
 
     @property
     def active(self) -> bool:
@@ -48,6 +59,10 @@ class SimulatedLine:
         """Make ``release`` raise ``error`` (``None`` makes it work again)."""
         self._release_error = error
 
+    def stick(self, active: bool | None) -> None:
+        """Make the line read back ``active`` whatever is written (``None`` unsticks it)."""
+        self._stuck = active
+
     def write(self, active: bool) -> None:
         if self._write_error is not None:
             raise self._write_error
@@ -55,7 +70,7 @@ class SimulatedLine:
         self._history.append(active)
 
     def read(self) -> bool:
-        return self._active
+        return self._active if self._stuck is None else self._stuck
 
     def release(self) -> None:
         if self._release_error is not None:
@@ -63,22 +78,121 @@ class SimulatedLine:
         self._released = True
 
 
+class SimulatedInput:
+    """A simulated input: tests and the UI change it with ``SimulatedHal.simulate_input``."""
+
+    def __init__(self, spec: InputSpec) -> None:
+        self._spec = spec
+        self.active = False
+
+    def read(self) -> bool:
+        return self.active
+
+
+class SimulatedPwm:
+    """A simulated PWM channel that remembers every level written to it.
+
+    Faults can be injected as on a ``SimulatedLine``: ``fail_writes``, and ``stick(1.0)`` for a
+    channel that reads back a level whatever is written (an inverted polarity, for instance).
+    """
+
+    def __init__(self, spec: PwmSpec) -> None:
+        self._spec = spec
+        self._duty = 0.0
+        self._history: list[float] = []
+        self._released = False
+        self._write_error: Exception | None = None
+        self._stuck: float | None = None
+
+    @property
+    def duty(self) -> float:
+        return self._duty
+
+    @property
+    def history(self) -> tuple[float, ...]:
+        return tuple(self._history)
+
+    @property
+    def released(self) -> bool:
+        return self._released
+
+    def fail_writes(self, error: Exception | None) -> None:
+        """From now on every write raises ``error`` (``None`` makes writes work again)."""
+        self._write_error = error
+
+    def stick(self, duty: float | None) -> None:
+        """Make the channel read back ``duty`` whatever is written (``None`` unsticks it)."""
+        self._stuck = duty
+
+    def write(self, duty: float) -> None:
+        if self._write_error is not None:
+            raise self._write_error
+        self._duty = duty
+        self._history.append(duty)
+
+    def read(self) -> float:
+        return self._duty if self._stuck is None else self._stuck
+
+    def release(self) -> None:
+        self._released = True
+
+
 class SimulatedHal(Hal):
-    """A HAL whose lines live in memory, by pin. ``lines`` exposes them to tests and to the UI.
+    """A HAL whose lines live in memory, by pin. ``lines``, ``input_lines`` and ``pwm_lines``
+    expose them to tests and to the UI.
 
     It takes the board profile like the real HAL, so ``--simulate`` refuses the pins the board
-    does not have, as the Pi would.
+    does not have, as the Pi would. It has no clock: ``simulate_input`` takes the time of the
+    change, and ``wait_events`` never waits.
     """
 
     def __init__(self, board: BoardGpio) -> None:
         super().__init__(board)
         self._lines: dict[int, SimulatedLine] = {}
+        self._input_lines: dict[int, SimulatedInput] = {}
+        self._pwm_lines: dict[int, SimulatedPwm] = {}
+        self._events: deque[InputEvent] = deque()
 
     @property
     def lines(self) -> Mapping[int, SimulatedLine]:
         return MappingProxyType(self._lines)
 
-    def _open_line(self, spec: OutputSpec, line: int) -> SimulatedLine:
-        simulated = SimulatedLine(spec)
-        self._lines[spec.pin] = simulated
-        return simulated
+    @property
+    def input_lines(self) -> Mapping[int, SimulatedInput]:
+        return MappingProxyType(self._input_lines)
+
+    @property
+    def pwm_lines(self) -> Mapping[int, SimulatedPwm]:
+        return MappingProxyType(self._pwm_lines)
+
+    def simulate_input(self, pin: int, active: bool, timestamp_ns: int = 0) -> None:
+        """Change a claimed input from outside, as a button or a sensor would, and queue the
+        event. Changes to the same state are not events, as on hardware."""
+        line = self._input_lines[pin]
+        if line.active == active:
+            return
+        line.active = active
+        self._events.append(InputEvent(pin, active, timestamp_ns))
+
+    def _claim(self, claim: Claim) -> Drivers:
+        self._lines = {spec.pin: SimulatedLine(spec) for spec in claim.outputs}
+        self._input_lines = {spec.pin: SimulatedInput(spec) for spec in claim.inputs}
+        self._pwm_lines = {spec.pin: SimulatedPwm(spec) for spec in claim.pwms}
+        return Drivers(dict(self._lines), dict(self._input_lines), dict(self._pwm_lines))
+
+    def _release(self) -> dict[int, Exception]:
+        failures: dict[int, Exception] = {}
+        for pin, line in [*self._lines.items(), *self._pwm_lines.items()]:
+            try:
+                line.release()
+            except Exception as error:  # collected: the others are released too
+                failures[pin] = error
+        return failures
+
+    def _read_events(self) -> list[InputEvent]:
+        events = list(self._events)
+        self._events.clear()
+        return events
+
+    def _wait_events(self, timeout_s: float) -> bool:
+        return bool(self._events)
