@@ -48,6 +48,29 @@
         "string"
       ]
     },
+    "parameterName": {
+      "description": "The name of a parameter of an action or of an option of an element's configuration, as its driver declares it (level, frequencyHz).",
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]*$",
+      "maxLength": 40
+    },
+    "namedValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A value given by name: an argument of a clip's action, an option of an element's configuration.",
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/parameterName"
+        },
+        "value": {
+          "$ref": "#/$defs/value"
+        }
+      }
+    },
     "durationMs": {
       "description": "A length of time in milliseconds.",
       "type": "integer",

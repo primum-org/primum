@@ -1,0 +1,32 @@
+{
+  "id": "16c7e619-febd-4a56-b4c3-987365896338",
+  "kind": "driver",
+  "schemaVersion": 1,
+  "elementType": "digital_input",
+  "capabilities": [
+    "measure"
+  ],
+  "platforms": [
+    "linux"
+  ],
+  "config": [
+    {
+      "name": "pull",
+      "type": "text",
+      "choices": [
+        "up",
+        "down",
+        "none"
+      ],
+      "default": "up"
+    },
+    {
+      "name": "debounceMs",
+      "type": "integer",
+      "min": 0,
+      "max": 10000,
+      "default": 20
+    }
+  ],
+  "actions": []
+}

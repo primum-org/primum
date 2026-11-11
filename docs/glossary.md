@@ -10,6 +10,8 @@ and docs; the Spanish term is the one shown by the Spanish UI.
 | Project | Proyecto | The whole work: boards, elements, sequences, automations, events, schedules, variables. A folder of files. Saved or shared as a single `.primum` file |
 | Folder | Carpeta | A group of files inside a project. Defines a scope for variables |
 | Sequence (`.sec`) | Secuencia | Actions placed in time on tracks, one track per element. Can include other sequences as blocks |
+| Track | Pista | The clips of one element in a sequence |
+| Clip | Clip | An action of an element placed in time on its track. It holds the action while it lasts; without a duration it is an instant command that stays until the next clip of the element or the end of the sequence |
 | Component | Componente | A sequence with parameters, reused from other sequences |
 | Parameter | Parámetro | An input of a component; exists only inside that use (instance) |
 | Automation (`.auto`) | Automatización | When an event happens → if conditions hold → do something (start/stop a sequence, change a variable) |
@@ -34,8 +36,11 @@ and docs; the Spanish term is the one shown by the Spanish UI.
 | Board profile | Perfil de placa | Data describing a board model: pins, functions, buses, resources |
 | Element | Elemento | Something the user connects and controls: LED strip, relay, motor, sensor, speaker |
 | Capability | Capacidad | What an element can do in general terms: switch, level, color, position, measure |
-| Action | Acción | What an element does in a sequence: *Fade*, *Wave*, *Play* |
+| Action | Acción | What an element does in a sequence: *Fade*, *Wave*, *Play*. Each driver declares its own, with their parameters |
 | Driver | Driver | Code that implements an element type on a platform |
+| Driver manifest | Manifiesto de driver | Data describing a driver: its actions, the options of its elements, its safe state and its conflict policy |
+| Configuration | Configuración | The options of an element's driver beyond its wiring: a PWM frequency, an input's pull and debounce. Not a *setting*, which is a variable shown on the phone |
+| Conflict policy | Política de conflicto | What happens when two sequences on one priority command an element: the latest command wins, or the element is exclusive |
 | HAL | HAL | Hardware abstraction layer; has a real and a simulated implementation |
 | Transport | Transporte | How messages travel between boards: Wi-Fi, USB serial, RS-485, LoRa |
 

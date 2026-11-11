@@ -1,0 +1,27 @@
+{
+  "id": "46e4febb-5bb9-4df9-b086-8b2a08e83f8d",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "b40507a6-2db4-4ece-addd-7847dc63ae6d",
+      "name": "Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "a67268e8-7b1d-4e29-8a7f-5703fb7c96a7",
+      "name": "Button",
+      "board": "b40507a6-2db4-4ece-addd-7847dc63ae6d",
+      "type": "digital_input",
+      "pin": 22,
+      "config": [
+        {
+          "name": "pull",
+          "value": "sideways"
+        }
+      ]
+    }
+  ]
+}

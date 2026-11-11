@@ -41,6 +41,12 @@ INVALID_CODES = {
     "bus-not-on-board": "bus.not_on_board",
     "bus-not-i2c": "bus.not_i2c",
     "i2c-address-in-use": "i2c.address_in_use",
+    "action-unknown": "action.unknown",
+    "action-param-missing": "action.param_missing",
+    "action-param-out-of-range": "action.param_out_of_range",
+    "track-element-without-actions": "track.element_without_actions",
+    "config-out-of-range": "config.out_of_range",
+    "config-not-allowed": "config.not_allowed",
 }
 
 

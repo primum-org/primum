@@ -1,0 +1,7 @@
+{
+  "id": "b1402854-364c-430e-af64-e3e9222b516d",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Option out of range",
+  "description": "A lamp with a PWM frequency of 20 MHz."
+}

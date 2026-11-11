@@ -110,6 +110,13 @@
           "type": "integer",
           "minimum": 8,
           "maximum": 119
+        },
+        "config": {
+          "description": "The options of the element's driver, by name (frequencyHz, pull, debounceMs); the ones not given take the driver's default.",
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/namedValue"
+          }
         }
       }
     }

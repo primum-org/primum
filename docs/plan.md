@@ -343,19 +343,29 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   `hal.pwm_unavailable`; a high one leaves few steps of level: at 20 MHz the period is 50 ns and
   `set(0.001)` reads back `0.0` with no error, so the limit is a maximum frequency or a minimum
   resolution), and `InputSpec.debounce_ms` is not checked (a negative value ends as a misleading
-  `hal.request_failed`).
+  `hal.request_failed`). The manifests of 3.2 set those limits (1–100000 Hz, 0–10000 ms) for
+  `core`; the drivers apply them on the board.
 - From review of 2.6, in passing: `overlaps` names and the note on loops.
 
-**3.2 · Driver manifests and what a clip is**
-- `schemas/driver.schema.json` and `drivers/`: one manifest per driver, the element type it
-  serves, capabilities (`switch`, `level`, `read`), actions with parameters, configuration,
-  platforms, safe state, limits, conflict policy (latest wins / exclusive). Data, like the
-  board profiles: `core` gets them from the caller.
-- `core` validates clip `action`s against the manifest of the element's type (`action.unknown`,
-  `action.param_missing`, `action.param_out_of_range`).
-- Decision: what a clip is (duration, an instant command of 0 ms, what happens when it ends);
-  `overlaps` adjusted so 0 ms clips count. `sequence.may_overlap` becomes an error on elements
-  whose driver is exclusive.
+**3.2 · Driver manifests and what a clip is** · **done** (decision 0016, `specs/drivers.md`)
+- `schemas/driver.schema.json` and `drivers/`: one manifest per element type, with its
+  capabilities, platforms, actions with parameters, the options of an element (`config`), its
+  safe state and its conflict policy (latest wins / exclusive). Data, like the board profiles:
+  `core` gets them from the caller. Three manifests: `digital_output` (`on`, `off`),
+  `pwm_output` (`on`, `off`, `set(level)`, `fade(from, to)`; `frequencyHz`) and `digital_input`
+  (no actions; `pull`, `debounceMs`).
+- Clips take `arguments` and elements take `config`, both values by name. `core` checks them
+  against the manifest of the element's type (`action.*`, `config.*`,
+  `track.element_without_actions`); a component, where a block gives it its element.
+- What a clip is: it holds its action while it lasts and then releases the element to the layer
+  below or its safe state; a clip of 0 ms is an instant command that stays until the next clip
+  of the element or the end of the sequence, and counts for overlaps. Two started sequences on
+  an element of an exclusive driver are an error (`sequence.exclusive_element_shared`).
+- Not here, for the compiler (phase 4): a clip that takes the value of a component's parameter
+  or of a variable; the limits the HAL showed (frequency, debounce) are now data in the
+  manifests and are enforced on the board by the drivers of 3.3.
+- Worth a look later: an instant clip that is the last thing of a sequence shows nothing (the
+  sequence ends there); a warning for it needs to know which sequences run on their own.
 
 **3.3 · The three drivers**
 - `digital_output`, `digital_input` (debounce, pull), `pwm_output`, each implementing its
@@ -394,7 +404,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   inversed polarity a disabled channel holds it high).
 - Test mode: manual commands that expire on their own, above sequences and below panic
   (decision 0006).
-- `docs/specs/safety.md`, `docs/specs/drivers.md`; on the Pi: `kill -9`, restart, exhausted
+- `docs/specs/safety.md`; on the Pi: `kill -9`, restart, exhausted
   restarts, with the LED as witness.
 - A sysfs PWM channel has no owner: the HAL adopts one already exported (what recovers it after
   a crash) and would take it from another program just the same. `check-gpio-users.sh` looks

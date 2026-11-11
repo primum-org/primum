@@ -247,6 +247,58 @@
       "message": "{sequence} and {other} may run at the same time, and both use {element}.",
       "hint": "If that is not what you want, put them in the same exclusive group, or give one of them a higher priority."
     },
+    "sequence.exclusive_element_shared": {
+      "message": "{sequence} and {other} may run at the same time, and both use {element}, which only one sequence can use at a time.",
+      "hint": "Put them in the same exclusive group, or give one of them a higher priority."
+    },
+    "track.element_without_actions": {
+      "message": "{element} takes no actions, so it cannot have a track.",
+      "hint": "A track is for an element that does something, like a light or a relay. To react to {element}, use an event."
+    },
+    "action.unknown": {
+      "message": "{element} cannot do {action}.",
+      "hint": "It can do: {available}."
+    },
+    "action.param_unknown": {
+      "message": "The action {action} of {element} has no parameter {parameter}.",
+      "hint": "Remove it, or check how it is written."
+    },
+    "action.param_duplicate": {
+      "message": "The parameter {parameter} of the action {action} of {element} is given more than once.",
+      "hint": "Keep one value for {parameter}."
+    },
+    "action.param_missing": {
+      "message": "The action {action} of {element} needs a value for {parameter}.",
+      "hint": "Add {parameter} to the clip."
+    },
+    "action.param_out_of_range": {
+      "message": "The {parameter} of the action {action} of {element} is outside its limits.",
+      "hint": "Keep it between {min} and {max}."
+    },
+    "action.param_not_allowed": {
+      "message": "The {parameter} of the action {action} of {element} is not one of the values it allows.",
+      "hint": "Use one of these: {allowed}."
+    },
+    "config.unknown": {
+      "message": "{element} has no option {option}.",
+      "hint": "Remove it, or check how it is written."
+    },
+    "config.duplicate": {
+      "message": "The option {option} of {element} is given more than once.",
+      "hint": "Keep one value for {option}."
+    },
+    "config.missing": {
+      "message": "{element} needs a value for its option {option}.",
+      "hint": "Add {option} to the element."
+    },
+    "config.out_of_range": {
+      "message": "The option {option} of {element} is outside its limits.",
+      "hint": "Keep it between {min} and {max}."
+    },
+    "config.not_allowed": {
+      "message": "The option {option} of {element} is not one of the values it allows.",
+      "hint": "Use one of these: {allowed}."
+    },
     "board.unknown_model": {
       "message": "The board {board} is a {model}, and this version of Primum has no profile for that model.",
       "hint": "Use a model Primum knows (rpi4b), or add its profile to boards/."
@@ -394,6 +446,26 @@
     "board.duplicate_id": {
       "message": "The board profile uses the name {id} more than once.",
       "hint": "Give each bus and each PWM channel its own name."
+    },
+    "driver.duplicate_action": {
+      "message": "The driver declares the action {action} more than once.",
+      "hint": "Give each action its own name."
+    },
+    "driver.duplicate_parameter": {
+      "message": "The driver declares {parameter} more than once in the same place.",
+      "hint": "Give each parameter of an action, and each option, its own name."
+    },
+    "driver.limits_invalid": {
+      "message": "The limits of {parameter} are the wrong way round: the minimum ({min}) is above the maximum ({max}).",
+      "hint": "Swap them, or fix the one that is wrong."
+    },
+    "driver.default_not_allowed": {
+      "message": "The default value of {parameter} is not one it allows.",
+      "hint": "Keep it within its limits, or among its choices."
+    },
+    "driver.unknown_safe_state": {
+      "message": "The safe state {action} is not an action the driver can run without arguments.",
+      "hint": "Name one of its actions whose parameters all have a default value."
     }
   }
 }

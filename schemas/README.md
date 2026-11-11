@@ -14,9 +14,10 @@ TypeScript types follow in phase 5.
 | `common.schema.json` | Definitions shared by every format: `id`, `name`, `description` |
 | `project.schema.json` | `project.json`, the manifest at the root of a project |
 | `board-profile.schema.json` | `boards/<model>.json`, a board profile (`docs/specs/board-profiles.md`) |
-| `hardware.schema.json` | `.hw`: boards and elements (`docs/specs/workspace.md`, as the rest) |
+| `driver.schema.json` | `drivers/<elementType>.json`, a driver manifest (`docs/specs/drivers.md`) |
+| `hardware.schema.json` | `.hw`: boards and elements, with the options of their driver (`docs/specs/workspace.md`, as the rest) |
 | `variables.schema.json` | `.vars`: constants, variables, exports and imports |
-| `sequence.schema.json` | `.sec`: tracks of clips, blocks, parameters, priority, exclusive group |
+| `sequence.schema.json` | `.sec`: tracks of clips (an action and its arguments), blocks, parameters, priority, exclusive group |
 | `event.schema.json` | `.evt`: events from elements, the phone UI or the API |
 | `schedule.schema.json` | `.sched`: times of day and windows of time |
 | `automation.schema.json` | `.auto`: when, if, do |

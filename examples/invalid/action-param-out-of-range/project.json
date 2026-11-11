@@ -1,0 +1,7 @@
+{
+  "id": "e1de94f1-f227-4c66-b369-78671e9769c2",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Action parameter out of range",
+  "description": "A lamp set to 150 %."
+}

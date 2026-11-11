@@ -1,47 +1,27 @@
-"""Sequences that ask one element to do two things at once (decision 0006).
+"""Sequences that ask one element to do two things at once (decisions 0006 and 0016).
 
 Within a sequence, the clips of one element never overlap in time, the sequences it includes
-counted at their offset: an error. Between sequences, the engine arbitrates (phase 4), so two
-sequences that may run at the same time and touch the same element are a warning, unless they
-are in one exclusive group (they cancel each other) or on different priorities (one layers over
-the other). Which sequences may run at the same time is approximated statically: those that
+counted at their offset: an error. A clip of 0 ms, an instant command, holds its instant: no
+other clip of its element may start in it. Between sequences, the engine arbitrates (phase 4),
+so two sequences that may run at the same time and touch the same element are a warning, unless
+they are in one exclusive group (they cancel each other) or on different priorities (one layers
+over the other); on an element whose driver is exclusive (one sequence owns it while it runs)
+it is an error. Which sequences may run at the same time is approximated statically: those that
 automations start.
 """
 
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from itertools import combinations
 from uuid import UUID
 
+from primum_core.drivers import Drivers
 from primum_core.errors import CoreErrorCode, Issue, Location, Severity
 from primum_core.generated.model import Automation, Hardware, Sequence
-from primum_core.pointers import Step, pointer
 from primum_core.references import LocatedContent
+from primum_core.timeline import FlatClip, Sequences, flatten_all, sequences_of
 
-type Sequences = Mapping[UUID, tuple[Sequence, Location]]
-type Flattened = Mapping[UUID, list["_Clip"]]
-type Bindings = Mapping[UUID, UUID]  # a parameter → the element given for it
-
-
-@dataclass(frozen=True)
-class _Clip:
-    """A clip in the flattened time of a sequence: ``[start, end)`` on ``element``.
-
-    ``element`` is a concrete element, or a parameter of the sequence being flattened. ``at`` is
-    where to report it: the clip itself, or the block that includes the sequence it comes from;
-    ``via`` is that block, ``None`` for the sequence's own clips, and ``inner`` the element as
-    the included sequence saw it, before the block bound its parameters. Two clips that come
-    through one block on one inner element overlap inside the included sequence, which is where
-    that is reported; two that only meet because the block bound a parameter to an element the
-    other already used are new here.
-    """
-
-    element: UUID
-    start: int
-    end: int
-    at: Location
-    via: UUID | None = None
-    inner: UUID | None = None
+EXCLUSIVE = "exclusive"
 
 
 @dataclass(frozen=True)
@@ -53,16 +33,12 @@ class _Started:
     elements: frozenset[UUID]
 
 
-def check_overlaps(files: Iterable[LocatedContent]) -> tuple[Issue, ...]:
+def check_overlaps(files: Iterable[LocatedContent], drivers: Drivers) -> tuple[Issue, ...]:
     """Clips of one element overlapping within a sequence; sequences that may overlap."""
     files = tuple(files)
-    sequences: Sequences = {
-        file.content.id: (file.content, file.location)
-        for file in files
-        if isinstance(file.content, Sequence)
-    }
+    sequences = sequences_of(files)
     names = _names(files, sequences)
-    flattened = _flatten_all(sequences)
+    flattened = flatten_all(sequences)
     issues: list[Issue] = []
     for sequence_id in sequences:
         issues += _clip_overlaps(flattened[sequence_id], names)
@@ -74,8 +50,19 @@ def check_overlaps(files: Iterable[LocatedContent]) -> tuple[Issue, ...]:
         for sequence_id in _started_by_automations(files)
         if sequence_id in sequences
     ]
-    issues += _may_overlap(started, names)
+    issues += _may_overlap(started, names, _exclusive(files, drivers))
     return tuple(issues)
+
+
+def _exclusive(files: tuple[LocatedContent, ...], drivers: Drivers) -> frozenset[UUID]:
+    """The elements only one sequence can use at a time: those of a driver that says so."""
+    return frozenset(
+        element.id
+        for file in files
+        if isinstance(file.content, Hardware)
+        for element in file.content.elements
+        if (driver := drivers.get(element.type)) is not None and driver.conflict_policy == EXCLUSIVE
+    )
 
 
 def _names(files: tuple[LocatedContent, ...], sequences: Sequences) -> dict[UUID, str]:
@@ -89,82 +76,7 @@ def _names(files: tuple[LocatedContent, ...], sequences: Sequences) -> dict[UUID
     return names
 
 
-def _at(location: Location, *steps: Step) -> Location:
-    return replace(location, pointer=pointer(steps))
-
-
-def _flatten_all(sequences: Sequences) -> dict[UUID, list[_Clip]]:
-    """Every clip of each sequence and of what it includes, in the sequence's own time.
-
-    Clips that come through a block are reported at that block. Parameters stay as they are:
-    the sequence that includes a component binds them (``_compose``). Each sequence is flattened
-    once, after the ones it includes, by a walk with its own stack: no recursion, however deep
-    the inclusions. A loop of inclusions is skipped here: the components check reports it, so
-    the project is invalid anyway; until then the sequences in the loop are flattened without
-    the clips that come back through it, and so are the sequences that include them.
-    """
-    flattened: dict[UUID, list[_Clip]] = {}
-    for root in sequences:
-        stack = [root]
-        in_progress: set[UUID] = set()
-        while stack:
-            sequence_id = stack[-1]
-            if sequence_id in flattened:
-                stack.pop()
-                continue
-            if sequence_id not in in_progress:
-                in_progress.add(sequence_id)
-                pending = [
-                    block.sequence
-                    for block in sequences[sequence_id][0].blocks
-                    if block.sequence in sequences
-                    and block.sequence not in flattened
-                    and block.sequence not in in_progress
-                ]
-                if pending:
-                    stack += pending
-                    continue
-            flattened[sequence_id] = _compose(sequence_id, sequences, flattened)
-            in_progress.discard(sequence_id)
-            stack.pop()
-    return flattened
-
-
-def _compose(sequence_id: UUID, sequences: Sequences, flattened: Flattened) -> list[_Clip]:
-    """The clips of one sequence: its own, and the included ones shifted and bound."""
-    sequence, location = sequences[sequence_id]
-    clips: list[_Clip] = []
-    for track_index, track in enumerate(sequence.tracks):
-        for index, clip in enumerate(track.clips):
-            if clip.duration_ms == 0:  # takes no time: cannot overlap anything
-                continue
-            at = _at(location, "tracks", track_index, "clips", index)
-            clips.append(_Clip(track.element, clip.at_ms, clip.at_ms + clip.duration_ms, at))
-    for index, block in enumerate(sequence.blocks):
-        included = flattened.get(block.sequence)  # absent: unknown, or a loop
-        if included is None:
-            continue
-        bindings: Bindings = {
-            argument.parameter: argument.element
-            for argument in block.arguments
-            if argument.element is not None
-        }
-        at = _at(location, "blocks", index)
-        clips += [
-            _Clip(
-                bindings.get(clip.element, clip.element),
-                clip.start + block.at_ms,
-                clip.end + block.at_ms,
-                at,
-                block.id,
-                clip.element,
-            )
-            for clip in included
-        ]
-    return clips
-
-
-def _clip_overlaps(clips: list[_Clip], names: Mapping[UUID, str]) -> Iterator[Issue]:
+def _clip_overlaps(clips: list[FlatClip], names: Mapping[UUID, str]) -> Iterator[Issue]:
     """Each clip that starts while an earlier clip of its element is still running.
 
     An element the project does not define is the references check's. Clips that arrive
@@ -173,7 +85,7 @@ def _clip_overlaps(clips: list[_Clip], names: Mapping[UUID, str]) -> Iterator[Is
     groups. Clips reported at one place (a block) are reported once per element, at the first
     overlap: a component of twenty clips included twice is one problem, not twenty.
     """
-    by_element: dict[UUID, list[_Clip]] = {}
+    by_element: dict[UUID, list[FlatClip]] = {}
     for clip in clips:
         if clip.element in names:
             by_element.setdefault(clip.element, []).append(clip)
@@ -191,9 +103,16 @@ def _clip_overlaps(clips: list[_Clip], names: Mapping[UUID, str]) -> Iterator[Is
                 params = {"element": names[element], "atMs": clip.start}
                 yield Issue(CoreErrorCode.TRACK_CLIPS_OVERLAP, params, clip.at)
             if group is None:
-                own_end = max(own_end, clip.end)
+                own_end = max(own_end, _busy_until(clip))
             else:
-                group_end[group] = max(group_end.get(group, 0), clip.end)
+                group_end[group] = max(group_end.get(group, 0), _busy_until(clip))
+
+
+def _busy_until(clip: FlatClip) -> int:
+    """When the element is free for another clip to start. A clip of 0 ms takes its instant:
+    one that starts in that same millisecond overlaps it, one that starts in the next does
+    not."""
+    return max(clip.end, clip.start + 1)
 
 
 def _started_by_automations(files: tuple[LocatedContent, ...]) -> list[UUID]:
@@ -206,16 +125,19 @@ def _started_by_automations(files: tuple[LocatedContent, ...]) -> list[UUID]:
     return list(started)
 
 
-def _concrete(clips: list[_Clip], parameters: set[UUID]) -> frozenset[UUID]:
+def _concrete(clips: list[FlatClip], parameters: set[UUID]) -> frozenset[UUID]:
     """The elements the clips touch. A parameter bound to nothing (the sequence's own, or one of
     a component included without that argument) is not an element."""
     return frozenset(clip.element for clip in clips if clip.element not in parameters)
 
 
-def _may_overlap(started: list[_Started], names: Mapping[UUID, str]) -> Iterator[Issue]:
+def _may_overlap(
+    started: list[_Started], names: Mapping[UUID, str], exclusive: frozenset[UUID]
+) -> Iterator[Issue]:
     """Pairs of started sequences on one priority, not in one exclusive group, sharing an element.
 
-    Reported once, at the second sequence by path, naming the first shared element.
+    Reported once, at the second sequence by path, naming the first shared element: an error
+    if one of the shared elements is exclusive (that one is named), a warning otherwise.
     """
     for first, second in combinations(sorted(started, key=lambda s: s.location.path), 2):
         if first.sequence.priority != second.sequence.priority:
@@ -224,12 +146,17 @@ def _may_overlap(started: list[_Started], names: Mapping[UUID, str]) -> Iterator
         if group is not None and group == second.sequence.exclusive_group:
             continue
         # An element the project does not define is the references check's.
-        shared = sorted(names[e] for e in first.elements & second.elements if e in names)
+        shared = [element for element in first.elements & second.elements if element in names]
         if not shared:
             continue
+        owned = sorted(names[element] for element in shared if element in exclusive)
         params = {
             "sequence": second.sequence.name,
             "other": first.sequence.name,
-            "element": shared[0],
+            "element": owned[0] if owned else min(names[element] for element in shared),
         }
-        yield Issue(CoreErrorCode.SEQUENCE_MAY_OVERLAP, params, second.location, Severity.WARNING)
+        if owned:
+            yield Issue(CoreErrorCode.SEQUENCE_EXCLUSIVE_ELEMENT_SHARED, params, second.location)
+        else:
+            code = CoreErrorCode.SEQUENCE_MAY_OVERLAP
+            yield Issue(code, params, second.location, Severity.WARNING)

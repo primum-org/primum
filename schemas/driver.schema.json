@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "driver.schema.json",
+  "title": "Driver",
+  "description": "What a driver offers, as data: the element type it serves, what a clip may ask of it and how the element is set up. One file per element type in drivers/. Its implementation lives in the runtimes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "schemaVersion",
+    "elementType",
+    "capabilities",
+    "platforms",
+    "config",
+    "actions"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "kind": {
+      "const": "driver"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "elementType": {
+      "description": "The type of the elements it serves, as .hw files write it (pwm_output); the file is named after it.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 40
+    },
+    "capabilities": {
+      "description": "What the element can do in general terms.",
+      "type": "array",
+      "items": {
+        "enum": [
+          "switch",
+          "level",
+          "color",
+          "position",
+          "measure"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "platforms": {
+      "description": "The runtimes that implement it.",
+      "type": "array",
+      "items": {
+        "enum": [
+          "linux",
+          "esp32",
+          "rp2040",
+          "avr"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "conflictPolicy": {
+      "description": "What happens when two sequences on one priority command the element: the latest command wins (lights, relays), or one sequence owns it while it runs (motors, servos). Needed by a driver with actions.",
+      "enum": [
+        "latest_wins",
+        "exclusive"
+      ]
+    },
+    "safeState": {
+      "description": "The action the element rests in: when nothing commands it, on stop, on panic. One of its actions that needs no arguments. Needed by a driver with actions.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 40
+    },
+    "config": {
+      "description": "The options an element of this type takes in a .hw file, beyond its wiring.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/driverParameter"
+      }
+    },
+    "actions": {
+      "description": "What a clip may ask of the element. None for an element that only reads.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/driverAction"
+      }
+    }
+  },
+  "$defs": {
+    "driverAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "An action of the element, with the parameters a clip gives it.",
+      "required": [
+        "name",
+        "parameters"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 40
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/driverParameter"
+          }
+        }
+      }
+    },
+    "driverParameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A parameter of an action or an option of an element's configuration: its type, its limits and the value it takes when not given. Without a default it must be given.",
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/$defs/parameterName"
+        },
+        "type": {
+          "$ref": "common.schema.json#/$defs/valueType"
+        },
+        "min": {
+          "description": "The lowest value allowed (numbers only, with max).",
+          "type": "number"
+        },
+        "max": {
+          "description": "The highest value allowed (numbers only, with min).",
+          "type": "number"
+        },
+        "choices": {
+          "description": "The values allowed (texts only).",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "default": {
+          "$ref": "common.schema.json#/$defs/value"
+        }
+      }
+    }
+  }
+}

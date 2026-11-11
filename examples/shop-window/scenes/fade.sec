@@ -24,13 +24,33 @@
           "id": "8c990fb3-84f7-453b-8309-2ee5ee3a511e",
           "atMs": 0,
           "durationMs": 1500,
-          "action": "fade_in"
+          "action": "fade",
+          "arguments": [
+            {
+              "name": "from",
+              "value": 0
+            },
+            {
+              "name": "to",
+              "value": 100
+            }
+          ]
         },
         {
           "id": "2b1cb57b-fb06-46ea-bab6-25bbb51b4044",
           "atMs": 1500,
           "durationMs": 1500,
-          "action": "fade_out"
+          "action": "fade",
+          "arguments": [
+            {
+              "name": "from",
+              "value": 100
+            },
+            {
+              "name": "to",
+              "value": 0
+            }
+          ]
         }
       ]
     }

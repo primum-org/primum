@@ -41,6 +41,7 @@ packages/cli       primum-cli: the `primum` command (`primum validate <project>`
 apps/webui         local web UI (Vue 3 + TypeScript), from phase 5
 schemas/           JSON Schemas: single source of the formats
 boards/            board profiles (pins, peripherals, resources)
+drivers/           driver manifests (actions, options, safe state, conflict policy)
 design/            brand: brandbook, tokens (single source), logo, icons
 i18n/              message catalogs (en, es): every user-visible text, error messages by code
 image/             Primum OS image (rpi-image-gen), from phase 7

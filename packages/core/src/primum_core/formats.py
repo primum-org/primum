@@ -7,7 +7,8 @@
    numbers as JSON means them (``2.0`` is the integer ``2``);
 2. structure: the file's schema in ``schemas/``, every problem reported;
 3. the generated, immutable dataclass of the format;
-4. meaning, for formats that have rules a schema cannot express (board profiles).
+4. meaning, for formats that have rules a schema cannot express (board profiles, driver
+   manifests).
 """
 
 import json
@@ -18,10 +19,12 @@ from pathlib import PurePosixPath
 from uuid import UUID
 
 from primum_core.boards import check_board_profile
+from primum_core.drivers import check_driver
 from primum_core.errors import CoreErrorCode, Issue, Location
 from primum_core.generated.model import (
     Automation,
     BoardProfile,
+    Driver,
     Event,
     Hardware,
     Project,
@@ -30,6 +33,7 @@ from primum_core.generated.model import (
     Variables,
     parse_automation,
     parse_board_profile,
+    parse_driver,
     parse_event,
     parse_hardware,
     parse_project,
@@ -98,6 +102,11 @@ def read_board_profile(path: PurePosixPath, content: bytes) -> Parsed[BoardProfi
     return _read(
         path, content, "board-profile.schema.json", parse_board_profile, check_board_profile
     )
+
+
+def read_driver(path: PurePosixPath, content: bytes) -> Parsed[Driver]:
+    """Read a driver manifest (``drivers/<elementType>.json``), its meaning checked too."""
+    return _read(path, content, "driver.schema.json", parse_driver, check_driver)
 
 
 def _read[T](

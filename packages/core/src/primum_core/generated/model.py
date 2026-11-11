@@ -14,6 +14,10 @@ _HEADER_PIN_KIND: Final[tuple[Literal["gpio", "power_3v3", "power_5v", "ground"]
 _HEADER_PIN_DEFAULT_PULL: Final[tuple[Literal["up", "down"], ...]] = ("up", "down")
 _BUS_KIND: Final[tuple[Literal["i2c", "spi", "uart"], ...]] = ("i2c", "spi", "uart")
 _RESERVED_GPIO_REASON: Final[tuple[Literal["hat_eeprom"], ...]] = ("hat_eeprom",)
+_DRIVER_CAPABILITIES: Final[tuple[Literal["switch", "level", "color", "position", "measure"], ...]] = ("switch", "level", "color", "position", "measure")
+_DRIVER_PLATFORMS: Final[tuple[Literal["linux", "esp32", "rp2040", "avr"], ...]] = ("linux", "esp32", "rp2040", "avr")
+_DRIVER_CONFLICT_POLICY: Final[tuple[Literal["latest_wins", "exclusive"], ...]] = ("latest_wins", "exclusive")
+_DRIVER_PARAMETER_TYPE: Final[tuple[Literal["number", "integer", "boolean", "text"], ...]] = ("number", "integer", "boolean", "text")
 _EVENT_SOURCE: Final[tuple[Literal["element", "ui", "api"], ...]] = ("element", "ui", "api")
 _EVENT_TRIGGER: Final[tuple[Literal["on", "off"], ...]] = ("on", "off")
 _ELEMENT_TYPE: Final[tuple[Literal["digital_output", "digital_input", "pwm_output", "i2c_device"], ...]] = ("digital_output", "digital_input", "pwm_output", "i2c_device")
@@ -117,6 +121,50 @@ class PwmChip:
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
+class NamedValue:
+    """A value given by name: an argument of a clip's action, an option of an element's configuration."""
+
+    name: str
+    value: float | bool | str
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class Driver:
+    """What a driver offers, as data: the element type it serves, what a clip may ask of it and how the element is set up. One file per element type in drivers/. Its implementation lives in the runtimes."""
+
+    id: UUID
+    kind: Literal["driver"] = "driver"
+    schema_version: Literal[1] = 1
+    element_type: str
+    capabilities: tuple[Literal["switch", "level", "color", "position", "measure"], ...]
+    platforms: tuple[Literal["linux", "esp32", "rp2040", "avr"], ...]
+    conflict_policy: Literal["latest_wins", "exclusive"] | None = None
+    safe_state: str | None = None
+    config: tuple[DriverParameter, ...]
+    actions: tuple[DriverAction, ...]
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class DriverAction:
+    """An action of the element, with the parameters a clip gives it."""
+
+    name: str
+    parameters: tuple[DriverParameter, ...]
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class DriverParameter:
+    """A parameter of an action or an option of an element's configuration: its type, its limits and the value it takes when not given. Without a default it must be given."""
+
+    name: str
+    type: Literal["number", "integer", "boolean", "text"]
+    min: float | None = None
+    max: float | None = None
+    choices: tuple[str, ...] = ()
+    default: float | bool | str | None = None
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
 class Event:
     """An .evt file: something that happens outside and can start automations. The source says where it comes from: an input element, a button of the phone UI, or a request to the local API."""
 
@@ -162,6 +210,7 @@ class Element:
     active_low: bool = False
     bus: str | None = None
     address: int | None = None
+    config: tuple[NamedValue, ...] = ()
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -239,12 +288,13 @@ class Track:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class Clip:
-    """An action of the element, from atMs for durationMs."""
+    """An action of the element from atMs: held for durationMs, or, with durationMs 0, an instant command whose effect stays until the next clip of the element or the end of the sequence (decision 0016)."""
 
     id: UUID
     at_ms: int
     duration_ms: int
     action: str
+    arguments: tuple[NamedValue, ...] = ()
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -407,6 +457,48 @@ def parse_pwm_chip(data: JsonObject) -> PwmChip:
     )
 
 
+def parse_named_value(data: JsonObject) -> NamedValue:
+    """Build a ``NamedValue`` from a document that passed its schema."""
+    return NamedValue(
+        name=as_str(data["name"]),
+        value=as_scalar(data["value"]),
+    )
+
+
+def parse_driver(data: JsonObject) -> Driver:
+    """Build a ``Driver`` from a document that passed its schema."""
+    return Driver(
+        id=as_uuid(data["id"]),
+        element_type=as_str(data["elementType"]),
+        capabilities=tuple(as_choice(item, _DRIVER_CAPABILITIES) for item in as_list(data["capabilities"])),
+        platforms=tuple(as_choice(item, _DRIVER_PLATFORMS) for item in as_list(data["platforms"])),
+        conflict_policy=as_choice(data["conflictPolicy"], _DRIVER_CONFLICT_POLICY) if "conflictPolicy" in data else None,
+        safe_state=as_str(data["safeState"]) if "safeState" in data else None,
+        config=tuple(parse_driver_parameter(as_object(item)) for item in as_list(data["config"])),
+        actions=tuple(parse_driver_action(as_object(item)) for item in as_list(data["actions"])),
+    )
+
+
+def parse_driver_action(data: JsonObject) -> DriverAction:
+    """Build a ``DriverAction`` from a document that passed its schema."""
+    return DriverAction(
+        name=as_str(data["name"]),
+        parameters=tuple(parse_driver_parameter(as_object(item)) for item in as_list(data["parameters"])),
+    )
+
+
+def parse_driver_parameter(data: JsonObject) -> DriverParameter:
+    """Build a ``DriverParameter`` from a document that passed its schema."""
+    return DriverParameter(
+        name=as_str(data["name"]),
+        type=as_choice(data["type"], _DRIVER_PARAMETER_TYPE),
+        min=as_float(data["min"]) if "min" in data else None,
+        max=as_float(data["max"]) if "max" in data else None,
+        choices=tuple(as_str(item) for item in as_list(data["choices"])) if "choices" in data else (),
+        default=as_scalar(data["default"]) if "default" in data else None,
+    )
+
+
 def parse_event(data: JsonObject) -> Event:
     """Build a ``Event`` from a document that passed its schema."""
     return Event(
@@ -448,6 +540,7 @@ def parse_element(data: JsonObject) -> Element:
         active_low=as_bool(data["activeLow"]) if "activeLow" in data else False,
         bus=as_str(data["bus"]) if "bus" in data else None,
         address=as_int(data["address"]) if "address" in data else None,
+        config=tuple(parse_named_value(as_object(item)) for item in as_list(data["config"])) if "config" in data else (),
     )
 
 
@@ -525,6 +618,7 @@ def parse_clip(data: JsonObject) -> Clip:
         at_ms=as_int(data["atMs"]),
         duration_ms=as_int(data["durationMs"]),
         action=as_str(data["action"]),
+        arguments=tuple(parse_named_value(as_object(item)) for item in as_list(data["arguments"])) if "arguments" in data else (),
     )
 
 

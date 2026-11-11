@@ -1,0 +1,19 @@
+{
+  "id": "1f8acc80-9f21-490a-98de-e9869c56bd7a",
+  "kind": "sequence",
+  "schemaVersion": 1,
+  "name": "Show",
+  "tracks": [
+    {
+      "element": "34b6fed7-d92d-4a43-9e96-0650bb83dfbc",
+      "clips": [
+        {
+          "id": "3a43fed4-cfa5-4d55-ac93-5be1c8028ae1",
+          "atMs": 0,
+          "durationMs": 1000,
+          "action": "set"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "14c7cbe4-4545-4ff9-b697-a3cc71fd9f65",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "48423809-94c9-4a57-ae7e-6c657b3f8cbd",
+      "name": "Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "34043e93-bf44-4b61-af7e-8e0e798f8c1d",
+      "name": "Lamp",
+      "board": "48423809-94c9-4a57-ae7e-6c657b3f8cbd",
+      "type": "pwm_output",
+      "pin": 18,
+      "config": [
+        {
+          "name": "frequencyHz",
+          "value": 20000000
+        }
+      ]
+    }
+  ]
+}

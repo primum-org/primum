@@ -11,9 +11,9 @@ A project is a folder of files (decision 0004). This spec says what the folder h
 
 | Extension | Kind | Holds |
 |---|---|---|
-| `.hw` | `hardware` | Boards (`model` names a board profile) and the elements wired to them |
+| `.hw` | `hardware` | Boards (`model` names a board profile) and the elements wired to them, each with the options of its driver (`config`) |
 | `.vars` | `variables` | Constants and variables of its folder; names exported and imported |
-| `.sec` | `sequence` | Tracks of clips per element; blocks that include other sequences; parameters (a component); `priority` and `exclusiveGroup` (decision 0006) |
+| `.sec` | `sequence` | Tracks of clips per element, each clip an action of the element's driver with its `arguments`; blocks that include other sequences; parameters (a component); `priority` and `exclusiveGroup` (decision 0006) |
 | `.evt` | `event` | Something from outside: an input element, a button of the phone UI, the local API |
 | `.sched` | `schedule` | Times of day (start automations) and windows of time (conditions) |
 | `.auto` | `automation` | When events or schedules fire, if a condition holds, do actions |
@@ -61,17 +61,20 @@ name.
 
 ## Reading a project
 
-`load_workspace(files)` takes every file as path (relative to the folder) → bytes and returns
-the `Workspace` (manifest and files, by path) or the issues that prevent it. Checks come in
-stages, so each problem is reported once, where it is:
+`load_workspace(files, profiles, drivers)` takes every file as path (relative to the folder) →
+bytes, the board profiles by model and the driver manifests by element type (`core` reads no
+files: the caller loads them), and returns the `Workspace` (manifest and files, by path) or the
+issues that prevent it. Checks come in stages, so each problem is reported once, where it is:
 
 1. each file on its own: UTF-8, JSON, its schema (`file.*`, `schema.*`), then the fields that
-   depend on the case (`schema.missing_field`, `schema.unexpected_field`);
+   depend on the case (`schema.missing_field`, `schema.unexpected_field`) and the configuration
+   of each element against its driver (`config.*`, `drivers.md`);
 2. once every file reads, the project as a whole: unique ids (`id.duplicate`) and references
    (`ref.unknown`, `ref.wrong_kind`), which need every file: a file that does not read would
    make references to what it defines look wrong; then the names and their scopes, the
-   components (`variables-and-scopes.md`) and the resources of each board
-   (`board-profiles.md`).
+   components (`variables-and-scopes.md`), the action of each clip against the driver of its
+   element (`action.*`, `drivers.md`), the clips and sequences that overlap (below) and the
+   resources of each board (`board-profiles.md`).
 
 Without `project.json` the folder is not a project (`project.manifest_missing`). Warnings do
 not make a project invalid; errors do.
@@ -81,7 +84,20 @@ not make a project invalid; errors do.
 Each clip of a track runs from `atMs` for `durationMs`, in the time of its sequence; a block
 runs the included sequence from its `atMs`, its parameters bound to the block's arguments. For
 the checks, a sequence is **flattened**: its own clips plus the clips of what it includes, at
-their offsets, each sequence flattened once (`primum_core.overlaps`).
+their offsets, each sequence flattened once (`primum_core.timeline`).
+
+What a clip does (decision 0016):
+
+- **A clip holds its action while it lasts.** When it ends, its sequence stops commanding the
+  element, which returns to what a sequence on a lower priority says or, if none does, to its
+  driver's safe state.
+- **A clip of `durationMs: 0` is an instant command whose effect stays** until the next clip of
+  that element starts or the sequence ends, both read in the flattened sequence. The element
+  takes the state the action ends in: a `fade`, its `to`.
+- **A sequence ends when its last clip ends**, an instant clip ending where it starts. So an
+  instant clip that is the last thing of its sequence shows nothing.
+
+The checks (`primum_core.overlaps`):
 
 - **Within a sequence**, two clips of one element whose times overlap are an error,
   `track.clips_overlap` (`element`, `atMs`: where the later one starts). It points at the later
@@ -89,9 +105,11 @@ their offsets, each sequence flattened once (`primum_core.overlaps`).
   block on the same element of the included sequence are not compared: their overlap belongs
   to it, and is reported there once. Two that only meet because the block bound a parameter to
   an element the component also uses directly are new, and are reported at the block, once per
-  element (a component of twenty clips included twice is one problem, not twenty). A clip of
-  `durationMs: 0` takes no time and overlaps nothing. Clips that only touch (one ends where the
-  next starts) do not overlap. A clip on an element the project does not define is only
+  element (a component of twenty clips included twice is one problem, not twenty). An instant
+  clip takes its instant: it overlaps a clip it falls inside, and a clip that starts in that
+  same millisecond; it does not overlap a clip that ends where it is, nor one that starts a
+  millisecond later (that clip takes over). Clips that only touch (one ends where the next
+  starts) do not overlap. A clip on an element the project does not define is only
   `ref.unknown`.
 - **Between sequences**, the engine arbitrates (decision 0006, phase 4): by `priority` (a higher
   one layers over a lower one while it runs; within one priority the latest command wins) and
@@ -99,7 +117,10 @@ their offsets, each sequence flattened once (`primum_core.overlaps`).
   without the engine is a warning: two sequences that **automations start**, on the **same
   priority**, **not in one exclusive group**, that touch the **same element**, may run at the
   same time: `sequence.may_overlap` (`sequence`, `other`, `element`), once per pair, at the
-  second sequence by path. Sequences nothing starts are not compared (those the phone UI or
+  second sequence by path. If one of the shared elements has an **exclusive** driver (one
+  sequence owns it while it runs: `conflictPolicy` in `drivers.md`), it is an error instead,
+  `sequence.exclusive_element_shared`, with the same params and that element named. Sequences
+  nothing starts are not compared (those the phone UI or
   the API will start, phase 5, are not known here); a parameter bound to nothing (a component's
   own, or one of a component included without that argument) counts as no element, and so does
   an element the project does not define. An `exclusiveGroup` is one name for the whole
