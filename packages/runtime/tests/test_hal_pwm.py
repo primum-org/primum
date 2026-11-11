@@ -30,7 +30,12 @@ def _chip(sysfs: Path, name: str, device: str, channels: int = 2) -> Path:
 
 # A freshly exported channel on the Pi's kernel: 1 ms period, 0 duty cycle, disabled. The
 # HAL counts on the period being non-zero (see pwm_sysfs.py).
-FRESH_CHANNEL = {"period": 1_000_000, "duty_cycle": 0, "enable": 0}
+FRESH_CHANNEL: dict[str, int | str] = {
+    "period": 1_000_000,
+    "duty_cycle": 0,
+    "enable": 0,
+    "polarity": "normal",
+}
 
 
 def _export(chip: Path) -> None:
@@ -46,13 +51,13 @@ def _export_owned_by_root(chip: Path) -> None:
     """An export as udev has not settled yet: the channel's files are not writable."""
     _export(chip)
     channel = int((chip / "export").read_text())
-    for name in ("period", "duty_cycle", "enable"):
+    for name in FRESH_CHANNEL:
         (chip / f"pwm{channel}" / name).chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
 
 
 def _settle(chip: Path, channel: int) -> None:
     """What udev does a little after the export: hands the channel's files to the user."""
-    for name in ("period", "duty_cycle", "enable"):
+    for name in FRESH_CHANNEL:
         (chip / f"pwm{channel}" / name).chmod(stat.S_IRUSR | stat.S_IWUSR)
 
 
@@ -200,6 +205,44 @@ def test_a_channel_adopted_with_a_long_duty_cycle_is_zeroed_before_its_period_sh
     assert (chip / "pwm0" / "period").read_text() == "100000\n"
     assert (chip / "pwm0" / "duty_cycle").read_text() == "0\n"
     assert channel.read() == 0.0
+
+
+def test_a_channel_adopted_with_inversed_polarity_is_set_to_normal_while_disabled(
+    sysfs: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Inversed, 0 % holds the pin high; the polarity outlives an unexport and the kernel only
+    # lets it change while the channel is disabled.
+    chip = sysfs / "pwmchip2"
+    (chip / "export").write_text("0")
+    _export(chip)
+    (chip / "pwm0" / "polarity").write_text("inversed\n")
+    (chip / "pwm0" / "enable").write_text("1\n")
+    write = pwm_sysfs._write  # pyright: ignore[reportPrivateUsage] -- wrapped to play the kernel
+
+    def write_as_the_kernel_checks(path: Path, value: int | str) -> None:
+        if path.name == "polarity" and (path.parent / "enable").read_text() == "1\n":
+            raise OSError(errno.EBUSY, "Device or resource busy")
+        write(path, value)
+
+    monkeypatch.setattr(pwm_sysfs, "_write", write_as_the_kernel_checks)
+
+    channel = SysfsPwmChannel(chip, 0, pin=18, frequency_hz=1000)
+
+    assert (chip / "pwm0" / "polarity").read_text() == "normal\n"
+    assert (chip / "pwm0" / "enable").read_text() == "1\n"
+    assert channel.read() == 0.0
+
+
+def test_a_polarity_inverted_behind_the_hal_reads_as_the_level_the_pin_gets(sysfs: Path) -> None:
+    chip = sysfs / "pwmchip2"
+    (chip / "export").write_text("0")
+    _export(chip)
+    channel = SysfsPwmChannel(chip, 0, pin=18, frequency_hz=1000)
+    (chip / "pwm0" / "polarity").write_text("inversed\n")  # another program, after the claim
+
+    channel.write(0.0)
+
+    assert channel.read() == 1.0  # 0 % inversed is a pin held high: not the safe state
 
 
 def test_a_channel_already_exported_is_not_waited_for(sysfs: Path) -> None:

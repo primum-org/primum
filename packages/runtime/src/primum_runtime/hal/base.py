@@ -9,8 +9,10 @@ releasing the lines, also when leaving a ``with`` block because of an exception.
 of a digital output is *off* (inactive) and of a PWM output *0 %*; ``active_low`` only changes
 which electrical level means *on*.
 
-Inputs report their state on demand (``read``) and every change as an ``InputEvent`` with the
-monotonic time it happened at (``read_events``), so nothing is missed between two reads.
+Inputs report their state on demand (``read``) and their changes as ``InputEvent``s with the
+monotonic time each happened at (``read_events``), so a short press between two reads is seen.
+The kernel keeps a bounded number of unread events and drops the oldest of a longer burst: the
+state ``read`` gives is always right, a count of presses may not be.
 
 Safety is best-effort across outputs: a failure on one line never stops the others from being
 put in the safe state or released. The failures are reported together at the end.

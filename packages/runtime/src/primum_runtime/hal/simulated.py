@@ -90,13 +90,19 @@ class SimulatedInput:
 
 
 class SimulatedPwm:
-    """A simulated PWM channel that remembers every level written to it."""
+    """A simulated PWM channel that remembers every level written to it.
+
+    Faults can be injected as on a ``SimulatedLine``: ``fail_writes``, and ``stick(1.0)`` for a
+    channel that reads back a level whatever is written (an inverted polarity, for instance).
+    """
 
     def __init__(self, spec: PwmSpec) -> None:
         self._spec = spec
         self._duty = 0.0
         self._history: list[float] = []
         self._released = False
+        self._write_error: Exception | None = None
+        self._stuck: float | None = None
 
     @property
     def duty(self) -> float:
@@ -110,12 +116,22 @@ class SimulatedPwm:
     def released(self) -> bool:
         return self._released
 
+    def fail_writes(self, error: Exception | None) -> None:
+        """From now on every write raises ``error`` (``None`` makes writes work again)."""
+        self._write_error = error
+
+    def stick(self, duty: float | None) -> None:
+        """Make the channel read back ``duty`` whatever is written (``None`` unsticks it)."""
+        self._stuck = duty
+
     def write(self, duty: float) -> None:
+        if self._write_error is not None:
+            raise self._write_error
         self._duty = duty
         self._history.append(duty)
 
     def read(self) -> float:
-        return self._duty
+        return self._duty if self._stuck is None else self._stuck
 
     def release(self) -> None:
         self._released = True

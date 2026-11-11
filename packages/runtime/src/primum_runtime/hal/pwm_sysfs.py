@@ -22,11 +22,17 @@ SYSFS_PWM = Path("/sys/class/pwm")
 NS_PER_S = 1_000_000_000
 EXPORT_SETTLE_ATTEMPTS = 100
 EXPORT_SETTLE_STEP_S = 0.01
-CHANNEL_FILES = ("enable", "duty_cycle", "period")
+CHANNEL_FILES = ("enable", "duty_cycle", "period", "polarity")
+NORMAL = "normal"
+INVERSED = "inversed"
 
 
 class SysfsPwmChannel:
-    """One exported channel, enabled at 0 %.
+    """One exported channel, enabled at 0 % with normal polarity.
+
+    The polarity is set too: it outlives an unexport, and inversed it turns 0 % into a pin held
+    high. ``read`` reports the level the pin gets, so a polarity inverted behind the HAL's back
+    shows as 100 % and fails the safe state check.
 
     ``wait`` pauses for a number of seconds while udev settles after an export; tests inject
     their own.
@@ -55,6 +61,7 @@ class SysfsPwmChannel:
             # being non-zero already: the kernel refuses any change to a channel with period 0
             # except the period itself. The Pi's driver exports a channel at 1 ms (1 kHz).
             _write(self._path / "duty_cycle", 0)
+            _write(self._path / "polarity", NORMAL)  # only accepted while disabled
             _write(self._path / "period", self._period_ns)
             _write(self._path / "enable", 1)
         except OSError as error:
@@ -67,10 +74,13 @@ class SysfsPwmChannel:
             raise self._unavailable(error) from error
 
     def read(self) -> float:
+        """The level the pin gets: the duty cycle, turned around if the polarity is inversed."""
         try:
-            return int((self._path / "duty_cycle").read_text()) / self._period_ns
+            duty = int((self._path / "duty_cycle").read_text()) / self._period_ns
+            inversed = (self._path / "polarity").read_text().strip() == INVERSED
         except OSError as error:
             raise self._unavailable(error) from error
+        return 1.0 - duty if inversed else duty
 
     def release(self) -> None:
         """Leave the channel at 0 %, disabled and unexported."""
@@ -112,7 +122,7 @@ def _wait_until_writable(channel: Path, wait: Callable[[float], None]) -> None:
     raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), str(channel))
 
 
-def _write(path: Path, value: int) -> None:
+def _write(path: Path, value: int | str) -> None:
     path.write_text(f"{value}\n")
 
 

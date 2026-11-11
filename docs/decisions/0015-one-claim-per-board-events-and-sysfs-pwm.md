@@ -15,10 +15,12 @@ the board drives. libgpiod v2 requests have a fixed set of lines, and the deploy
   line, and claims the PWM channels. A second claim is `hal.already_claimed`. Pins are checked
   against the board profile before anything is requested, so a bad claim leaves nothing behind.
 - **Inputs are read and listened to.** `DigitalInput.read()` gives the state; the HAL reports
-  every change as an `InputEvent` with the kernel's monotonic timestamp (`read_events`,
-  `wait_events`), so nothing is missed between two reads. Pull and debounce come from the spec
-  and are the kernel's (`bias`, `debounce_period`). Edges are reported in logical terms:
-  `active_low` is applied by libgpiod.
+  changes as `InputEvent`s with the kernel's monotonic timestamp (`read_events`,
+  `wait_events`), so a short press between two reads is seen. The kernel keeps a bounded
+  number of unread events and drops the oldest of a longer burst (60 unread changes gave 32 on
+  the Pi): the state is always right, a count of presses may not be. Pull and debounce come
+  from the spec and are the kernel's (`bias`, `debounce_period`). Edges are reported in logical
+  terms: `active_low` is applied by libgpiod.
 - **Hardware PWM through sysfs** (`/sys/class/pwm`), the controller found by its **device
   name** from the board profile (`pwmChip.device`), never by `pwmchipN`. Levels are 0 to 1
   (`hal.duty_out_of_range` otherwise); the safe state is 0 %. Which GPIO a channel reaches is
@@ -61,4 +63,8 @@ the board drives. libgpiod v2 requests have a fixed set of lines, and the deploy
   got, so nothing is left behind and the HAL can claim again.
 - A channel left exported by a crash is adopted: disabled, duty cycle to 0 and only then the
   period (the kernel refuses a period shorter than the duty cycle it holds), then enabled.
+- The polarity of a channel is set to `normal` at the claim, while it is disabled: it outlives
+  an unexport, and inversed it turns 0 % into a pin held high, also after the release. `read()`
+  reports the level the pin gets (1 − duty when inversed), so a polarity inverted while the
+  runtime runs fails the safe state check instead of passing it.
 - `hw` tests take optional `PRIMUM_HW_INPUT_PIN` and `PRIMUM_HW_PWM_PIN`.

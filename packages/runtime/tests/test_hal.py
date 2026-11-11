@@ -155,6 +155,31 @@ def test_apply_safe_state_turns_every_output_off_and_every_pwm_to_zero() -> None
         assert hal.pwms[18].duty == 0.0
 
 
+def test_apply_safe_state_reads_every_pwm_output_back() -> None:
+    hal = _claimed()
+    hal.pwm_lines[18].stick(1.0)  # an inverted polarity: 0 % written, the pin held high
+
+    with pytest.raises(PrimumError) as raised:
+        hal.apply_safe_state()
+
+    assert raised.value.code == "hal.safe_state_unverified"
+    assert raised.value.params == {"pins": (18,)}
+
+
+def test_apply_safe_state_turns_off_the_other_outputs_when_a_pwm_write_fails() -> None:
+    hal = _claimed()
+    hal.outputs[17].set(True)
+    hal.pwms[18].set(0.8)
+    hal.pwm_lines[18].fail_writes(OSError(5, "I/O error"))
+
+    with pytest.raises(PrimumError) as raised:
+        hal.apply_safe_state()
+
+    assert raised.value.code == "hal.safe_state_incomplete"
+    assert raised.value.params == {"pins": (18,)}
+    assert not hal.lines[17].active
+
+
 def test_apply_safe_state_reads_every_output_back() -> None:
     hal = _claimed()
     hal.outputs[17].set(True)

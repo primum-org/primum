@@ -366,13 +366,17 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   and the timestamps of the events; today's `hw` test only reads the idle state.
 - The PWM driver compares a read level with tolerance: sysfs holds the duty cycle in whole
   nanoseconds, so `read()` is quantised to the period (`set(1/3)` reads back `0.33333` at 1 kHz).
+- Input events lost in a burst: the kernel drops the oldest once its buffer is full (60 unread
+  changes gave 32 on the Pi). The input driver decides what to do: detect the gap with the
+  event's `line_seqno` and report it, ask for a larger `event_buffer_size`, or both.
 
 **3.4 · Safety**
 - Safe state on start, stop and crash: `Type=notify` and a systemd watchdog fed from the
   runtime; `OnFailure=primum-safe.service` drives what the runtime declared in `/data` to its
   safe state when the service does not come back (the 1.4 finding, `StartLimitBurst`): the GPIO
-  lines, and the PWM channels too (`duty_cycle` 0 and `enable` 0 through sysfs; seen on the
-  Pi: after `kill -9` a channel stays at 50 % and its pin high).
+  lines, and the PWM channels too (`duty_cycle` 0, `polarity` normal and `enable` 0 through
+  sysfs; seen on the Pi: after `kill -9` a channel stays at 50 % and its pin high, and with an
+  inversed polarity a disabled channel holds it high).
 - Test mode: manual commands that expire on their own, above sequences and below panic
   (decision 0006).
 - `docs/specs/safety.md`, `docs/specs/drivers.md`; on the Pi: `kill -9`, restart, exhausted
