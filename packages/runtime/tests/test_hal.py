@@ -381,6 +381,21 @@ def test_close_reports_safe_state_and_release_failures_together() -> None:
     assert cause.exceptions == (write_error, release_error)  # pyright: ignore[reportUnknownMemberType]
 
 
+def test_a_failed_write_and_a_line_stuck_on_are_both_named() -> None:
+    hal = _claimed()
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+    hal.lines[27].stick(True)
+
+    with pytest.raises(PrimumError) as on_safe_state:
+        hal.apply_safe_state()
+    with pytest.raises(PrimumError) as on_close:
+        hal.close()
+
+    for raised in (on_safe_state, on_close):
+        assert raised.value.code == "hal.safe_state_incomplete"
+        assert raised.value.params == {"pins": (17, 27), "unverified_pins": (27,)}
+
+
 def test_close_reports_an_unverified_safe_state_with_the_release_failures() -> None:
     hal = _claimed()
     hal.lines[17].stick(True)

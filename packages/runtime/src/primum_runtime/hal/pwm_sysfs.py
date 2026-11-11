@@ -32,7 +32,7 @@ class SysfsPwmChannel:
 
     The polarity is set too: it outlives an unexport, and inversed it turns 0 % into a pin held
     high. ``read`` reports the level the pin gets, so a polarity inverted behind the HAL's back
-    shows as 100 % and fails the safe state check.
+    shows; writing 0 % and releasing put it back to normal, so the safe state is a pin held low.
 
     ``wait`` pauses for a number of seconds while udev settles after an export; tests inject
     their own.
@@ -56,19 +56,22 @@ class SysfsPwmChannel:
                 _write(chip / "export", channel)
                 _wait_until_writable(self._path, wait)
             _write(self._path / "enable", 0)
-            # Duty cycle first: the kernel refuses a period shorter than the duty cycle a
-            # channel adopted after a crash still holds. Every write here counts on the period
-            # being non-zero already: the kernel refuses any change to a channel with period 0
-            # except the period itself. The Pi's driver exports a channel at 1 ms (1 kHz).
+            # Duty cycle before the period: the kernel refuses a period shorter than the duty
+            # cycle a channel adopted after a crash still holds (seen on the Pi). A channel not
+            # used since boot is exported with period 0, and the Pi's kernel (6.18) accepts
+            # these writes on it; older kernels have not been checked.
             _write(self._path / "duty_cycle", 0)
-            _write(self._path / "polarity", NORMAL)  # only accepted while disabled
+            _write(self._path / "polarity", NORMAL)
             _write(self._path / "period", self._period_ns)
             _write(self._path / "enable", 1)
         except OSError as error:
             raise self._unavailable(error) from error
 
     def write(self, duty: float) -> None:
+        """Set the level; 0 % also puts an inversed polarity back, so that it is a pin held low."""
         try:
+            if duty == 0.0:
+                self._restore_polarity()
             _write(self._path / "duty_cycle", round(duty * self._period_ns))
         except OSError as error:
             raise self._unavailable(error) from error
@@ -83,13 +86,32 @@ class SysfsPwmChannel:
         return 1.0 - duty if inversed else duty
 
     def release(self) -> None:
-        """Leave the channel at 0 %, disabled and unexported."""
-        try:
-            _write(self._path / "duty_cycle", 0)
-            _write(self._path / "enable", 0)
-            _write(self._chip / "unexport", self._channel)
-        except OSError as error:
-            raise self._unavailable(error) from error
+        """Leave the channel at 0 % with normal polarity, disabled and unexported.
+
+        Every step is tried even if an earlier one fails (disabling is what turns the output
+        off); the failures are raised together at the end, as ``hal.pwm_unavailable``.
+        """
+        steps: tuple[Callable[[], None], ...] = (
+            lambda: _write(self._path / "duty_cycle", 0),
+            self._restore_polarity,
+            lambda: _write(self._path / "enable", 0),
+            lambda: _write(self._chip / "unexport", self._channel),
+        )
+        errors: list[OSError] = []
+        for step in steps:
+            try:
+                step()
+            except OSError as error:  # collected: the next steps are still tried
+                errors.append(error)
+        if errors:
+            raise self._unavailable(errors[0]) from ExceptionGroup("PWM release", errors)
+
+    def _restore_polarity(self) -> None:
+        """Put an inversed polarity back to normal. Written only when needed: the usual case
+        costs one read, and does not count on the kernel taking the write while enabled."""
+        polarity = self._path / "polarity"
+        if polarity.read_text().strip() == INVERSED:
+            _write(polarity, NORMAL)
 
     def _unavailable(self, error: OSError) -> PrimumError:
         params = {"pin": self._pin, "channel": self._channel, "detail": _detail(error)}

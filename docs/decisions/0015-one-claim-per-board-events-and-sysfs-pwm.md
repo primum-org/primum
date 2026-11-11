@@ -63,8 +63,17 @@ the board drives. libgpiod v2 requests have a fixed set of lines, and the deploy
   got, so nothing is left behind and the HAL can claim again.
 - A channel left exported by a crash is adopted: disabled, duty cycle to 0 and only then the
   period (the kernel refuses a period shorter than the duty cycle it holds), then enabled.
-- The polarity of a channel is set to `normal` at the claim, while it is disabled: it outlives
-  an unexport, and inversed it turns 0 % into a pin held high, also after the release. `read()`
-  reports the level the pin gets (1 − duty when inversed), so a polarity inverted while the
-  runtime runs fails the safe state check instead of passing it.
+- The polarity of a channel is set to `normal` at the claim: it outlives an unexport, and
+  inversed it turns 0 % into a pin held high, also after the release. `read()` reports the level
+  the pin gets (1 − duty when inversed), and writing 0 % or releasing puts an inversed polarity
+  back, so a polarity inverted while the runtime runs is corrected by the safe state, not only
+  noticed.
+- What is known of the kernel comes from the Pi (6.18): a channel not used since boot is
+  exported with period 0 and takes the writes before the period; a later export keeps the last
+  period and polarity. Older kernels have not been checked.
+- `hal.safe_state_incomplete` names in `pins` every output not confirmed safe: those whose
+  write failed and those that read back wrong (`unverified_pins`), so the report leaves out
+  nothing that may still be on.
+- Releasing a PWM channel tries every step (0 %, polarity, disable, unexport) even if one
+  fails: disabling is what turns the output off.
 - `hw` tests take optional `PRIMUM_HW_INPUT_PIN` and `PRIMUM_HW_PWM_PIN`.

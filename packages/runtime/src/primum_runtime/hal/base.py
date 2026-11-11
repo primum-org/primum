@@ -267,6 +267,18 @@ def _pins(failures: Mapping[int, Exception] | Sequence[int]) -> tuple[int, ...]:
     return tuple(sorted(failures))
 
 
+def _not_safe(
+    failures: Mapping[int, Exception], unverified: Sequence[int]
+) -> dict[str, tuple[int, ...]]:
+    """The params of a safe state with failed writes: ``pins`` names every output not confirmed
+    safe, so nothing that may still be on is left out; ``unverified_pins`` says which of them
+    were written but read back wrong."""
+    params = {"pins": _pins([*failures, *unverified])}
+    if unverified:
+        params["unverified_pins"] = _pins(unverified)
+    return params
+
+
 def _incomplete(
     code: ErrorCode, params: dict[str, tuple[int, ...]], errors: Sequence[Exception]
 ) -> PrimumError:
@@ -353,14 +365,16 @@ class Hal(ABC):
     def apply_safe_state(self) -> None:
         """Put every output in its safe state and read each one back, even if some fail.
 
-        Raises ``hal.safe_state_incomplete`` (param ``pins``) after trying all of them if a
-        write failed, else ``hal.safe_state_unverified`` (``pins``) if a line read back as not
-        in its safe state: what the hardware reports is what matters, not what was written.
+        Raises ``hal.safe_state_incomplete`` after trying all of them if a write failed
+        (``pins``: every output not confirmed safe; ``unverified_pins``: those among them whose
+        write worked but read back wrong), else ``hal.safe_state_unverified`` (``pins``) if a
+        line read back as not in its safe state: what the hardware reports is what matters, not
+        what was written.
         """
         failures, unverified = self._safe_state_failures()
         if failures:
             code = ErrorCode.HAL_SAFE_STATE_INCOMPLETE
-            raise _incomplete(code, {"pins": _pins(failures)}, list(failures.values()))
+            raise _incomplete(code, _not_safe(failures, unverified), list(failures.values()))
         if unverified:
             raise PrimumError(ErrorCode.HAL_SAFE_STATE_UNVERIFIED, {"pins": _pins(unverified)})
 
@@ -383,8 +397,9 @@ class Hal(ABC):
         """Apply the safe state, then release every line; the HAL is closed afterwards.
 
         Every line is released even if putting some in the safe state or releasing others
-        fails. At the end it raises ``hal.safe_state_incomplete`` (params ``pins`` and, if
-        releases failed too, ``release_pins``), ``hal.safe_state_unverified`` or
+        fails. At the end it raises ``hal.safe_state_incomplete`` (params as in
+        ``apply_safe_state`` and, if releases failed too, ``release_pins``),
+        ``hal.safe_state_unverified`` or
         ``hal.release_incomplete`` (param ``pins``), chained to the original exceptions. Closing
         twice does nothing.
 
@@ -406,7 +421,7 @@ class Hal(ABC):
 
         errors = [*safe_failures.values(), *release_failures.values()]
         if safe_failures:
-            params = {"pins": _pins(safe_failures)}
+            params = _not_safe(safe_failures, unverified)
             if release_failures:
                 params["release_pins"] = _pins(release_failures)
             raise _incomplete(ErrorCode.HAL_SAFE_STATE_INCOMPLETE, params, errors)

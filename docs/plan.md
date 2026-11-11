@@ -337,7 +337,8 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   `PRIMUM_HW_INPUT_PIN` and `PRIMUM_HW_PWM_PIN`; `provision.sh` enables `pwm-2chan` (full
   provisioning, not `--app-only`). Checked on `primum-dev`: LED, button and PWM LED.
 - Left for 3.3, with the driver limits: `PwmSpec.frequency_hz` is not checked (0 divides by
-  zero, a huge value gives a period of 0 ns and a misleading `hal.pwm_unavailable`); a channel
+  zero, a huge value gives a period of 0 ns and a misleading `hal.pwm_unavailable`), nor is
+  `InputSpec.debounce_ms` (a negative value ends as a misleading `hal.request_failed`); a channel
   exported by `SysfsPwmChannel` that then fails to configure stays exported until the next claim.
 - From review of 2.6, in passing: `overlaps` names and the note on loops.
 

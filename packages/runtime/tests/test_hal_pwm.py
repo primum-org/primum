@@ -28,10 +28,10 @@ def _chip(sysfs: Path, name: str, device: str, channels: int = 2) -> Path:
     return chip
 
 
-# A freshly exported channel on the Pi's kernel: 1 ms period, 0 duty cycle, disabled. The
-# HAL counts on the period being non-zero (see pwm_sysfs.py).
+# A channel exported for the first time since boot, as seen on the Pi (kernel 6.18): period 0,
+# 0 duty cycle, disabled, normal polarity. A later export keeps the last period and polarity.
 FRESH_CHANNEL: dict[str, int | str] = {
-    "period": 1_000_000,
+    "period": 0,
     "duty_cycle": 0,
     "enable": 0,
     "polarity": "normal",
@@ -207,24 +207,22 @@ def test_a_channel_adopted_with_a_long_duty_cycle_is_zeroed_before_its_period_sh
     assert channel.read() == 0.0
 
 
-def test_a_channel_adopted_with_inversed_polarity_is_set_to_normal_while_disabled(
-    sysfs: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # Inversed, 0 % holds the pin high; the polarity outlives an unexport and the kernel only
-    # lets it change while the channel is disabled.
+def _inverted_after_the_claim(chip: Path) -> SysfsPwmChannel:
+    """Channel 0 at 1 kHz, its polarity inverted by another program once claimed."""
+    (chip / "export").write_text("0")
+    _export(chip)
+    channel = SysfsPwmChannel(chip, 0, pin=18, frequency_hz=1000)
+    (chip / "pwm0" / "polarity").write_text("inversed\n")
+    return channel
+
+
+def test_a_channel_adopted_with_inversed_polarity_is_set_to_normal(sysfs: Path) -> None:
+    # Inversed, 0 % holds the pin high, and the polarity outlives an unexport.
     chip = sysfs / "pwmchip2"
     (chip / "export").write_text("0")
     _export(chip)
     (chip / "pwm0" / "polarity").write_text("inversed\n")
     (chip / "pwm0" / "enable").write_text("1\n")
-    write = pwm_sysfs._write  # pyright: ignore[reportPrivateUsage] -- wrapped to play the kernel
-
-    def write_as_the_kernel_checks(path: Path, value: int | str) -> None:
-        if path.name == "polarity" and (path.parent / "enable").read_text() == "1\n":
-            raise OSError(errno.EBUSY, "Device or resource busy")
-        write(path, value)
-
-    monkeypatch.setattr(pwm_sysfs, "_write", write_as_the_kernel_checks)
 
     channel = SysfsPwmChannel(chip, 0, pin=18, frequency_hz=1000)
 
@@ -234,15 +232,50 @@ def test_a_channel_adopted_with_inversed_polarity_is_set_to_normal_while_disable
 
 
 def test_a_polarity_inverted_behind_the_hal_reads_as_the_level_the_pin_gets(sysfs: Path) -> None:
+    channel = _inverted_after_the_claim(sysfs / "pwmchip2")
+
+    channel.write(0.25)
+
+    assert channel.read() == 0.75
+
+
+def test_writing_zero_puts_an_inverted_polarity_back_so_the_pin_is_low(sysfs: Path) -> None:
+    chip = sysfs / "pwmchip2"
+    channel = _inverted_after_the_claim(chip)
+
+    channel.write(0.0)
+
+    assert (chip / "pwm0" / "polarity").read_text() == "normal\n"
+    assert channel.read() == 0.0
+
+
+def test_release_puts_an_inverted_polarity_back(sysfs: Path) -> None:
+    chip = sysfs / "pwmchip2"
+    channel = _inverted_after_the_claim(chip)
+
+    channel.release()
+
+    assert (chip / "pwm0" / "polarity").read_text() == "normal\n"
+    assert (chip / "pwm0" / "enable").read_text() == "0\n"
+
+
+def test_release_still_disables_and_unexports_when_the_duty_cycle_cannot_be_written(
+    sysfs: Path,
+) -> None:
     chip = sysfs / "pwmchip2"
     (chip / "export").write_text("0")
     _export(chip)
     channel = SysfsPwmChannel(chip, 0, pin=18, frequency_hz=1000)
-    (chip / "pwm0" / "polarity").write_text("inversed\n")  # another program, after the claim
+    (chip / "pwm0" / "duty_cycle").unlink()
+    (chip / "pwm0" / "duty_cycle").mkdir()  # writing to a directory fails as the kernel would
 
-    channel.write(0.0)
+    with pytest.raises(PrimumError) as raised:
+        channel.release()
 
-    assert channel.read() == 1.0  # 0 % inversed is a pin held high: not the safe state
+    assert raised.value.code == "hal.pwm_unavailable"
+    assert isinstance(raised.value.__cause__, ExceptionGroup)
+    assert (chip / "pwm0" / "enable").read_text() == "0\n"
+    assert (chip / "unexport").read_text() == "0\n"
 
 
 def test_a_channel_already_exported_is_not_waited_for(sysfs: Path) -> None:
