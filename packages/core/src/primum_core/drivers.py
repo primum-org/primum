@@ -99,8 +99,7 @@ def _value_issues(
         field = {"field": where.value_field(index, item.name)}
         yield Issue(EXPECTED[parameter.type], field, place)
     elif not _within(item.value, parameter):
-        limits = {"min": _tidy(parameter.min), "max": _tidy(parameter.max)}
-        yield Issue(codes.out_of_range, {**params, **limits}, place)
+        yield Issue(codes.out_of_range, {**params, **_limits(parameter)}, place)
     elif parameter.choices and item.value not in parameter.choices:
         yield Issue(codes.not_allowed, {**params, "allowed": parameter.choices}, place)
 
@@ -112,11 +111,14 @@ def _within(value: Value, parameter: DriverParameter) -> bool:
     return parameter.min <= value <= parameter.max
 
 
-def _tidy(number: float | None) -> float:
-    """A whole number without its ``.0``, as messages show it."""
-    if number is None:
-        return 0
-    return int(number) if float(number).is_integer() else number
+def _limits(parameter: DriverParameter) -> dict[str, float]:
+    """The limits a parameter has, as messages show them: a whole number without its ``.0``."""
+    limits = {"min": parameter.min, "max": parameter.max}
+    return {
+        key: int(limit) if float(limit).is_integer() else limit
+        for key, limit in limits.items()
+        if limit is not None
+    }
 
 
 def check_driver(driver: Driver, location: Location) -> tuple[Issue, ...]:
@@ -180,7 +182,7 @@ def _coherence_issues(
         field = {"field": field_name((*steps, "choices"))}
         yield Issue(CoreErrorCode.SCHEMA_UNEXPECTED_FIELD, field, _at(location, *steps, "choices"))
     if parameter.min is not None and parameter.max is not None and parameter.min > parameter.max:
-        params = {**name, "min": _tidy(parameter.min), "max": _tidy(parameter.max)}
+        params = {**name, **_limits(parameter)}
         yield Issue(CoreErrorCode.DRIVER_LIMITS_INVALID, params, _at(location, *steps))
     default = parameter.default
     if default is None:

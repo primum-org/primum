@@ -115,8 +115,11 @@ The checks (`primum_core.overlaps`):
   sequence ends there. A warning, `clip.instant_at_end` (`sequence`, `element`, `action`), at
   the clip, or at the block it comes through. Not reported: one that asks for the safe state
   of its element's driver (an instant `on`, and an instant `off` to end with: the element goes
-  there anyway), one that another element's later clip keeps alive, and the sequences nothing
-  starts (those the phone UI or the API will start, phase 5, are not known here).
+  there anyway), one that another element's later clip keeps alive, two of one element in
+  that instant (they overlap: that error is enough), and the sequences nothing starts (those
+  the phone UI or the API will start, phase 5, are not known here). The safe state is told by
+  the name of the action: `core` does not know where an action leaves its element, so an
+  instant `set` to a level of 0 at the end is reported although it does what `off` does.
 - **Between sequences**, the engine arbitrates (decision 0006, phase 4): by `priority` (a higher
   one layers over a lower one while it runs; within one priority the latest command wins) and
   by `exclusiveGroup` (starting one sequence of a group stops the others). What can be said

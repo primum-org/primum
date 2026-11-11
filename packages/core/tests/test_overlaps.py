@@ -669,3 +669,11 @@ def test_an_instant_clip_on_an_element_that_takes_no_clips_is_only_that_problem(
     _blink(project, ids, _clip(ids, 21, 0, 0))
 
     assert [code for code, *_ in project.found()] == [CoreErrorCode.TRACK_ELEMENT_WITHOUT_DRIVER]
+
+
+def test_two_instant_clips_of_one_element_that_end_a_started_sequence_are_only_an_overlap(
+    project: Project, ids: Ids
+) -> None:
+    _blink(project, ids, _clip(ids, 21, 500, 0), _clip(ids, 22, 500, 0))
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.TRACK_CLIPS_OVERLAP]

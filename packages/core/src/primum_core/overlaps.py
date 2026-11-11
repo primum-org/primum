@@ -13,6 +13,7 @@ A sequence ends when its last clip ends, so an instant clip that is the last thi
 is never seen: a warning on the sequences automations start, the ones known to run on their own.
 """
 
+from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from itertools import combinations
@@ -191,12 +192,15 @@ def _unseen_instants(
     they ask is never seen.
 
     One that asks for its element's safe state is left alone: that is where the element goes
-    when the sequence ends anyway (an instant ``on``, and an instant ``off`` to end with). A
-    parameter bound to nothing is not an element.
+    when the sequence ends anyway (an instant ``on``, and an instant ``off`` to end with). Two
+    of one element in that instant overlap: that error is enough. A parameter bound to nothing
+    is not an element.
     """
     end = max((clip.end for clip in clips), default=0)
-    for clip in clips:
-        if clip.start != end or clip.end != end or clip.element not in element_drivers:
+    last = [clip for clip in clips if clip.start == end and clip.end == end]
+    per_element = Counter(clip.element for clip in last)
+    for clip in last:
+        if per_element[clip.element] > 1 or clip.element not in element_drivers:
             continue
         driver = element_drivers[clip.element]
         # A track on an element that takes no clips is the actions check's.

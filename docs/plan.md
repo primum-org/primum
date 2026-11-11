@@ -368,11 +368,6 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - An instant clip that is the last thing of a sequence shows nothing (the sequence ends
   there): a warning, `clip.instant_at_end`, on the sequences automations start, unless it asks
   for the safe state. The sequences the phone UI or the API start join it in phase 5.
-- A candidate check for `core`, with the compiler (phase 4): an instant command followed
-  later by a clip of the same element, with nothing after. `on` at 0 s and `set(30)` from 5 to
-  6 s leaves the element in its safe state from 6 s, not back at `on`. Right by decision 0016
-  and a surprise all the same; but "on, dim, off" is also what people mean, so decide between
-  a warning and showing it in the timeline.
 - A new driver is not yet only a manifest: the element types are a closed `enum` in
   `hardware.schema.json`, and `variants`, `resources` and `references` know each type by name
   (its fields, its resources, whether it is an input). Opening the list needs manifests that
@@ -454,6 +449,18 @@ if systemd gives up restarting (`StartLimitBurst`) it stays so. The watchdog and
 on start must cover a service that does not come back.
 
 ## Phase 4 · Engine and deployment packages
+
+**Decide first, before the engine is written** (it implements decision 0016 exactly): what to
+do about an instant command followed later by a clip of the same element. `on` at 0 s and
+`set(30)` from 5 to 6 s leaves the element in its safe state from 6 s, not back at `on`: right
+by the decision, and what someone who does not program will write expecting the light to stay
+on. `core` cannot warn about it today without also flagging the commonest pattern, `on` and
+later a `fade` from 100 to 0, which has the same shape (instant, clip, rest): telling them
+apart needs to know where each action leaves its element, which a manifest does not say. The
+same gap makes `clip.instant_at_end` compare action names only (an instant `set` to 0 at the
+end is reported, `off` is not). Options: manifests declare the state an action ends in, and
+`core` warns when a clip ends somewhere else than the instant command before it; or the
+meaning changes; or only the timeline shows it (phase 5).
 
 1. Sequence engine (monotonic clock, components flattened by the compiler).
 2. Events (`.evt`), schedules (`.sched`), automations (`.auto`), runtime variables with atomic
