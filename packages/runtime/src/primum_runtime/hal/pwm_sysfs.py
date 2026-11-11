@@ -33,6 +33,8 @@ class SysfsPwmChannel:
     The polarity is set too: it outlives an unexport, and inversed it turns 0 % into a pin held
     high. ``read`` reports the level the pin gets, so a polarity inverted behind the HAL's back
     shows; writing 0 % and releasing put it back to normal, so the safe state is a pin held low.
+    Any other level is written as it is: correcting it there would cost a read on every change
+    of level, against another program on a board that is Primum's alone.
 
     ``wait`` pauses for a number of seconds while udev settles after an export; tests inject
     their own.

@@ -67,7 +67,10 @@ the board drives. libgpiod v2 requests have a fixed set of lines, and the deploy
   inversed it turns 0 % into a pin held high, also after the release. `read()` reports the level
   the pin gets (1 − duty when inversed), and writing 0 % or releasing puts an inversed polarity
   back, so a polarity inverted while the runtime runs is corrected by the safe state, not only
-  noticed.
+  noticed. Only those two correct it: at any other level an inversed polarity shows in `read()`
+  and nothing more, since checking it on every change of level would slow fades down to guard
+  against another program on a board that is Primum's alone (decision 0010; `primum-safe` and
+  `check-gpio-users.sh` in 3.4 are where that is handled).
 - What is known of the kernel comes from the Pi (6.18): a channel not used since boot is
   exported with period 0 and takes the writes before the period; a later export keeps the last
   period and polarity. Older kernels have not been checked.

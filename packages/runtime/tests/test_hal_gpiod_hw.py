@@ -14,6 +14,7 @@ by eye.
 """
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -107,3 +108,40 @@ def test_the_other_gpio_of_the_pwm_channel_is_refused_as_not_routed() -> None:
 
     assert raised.value.code == "hal.pwm_not_routed"
     assert raised.value.params == {"pin": other, "channel": channel}
+
+
+def _polarity_kept_after_unexport(chip: Path, channel: int) -> str:
+    """The polarity an unexported channel kept: it shows when the channel is exported again."""
+    (chip / "export").write_text(f"{channel}\n")
+    try:
+        return (chip / f"pwm{channel}" / "polarity").read_text().strip()
+    finally:
+        (chip / "unexport").write_text(f"{channel}\n")
+
+
+def test_the_safe_state_and_the_release_put_an_inverted_polarity_back() -> None:
+    # What test_hal_pwm.py assumes of the kernel, checked on the real one: a polarity inverted
+    # while the HAL runs (accepted on an enabled channel) holds the pin high at 0 %, and both
+    # the safe state and the release put it back. An LED on the pin flashes twice.
+    from primum_runtime.hal.gpiod_hal import GpiodHal
+    from primum_runtime.hal.pwm_sysfs import find_pwm_chip
+
+    board = load_board("rpi4b")
+    pin = _optional_pin(PWM_VARIABLE)
+    channel = board.pwm_channels[pin]
+    chip = find_pwm_chip(board.pwm_device)
+    polarity = chip / f"pwm{channel}" / "polarity"
+
+    with GpiodHal(board) as hal:
+        hal.claim(Claim(pwms=(PwmSpec(pin=pin, frequency_hz=1000),)))
+        pwm = hal.pwms[pin]
+        polarity.write_text("inversed\n")
+        assert pwm.read() == 1.0
+
+        hal.apply_safe_state()
+
+        assert polarity.read_text().strip() == "normal"
+        assert pwm.read() == 0.0
+        polarity.write_text("inversed\n")  # once more, for the release on leaving the block
+
+    assert _polarity_kept_after_unexport(chip, channel) == "normal"
