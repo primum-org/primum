@@ -72,10 +72,14 @@ the board drives. libgpiod v2 requests have a fixed set of lines, and the deploy
   against another program on a board that is Primum's alone (decision 0010; `primum-safe` and
   `check-gpio-users.sh` in 3.4 are where that is handled).
 - What is known of the kernel comes from the Pi (6.18): a channel not used since boot is
-  exported with period 0 and takes the writes before the period; a later export keeps the last
-  period and polarity; the line of a routed PWM GPIO is marked as used. Other kernels have not
-  been checked: one that did not mark the routed line would make every PWM claim fail as
-  `hal.pwm_not_routed`, which the `hw` tests would show.
+  exported with period 0 and takes any write; a later export keeps the last period and
+  polarity; the line of a routed PWM GPIO is marked as used. Other kernels have not been
+  checked. Older ones may refuse every change to a channel with period 0 but the period, so
+  the period is written first on such a channel, which any kernel takes. One that did not
+  mark the routed line would make every PWM claim fail as `hal.pwm_not_routed`, which the `hw`
+  tests would show.
+- A channel this HAL exported and then could not set up is unexported again; one it adopted
+  is left as it was.
 - `hal.safe_state_incomplete` names in `pins` every output not confirmed safe: those whose
   write failed and those that read back wrong (`unverified_pins`), so the report leaves out
   nothing that may still be on.

@@ -11,12 +11,15 @@ Pi OS does so some 10 ms after the export), so the HAL waits for it to become wr
 """
 
 import errno
+import logging
 import os
 from collections.abc import Callable
 from pathlib import Path
 from time import sleep
 
 from primum_runtime.errors import ErrorCode, PrimumError
+
+log = logging.getLogger(__name__)
 
 SYSFS_PWM = Path("/sys/class/pwm")
 NS_PER_S = 1_000_000_000
@@ -53,21 +56,45 @@ class SysfsPwmChannel:
         self._pin = pin
         self._path = chip / f"pwm{channel}"
         self._period_ns = NS_PER_S // frequency_hz
+        exported = False
         try:
             if not self._path.exists():
                 _write(chip / "export", channel)
+                exported = True
                 _wait_until_writable(self._path, wait)
-            _write(self._path / "enable", 0)
-            # Duty cycle before the period: the kernel refuses a period shorter than the duty
-            # cycle a channel adopted after a crash still holds (seen on the Pi). A channel not
-            # used since boot is exported with period 0, and the Pi's kernel (6.18) accepts
-            # these writes on it; older kernels have not been checked.
-            _write(self._path / "duty_cycle", 0)
-            _write(self._path / "polarity", NORMAL)
-            _write(self._path / "period", self._period_ns)
-            _write(self._path / "enable", 1)
+            self._configure()
         except OSError as error:
+            if exported:
+                self._unexport_after_failed_setup()
             raise self._unavailable(error) from error
+
+    def _configure(self) -> None:
+        """Disabled, 0 %, normal polarity, its period, enabled: in an order any kernel takes."""
+        period = self._path / "period"
+        if int(period.read_text()) == 0:
+            # Not used since boot. The Pi's kernel (6.18) takes any write on such a channel;
+            # older ones may refuse all but the period (not checked). With period 0 the duty
+            # cycle is 0 too, so the period can always go first.
+            _write(period, self._period_ns)
+        _write(self._path / "enable", 0)
+        # Duty cycle before the period: the kernel refuses a period shorter than the duty
+        # cycle a channel adopted after a crash still holds (seen on the Pi).
+        _write(self._path / "duty_cycle", 0)
+        _write(self._path / "polarity", NORMAL)
+        _write(period, self._period_ns)
+        _write(self._path / "enable", 1)
+
+    def _unexport_after_failed_setup(self) -> None:
+        """Leave nothing behind of a channel this HAL exported and could not set up. A failure
+        here is logged, not raised: the setup's error is the one to report."""
+        try:
+            _write(self._chip / "unexport", self._channel)
+        except OSError as error:
+            log.warning(
+                "PWM channel %d stayed exported after a failed setup: %s",
+                self._channel,
+                _detail(error),
+            )
 
     def write(self, duty: float) -> None:
         """Set the level; 0 % also puts an inversed polarity back, so that it is a pin held low.

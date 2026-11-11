@@ -338,10 +338,12 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   provisioning, not `--app-only`). Checked on `primum-dev`: LED, button and PWM LED.
 - Until 3.4, after `kill -9` a PWM output stays at its last level: wire nothing but an LED to
   one. It is the safety gap this block leaves open.
-- Left for 3.3, with the driver limits: `PwmSpec.frequency_hz` is not checked (0 divides by
-  zero, a huge value gives a period of 0 ns and a misleading `hal.pwm_unavailable`), nor is
-  `InputSpec.debounce_ms` (a negative value ends as a misleading `hal.request_failed`); a channel
-  exported by `SysfsPwmChannel` that then fails to configure stays exported until the next claim.
+- Left for 3.3, with the driver limits: `PwmSpec.frequency_hz` is not checked, at either end
+  (0 divides by zero; a huge value gives a period of 0 ns and a misleading
+  `hal.pwm_unavailable`; a high one leaves few steps of level: at 20 MHz the period is 50 ns and
+  `set(0.001)` reads back `0.0` with no error, so the limit is a maximum frequency or a minimum
+  resolution), nor is `InputSpec.debounce_ms` (a negative value ends as a misleading
+  `hal.request_failed`).
 - From review of 2.6, in passing: `overlaps` names and the note on loops.
 
 **3.2 · Driver manifests and what a clip is**
@@ -372,6 +374,10 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - Input events lost in a burst: the kernel drops the oldest once its buffer is full (60 unread
   changes gave 32 on the Pi). The input driver decides what to do: detect the gap with the
   event's `line_seqno` and report it, ask for a larger `event_buffer_size`, or both.
+- Two events of the same kind in a row: with both edges detected the kernel tells rising from
+  falling by reading the level after the interrupt, so a very short pulse can give two equal
+  events. The input driver takes the state from each event and never assumes they alternate;
+  the simulated HAL, which drops a change to the same state, learns to produce that case.
 
 **3.4 · Safety**
 - Safe state on start, stop and crash: `Type=notify` and a systemd watchdog fed from the

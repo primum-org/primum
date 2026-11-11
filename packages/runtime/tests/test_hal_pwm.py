@@ -216,6 +216,73 @@ def _inverted_after_the_claim(chip: Path) -> SysfsPwmChannel:
     return channel
 
 
+def test_a_channel_not_used_since_boot_gets_its_period_first(
+    sysfs: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A kernel that refuses any change to a channel with period 0 except the period itself, as
+    # kernels older than the Pi's may.
+    chip = sysfs / "pwmchip2"
+    write = pwm_sysfs._write  # pyright: ignore[reportPrivateUsage] -- wrapped to play the kernel
+
+    def write_as_a_strict_kernel(path: Path, value: int | str) -> None:
+        is_channel_setting = path.name in ("enable", "duty_cycle", "polarity")
+        if is_channel_setting and (path.parent / "period").read_text() == "0\n":
+            raise OSError(errno.EINVAL, "Invalid argument")
+        write(path, value)
+        if path.name == "export":
+            _export(path.parent)
+
+    monkeypatch.setattr(pwm_sysfs, "_write", write_as_a_strict_kernel)
+
+    channel = SysfsPwmChannel(chip, 0, pin=18, frequency_hz=1000)
+
+    assert (chip / "pwm0" / "period").read_text() == "1000000\n"
+    assert (chip / "pwm0" / "enable").read_text() == "1\n"
+    assert channel.read() == 0.0
+
+
+def _refuse_a_period_of_zero(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The kernel's answer to a frequency too high for a period in whole nanoseconds."""
+    write = pwm_sysfs._write  # pyright: ignore[reportPrivateUsage] -- wrapped to play the kernel
+
+    def write_as_the_kernel_checks(path: Path, value: int | str) -> None:
+        if path.name == "period" and value == 0:
+            raise OSError(errno.EINVAL, "Invalid argument")
+        write(path, value)
+        if path.name == "export":
+            _export(path.parent)
+
+    monkeypatch.setattr(pwm_sysfs, "_write", write_as_the_kernel_checks)
+
+
+def test_a_channel_exported_and_then_refused_is_unexported_again(
+    sysfs: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    chip = sysfs / "pwmchip2"
+    _refuse_a_period_of_zero(monkeypatch)
+
+    with pytest.raises(PrimumError) as raised:
+        SysfsPwmChannel(chip, 0, pin=18, frequency_hz=2_000_000_000)
+
+    assert raised.value.code == "hal.pwm_unavailable"
+    assert (chip / "unexport").read_text() == "0\n"
+
+
+def test_a_channel_adopted_and_then_refused_is_left_exported(
+    sysfs: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # It was not this HAL that exported it: it is not this HAL's to take away.
+    chip = sysfs / "pwmchip2"
+    (chip / "export").write_text("0")
+    _export(chip)
+    _refuse_a_period_of_zero(monkeypatch)
+
+    with pytest.raises(PrimumError):
+        SysfsPwmChannel(chip, 0, pin=18, frequency_hz=2_000_000_000)
+
+    assert (chip / "unexport").read_text() == ""
+
+
 def test_a_channel_adopted_with_inversed_polarity_is_set_to_normal(sysfs: Path) -> None:
     # Inversed, 0 % holds the pin high, and the polarity outlives an unexport.
     chip = sysfs / "pwmchip2"
