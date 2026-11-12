@@ -58,7 +58,7 @@ jobs:
             echo "- image: $(du -h "$image" | cut -f1), compressed: $(du -h "$RUNNER_TEMP/primum-spike.img.xz" | cut -f1)"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: primum-spike-image
           path: ${{ runner.temp }}/primum-spike.img.xz
