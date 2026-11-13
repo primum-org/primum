@@ -141,6 +141,7 @@ def _decode(content: bytes, location: Location) -> object:
             object_pairs_hook=_object_without_repeated_keys,
             parse_constant=lambda _: _NotStandardJson(),
             parse_float=_number,
+            parse_int=_integer,
         )
     except _DuplicateKeyError as repeated:
         return Issue(CoreErrorCode.FILE_DUPLICATE_KEY, {"key": repeated.key}, location)
@@ -162,6 +163,17 @@ def _number(text: str) -> object:
     if not math.isfinite(value):
         return _NotStandardJson()
     return int(value) if value.is_integer() else value
+
+
+def _integer(text: str) -> object:
+    """A JSON integer. One that no float can hold (hundreds of digits) is no number the model
+    can carry: reported like the other numbers JSON does not have, not raised."""
+    try:
+        value = int(text)
+        float(value)
+    except (ValueError, OverflowError):  # ValueError: more digits than Python converts
+        return _NotStandardJson()
+    return value
 
 
 def _object_without_repeated_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:

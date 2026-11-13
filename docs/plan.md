@@ -409,6 +409,8 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   of resolution (steps between 0 and 100 %), derived from the clock. For inputs, the kernel's
   GPIO documentation sets no limit on the debounce time (32 bits of microseconds) and the Pi
   debounces in software: its limit is Primum's own, not a board's.
+- The driver of an input takes its options from the manifest, not from the HAL's own defaults:
+  `debounceMs` is 20 in the manifest and `InputSpec.debounce_ms` is 0.
 - PWM is not exposed through the API before `primum-safe` covers PWM channels: today the
   `Controller` claims digital outputs only, so the `kill -9` gap of a PWM output cannot be
   reached from the service. Either the PWM part of 3.4 comes first, or 3.3 and 3.4 are merged
@@ -454,6 +456,18 @@ if systemd gives up restarting (`StartLimitBurst`) it stays so. The watchdog and
 on start must cover a service that does not come back.
 
 ## Phase 4 · Engine and deployment packages
+
+**Decide first, in a small block of its own before 3.3 or at the latest before the engine:
+nothing can be left on.** Nothing a clip does outlives its sequence, and a sequence ends with
+its last clip, so "turn the light on at dusk and off at 23:00" needs a clip whose length is
+worked out by hand. Proposed: a sequence that does not end by itself, an optional field of the
+sequence ("when its last clip ends, hold until it is stopped"). Dusk starts *Lights*, one
+instant `on` that stands; 23:00 stops it with the `stop_sequence` automations already have.
+Stop, panic, exclusive groups and priorities work as for any sequence, and nothing outlives
+its sequence still. `clip.instant_at_end` would not fire on such a sequence, and its hint
+would offer it. Discarded: an automation that commands an element directly, a state outside
+the sequences that nobody releases. Loops (a sequence that starts again) are a separate
+question, with the re-trigger policy.
 
 **Left by decision 0016 for the engine:**
 - A clip with a length gives its element back to the standing command of its sequence (the

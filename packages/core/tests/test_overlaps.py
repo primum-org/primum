@@ -677,3 +677,11 @@ def test_two_instant_clips_of_one_element_that_end_a_started_sequence_are_only_a
     _blink(project, ids, _clip(ids, 21, 500, 0), _clip(ids, 22, 500, 0))
 
     assert [code for code, *_ in project.found()] == [CoreErrorCode.TRACK_CLIPS_OVERLAP]
+
+
+def test_an_instant_clip_with_an_action_its_element_does_not_have_is_only_that_problem(
+    project: Project, ids: Ids
+) -> None:
+    _blink(project, ids, {**_clip(ids, 21, 0, 0), "action": "onn"})
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.ACTION_UNKNOWN]

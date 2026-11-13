@@ -182,6 +182,12 @@ def _may_overlap(
             yield Issue(code, params, second.location, Severity.WARNING)
 
 
+def _seen_actions(driver: Driver) -> frozenset[str]:
+    """The actions of a driver that change what is seen when they end a sequence: all but its
+    safe state, where the element goes anyway."""
+    return frozenset(action.name for action in driver.actions) - {driver.safe_state}
+
+
 def _unseen_instants(
     sequence: Sequence,
     clips: list[FlatClip],
@@ -203,8 +209,9 @@ def _unseen_instants(
         if per_element[clip.element] > 1 or clip.element not in element_drivers:
             continue
         driver = element_drivers[clip.element]
-        # A track on an element that takes no clips is the actions check's.
-        if driver is None or not driver.actions or clip.clip.action == driver.safe_state:
+        # A track on an element that takes no clips, and an action its driver does not have,
+        # are the actions check's.
+        if driver is None or clip.clip.action not in _seen_actions(driver):
             continue
         params = {
             "sequence": sequence.name,

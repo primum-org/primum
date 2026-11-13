@@ -161,3 +161,11 @@ def test_the_safe_state_is_an_action_that_runs_without_arguments(
     assert _found(actions=actions, safeState="off") == [
         (CoreErrorCode.DRIVER_UNKNOWN_SAFE_STATE, {"action": "off"}, "/safeState")
     ]
+
+
+def test_a_limit_no_float_holds_is_reported_not_raised() -> None:
+    parameter = {"name": "steps", "type": "integer", "min": 0, "max": 10**400, "default": 5}
+
+    assert _found(config=[parameter]) == [
+        (CoreErrorCode.SCHEMA_EXPECTED_NUMBER, {"field": "config[0].max"}, "/config/0/max")
+    ]

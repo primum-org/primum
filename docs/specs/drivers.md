@@ -54,9 +54,12 @@ problem of a project.
 |---|---|---|---|---|---|
 | `digital_output` | switch | `on`, `off` | | `off` | latest wins |
 | `pwm_output` | switch, level | `on`, `off`, `set(level)`, `fade(from, to)` | `frequencyHz` 1–100000 (1000) | `off` | latest wins |
-| `digital_input` | measure | none | `pull` `up`, `down` or `none` (`up`); `debounceMs` 0–10000 (20) | | |
+| `digital_input` | measure | none | `pull` `up`, `down` or `none` (`down`); `debounceMs` 0–10000 (20) | | |
 
 - A `level`, and the `from` and `to` of a fade, are percentages: 0 to 100, decimals allowed.
+- An input with every default reads inactive at rest: `pull` is `down` because `activeLow` is
+  `false` (`hardware.schema.json`), so one that is not wired, or wired the other way, starts
+  nothing. A button to ground says both: `pull` `up` and `activeLow` `true`.
 - On a PWM output `on` is the level 100 and `off` the level 0; on a digital output they are
   its two states (which electrical level is "on" is the element's `activeLow`).
 - `fade` goes from one level to the other over the length of its clip; as an instant clip it
@@ -104,7 +107,9 @@ every case:
 
 A track of a component plays a parameter, whose type is not known until a block gives it an
 element. Its clips are checked there and reported at the block, once per different problem
-however many clips have it. A component nothing includes is not checked. A parameter handed on
+however many clips have it. A component nothing includes is not checked, and neither is a
+track of it that has no clips (it asks for nothing: given an input, it is reported with its
+first clip). A parameter handed on
 to an inner component is checked where it finally gets an element.
 
 ## Adding a driver
