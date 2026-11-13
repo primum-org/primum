@@ -388,6 +388,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - For the UI (phase 5): a problem inside a component is reported at the block that gives it
   its element, without the clip of the component that has it (`FlatClip.clip` is at hand);
   the timeline should show the standing command of an element under its clips.
+- Small, older than this block: `atMs` and `durationMs` have no maximum (2^62 ms is accepted).
 - Small: the sequences are flattened twice, once for the actions and once for the overlaps;
   share it when the compiler (phase 4) needs it too.
 
@@ -409,8 +410,12 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   of resolution (steps between 0 and 100 %), derived from the clock. For inputs, the kernel's
   GPIO documentation sets no limit on the debounce time (32 bits of microseconds) and the Pi
   debounces in software: its limit is Primum's own, not a board's.
-- The driver of an input takes its options from the manifest, not from the HAL's own defaults:
-  `debounceMs` is 20 in the manifest and `InputSpec.debounce_ms` is 0.
+- A driver hands the HAL every option, taken from the manifest and the element, never the
+  HAL's own defaults, which say other things: `InputSpec.pull` is `UP` and the manifest has no
+  default, `InputSpec.debounce_ms` is 0 and the manifest says 20. Take the defaults out of
+  `InputSpec` and `PwmSpec` so the type checker ties it, not a test. The safe state of the
+  manifest (`off`) is tied to the HAL's the same way: one test per driver that its safe-state
+  action leaves the simulated HAL where the HAL's own safe state does.
 - PWM is not exposed through the API before `primum-safe` covers PWM channels: today the
   `Controller` claims digital outputs only, so the `kill -9` gap of a PWM output cannot be
   reached from the service. Either the PWM part of 3.4 comes first, or 3.3 and 3.4 are merged
@@ -465,7 +470,9 @@ sequence ("when its last clip ends, hold until it is stopped"). Dusk starts *Lig
 instant `on` that stands; 23:00 stops it with the `stop_sequence` automations already have.
 Stop, panic, exclusive groups and priorities work as for any sequence, and nothing outlives
 its sequence still. `clip.instant_at_end` would not fire on such a sequence, and its hint
-would offer it. Discarded: an automation that commands an element directly, a state outside
+("give the clip a duration") changes then to offer it. Today the pair people write first, a
+sequence *On* with an instant `on` and a sequence *Off* with an instant `off`, gives that
+warning and `sequence.may_overlap`; with a sequence that holds, *Off* is stopping *On*. Discarded: an automation that commands an element directly, a state outside
 the sequences that nobody releases. Loops (a sequence that starts again) are a separate
 question, with the re-trigger policy.
 

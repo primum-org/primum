@@ -15,7 +15,14 @@
       "name": "Button",
       "board": "604bb8d7-68d8-4208-acb6-f590eaf064d7",
       "type": "digital_input",
-      "pin": 22
+      "pin": 22,
+      "config": [
+        {
+          "name": "pull",
+          "value": "up"
+        }
+      ],
+      "activeLow": true
     }
   ]
 }

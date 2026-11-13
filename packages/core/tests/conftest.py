@@ -30,6 +30,7 @@ def project(ids: Ids) -> Project:
                     "board": ids(3),
                     "type": "digital_input",
                     "pin": 27,
+                    "config": [{"name": "pull", "value": "up"}],
                 },
             ],
         )

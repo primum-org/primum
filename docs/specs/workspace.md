@@ -89,8 +89,7 @@ their offsets, each sequence flattened once (`primum_core.timeline`).
 What a clip does (decision 0016):
 
 - **A clip holds its action while it lasts.** When it ends, the element returns to what was
-  under it: the standing command of its own sequence (next point), else what a sequence on a
-  lower priority says, else its driver's safe state.
+  under it (the rule is below).
 - **A clip of `durationMs: 0` is an instant command that stands**: the element takes the state
   the action ends in (a `fade`, its `to`), and that is its background in the sequence until
   the next instant command of that element or the end of the sequence, both read in the
@@ -98,6 +97,14 @@ What a clip does (decision 0016):
   `on` at 0 s and `set(30)` from 5 to 6 s is on, dimmed for a second, and on again. To leave
   the element somewhere else after a clip, an instant command goes where the clip ends (a
   `fade` to 0, then an instant `off`).
+- **Who commands an element**: a command is in force while it lasts, a clip for its length
+  and an instant command until the next one of that element in its sequence or the end of its
+  sequence. Of the sequences with a command in force on an element, those of the highest
+  priority count, and among their commands the one that started last wins, whichever sequence
+  it is from; with nothing in force, the element is in its driver's safe state. So a clip that
+  ends gives the element to the latest command still in force on its priority (its own
+  sequence's standing command, or another sequence's later command), else to a lower
+  priority, else to the safe state.
 - **A sequence ends when its last clip ends**, an instant clip ending where it starts. So an
   instant clip that is the last thing of its sequence shows nothing: a warning (below).
 

@@ -44,6 +44,7 @@ def _project(**changes: Mapping[str, object]) -> Files:
                         "board": BOARD,
                         "type": "digital_input",
                         "pin": 27,
+                        "config": [{"name": "pull", "value": "up"}],
                     },
                 ],
             },

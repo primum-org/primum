@@ -54,10 +54,10 @@ def test_an_input_takes_its_pull_and_its_debounce(project: Project, ids: Ids) ->
         (
             "digital_input",
             22,
-            {"debounceMs": -5},
+            {"pull": "up", "debounceMs": -5},
             CoreErrorCode.CONFIG_OUT_OF_RANGE,
             {"option": "debounceMs", "min": 0, "max": 10_000},
-            "/elements/0/config/0/value",
+            "/elements/0/config/1/value",
         ),
         (
             "digital_input",
@@ -146,4 +146,12 @@ def test_an_element_whose_type_has_no_driver_takes_no_options(project: Project, 
             "thing.hw",
             "/elements/0/config/0",
         )
+    ]
+
+
+def test_an_input_must_say_its_pull(project: Project, ids: Ids) -> None:
+    _with(project, ids, _element(ids, "digital_input", 22, debounceMs=50))
+
+    assert [(code, params) for code, params, *_ in project.found()] == [
+        (CoreErrorCode.CONFIG_MISSING, {"element": "Thing", "option": "pull"})
     ]

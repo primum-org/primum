@@ -54,12 +54,14 @@ problem of a project.
 |---|---|---|---|---|---|
 | `digital_output` | switch | `on`, `off` | | `off` | latest wins |
 | `pwm_output` | switch, level | `on`, `off`, `set(level)`, `fade(from, to)` | `frequencyHz` 1–100000 (1000) | `off` | latest wins |
-| `digital_input` | measure | none | `pull` `up`, `down` or `none` (`down`); `debounceMs` 0–10000 (20) | | |
+| `digital_input` | measure | none | `pull` `up`, `down` or `none` (no default: required); `debounceMs` 0–10000 (20) | | |
 
 - A `level`, and the `from` and `to` of a fade, are percentages: 0 to 100, decimals allowed.
-- An input with every default reads inactive at rest: `pull` is `down` because `activeLow` is
-  `false` (`hardware.schema.json`), so one that is not wired, or wired the other way, starts
-  nothing. A button to ground says both: `pull` `up` and `activeLow` `true`.
+- An input says its `pull`: it has no default, because every default is wrong for some wiring
+  and a wrong one reads the input as active at rest. A button to ground is `pull` `up` and
+  `activeLow` `true`; a button to 3V3 is `pull` `down`; a sensor that drives the line is
+  `none`. `core` does not warn about a pull at the active level: it is how a normally closed
+  switch is wired, so that a broken wire reads as active.
 - On a PWM output `on` is the level 100 and `off` the level 0; on a digital output they are
   its two states (which electrical level is "on" is the element's `activeLow`).
 - `fade` goes from one level to the other over the length of its clip; as an instant clip it

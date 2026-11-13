@@ -116,7 +116,7 @@ def test_lists_are_joined_for_the_language(project: Path) -> None:
 
     _, out = _run(str(project), "--lang", "es")
 
-    assert "Usa uno de estos: hardware." in out
+    assert "Valores admitidos: hardware." in out
 
 
 def test_warnings_pass_unless_strict(project: Path) -> None:

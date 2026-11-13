@@ -285,7 +285,7 @@
     },
     "action.param_not_allowed": {
       "message": "The {parameter} of the action {action} of {element} is not one of the values it allows.",
-      "hint": "Use one of these: {allowed}."
+      "hint": "Allowed values: {allowed}."
     },
     "config.unknown": {
       "message": "{element} has no option {option}.",
@@ -305,7 +305,7 @@
     },
     "config.not_allowed": {
       "message": "The option {option} of {element} is not one of the values it allows.",
-      "hint": "Use one of these: {allowed}."
+      "hint": "Allowed values: {allowed}."
     },
     "board.unknown_model": {
       "message": "The board {board} is a {model}, and this version of Primum has no profile for that model.",
@@ -385,7 +385,7 @@
     },
     "schema.not_allowed": {
       "message": "The value of {field} is not one of the allowed values.",
-      "hint": "Use one of these: {allowed}."
+      "hint": "Allowed values: {allowed}."
     },
     "schema.invalid_id": {
       "message": "The value of {field} is not a valid id.",

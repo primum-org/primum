@@ -285,7 +285,7 @@
     },
     "action.param_not_allowed": {
       "message": "El valor de {parameter} en la acción {action} de {element} no es uno de los que admite.",
-      "hint": "Usa uno de estos: {allowed}."
+      "hint": "Valores admitidos: {allowed}."
     },
     "config.unknown": {
       "message": "{element} no tiene la opción {option}.",
@@ -305,7 +305,7 @@
     },
     "config.not_allowed": {
       "message": "La opción {option} de {element} no es uno de los valores que admite.",
-      "hint": "Usa uno de estos: {allowed}."
+      "hint": "Valores admitidos: {allowed}."
     },
     "board.unknown_model": {
       "message": "La placa {board} es una {model}, y esta versión de Primum no tiene perfil para ese modelo.",
@@ -385,7 +385,7 @@
     },
     "schema.not_allowed": {
       "message": "El valor de {field} no es uno de los permitidos.",
-      "hint": "Usa uno de estos: {allowed}."
+      "hint": "Valores admitidos: {allowed}."
     },
     "schema.invalid_id": {
       "message": "El valor de {field} no es un identificador válido.",

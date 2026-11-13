@@ -17,8 +17,7 @@
         "up",
         "down",
         "none"
-      ],
-      "default": "down"
+      ]
     },
     {
       "name": "debounceMs",

@@ -20,9 +20,7 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
   a bus and an address); a manifest that also declares its wiring would open that list.
 - **A clip holds its action while it lasts.** From `atMs`, for `durationMs`, its sequence
   commands the element with that action. When the clip ends, the element returns to what was
-  there under it: the standing command of its own sequence if there is one (next point), else
-  what a sequence on a lower priority says (decision 0006), else its safe state. Nothing a
-  clip does outlives its sequence.
+  there under it (the rule is two points below). Nothing a clip does outlives its sequence.
 - **A clip of 0 ms is an instant command that stands**: the element takes the state the action
   ends in (a fade, its `to`) and that state stays as the element's background in the sequence
   until the next instant command of that element, or until the sequence ends. A clip with a
@@ -31,6 +29,15 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
   after a clip, put an instant command where the clip ends (a `fade` to 0 and an instant
   `off`). Sequences are read flattened (`workspace.md`), so "next" and "ends" are those of
   the sequence that runs, not of a component inside it.
+- **One rule says who commands an element.** A command is in force while it lasts: a clip for
+  its length, an instant command until the next one of that element in its sequence or the
+  end of its sequence. Of the sequences with a command in force on an element, those of the
+  highest priority count (decision 0006), and among their commands the one that started last
+  wins, whichever sequence it is from. With nothing in force, the element is in its safe
+  state. So when a clip ends the element goes to the latest command still in force on that
+  priority (the standing command of its own sequence, or a clip or a standing command of
+  another sequence that started after it), else to what a lower priority says, else to its
+  safe state.
 - **A sequence ends when its last clip ends**; an instant clip ends where it starts. An instant
   clip that is the last thing of its sequence therefore shows nothing: the sequence is over.
 - **An instant clip takes its instant**: no other clip of its element may start in that same
