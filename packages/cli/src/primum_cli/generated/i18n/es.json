@@ -247,6 +247,66 @@
       "message": "{sequence} y {other} pueden ejecutarse a la vez, y las dos usan {element}.",
       "hint": "Si no es lo que quieres, ponlas en el mismo grupo exclusivo o dale más prioridad a una de ellas."
     },
+    "sequence.exclusive_element_shared": {
+      "message": "{sequence} y {other} pueden ejecutarse a la vez, y las dos usan {element}, que solo puede usar una secuencia a la vez.",
+      "hint": "Ponlas en el mismo grupo exclusivo o dale más prioridad a una de ellas."
+    },
+    "clip.instant_at_end": {
+      "message": "{action} en {element} es lo último que hace {sequence} y dura 0 ms, así que no llegará a verse.",
+      "hint": "Una secuencia termina con su último clip. Dale una duración al clip: el tiempo que {element} debe seguir así."
+    },
+    "track.element_without_actions": {
+      "message": "{element} no admite acciones, así que no puede tener una pista.",
+      "hint": "Una pista es para un elemento que hace algo, como una luz o un relé. Para reaccionar a {element}, usa un evento."
+    },
+    "track.element_without_driver": {
+      "message": "{element} es de un tipo que Primum todavía no sabe manejar, así que no puede tener una pista.",
+      "hint": "Quita la pista. Las pistas son para elementos a los que Primum sabe pedirles algo, como una luz o un relé."
+    },
+    "action.unknown": {
+      "message": "{element} no puede hacer {action}.",
+      "hint": "Puede hacer: {available}."
+    },
+    "action.param_unknown": {
+      "message": "La acción {action} de {element} no tiene el parámetro {parameter}.",
+      "hint": "Quítalo o revisa cómo está escrito."
+    },
+    "action.param_duplicate": {
+      "message": "El parámetro {parameter} de la acción {action} de {element} se da más de una vez.",
+      "hint": "Deja un solo valor para {parameter}."
+    },
+    "action.param_missing": {
+      "message": "La acción {action} de {element} necesita un valor para {parameter}.",
+      "hint": "Añade {parameter} al clip."
+    },
+    "action.param_out_of_range": {
+      "message": "El valor de {parameter} en la acción {action} de {element} está fuera de sus límites.",
+      "hint": "Mantenlo entre {min} y {max}."
+    },
+    "action.param_not_allowed": {
+      "message": "El valor de {parameter} en la acción {action} de {element} no es uno de los que admite.",
+      "hint": "Valores admitidos: {allowed}."
+    },
+    "config.unknown": {
+      "message": "{element} no tiene la opción {option}.",
+      "hint": "Quítala o revisa cómo está escrita."
+    },
+    "config.duplicate": {
+      "message": "La opción {option} de {element} se da más de una vez.",
+      "hint": "Deja un solo valor para {option}."
+    },
+    "config.missing": {
+      "message": "{element} necesita un valor para su opción {option}.",
+      "hint": "Añade {option} al elemento."
+    },
+    "config.out_of_range": {
+      "message": "La opción {option} de {element} está fuera de sus límites.",
+      "hint": "Mantenla entre {min} y {max}."
+    },
+    "config.not_allowed": {
+      "message": "La opción {option} de {element} no es uno de los valores que admite.",
+      "hint": "Valores admitidos: {allowed}."
+    },
     "board.unknown_model": {
       "message": "La placa {board} es una {model}, y esta versión de Primum no tiene perfil para ese modelo.",
       "hint": "Usa un modelo que Primum conozca (rpi4b) o añade su perfil en boards/."
@@ -325,7 +385,7 @@
     },
     "schema.not_allowed": {
       "message": "El valor de {field} no es uno de los permitidos.",
-      "hint": "Usa uno de estos: {allowed}."
+      "hint": "Valores admitidos: {allowed}."
     },
     "schema.invalid_id": {
       "message": "El valor de {field} no es un identificador válido.",
@@ -394,6 +454,26 @@
     "board.duplicate_id": {
       "message": "El perfil de placa usa el nombre {id} más de una vez.",
       "hint": "Da a cada bus y a cada canal PWM un nombre distinto."
+    },
+    "driver.duplicate_action": {
+      "message": "El driver declara la acción {action} más de una vez.",
+      "hint": "Dale a cada acción su propio nombre."
+    },
+    "driver.duplicate_parameter": {
+      "message": "El driver declara {parameter} más de una vez en el mismo sitio.",
+      "hint": "Dale su propio nombre a cada parámetro de una acción y a cada opción."
+    },
+    "driver.limits_invalid": {
+      "message": "Los límites de {parameter} están al revés: el mínimo ({min}) está por encima del máximo ({max}).",
+      "hint": "Intercámbialos o corrige el que esté mal."
+    },
+    "driver.default_not_allowed": {
+      "message": "El valor por defecto de {parameter} no es uno de los que admite.",
+      "hint": "Mantenlo dentro de sus límites o entre sus opciones."
+    },
+    "driver.unknown_safe_state": {
+      "message": "El estado seguro {action} no es una acción que el driver pueda ejecutar sin argumentos.",
+      "hint": "Indica una de sus acciones cuyos parámetros tengan todos un valor por defecto."
     }
   }
 }

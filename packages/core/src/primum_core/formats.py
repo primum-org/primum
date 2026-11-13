@@ -7,7 +7,8 @@
    numbers as JSON means them (``2.0`` is the integer ``2``);
 2. structure: the file's schema in ``schemas/``, every problem reported;
 3. the generated, immutable dataclass of the format;
-4. meaning, for formats that have rules a schema cannot express (board profiles).
+4. meaning, for formats that have rules a schema cannot express (board profiles, driver
+   manifests).
 """
 
 import json
@@ -18,10 +19,12 @@ from pathlib import PurePosixPath
 from uuid import UUID
 
 from primum_core.boards import check_board_profile
+from primum_core.drivers import check_driver
 from primum_core.errors import CoreErrorCode, Issue, Location
 from primum_core.generated.model import (
     Automation,
     BoardProfile,
+    Driver,
     Event,
     Hardware,
     Project,
@@ -30,6 +33,7 @@ from primum_core.generated.model import (
     Variables,
     parse_automation,
     parse_board_profile,
+    parse_driver,
     parse_event,
     parse_hardware,
     parse_project,
@@ -100,6 +104,11 @@ def read_board_profile(path: PurePosixPath, content: bytes) -> Parsed[BoardProfi
     )
 
 
+def read_driver(path: PurePosixPath, content: bytes) -> Parsed[Driver]:
+    """Read a driver manifest (``drivers/<elementType>.json``), its meaning checked too."""
+    return _read(path, content, "driver.schema.json", parse_driver, check_driver)
+
+
 def _read[T](
     path: PurePosixPath,
     content: bytes,
@@ -132,6 +141,7 @@ def _decode(content: bytes, location: Location) -> object:
             object_pairs_hook=_object_without_repeated_keys,
             parse_constant=lambda _: _NotStandardJson(),
             parse_float=_number,
+            parse_int=_integer,
         )
     except _DuplicateKeyError as repeated:
         return Issue(CoreErrorCode.FILE_DUPLICATE_KEY, {"key": repeated.key}, location)
@@ -153,6 +163,17 @@ def _number(text: str) -> object:
     if not math.isfinite(value):
         return _NotStandardJson()
     return int(value) if value.is_integer() else value
+
+
+def _integer(text: str) -> object:
+    """A JSON integer. One that no float can hold (hundreds of digits) is no number the model
+    can carry: reported like the other numbers JSON does not have, not raised."""
+    try:
+        value = int(text)
+        float(value)
+    except (ValueError, OverflowError):  # ValueError: more digits than Python converts
+        return _NotStandardJson()
+    return value
 
 
 def _object_without_repeated_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:

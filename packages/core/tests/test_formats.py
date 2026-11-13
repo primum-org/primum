@@ -7,7 +7,7 @@ from uuid import UUID
 import pytest
 
 from primum_core.errors import CoreErrorCode, Issue, Location, Severity
-from primum_core.formats import read_manifest
+from primum_core.formats import read_manifest, read_project_file
 from primum_core.generated.model import Project
 
 PATH = PurePosixPath("project.json")
@@ -125,7 +125,11 @@ def test_each_rule_has_its_code_and_params(
     assert pointer == f"/{next(iter(changes))}"
 
 
-@pytest.mark.parametrize("number", [b"NaN", b"Infinity", b"-Infinity", b"1e400"])
+HUGE = b"1" + b"0" * 400  # more than a float holds
+ENDLESS = b"1" + b"0" * 5000  # more digits than Python converts
+
+
+@pytest.mark.parametrize("number", [b"NaN", b"Infinity", b"-Infinity", b"1e400", HUGE, ENDLESS])
 def test_numbers_json_does_not_have_are_reported_as_the_wrong_type(number: bytes) -> None:
     content = _manifest().replace(b'"Shop window"', number)
 
@@ -174,3 +178,21 @@ def test_without_a_valid_id_issues_name_the_file_by_path_only() -> None:
     parsed = read_manifest(PATH, _manifest(id="nope"))
 
     assert {issue.location for issue in parsed.issues} == {Location(PATH, "/id")}
+
+
+def test_a_number_no_float_holds_in_a_project_file_is_reported_not_raised() -> None:
+    variable = {"id": PROJECT_ID, "name": "visits", "type": "integer", "initial": 0, "min": 0}
+    document = {
+        "id": "7f4d431c-df59-402c-8b9e-d1614eb9fc27",
+        "kind": "variables",
+        "schemaVersion": 1,
+        "constants": [],
+        "variables": [variable],
+    }
+    content = json.dumps(document).encode().replace(b'"min": 0', b'"min": ' + HUGE)
+
+    parsed = read_project_file(PurePosixPath("shop.vars"), content)
+
+    assert [(issue.code, dict(issue.params)) for issue in parsed.issues] == [
+        (CoreErrorCode.SCHEMA_EXPECTED_NUMBER, {"field": "variables[0].min"})
+    ]

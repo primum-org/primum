@@ -1,0 +1,21 @@
+{
+  "id": "1eb767aa-079c-4c1a-98c5-858fe77da02e",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "3ef5db24-abd3-471a-9bf8-39d1bd666280",
+      "name": "Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "34b6fed7-d92d-4a43-9e96-0650bb83dfbc",
+      "name": "Lamp",
+      "board": "3ef5db24-abd3-471a-9bf8-39d1bd666280",
+      "type": "pwm_output",
+      "pin": 18
+    }
+  ]
+}

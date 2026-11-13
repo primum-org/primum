@@ -23,14 +23,30 @@
       "name": "Window LED",
       "board": "8dcf0ea7-1b21-4f87-b33c-213ece6b96da",
       "type": "pwm_output",
-      "pin": 18
+      "pin": 18,
+      "config": [
+        {
+          "name": "frequencyHz",
+          "value": 500
+        }
+      ]
     },
     {
       "id": "019556e9-6666-48d0-a08a-468b54b30c43",
       "name": "Presence sensor",
       "board": "8dcf0ea7-1b21-4f87-b33c-213ece6b96da",
       "type": "digital_input",
-      "pin": 22
+      "pin": 22,
+      "config": [
+        {
+          "name": "pull",
+          "value": "none"
+        },
+        {
+          "name": "debounceMs",
+          "value": 100
+        }
+      ]
     }
   ]
 }

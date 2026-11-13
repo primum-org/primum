@@ -13,5 +13,5 @@ the spec in the same pull request. They are written from phase 2 on.
 | `safety.md` | Safe state, limits, panic, test mode, watchdog | 3 |
 | `deployment-package.md` | Package format, hash, minimum runtime version, activation, rollback | 4 |
 | [`board-profiles.md`](board-profiles.md) | Board profile format, rules and use | 2 |
-| `drivers.md` | Driver manifest: capabilities, config, platforms, safe state, conflict policy | 3 |
+| [`drivers.md`](drivers.md) | Driver manifest: actions, config, safe state, conflict policy; what `core` checks against it | 3 |
 | `protocol.md` | Messages between boards and transports | after v1 |

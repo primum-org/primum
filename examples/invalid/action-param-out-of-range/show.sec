@@ -1,0 +1,25 @@
+{
+  "id": "313a480f-9f85-4995-9c09-8b596b389c65",
+  "kind": "sequence",
+  "schemaVersion": 1,
+  "name": "Show",
+  "tracks": [
+    {
+      "element": "bcbced9a-0b5a-46ed-878d-4a7770337cf1",
+      "clips": [
+        {
+          "id": "3f601666-f303-48d2-b5b4-6d415b3a1203",
+          "atMs": 0,
+          "durationMs": 1000,
+          "action": "set",
+          "arguments": [
+            {
+              "name": "level",
+              "value": 150
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

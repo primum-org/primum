@@ -1,0 +1,7 @@
+{
+  "id": "2feb1543-8a48-484a-8a90-294d57190ba9",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Action unknown",
+  "description": "A relay asked to fade: a digital output only goes on and off."
+}

@@ -4,21 +4,28 @@
 relative to the folder, with its content. ``project.json`` at the root is the manifest; the
 other files are read by their extension (``.hw``, ``.vars``, ``.sec``, ``.evt``, ``.sched``,
 ``.auto``). A file of no project type is ignored with a warning. The caller also passes the
-board profiles (``boards/``, by model): the elements of each board are checked against them.
+board profiles (``boards/``, by model) and the driver manifests (``drivers/``, by element
+type): the elements of each board are checked against the first, and their configuration and
+what clips ask of them against the second.
 
 Extensions are matched without regard to case (``SHOW.SEC`` is a sequence), as Windows does.
 
 Checks come in stages, so a problem is reported once, where it is: first each file on its own
-(text, JSON, schema, then the fields that depend on the case), and, once every file reads, the
-project as a whole: ids and references, which need every file; then the scopes of names, the
-components, the clips and sequences that overlap, and the resources of each board.
+(text, JSON, schema, then the fields that depend on the case and the configuration of each
+element),
+and, once every file reads, the project as a whole: ids and references, which need every file;
+then the scopes of names, the components, the actions of the clips, the clips and sequences
+that overlap, and the resources of each board.
 """
 
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
+from primum_core.actions import check_actions
 from primum_core.components import check_components
+from primum_core.config import check_config
+from primum_core.drivers import Drivers
 from primum_core.errors import CoreErrorCode, Issue, Location, Severity
 from primum_core.formats import (
     PROJECT_FILE_FORMATS,
@@ -53,9 +60,11 @@ class Workspace:
     files: tuple[ProjectFile, ...]
 
 
-def load_workspace(files: Mapping[PurePosixPath, bytes], profiles: Profiles) -> Parsed[Workspace]:
-    """Read and check a project from its files (path relative to the project folder → content)
-    and the board profiles it may use (by model).
+def load_workspace(
+    files: Mapping[PurePosixPath, bytes], profiles: Profiles, drivers: Drivers
+) -> Parsed[Workspace]:
+    """Read and check a project from its files (path relative to the project folder → content),
+    the board profiles it may use (by model) and the driver manifests (by element type).
 
     The workspace comes back when no issue is an error; warnings come with it.
     """
@@ -78,12 +87,14 @@ def load_workspace(files: Mapping[PurePosixPath, bytes], profiles: Profiles) -> 
             continue
         read.append(ProjectFile(path, parsed.value))
         issues += check_variants(_located(read[-1]))
+        issues += check_config(_located(read[-1]), drivers)
     if complete and manifest is not None:
         located = [_located(file) for file in read]
         issues += check_references(located, (manifest.id, Location(MANIFEST, file_id=manifest.id)))
         issues += check_scopes(located)
         issues += check_components(located)
-        issues += check_overlaps(located)
+        issues += check_actions(located, drivers)
+        issues += check_overlaps(located, drivers)
         issues += check_resources(located, profiles)
     if manifest is None or any(issue.severity is Severity.ERROR for issue in issues):
         return Parsed(None, tuple(issues))

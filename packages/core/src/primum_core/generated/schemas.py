@@ -390,6 +390,29 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
         "string"
       ]
     },
+    "parameterName": {
+      "description": "The name of a parameter of an action or of an option of an element's configuration, as its driver declares it (level, frequencyHz).",
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]*$",
+      "maxLength": 40
+    },
+    "namedValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A value given by name: an argument of a clip's action, an option of an element's configuration.",
+      "required": [
+        "name",
+        "value"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/parameterName"
+        },
+        "value": {
+          "$ref": "#/$defs/value"
+        }
+      }
+    },
     "durationMs": {
       "description": "A length of time in milliseconds.",
       "type": "integer",
@@ -410,6 +433,133 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
       "description": "A time of day, 24-hour HH:MM, local time.",
       "type": "string",
       "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+    }
+  }
+}
+"""
+    ),
+    "driver.schema.json": json.loads(
+        """
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "driver.schema.json",
+  "title": "Driver",
+  "description": "What a driver offers, as data: the element type it serves, what a clip may ask of it and how the element is set up. One file per element type in drivers/. Its implementation lives in the runtimes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "schemaVersion",
+    "elementType",
+    "config",
+    "actions"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/id"
+    },
+    "kind": {
+      "const": "driver"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "elementType": {
+      "description": "The type of the elements it serves, as .hw files write it (pwm_output); the file is named after it.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 40
+    },
+    "conflictPolicy": {
+      "description": "What happens when two sequences on one priority command the element: the latest command wins (lights, relays), or one sequence owns it while it runs (motors, servos). Needed by a driver with actions.",
+      "enum": [
+        "latest_wins",
+        "exclusive"
+      ]
+    },
+    "safeState": {
+      "description": "The action the element rests in: when nothing commands it, on stop, on panic. One of its actions that needs no arguments. Needed by a driver with actions.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 40
+    },
+    "config": {
+      "description": "The options an element of this type takes in a .hw file, beyond its wiring.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/driverParameter"
+      }
+    },
+    "actions": {
+      "description": "What a clip may ask of the element. None for an element that only reads.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/driverAction"
+      }
+    }
+  },
+  "$defs": {
+    "driverAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "An action of the element, with the parameters a clip gives it.",
+      "required": [
+        "name",
+        "parameters"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 40
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/driverParameter"
+          }
+        }
+      }
+    },
+    "driverParameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A parameter of an action or an option of an element's configuration: its type, its limits and the value it takes when not given. Without a default it must be given.",
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/$defs/parameterName"
+        },
+        "type": {
+          "$ref": "common.schema.json#/$defs/valueType"
+        },
+        "min": {
+          "description": "The lowest value allowed (numbers only, with max).",
+          "type": "number"
+        },
+        "max": {
+          "description": "The highest value allowed (numbers only, with min).",
+          "type": "number"
+        },
+        "choices": {
+          "description": "The values allowed (texts only).",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "default": {
+          "$ref": "common.schema.json#/$defs/value"
+        }
+      }
     }
   }
 }
@@ -580,6 +730,13 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
           "type": "integer",
           "minimum": 8,
           "maximum": 119
+        },
+        "config": {
+          "description": "The options of the element's driver, by name (frequencyHz, pull, debounceMs); the ones not given take the driver's default.",
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/namedValue"
+          }
         }
       }
     }
@@ -816,7 +973,7 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
     "clip": {
       "type": "object",
       "additionalProperties": false,
-      "description": "An action of the element, from atMs for durationMs.",
+      "description": "An action of the element from atMs: held for durationMs, or, with durationMs 0, an instant command that stands, under the clips with a length, until the next instant command of the element in this sequence or the end of this sequence, of its block when it is included (decision 0016).",
       "required": [
         "id",
         "atMs",
@@ -834,9 +991,16 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
           "$ref": "common.schema.json#/$defs/durationMs"
         },
         "action": {
-          "description": "What the element does: its actions come with the drivers (phase 3).",
+          "description": "What the element does: one of the actions of its driver (drivers/).",
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "arguments": {
+          "description": "The values of the action's parameters, by name.",
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/namedValue"
+          }
         }
       }
     },

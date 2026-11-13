@@ -9,7 +9,7 @@ import pytest
 
 from primum_core.errors import CoreErrorCode, Severity
 from primum_core.workspace import MANIFEST, load_workspace
-from project_builder import PROFILES
+from project_builder import DRIVERS, PROFILES
 
 type Files = dict[PurePosixPath, bytes]
 type Found = list[tuple[CoreErrorCode, dict[str, object], str, str]]
@@ -44,6 +44,7 @@ def _project(**changes: Mapping[str, object]) -> Files:
                         "board": BOARD,
                         "type": "digital_input",
                         "pin": 27,
+                        "config": [{"name": "pull", "value": "up"}],
                     },
                 ],
             },
@@ -106,12 +107,12 @@ def _found(files: Files) -> Found:
             str(issue.location.path) if issue.location else "",
             issue.location.pointer if issue.location else "",
         )
-        for issue in load_workspace(files, PROFILES).issues
+        for issue in load_workspace(files, PROFILES, DRIVERS).issues
     ]
 
 
 def test_a_valid_project_loads_with_every_file_by_path() -> None:
-    parsed = load_workspace(_project(), PROFILES)
+    parsed = load_workspace(_project(), PROFILES, DRIVERS)
 
     assert parsed.issues == ()
     assert parsed.value is not None
@@ -130,7 +131,7 @@ def test_without_a_manifest_it_is_not_a_project() -> None:
     files = _project()
     del files[MANIFEST]
 
-    parsed = load_workspace(files, PROFILES)
+    parsed = load_workspace(files, PROFILES, DRIVERS)
 
     assert parsed.value is None
     assert _found(files) == [(CoreErrorCode.PROJECT_MANIFEST_MISSING, {}, "project.json", "")]
@@ -140,7 +141,7 @@ def test_a_file_of_no_project_type_is_ignored_with_a_warning() -> None:
     files = _project()
     files[PurePosixPath("notes/README.md")] = b"# notes"
 
-    parsed = load_workspace(files, PROFILES)
+    parsed = load_workspace(files, PROFILES, DRIVERS)
 
     assert parsed.value is not None
     [issue] = parsed.issues
@@ -325,7 +326,7 @@ def test_fields_that_depend_on_the_case_are_checked(
     path: str, change: dict[str, object], expected: tuple[CoreErrorCode, str, str]
 ) -> None:
     found = [
-        (code, params["field"], pointer)
+        (code, params.get("field"), pointer)
         for code, params, _, pointer in _found(_project(**{path: change}))
     ]
 
@@ -357,7 +358,7 @@ def test_extensions_are_matched_without_regard_to_case() -> None:
     files = _project()
     files[PurePosixPath("SCENES/OTHER.SEC")] = _file("sequence", _id(60), name="Other", tracks=[])
 
-    parsed = load_workspace(files, PROFILES)
+    parsed = load_workspace(files, PROFILES, DRIVERS)
 
     assert parsed.issues == ()
     assert parsed.value is not None

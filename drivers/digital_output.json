@@ -1,0 +1,19 @@
+{
+  "id": "149a1505-d763-42c6-b2c8-e538e69946ad",
+  "kind": "driver",
+  "schemaVersion": 1,
+  "elementType": "digital_output",
+  "conflictPolicy": "latest_wins",
+  "safeState": "off",
+  "config": [],
+  "actions": [
+    {
+      "name": "on",
+      "parameters": []
+    },
+    {
+      "name": "off",
+      "parameters": []
+    }
+  ]
+}

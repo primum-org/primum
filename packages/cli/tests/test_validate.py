@@ -41,6 +41,13 @@ INVALID_CODES = {
     "bus-not-on-board": "bus.not_on_board",
     "bus-not-i2c": "bus.not_i2c",
     "i2c-address-in-use": "i2c.address_in_use",
+    "action-unknown": "action.unknown",
+    "action-param-missing": "action.param_missing",
+    "action-param-out-of-range": "action.param_out_of_range",
+    "track-element-without-actions": "track.element_without_actions",
+    "track-element-without-driver": "track.element_without_driver",
+    "config-out-of-range": "config.out_of_range",
+    "config-not-allowed": "config.not_allowed",
 }
 
 
@@ -109,7 +116,7 @@ def test_lists_are_joined_for_the_language(project: Path) -> None:
 
     _, out = _run(str(project), "--lang", "es")
 
-    assert "Usa uno de estos: hardware." in out
+    assert "Valores admitidos: hardware." in out
 
 
 def test_warnings_pass_unless_strict(project: Path) -> None:

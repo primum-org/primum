@@ -1,0 +1,28 @@
+{
+  "id": "891e0cbe-57f0-48b2-a892-2e63d78ffe75",
+  "kind": "hardware",
+  "schemaVersion": 1,
+  "boards": [
+    {
+      "id": "604bb8d7-68d8-4208-acb6-f590eaf064d7",
+      "name": "Pi",
+      "model": "rpi4b"
+    }
+  ],
+  "elements": [
+    {
+      "id": "be6377b8-eaa3-4cfc-8724-e7d6b00c623a",
+      "name": "Button",
+      "board": "604bb8d7-68d8-4208-acb6-f590eaf064d7",
+      "type": "digital_input",
+      "pin": 22,
+      "config": [
+        {
+          "name": "pull",
+          "value": "up"
+        }
+      ],
+      "activeLow": true
+    }
+  ]
+}

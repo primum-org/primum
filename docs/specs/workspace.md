@@ -11,9 +11,9 @@ A project is a folder of files (decision 0004). This spec says what the folder h
 
 | Extension | Kind | Holds |
 |---|---|---|
-| `.hw` | `hardware` | Boards (`model` names a board profile) and the elements wired to them |
+| `.hw` | `hardware` | Boards (`model` names a board profile) and the elements wired to them, each with the options of its driver (`config`) |
 | `.vars` | `variables` | Constants and variables of its folder; names exported and imported |
-| `.sec` | `sequence` | Tracks of clips per element; blocks that include other sequences; parameters (a component); `priority` and `exclusiveGroup` (decision 0006) |
+| `.sec` | `sequence` | Tracks of clips per element, each clip an action of the element's driver with its `arguments`; blocks that include other sequences; parameters (a component); `priority` and `exclusiveGroup` (decision 0006) |
 | `.evt` | `event` | Something from outside: an input element, a button of the phone UI, the local API |
 | `.sched` | `schedule` | Times of day (start automations) and windows of time (conditions) |
 | `.auto` | `automation` | When events or schedules fire, if a condition holds, do actions |
@@ -61,17 +61,20 @@ name.
 
 ## Reading a project
 
-`load_workspace(files)` takes every file as path (relative to the folder) → bytes and returns
-the `Workspace` (manifest and files, by path) or the issues that prevent it. Checks come in
-stages, so each problem is reported once, where it is:
+`load_workspace(files, profiles, drivers)` takes every file as path (relative to the folder) →
+bytes, the board profiles by model and the driver manifests by element type (`core` reads no
+files: the caller loads them), and returns the `Workspace` (manifest and files, by path) or the
+issues that prevent it. Checks come in stages, so each problem is reported once, where it is:
 
 1. each file on its own: UTF-8, JSON, its schema (`file.*`, `schema.*`), then the fields that
-   depend on the case (`schema.missing_field`, `schema.unexpected_field`);
+   depend on the case (`schema.missing_field`, `schema.unexpected_field`) and the configuration
+   of each element against its driver (`config.*`, `drivers.md`);
 2. once every file reads, the project as a whole: unique ids (`id.duplicate`) and references
    (`ref.unknown`, `ref.wrong_kind`), which need every file: a file that does not read would
    make references to what it defines look wrong; then the names and their scopes, the
-   components (`variables-and-scopes.md`) and the resources of each board
-   (`board-profiles.md`).
+   components (`variables-and-scopes.md`), the action of each clip against the driver of its
+   element (`action.*`, `drivers.md`), the clips and sequences that overlap (below) and the
+   resources of each board (`board-profiles.md`).
 
 Without `project.json` the folder is not a project (`project.manifest_missing`). Warnings do
 not make a project invalid; errors do.
@@ -81,7 +84,34 @@ not make a project invalid; errors do.
 Each clip of a track runs from `atMs` for `durationMs`, in the time of its sequence; a block
 runs the included sequence from its `atMs`, its parameters bound to the block's arguments. For
 the checks, a sequence is **flattened**: its own clips plus the clips of what it includes, at
-their offsets, each sequence flattened once (`primum_core.overlaps`).
+their offsets, each sequence flattened once (`primum_core.timeline`).
+
+What a clip does (decision 0016):
+
+- **A clip holds its action while it lasts.** When it ends, the element returns to what was
+  under it (the rule is below).
+- **A clip of `durationMs: 0` is an instant command that stands**: the element takes the state
+  the action ends in (a `fade`, its `to`), and that is its background in its own sequence,
+  the one it is written in, until the next instant command of that element there or the end
+  of that sequence. Included as a block, that is the end of the block: a sequence does the
+  same included as started on its own, and an instant command of a component never stands
+  for the rest of the sequence that includes it. A clip with a length plays over it and
+  gives the element back to it:
+  `on` at 0 s and `set(30)` from 5 to 6 s is on, dimmed for a second, and on again. To leave
+  the element somewhere else after a clip, an instant command goes where the clip ends (a
+  `fade` to 0, then an instant `off`).
+- **Who commands an element**: a command is in force while it lasts, a clip for its length
+  and an instant command until the next one of that element in its own sequence or the end of
+  that sequence (of the block, when it is included). Of the sequences with a command in force on an element, those of the highest
+  priority count, and among their commands the one that started last wins, whichever sequence
+  it is from; with nothing in force, the element is in its driver's safe state. So a clip that
+  ends gives the element to the latest command still in force on its priority (its own
+  sequence's standing command, or another sequence's later command), else to a lower
+  priority, else to the safe state.
+- **A sequence ends when its last clip ends**, an instant clip ending where it starts. So an
+  instant clip that is the last thing of its sequence shows nothing: a warning (below).
+
+The checks (`primum_core.overlaps`):
 
 - **Within a sequence**, two clips of one element whose times overlap are an error,
   `track.clips_overlap` (`element`, `atMs`: where the later one starts). It points at the later
@@ -89,17 +119,34 @@ their offsets, each sequence flattened once (`primum_core.overlaps`).
   block on the same element of the included sequence are not compared: their overlap belongs
   to it, and is reported there once. Two that only meet because the block bound a parameter to
   an element the component also uses directly are new, and are reported at the block, once per
-  element (a component of twenty clips included twice is one problem, not twenty). A clip of
-  `durationMs: 0` takes no time and overlaps nothing. Clips that only touch (one ends where the
-  next starts) do not overlap. A clip on an element the project does not define is only
-  `ref.unknown`.
+  element (a component of twenty clips included twice is one problem, not twenty). An instant
+  clip takes its instant: it overlaps a clip it falls inside, and a clip that starts in that
+  same millisecond; it does not overlap a clip that ends where it is, nor one that starts a
+  millisecond later (that clip takes over). Clips that only touch (one ends where the next
+  starts) do not overlap. A clip on an element the project does not define is only
+  `ref.unknown`. The part about instant clips is provisional (decision 0016): an instant
+  command and a clip with a length do not compete, and block 3.2b stops reporting them.
+- **An instant clip at the very end of a sequence that automations start** is never seen: the
+  sequence ends there. A warning, `clip.instant_at_end` (`sequence`, `element`, `action`), at
+  the clip, or at the block it comes through. Not reported: one that asks for the safe state
+  of its element's driver (an instant `on`, and an instant `off` to end with: the element goes
+  there anyway), one that another element's later clip keeps alive, two of one element in
+  that instant (they overlap: that error is enough), and the sequences nothing starts (those
+  the phone UI or the API will start, phase 5, are not known here). Not reported yet, though
+  it is not seen either: an instant clip that ends a component placed in the middle of
+  another sequence (block 3.2b). The safe state is told by
+  the name of the action: `core` does not know where an action leaves its element, so an
+  instant `set` to a level of 0 at the end is reported although it does what `off` does.
 - **Between sequences**, the engine arbitrates (decision 0006, phase 4): by `priority` (a higher
   one layers over a lower one while it runs; within one priority the latest command wins) and
   by `exclusiveGroup` (starting one sequence of a group stops the others). What can be said
   without the engine is a warning: two sequences that **automations start**, on the **same
   priority**, **not in one exclusive group**, that touch the **same element**, may run at the
   same time: `sequence.may_overlap` (`sequence`, `other`, `element`), once per pair, at the
-  second sequence by path. Sequences nothing starts are not compared (those the phone UI or
+  second sequence by path. If one of the shared elements has an **exclusive** driver (one
+  sequence owns it while it runs: `conflictPolicy` in `drivers.md`), it is an error instead,
+  `sequence.exclusive_element_shared`, with the same params and that element named. Sequences
+  nothing starts are not compared (those the phone UI or
   the API will start, phase 5, are not known here); a parameter bound to nothing (a component's
   own, or one of a component included without that argument) counts as no element, and so does
   an element the project does not define. An `exclusiveGroup` is one name for the whole

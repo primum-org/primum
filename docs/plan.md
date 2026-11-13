@@ -315,7 +315,7 @@ MCP server in phase 8).
 
 The runtime drives digital outputs, digital inputs and hardware PWM through drivers with a
 declared safe state and limits, and the outputs end in their safe state even when the service
-dies at once. Blocks 3.2 and 3.3 need no Pi; 3.1 and 3.4 are checked on `primum-dev` (the LED
+dies at once. Blocks 3.2, 3.2b and 3.3 need no Pi; 3.1 and 3.4 are checked on `primum-dev` (the LED
 on GPIO 17, a button to ground on another GPIO, and an LED on GPIO 18 for PWM once the overlay
 is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `config.txt` (phase
 6), the new UI (phase 5). One pull request per block.
@@ -343,25 +343,147 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   `hal.pwm_unavailable`; a high one leaves few steps of level: at 20 MHz the period is 50 ns and
   `set(0.001)` reads back `0.0` with no error, so the limit is a maximum frequency or a minimum
   resolution), and `InputSpec.debounce_ms` is not checked (a negative value ends as a misleading
-  `hal.request_failed`).
+  `hal.request_failed`). The manifests of 3.2 set those limits (1–100000 Hz, 0–10000 ms) for
+  `core`; the drivers apply them on the board.
 - From review of 2.6, in passing: `overlaps` names and the note on loops.
 
-**3.2 · Driver manifests and what a clip is**
-- `schemas/driver.schema.json` and `drivers/`: one manifest per driver, the element type it
-  serves, capabilities (`switch`, `level`, `read`), actions with parameters, configuration,
-  platforms, safe state, limits, conflict policy (latest wins / exclusive). Data, like the
-  board profiles: `core` gets them from the caller.
-- `core` validates clip `action`s against the manifest of the element's type (`action.unknown`,
-  `action.param_missing`, `action.param_out_of_range`).
-- Decision: what a clip is (duration, an instant command of 0 ms, what happens when it ends);
-  `overlaps` adjusted so 0 ms clips count. `sequence.may_overlap` becomes an error on elements
-  whose driver is exclusive.
+**3.2 · Driver manifests and what a clip is** · **done** (decision 0016, `specs/drivers.md`)
+- `schemas/driver.schema.json` and `drivers/`: one manifest per element type, with its
+  actions with parameters, the options of an element (`config`), its
+  safe state and its conflict policy (latest wins / exclusive). Data, like the board profiles:
+  `core` gets them from the caller. Three manifests: `digital_output` (`on`, `off`),
+  `pwm_output` (`on`, `off`, `set(level)`, `fade(from, to)`; `frequencyHz`) and `digital_input`
+  (no actions; `pull`, `debounceMs`).
+- Clips take `arguments` and elements take `config`, both values by name. `core` checks them
+  against the manifest of the element's type (`action.*`, `config.*`,
+  `track.element_without_actions`, and `track.element_without_driver` for a type with no
+  manifest yet); a component, where a block gives it its element.
+- What a clip is: it holds its action while it lasts and then releases the element to the layer
+  below or its safe state; a clip of 0 ms is an instant command that stands, under the clips
+  with a length, until the next instant command of the element in its own sequence or the
+  end of that sequence (of its block when included), and counts for overlaps. Two started sequences on
+  an element of an exclusive driver are an error (`sequence.exclusive_element_shared`).
+- Not here, for the compiler (phase 4): a clip that takes the value of a component's parameter
+  or of a variable; the limits the HAL showed (frequency, debounce) are in the
+  manifests as provisional values: they belong to the board, and 3.3 moves them to its profile.
+- An instant clip that is the last thing of a sequence shows nothing (the sequence ends
+  there): a warning, `clip.instant_at_end`, on the sequences automations start, unless it asks
+  for the safe state. The sequences the phone UI or the API start join it in phase 5; block
+  3.2b completes it.
+- A new driver is not yet only a manifest: the element types are a closed `enum` in
+  `hardware.schema.json`, and `variants`, `resources` and `references` know each type by name
+  (its fields, its resources, whether it is an input). Opening the list needs manifests that
+  declare their wiring and whether they are listened to. `activeLow` (a field of the element)
+  and `pull` (an option of the driver) are chosen together and should then live together.
+- A component nothing includes is not checked: a misspelt action in it passes until a block
+  gives its parameter an element. An element parameter that declares the capability it
+  expects (`level`, `switch`) would let it be checked on its own; it changes the format of
+  sequences, and it is when manifests get their `capabilities`.
+- A manifest has no `capabilities` and no `platforms`: the first draft had both, required and
+  with values for things that do not exist (`esp32`, `avr`, `color`, `position`), and nothing
+  read them. Each comes back with its first reader and the values that exist then:
+  `platforms` in 3.3, when a board profile says its platform and `core` can check that the
+  driver exists on the element's board; `capabilities` with the parameter above.
+- Later, no date: the safe state is per element type. `off` is right for everything there is
+  today; an element whose safe rest is another (a work light, a fan) needs it per element.
+- For the engine (phase 4): `fade` needs its `from`, so "from where it is" cannot be
+  said and a fade that enters over another layer jumps: it needs a parameter that may be left
+  out without having a default, a small change of the manifest format, not of the sequences.
+- For the UI (phase 5): a problem inside a component is reported at the block that gives it
+  its element, without the clip of the component that has it (`FlatClip.clip` is at hand);
+  the timeline should show the standing command of an element under its clips; an input is
+  set up by picking how it is wired (button to ground, button to 3V3, normally closed switch),
+  which fills in `pull` and `activeLow` together.
+- Small, older than this block: `atMs` and `durationMs` have no maximum (2^62 ms is accepted).
+- Small, a pull request of its own: `core` has six copies of the helper that points inside a
+  file (`at`, `_at`), four of them older than this block.
+- Small: the sequences are flattened twice, once for the actions and once for the overlaps;
+  share it when the compiler (phase 4) needs it too.
+
+**3.2b · What commands an element, and when**
+Decision 0016 says in prose what the engine will do, and it was rewritten four times in its own
+pull request with no test to hold it. This block makes it run, in `core`, before the drivers
+and long before the engine. No runtime code and no Pi.
+- Something can be left on: the most important thing left, since it is the first thing
+  someone who does not program writes. Today nothing a clip does outlives its sequence and a
+  sequence ends with its last clip, so "on at dusk, off at 23:00" needs a clip whose length is
+  worked out by hand, and what people write first, a sequence *On* with an instant `on` and a
+  sequence *Off* with an instant `off`, gives `clip.instant_at_end` and
+  `sequence.may_overlap`, with a hint ("give the clip a duration") that is the wrong advice
+  for it; *Off* gets no warning though it does nothing either. Proposed: a sequence that does not end by itself, an optional field
+  of the sequence ("when its last clip ends, hold until it is stopped"). Dusk starts *Lights*,
+  one instant `on` that stands; 23:00 stops it with the `stop_sequence` automations already
+  have. Stop, panic, exclusive groups and priorities work as for any sequence, and nothing
+  outlives its sequence still. Discarded: an automation that commands an element directly, a
+  state outside the sequences that nobody releases. Loops (a sequence that starts again) are
+  a separate question, with the re-trigger policy of phase 4.
+- To decide on purpose, before writing the function: decision 0016 holds two rules that agree
+  only while an instant command cannot fall inside a clip. "A clip plays over the standing
+  command" and "the command that started last wins" differ on an instant `off` at 5.5 s
+  inside a clip from 5 to 6 s. Proposed: one rule, the command that started last wins, within
+  a sequence as between sequences (where an instant command of another sequence already cuts
+  a clip). The `off` cuts the clip, which is what the timeline shows; "under" is then a
+  consequence, true of the clips that start after the instant command; in a tie (both start
+  in one millisecond) the clip with a length wins and gives the element back when it ends.
+  The other option, a clip always over the instant commands of its own sequence, is two
+  rules, and an `off` dropped inside a clip would do nothing until the clip ends.
+- A pure function of `core`: which command is in force on an element at an instant, given the
+  sequences that are running and when each started. It implements the rule of decision 0016
+  (a clip for its length; an instant command until the next one of its element in its own
+  sequence or the end of that sequence, of the block when included; the highest priority, and
+  within it the command that started last; else the safe state), with a test per case the
+  reviews found: `on` and a dim, `fade` to 0 and an instant `off`, a component with an instant
+  command placed in the middle of a longer sequence, two sequences of one priority, a layer
+  over another. What it shows wrong in the decision is corrected with a new decision.
+- `clip.instant_at_end`, complete: it also reports an instant clip that ends a component
+  placed in the middle of another sequence (never seen: its command ends with the block), it
+  does not fire on a sequence that holds, and its hint ("give the clip a duration") offers
+  holding.
+- `track.clips_overlap`, relaxed: an instant command and a clip do not compete, so an instant
+  command may fall inside a clip or in the instant one starts (the instant `off` where a
+  `fade` ends, with another clip starting there). Only two instant commands of one element
+  in one instant, and two clips with a length, overlap.
+- Not in this block, with 3.3: `core` knows the name of an action, not where it leaves its
+  element (below).
 
 **3.3 · The three drivers**
 - `digital_output`, `digital_input` (debounce, pull), `pwm_output`, each implementing its
   manifest on the HAL, with tests against the simulated HAL.
 - The `Controller` manages elements through drivers; the API and the page show inputs and PWM
   levels, and set levels.
+- What a board can do is data of its profile, taken from the manufacturer's documentation and
+  cited there, never a limit in a driver manifest (a manifest is for every platform): the
+  profile gains the limits of its PWM and of its inputs, the manifests keep the option, its
+  type and its default, and `core` checks each element against the profile of its board.
+  What the sources say for `rpi4b`: the Raspberry Pi kernel clocks the PWM at 50 MHz
+  (`assigned-clock-rates` in `bcm283x.dtsi`; mainline says 10 MHz and the `pwm-2chan` overlay
+  takes a `clock` parameter, so the profile describes the board with the system Primum
+  ships); `pwm-bcm2835` takes a period of 2 clock cycles at least and of 2^32 at most (40 ns
+  to about 85 s at 50 MHz, in steps of 20 ns); the BCM2711 peripherals datasheet gives the
+  32-bit range and data registers and no frequency limit. So the useful maximum is a choice
+  of resolution (steps between 0 and 100 %), derived from the clock. For inputs, the kernel's
+  GPIO documentation sets no limit on the debounce time (32 bits of microseconds) and the Pi
+  debounces in software: its limit is Primum's own, not a board's.
+- An `hw` test on `primum-dev` at both ends of each limit, when the limits move to the board
+  profile: a PWM output at its lowest and highest frequency, an input at its longest debounce.
+  The provisional 1 Hz to 100 kHz and 0 to 10 s fit what the sources say (at 50 MHz, 1 Hz is
+  50 million clock cycles of the 2^32 the driver takes and 100 kHz leaves 500 steps of level;
+  the kernel takes a debounce of up to some 71 minutes), which is arithmetic, not a measure.
+- Manifests declare the state each action leaves its element in (`on` 100, `off` 0, `set` its
+  `level`, `fade` its `to`). A driver needs it anyway to carry out an instant command, which
+  is "the state the action ends in". With it `core` warns about the trap of decision 0016, a
+  `fade` to 0 in the middle of a sequence that gives the element back to a standing `on`
+  because no instant `off` follows it, and `clip.instant_at_end` stops comparing names (an
+  instant `set` to 0 at the end is reported today, `off` is not).
+- One loader of manifests in `core`, for the CLI and the runtime, that keys each by its own
+  `elementType`: today `load_workspace` trusts the key its caller gives, and only the CLI
+  checks it.
+- A driver hands the HAL every option, taken from the manifest and the element, never the
+  HAL's own defaults, which say other things: `InputSpec.pull` is `UP` and the manifest has no
+  default, `InputSpec.debounce_ms` is 0 and the manifest says 20. Take the defaults out of
+  `InputSpec` and `PwmSpec` so the type checker ties it, not a test. The safe state of the
+  manifest (`off`) is tied to the HAL's the same way: one test per driver that its safe-state
+  action leaves the simulated HAL where the HAL's own safe state does.
 - PWM is not exposed through the API before `primum-safe` covers PWM channels: today the
   `Controller` claims digital outputs only, so the `kill -9` gap of a PWM output cannot be
   reached from the service. Either the PWM part of 3.4 comes first, or 3.3 and 3.4 are merged
@@ -394,7 +516,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   inversed polarity a disabled channel holds it high).
 - Test mode: manual commands that expire on their own, above sequences and below panic
   (decision 0006).
-- `docs/specs/safety.md`, `docs/specs/drivers.md`; on the Pi: `kill -9`, restart, exhausted
+- `docs/specs/safety.md`; on the Pi: `kill -9`, restart, exhausted
   restarts, with the LED as witness.
 - A sysfs PWM channel has no owner: the HAL adopts one already exported (what recovers it after
   a crash) and would take it from another program just the same. `check-gpio-users.sh` looks

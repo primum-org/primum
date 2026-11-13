@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TextIO
 
 from primum_cli.boards import load_profiles
+from primum_cli.drivers import load_drivers
 from primum_cli.folder import read_folder
 from primum_cli.messages import DEFAULT_LANGUAGE, LANGUAGES, Catalog
 from primum_core.errors import Issue, Severity
@@ -52,7 +53,7 @@ def validate(
     except OSError as error:
         err.write(catalog.text("folder.unreadable", path=str(folder), detail=str(error)) + "\n")
         return EXIT_FAILED
-    issues = load_workspace(files, load_profiles()).issues
+    issues = load_workspace(files, load_profiles(), load_drivers()).issues
     errors = sum(issue.severity is Severity.ERROR for issue in issues)
     warnings = len(issues) - errors
     valid = errors == 0 and not (strict and warnings)

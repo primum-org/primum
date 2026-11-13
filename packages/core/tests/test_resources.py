@@ -7,6 +7,9 @@ PI = 3
 HW = "hardware.hw"
 
 
+PULL_UP: dict[str, object] = {"name": "pull", "value": "up"}
+
+
 def _element(
     ids: Ids, number: int, name: str, type_: str = "digital_output", **fields: object
 ) -> dict[str, object]:
@@ -31,7 +34,7 @@ def test_distinct_free_gpios_pass(project: Project, ids: Ids) -> None:
         project,
         ids,
         _element(ids, 4, "LED", pin=17),
-        _element(ids, 5, "Button", "digital_input", pin=27),
+        _element(ids, 5, "Button", "digital_input", pin=27, config=[PULL_UP]),
         _element(ids, 6, "Fan", "pwm_output", pin=18),
         _element(ids, 7, "Expander", "i2c_device", bus="i2c1", address=32),
     )

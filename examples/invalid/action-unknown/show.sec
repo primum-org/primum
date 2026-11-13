@@ -1,0 +1,29 @@
+{
+  "id": "1b89dcf3-1ff7-44db-bf1a-68432879bf57",
+  "kind": "sequence",
+  "schemaVersion": 1,
+  "name": "Show",
+  "tracks": [
+    {
+      "element": "cf3f331e-dd37-4681-8650-a084c591dc17",
+      "clips": [
+        {
+          "id": "b63d4e5b-2200-45ba-af9e-71825f5b6437",
+          "atMs": 0,
+          "durationMs": 1000,
+          "action": "fade",
+          "arguments": [
+            {
+              "name": "from",
+              "value": 0
+            },
+            {
+              "name": "to",
+              "value": 100
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

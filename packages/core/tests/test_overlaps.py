@@ -1,13 +1,18 @@
 """Clips of one element that overlap within a sequence; sequences that may run at once."""
 
 from primum_core.errors import CoreErrorCode, Severity
-from project_builder import Ids, Project
+from project_builder import Ids, Project, driver
 
-LED, BUTTON = 4, 5
+LED, LAMP = 4, 9
 
 
 def _clip(ids: Ids, number: int, at_ms: int, duration_ms: int) -> dict[str, object]:
     return {"id": ids(number), "atMs": at_ms, "durationMs": duration_ms, "action": "on"}
+
+
+def _instant_off(ids: Ids, number: int, at_ms: int) -> dict[str, object]:
+    """An instant clip that asks for the safe state: a sequence may end with it."""
+    return {**_clip(ids, number, at_ms, 0), "action": "off"}
 
 
 def _sequence(
@@ -21,6 +26,12 @@ def _sequence(
     return project.add(
         f"{name.lower()}.sec", "sequence", ids(number), name=name, tracks=tracks, **fields
     )
+
+
+def _with_lamp(project: Project, ids: Ids) -> Project:
+    """A second element that takes actions: a PWM lamp on the same Pi."""
+    lamp = {"id": ids(LAMP), "name": "Lamp", "board": ids(3), "type": "pwm_output", "pin": 18}
+    return project.add("lamp.hw", "hardware", ids(8), boards=[], elements=[lamp])
 
 
 def _started(project: Project, ids: Ids, *sequences: int) -> Project:
@@ -72,6 +83,7 @@ def test_a_clip_starting_before_the_previous_one_ends_is_an_error(
 
 
 def test_clips_on_different_elements_never_overlap(project: Project, ids: Ids) -> None:
+    _with_lamp(project, ids)
     _sequence(
         project,
         ids,
@@ -79,23 +91,46 @@ def test_clips_on_different_elements_never_overlap(project: Project, ids: Ids) -
         "Blink",
         [
             {"element": ids(LED), "clips": [_clip(ids, 21, 0, 500)]},
-            {"element": ids(BUTTON), "clips": [_clip(ids, 22, 0, 500)]},
+            {"element": ids(LAMP), "clips": [_clip(ids, 22, 0, 500)]},
         ],
     )
 
     assert project.found() == []
 
 
-def test_a_clip_that_takes_no_time_overlaps_nothing(project: Project, ids: Ids) -> None:
-    _sequence(
-        project,
-        ids,
-        20,
-        "Blink",
-        [{"element": ids(LED), "clips": [_clip(ids, 21, 0, 500), _clip(ids, 22, 100, 0)]}],
-    )
+def _overlaps(project: Project, ids: Ids, *clips: dict[str, object]) -> list[object]:
+    """Where the clips of the LED overlap, in one sequence: the ``atMs`` of each report."""
+    _sequence(project, ids, 20, "Blink", [{"element": ids(LED), "clips": list(clips)}])
+    found = project.found()
+    assert all(code is CoreErrorCode.TRACK_CLIPS_OVERLAP for code, *_ in found), found
+    return [params["atMs"] for _, params, *_ in found]
 
-    assert project.found() == []
+
+def test_an_instant_clip_while_another_clip_runs_overlaps_it(project: Project, ids: Ids) -> None:
+    assert _overlaps(project, ids, _clip(ids, 21, 0, 500), _clip(ids, 22, 100, 0)) == [100]
+
+
+def test_an_instant_clip_where_another_clip_ends_does_not_overlap(
+    project: Project, ids: Ids
+) -> None:
+    assert _overlaps(project, ids, _clip(ids, 21, 0, 500), _clip(ids, 22, 500, 0)) == []
+
+
+def test_a_clip_that_starts_in_the_instant_of_an_instant_clip_overlaps_it(
+    project: Project, ids: Ids
+) -> None:
+    assert _overlaps(project, ids, _clip(ids, 21, 100, 0), _clip(ids, 22, 100, 500)) == [100]
+
+
+def test_two_instant_clips_in_the_same_instant_overlap(project: Project, ids: Ids) -> None:
+    assert _overlaps(project, ids, _clip(ids, 21, 100, 0), _clip(ids, 22, 100, 0)) == [100]
+
+
+def test_a_clip_after_an_instant_clip_takes_over_without_overlapping(
+    project: Project, ids: Ids
+) -> None:
+    # The instant clip's effect stays until the next clip of the element starts.
+    assert _overlaps(project, ids, _clip(ids, 21, 100, 0), _clip(ids, 22, 101, 500)) == []
 
 
 def test_an_included_sequence_counts_at_its_offset(project: Project, ids: Ids) -> None:
@@ -486,3 +521,167 @@ def test_a_chain_with_a_clip_at_every_level_flattens_and_passes(project: Project
         )
 
     assert project.found() == []
+
+
+def test_sequences_that_share_an_element_only_through_instant_clips_may_overlap(
+    project: Project, ids: Ids
+) -> None:
+    for number, name in ((20, "Open"), (30, "Close")):
+        clips = [_clip(ids, number + 1, 0, 0), _instant_off(ids, number + 2, 500)]
+        _sequence(project, ids, number, name, [{"element": ids(LED), "clips": clips}])
+    _started(project, ids, 20, 30)
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.SEQUENCE_MAY_OVERLAP]
+
+
+def _two_started_sequences_on_a_motor(project: Project, ids: Ids, **fields: object) -> Project:
+    """Open and Close, both started by automations, both on an element whose driver says one
+    sequence owns it while it runs (a motor)."""
+    project.drivers["digital_output"] = driver("digital_output", conflictPolicy="exclusive")
+    for number, name in ((20, "Open"), (30, "Close")):
+        clip = _clip(ids, number + 1, 0, 500)
+        _sequence(project, ids, number, name, [{"element": ids(LED), "clips": [clip]}], **fields)
+    return _started(project, ids, 20, 30)
+
+
+def test_sharing_an_element_only_one_sequence_can_use_is_an_error(
+    project: Project, ids: Ids
+) -> None:
+    _two_started_sequences_on_a_motor(project, ids)
+
+    assert project.found(severity=Severity.WARNING) == []
+    assert [(code, params["element"]) for code, params, *_ in project.found()] == [
+        (CoreErrorCode.SEQUENCE_EXCLUSIVE_ELEMENT_SHARED, "LED")
+    ]
+
+
+def test_an_exclusive_element_shared_within_one_exclusive_group_is_fine(
+    project: Project, ids: Ids
+) -> None:
+    _two_started_sequences_on_a_motor(project, ids, exclusiveGroup="door")
+
+    assert project.found() == []
+
+
+def test_an_exclusive_element_shared_on_different_priorities_is_fine(
+    project: Project, ids: Ids
+) -> None:
+    """One sequence layers over the other (decision 0006): what the error's hint suggests."""
+    project.drivers["digital_output"] = driver("digital_output", conflictPolicy="exclusive")
+    for number, name, priority in ((20, "Open", 0), (30, "Close", 5)):
+        track: dict[str, object] = {"element": ids(LED), "clips": [_clip(ids, number + 1, 0, 500)]}
+        _sequence(project, ids, number, name, [track], priority=priority)
+    _started(project, ids, 20, 30)
+
+    assert project.found() == []
+
+
+def _blink(project: Project, ids: Ids, *clips: dict[str, object]) -> Project:
+    """A sequence on the LED with these clips, started by an automation."""
+    _sequence(project, ids, 20, "Blink", [{"element": ids(LED), "clips": list(clips)}])
+    return _started(project, ids, 20)
+
+
+def test_an_instant_clip_that_ends_a_started_sequence_is_never_seen(
+    project: Project, ids: Ids
+) -> None:
+    _blink(project, ids, _clip(ids, 21, 0, 0))
+
+    assert project.found(severity=Severity.WARNING) == [
+        (
+            CoreErrorCode.CLIP_INSTANT_AT_END,
+            {"sequence": "Blink", "element": "LED", "action": "on"},
+            "blink.sec",
+            "/tracks/0/clips/0",
+        )
+    ]
+    assert project.found(severity=Severity.ERROR) == []
+
+
+def test_an_instant_clip_at_the_end_of_a_sequence_nothing_starts_is_not_reported(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(project, ids, 20, "Blink", [{"element": ids(LED), "clips": [_clip(ids, 21, 0, 0)]}])
+
+    assert project.found() == []
+
+
+def test_a_sequence_may_end_with_an_instant_clip_that_asks_for_the_safe_state(
+    project: Project, ids: Ids
+) -> None:
+    _blink(project, ids, _clip(ids, 21, 0, 0), _instant_off(ids, 22, 5000))
+
+    assert project.found() == []
+
+
+def test_an_instant_clip_is_seen_while_another_element_keeps_the_sequence_going(
+    project: Project, ids: Ids
+) -> None:
+    _with_lamp(project, ids)
+    tracks: list[dict[str, object]] = [
+        {"element": ids(LED), "clips": [_clip(ids, 21, 0, 0)]},
+        {"element": ids(LAMP), "clips": [_clip(ids, 22, 0, 500)]},
+    ]
+    _sequence(project, ids, 20, "Blink", tracks)
+    _started(project, ids, 20)
+
+    assert project.found() == []
+
+
+def test_an_instant_clip_where_the_last_clip_of_another_element_ends_is_never_seen(
+    project: Project, ids: Ids
+) -> None:
+    _with_lamp(project, ids)
+    tracks: list[dict[str, object]] = [
+        {"element": ids(LED), "clips": [_clip(ids, 21, 500, 0)]},
+        {"element": ids(LAMP), "clips": [_clip(ids, 22, 0, 500)]},
+    ]
+    _sequence(project, ids, 20, "Blink", tracks)
+    _started(project, ids, 20)
+
+    assert [(code, pointer) for code, _, _, pointer in project.found()] == [
+        (CoreErrorCode.CLIP_INSTANT_AT_END, "/tracks/0/clips/0")
+    ]
+
+
+def test_an_instant_clip_that_ends_a_started_sequence_through_a_block_is_reported_at_the_block(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(project, ids, 30, "Flash", [{"element": ids(LED), "clips": [_clip(ids, 31, 0, 0)]}])
+    block = {"id": ids(41), "sequence": ids(30), "atMs": 1000}
+    _sequence(project, ids, 20, "Show", [], blocks=[block])
+    _started(project, ids, 20)
+
+    assert project.found() == [
+        (
+            CoreErrorCode.CLIP_INSTANT_AT_END,
+            {"sequence": "Show", "element": "LED", "action": "on"},
+            "show.sec",
+            "/blocks/0",
+        )
+    ]
+
+
+def test_an_instant_clip_on_an_element_that_takes_no_clips_is_only_that_problem(
+    project: Project, ids: Ids
+) -> None:
+    project.drivers.pop("digital_output")
+    _blink(project, ids, _clip(ids, 21, 0, 0))
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.TRACK_ELEMENT_WITHOUT_DRIVER]
+
+
+def test_two_instant_clips_of_one_element_that_end_a_started_sequence_are_only_an_overlap(
+    project: Project, ids: Ids
+) -> None:
+    _blink(project, ids, _clip(ids, 21, 500, 0), _clip(ids, 22, 500, 0))
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.TRACK_CLIPS_OVERLAP]
+
+
+def test_an_instant_clip_with_an_action_its_element_does_not_have_is_only_that_problem(
+    project: Project, ids: Ids
+) -> None:
+    _blink(project, ids, {**_clip(ids, 21, 0, 0), "action": "onn"})
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.ACTION_UNKNOWN]

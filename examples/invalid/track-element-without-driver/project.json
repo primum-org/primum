@@ -1,0 +1,7 @@
+{
+  "id": "3284026c-37de-4f5a-b965-cbca5a85f9de",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Track on a type without a driver",
+  "description": "A track on an I2C device: Primum has no driver for it yet, so it cannot be commanded."
+}

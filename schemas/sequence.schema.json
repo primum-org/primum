@@ -111,7 +111,7 @@
     "clip": {
       "type": "object",
       "additionalProperties": false,
-      "description": "An action of the element, from atMs for durationMs.",
+      "description": "An action of the element from atMs: held for durationMs, or, with durationMs 0, an instant command that stands, under the clips with a length, until the next instant command of the element in this sequence or the end of this sequence, of its block when it is included (decision 0016).",
       "required": [
         "id",
         "atMs",
@@ -129,9 +129,16 @@
           "$ref": "common.schema.json#/$defs/durationMs"
         },
         "action": {
-          "description": "What the element does: its actions come with the drivers (phase 3).",
+          "description": "What the element does: one of the actions of its driver (drivers/).",
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "arguments": {
+          "description": "The values of the action's parameters, by name.",
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/namedValue"
+          }
         }
       }
     },
