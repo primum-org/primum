@@ -288,7 +288,7 @@ class Track:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class Clip:
-    """An action of the element from atMs: held for durationMs, or, with durationMs 0, an instant command that stands, under the clips with a length, until the next instant command of the element or the end of the sequence (decision 0016)."""
+    """An action of the element from atMs: held for durationMs, or, with durationMs 0, an instant command that stands, under the clips with a length, until the next instant command of the element in this sequence or the end of this sequence, of its block when it is included (decision 0016)."""
 
     id: UUID
     at_ms: int

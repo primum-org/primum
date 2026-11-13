@@ -22,16 +22,19 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
   commands the element with that action. When the clip ends, the element returns to what was
   there under it (the rule is two points below). Nothing a clip does outlives its sequence.
 - **A clip of 0 ms is an instant command that stands**: the element takes the state the action
-  ends in (a fade, its `to`) and that state stays as the element's background in the sequence
-  until the next instant command of that element, or until the sequence ends. A clip with a
-  length plays over it and gives the element back to it: `on` at 0 s and `set(30)` from 5 to
-  6 s is a light that is on, dims for a second and is on again. To leave it somewhere else
-  after a clip, put an instant command where the clip ends (a `fade` to 0 and an instant
-  `off`). Sequences are read flattened (`workspace.md`), so "next" and "ends" are those of
-  the sequence that runs, not of a component inside it.
+  ends in (a fade, its `to`) and that state stays as the element's background in its own
+  sequence, the one it is written in, until the next instant command of that element there or
+  until that sequence ends. A clip with a length plays over it and gives the element back to
+  it: `on` at 0 s and `set(30)` from 5 to 6 s is a light that is on, dims for a second and is
+  on again. To leave it somewhere else after a clip, put an instant command where the clip
+  ends (a `fade` to 0 and an instant `off`).
+- **A sequence does the same included as started on its own.** An instant command inside a
+  component stands until the component ends, that is, until the block that includes it ends,
+  never for the rest of the sequence that includes it: a component that flashes a light for
+  half a second does so wherever it is placed.
 - **One rule says who commands an element.** A command is in force while it lasts: a clip for
-  its length, an instant command until the next one of that element in its sequence or the
-  end of its sequence. Of the sequences with a command in force on an element, those of the
+  its length, an instant command until the next one of that element in its own sequence or
+  the end of that sequence (of the block, when it is included). Of the sequences with a command in force on an element, those of the
   highest priority count (decision 0006), and among their commands the one that started last
   wins, whichever sequence it is from. With nothing in force, the element is in its safe
   state. So when a clip ends the element goes to the latest command still in force on that
@@ -84,6 +87,9 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
   element against the profile of its board and the drivers enforce them again.
 - A component is checked where a block gives its parameter an element: only there is the
   element's type known.
+- These rules are prose until something runs them: block 3.2b turns "who commands an element
+  at an instant" into a pure function of `core` with its tests, before the engine. What it
+  finds wrong here is corrected there.
 - The engine (phase 4) implements exactly this: hold, give back to the standing command, the
   layer below or the safe state, and instant commands that stand until the next one or the end.
 - A `fade` to 0 that is not the last thing of its sequence gives the element back to a

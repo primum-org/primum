@@ -91,15 +91,18 @@ What a clip does (decision 0016):
 - **A clip holds its action while it lasts.** When it ends, the element returns to what was
   under it (the rule is below).
 - **A clip of `durationMs: 0` is an instant command that stands**: the element takes the state
-  the action ends in (a `fade`, its `to`), and that is its background in the sequence until
-  the next instant command of that element or the end of the sequence, both read in the
-  flattened sequence. A clip with a length plays over it and gives the element back to it:
+  the action ends in (a `fade`, its `to`), and that is its background in its own sequence,
+  the one it is written in, until the next instant command of that element there or the end
+  of that sequence. Included as a block, that is the end of the block: a sequence does the
+  same included as started on its own, and an instant command of a component never stands
+  for the rest of the sequence that includes it. A clip with a length plays over it and
+  gives the element back to it:
   `on` at 0 s and `set(30)` from 5 to 6 s is on, dimmed for a second, and on again. To leave
   the element somewhere else after a clip, an instant command goes where the clip ends (a
   `fade` to 0, then an instant `off`).
 - **Who commands an element**: a command is in force while it lasts, a clip for its length
-  and an instant command until the next one of that element in its sequence or the end of its
-  sequence. Of the sequences with a command in force on an element, those of the highest
+  and an instant command until the next one of that element in its own sequence or the end of
+  that sequence (of the block, when it is included). Of the sequences with a command in force on an element, those of the highest
   priority count, and among their commands the one that started last wins, whichever sequence
   it is from; with nothing in force, the element is in its driver's safe state. So a clip that
   ends gives the element to the latest command still in force on its priority (its own
@@ -128,7 +131,9 @@ The checks (`primum_core.overlaps`):
   of its element's driver (an instant `on`, and an instant `off` to end with: the element goes
   there anyway), one that another element's later clip keeps alive, two of one element in
   that instant (they overlap: that error is enough), and the sequences nothing starts (those
-  the phone UI or the API will start, phase 5, are not known here). The safe state is told by
+  the phone UI or the API will start, phase 5, are not known here). Not reported yet, though
+  it is not seen either: an instant clip that ends a component placed in the middle of
+  another sequence (block 3.2b). The safe state is told by
   the name of the action: `core` does not know where an action leaves its element, so an
   instant `set` to a level of 0 at the end is reported although it does what `off` does.
 - **Between sequences**, the engine arbitrates (decision 0006, phase 4): by `priority` (a higher

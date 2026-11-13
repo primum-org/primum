@@ -315,7 +315,7 @@ MCP server in phase 8).
 
 The runtime drives digital outputs, digital inputs and hardware PWM through drivers with a
 declared safe state and limits, and the outputs end in their safe state even when the service
-dies at once. Blocks 3.2 and 3.3 need no Pi; 3.1 and 3.4 are checked on `primum-dev` (the LED
+dies at once. Blocks 3.2, 3.2b and 3.3 need no Pi; 3.1 and 3.4 are checked on `primum-dev` (the LED
 on GPIO 17, a button to ground on another GPIO, and an LED on GPIO 18 for PWM once the overlay
 is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `config.txt` (phase
 6), the new UI (phase 5). One pull request per block.
@@ -360,19 +360,21 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   manifest yet); a component, where a block gives it its element.
 - What a clip is: it holds its action while it lasts and then releases the element to the layer
   below or its safe state; a clip of 0 ms is an instant command that stands, under the clips
-  with a length, until the next instant command of the element or the end of the sequence,
-  and counts for overlaps. Two started sequences on
+  with a length, until the next instant command of the element in its own sequence or the
+  end of that sequence (of its block when included), and counts for overlaps. Two started sequences on
   an element of an exclusive driver are an error (`sequence.exclusive_element_shared`).
 - Not here, for the compiler (phase 4): a clip that takes the value of a component's parameter
   or of a variable; the limits the HAL showed (frequency, debounce) are in the
   manifests as provisional values: they belong to the board, and 3.3 moves them to its profile.
 - An instant clip that is the last thing of a sequence shows nothing (the sequence ends
   there): a warning, `clip.instant_at_end`, on the sequences automations start, unless it asks
-  for the safe state. The sequences the phone UI or the API start join it in phase 5.
+  for the safe state. The sequences the phone UI or the API start join it in phase 5; block
+  3.2b completes it.
 - A new driver is not yet only a manifest: the element types are a closed `enum` in
   `hardware.schema.json`, and `variants`, `resources` and `references` know each type by name
   (its fields, its resources, whether it is an input). Opening the list needs manifests that
-  declare their wiring and whether they are listened to.
+  declare their wiring and whether they are listened to. `activeLow` (a field of the element)
+  and `pull` (an option of the driver) are chosen together and should then live together.
 - A component nothing includes is not checked: a misspelt action in it passes until a block
   gives its parameter an element. An element parameter that declares the capability it
   expects (`level`, `switch`) would let it be checked on its own, and would give
@@ -393,6 +395,42 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - Small, older than this block: `atMs` and `durationMs` have no maximum (2^62 ms is accepted).
 - Small: the sequences are flattened twice, once for the actions and once for the overlaps;
   share it when the compiler (phase 4) needs it too.
+
+**3.2b · What commands an element, and when**
+Decision 0016 says in prose what the engine will do, and it was rewritten four times in its own
+pull request with no test to hold it. This block makes it run, in `core`, before the drivers
+and long before the engine. No runtime code and no Pi.
+- A pure function of `core`: which command is in force on an element at an instant, given the
+  sequences that are running and when each started. It implements the rule of decision 0016
+  (a clip for its length; an instant command until the next one of its element in its own
+  sequence or the end of that sequence, of the block when included; the highest priority, and
+  within it the command that started last; else the safe state), with a test per case the
+  reviews found: `on` and a dim, `fade` to 0 and an instant `off`, a component with an instant
+  command placed in the middle of a longer sequence, two sequences of one priority, a layer
+  over another. What it shows wrong in the decision is corrected with a new decision.
+- Something can be left on. Today nothing a clip does outlives its sequence and a sequence
+  ends with its last clip, so "on at dusk, off at 23:00" needs a clip whose length is worked
+  out by hand, and what people write first, a sequence *On* with an instant `on` and a
+  sequence *Off* with an instant `off`, gives `clip.instant_at_end` and
+  `sequence.may_overlap`. Proposed: a sequence that does not end by itself, an optional field
+  of the sequence ("when its last clip ends, hold until it is stopped"). Dusk starts *Lights*,
+  one instant `on` that stands; 23:00 stops it with the `stop_sequence` automations already
+  have. Stop, panic, exclusive groups and priorities work as for any sequence, and nothing
+  outlives its sequence still. Discarded: an automation that commands an element directly, a
+  state outside the sequences that nobody releases. Loops (a sequence that starts again) are
+  a separate question, with the re-trigger policy of phase 4.
+- `clip.instant_at_end`, complete: it also reports an instant clip that ends a component
+  placed in the middle of another sequence (never seen: its command ends with the block), it
+  does not fire on a sequence that holds, and its hint ("give the clip a duration") offers
+  holding.
+- `track.clips_overlap`, relaxed: an instant command and a clip do not compete, so an instant
+  command may fall inside a clip or in the instant one starts (the instant `off` where a
+  `fade` ends, with another clip starting there). Only two instant commands of one element
+  in one instant, and two clips with a length, overlap.
+- Not in this block: `core` knows the name of an action, not where it leaves its element, so
+  it cannot warn about a `fade` to 0 that gives the element back to a standing `on`, and
+  `clip.instant_at_end` compares names (an instant `set` to 0 at the end is reported, `off`
+  is not). Manifests that declare the state an action ends in would allow both.
 
 **3.3 · The three drivers**
 - `digital_output`, `digital_input` (debounce, pull), `pwm_output`, each implementing its
@@ -463,32 +501,6 @@ if systemd gives up restarting (`StartLimitBurst`) it stays so. The watchdog and
 on start must cover a service that does not come back.
 
 ## Phase 4 · Engine and deployment packages
-
-**Decide first, in a small block of its own before 3.3 or at the latest before the engine:
-nothing can be left on.** Nothing a clip does outlives its sequence, and a sequence ends with
-its last clip, so "turn the light on at dusk and off at 23:00" needs a clip whose length is
-worked out by hand. Proposed: a sequence that does not end by itself, an optional field of the
-sequence ("when its last clip ends, hold until it is stopped"). Dusk starts *Lights*, one
-instant `on` that stands; 23:00 stops it with the `stop_sequence` automations already have.
-Stop, panic, exclusive groups and priorities work as for any sequence, and nothing outlives
-its sequence still. `clip.instant_at_end` would not fire on such a sequence, and its hint
-("give the clip a duration") changes then to offer it. Today the pair people write first, a
-sequence *On* with an instant `on` and a sequence *Off* with an instant `off`, gives that
-warning and `sequence.may_overlap`; with a sequence that holds, *Off* is stopping *On*. Discarded: an automation that commands an element directly, a state outside
-the sequences that nobody releases. Loops (a sequence that starts again) are a separate
-question, with the re-trigger policy.
-
-**Left by decision 0016 for the engine:**
-- A clip with a length gives its element back to the standing command of its sequence (the
-  last instant command), then to the layer below, then to the safe state.
-- `core` knows the name of an action, not where it leaves its element. So it cannot warn
-  about a `fade` to 0 that gives the element back to a standing `on` (it needs an instant
-  `off` where it ends), and `clip.instant_at_end` compares names (an instant `set` to 0 at the
-  end is reported, `off` is not). Manifests that declare the state an action ends in would
-  allow both.
-- An instant command and a clip no longer compete, yet `track.clips_overlap` still refuses an
-  instant command inside a clip or in the instant one starts. Stricter than needed and safe:
-  relaxing it later breaks no project.
 
 1. Sequence engine (monotonic clock, components flattened by the compiler).
 2. Events (`.evt`), schedules (`.sched`), automations (`.auto`), runtime variables with atomic

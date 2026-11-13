@@ -7,7 +7,7 @@ import pytest
 
 from primum_core.errors import CoreErrorCode
 from primum_core.formats import read_driver
-from project_builder import DRIVERS, driver_manifest
+from project_builder import DRIVERS, DRIVERS_FOLDER, ROOT, driver_manifest
 
 
 def _found(**fields: object) -> list[tuple[CoreErrorCode, dict[str, object], str]]:
@@ -25,6 +25,16 @@ def _action(name: str, *parameters: dict[str, object]) -> dict[str, object]:
 
 def test_the_shipped_drivers_are_the_three_of_this_phase() -> None:
     assert sorted(DRIVERS) == ["digital_input", "digital_output", "pwm_output"]
+
+
+def test_each_shipped_driver_is_of_an_element_type_and_its_file_is_named_after_it() -> None:
+    schema = json.loads((ROOT / "schemas" / "hardware.schema.json").read_text())
+    element_types: list[str] = schema["$defs"]["element"]["properties"]["type"]["enum"]
+
+    for path in sorted(DRIVERS_FOLDER.glob("*.json")):
+        manifest = json.loads(path.read_text())
+        assert manifest["elementType"] == path.stem
+        assert manifest["elementType"] in element_types
 
 
 def test_an_output_rests_in_one_of_its_actions_and_an_input_has_none() -> None:

@@ -42,7 +42,7 @@ All notable changes to this project are documented here. The format follows
   takes none, so a track on one is an error. Elements take the options of their driver in the
   `.hw` file (`config`): the frequency of a PWM output, the pull and the debounce of an input.
   A clip holds its action while it lasts; one of 0 ms is an instant command that stands until
-  the next instant command of the element or the end of the sequence, and clips with a length
+  the next instant command of the element or the end of its own sequence, and clips with a length
   play over it. A sequence that an automation
   starts and that ends with an instant command gets a warning: it would not be seen.
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
