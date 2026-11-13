@@ -1,0 +1,7 @@
+{
+  "id": "88bb37aa-95fb-472e-b9af-4e9165019015",
+  "kind": "project",
+  "schemaVersion": 1,
+  "name": "Evening lights",
+  "description": "A lamp that fades in at dusk and stays on until 23:00: a sequence that holds until it is stopped."
+}

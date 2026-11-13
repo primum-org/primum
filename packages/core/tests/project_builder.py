@@ -9,7 +9,7 @@ from uuid import UUID
 from primum_core.errors import CoreErrorCode, Severity
 from primum_core.formats import read_board_profile, read_driver
 from primum_core.generated.model import BoardProfile, Driver
-from primum_core.workspace import load_workspace
+from primum_core.workspace import Workspace, load_workspace
 
 ROOT = Path(__file__).resolve().parents[3]
 BOARDS = ROOT / "boards"
@@ -100,6 +100,12 @@ class Project:
             for issue in load_workspace(self.files, PROFILES, self.drivers).issues
             if severity is None or issue.severity is severity
         ]
+
+    def loaded(self) -> Workspace:
+        """The project, which must be valid."""
+        parsed = load_workspace(self.files, PROFILES, self.drivers)
+        assert parsed.value is not None, parsed.issues
+        return parsed.value
 
     def is_valid(self) -> bool:
         return load_workspace(self.files, PROFILES, self.drivers).value is not None

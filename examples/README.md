@@ -24,6 +24,9 @@ Check one with `uv run primum validate examples/<name>`; a test keeps every exam
   UI, phases 4 and 5), and the time window
   of `evening.sched` (conditions on schedules, phase 4). They show the shape; validation
   accepts them and checks their types.
+- `evening-lights/`: a lamp that fades in at 19:00 and stays on until 23:00. `lights.sec`
+  holds (`whenDone`), so it does not end when its fade does; `on.auto` starts it and
+  `off.auto` stops it, each from its own schedule.
 - `invalid/<code>/`: one small project per problem, a pin conflict or something an element
   cannot do, each giving exactly that code (see its README).
 

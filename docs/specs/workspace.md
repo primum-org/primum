@@ -13,7 +13,7 @@ A project is a folder of files (decision 0004). This spec says what the folder h
 |---|---|---|
 | `.hw` | `hardware` | Boards (`model` names a board profile) and the elements wired to them, each with the options of its driver (`config`) |
 | `.vars` | `variables` | Constants and variables of its folder; names exported and imported |
-| `.sec` | `sequence` | Tracks of clips per element, each clip an action of the element's driver with its `arguments`; blocks that include other sequences; parameters (a component); `priority` and `exclusiveGroup` (decision 0006) |
+| `.sec` | `sequence` | Tracks of clips per element, each clip an action of the element's driver with its `arguments`; blocks that include other sequences; parameters (a component); `priority` and `exclusiveGroup` (decision 0006); `whenDone` (`end` or `hold`, decision 0017) |
 | `.evt` | `event` | Something from outside: an input element, a button of the phone UI, the local API |
 | `.sched` | `schedule` | Times of day (start automations) and windows of time (conditions) |
 | `.auto` | `automation` | When events or schedules fire, if a condition holds, do actions |
@@ -86,57 +86,65 @@ runs the included sequence from its `atMs`, its parameters bound to the block's 
 the checks, a sequence is **flattened**: its own clips plus the clips of what it includes, at
 their offsets, each sequence flattened once (`primum_core.timeline`).
 
-What a clip does (decision 0016):
+What a clip does (decisions 0016 and 0017):
 
-- **A clip holds its action while it lasts.** When it ends, the element returns to what was
-  under it (the rule is below).
-- **A clip of `durationMs: 0` is an instant command that stands**: the element takes the state
-  the action ends in (a `fade`, its `to`), and that is its background in its own sequence,
-  the one it is written in, until the next instant command of that element there or the end
-  of that sequence. Included as a block, that is the end of the block: a sequence does the
-  same included as started on its own, and an instant command of a component never stands
-  for the rest of the sequence that includes it. A clip with a length plays over it and
-  gives the element back to it:
-  `on` at 0 s and `set(30)` from 5 to 6 s is on, dimmed for a second, and on again. To leave
-  the element somewhere else after a clip, an instant command goes where the clip ends (a
-  `fade` to 0, then an instant `off`).
-- **Who commands an element**: a command is in force while it lasts, a clip for its length
-  and an instant command until the next one of that element in its own sequence or the end of
-  that sequence (of the block, when it is included). Of the sequences with a command in force on an element, those of the highest
-  priority count, and among their commands the one that started last wins, whichever sequence
-  it is from; with nothing in force, the element is in its driver's safe state. So a clip that
-  ends gives the element to the latest command still in force on its priority (its own
-  sequence's standing command, or another sequence's later command), else to a lower
-  priority, else to the safe state.
-- **A sequence ends when its last clip ends**, an instant clip ending where it starts. So an
-  instant clip that is the last thing of its sequence shows nothing: a warning (below).
+- **A command is in force while it lasts.** A clip with a length, for its length. A clip of
+  `durationMs: 0` is an **instant command**: the element takes the state the action ends in (a
+  `fade`, its `to`) and keeps it until the next instant command of that element in its own
+  sequence, the one it is written in, or until that sequence ends. Included as a block, that
+  is the end of the block: a sequence does the same included as started on its own.
+- **Who commands an element**: of the commands in force on it, those of the highest
+  `priority` count, and among them the one that **started last** wins, within a sequence as
+  between sequences. Two that started in one instant: a clip with a length wins over an
+  instant command, then the sequence started last. With nothing in force, the element is in
+  its driver's safe state. So:
+  - a clip plays over an instant command that started before it and gives the element back
+    to it when it ends: `on` at 0 s and `set(30)` from 5 to 6 s is on, dimmed for a second,
+    on again;
+  - an instant command inside a clip cuts it;
+  - to leave an element somewhere else after a clip, an instant command goes where the clip
+    ends (a `fade` to 0, then an instant `off`). Without it, a `fade` to 0 in the middle of a
+    sequence gives the element back to a standing `on`; `core` does not warn about it yet.
+- **A sequence ends when its last clip ends**, an instant clip ending where it starts, unless
+  it **holds** (`whenDone: "hold"`): then it stays as it is in its last instant until it is
+  stopped (an automation's `stop_sequence`, another sequence of its exclusive group starting,
+  stop or panic). Every command in force just before its end stays in force: its instant
+  commands, and the clips that end with it, each in the state its action ends in. A clip that
+  ended earlier is not kept. `whenDone` is ignored when the sequence is included in another.
+
+`primum_core.commands` runs these rules, for tests today and for the engine to agree with
+(phase 4): `timelines_of(workspace)` prepares the sequences of a valid project, and
+`command_at(element, at_ms, running, timelines)` gives the command in force on an element at
+an instant, or nothing (its safe state). `running` are the sequences started and not stopped,
+each with when it started, in the order they were started; the caller keeps that list, so
+exclusive groups and stopping are not this function's. A command says its clip, the sequence
+it is from, since when, and whether it is `settled`: the action is over and the element stays
+where it ends (an instant command, or a clip held by a sequence that holds).
 
 The checks (`primum_core.overlaps`):
 
-- **Within a sequence**, two clips of one element whose times overlap are an error,
-  `track.clips_overlap` (`element`, `atMs`: where the later one starts). It points at the later
+- **Within a sequence**, two clips with a length of one element whose times overlap are an
+  error, `track.clips_overlap` (`element`, `atMs`: where the later one starts), and so are
+  two instant commands of one element in the same millisecond. An instant command and a clip
+  with a length never overlap: the one that started last commands. It points at the later
   clip, or at the block if the clip comes through one. Two clips that come through the same
   block on the same element of the included sequence are not compared: their overlap belongs
   to it, and is reported there once. Two that only meet because the block bound a parameter to
   an element the component also uses directly are new, and are reported at the block, once per
-  element (a component of twenty clips included twice is one problem, not twenty). An instant
-  clip takes its instant: it overlaps a clip it falls inside, and a clip that starts in that
-  same millisecond; it does not overlap a clip that ends where it is, nor one that starts a
-  millisecond later (that clip takes over). Clips that only touch (one ends where the next
-  starts) do not overlap. A clip on an element the project does not define is only
-  `ref.unknown`. The part about instant clips is provisional (decision 0016): an instant
-  command and a clip with a length do not compete, and block 3.2b stops reporting them.
-- **An instant clip at the very end of a sequence that automations start** is never seen: the
-  sequence ends there. A warning, `clip.instant_at_end` (`sequence`, `element`, `action`), at
-  the clip, or at the block it comes through. Not reported: one that asks for the safe state
-  of its element's driver (an instant `on`, and an instant `off` to end with: the element goes
-  there anyway), one that another element's later clip keeps alive, two of one element in
-  that instant (they overlap: that error is enough), and the sequences nothing starts (those
-  the phone UI or the API will start, phase 5, are not known here). Not reported yet, though
-  it is not seen either: an instant clip that ends a component placed in the middle of
-  another sequence (block 3.2b). The safe state is told by
-  the name of the action: `core` does not know where an action leaves its element, so an
-  instant `set` to a level of 0 at the end is reported although it does what `off` does.
+  element (a component of twenty clips included twice is one problem, not twenty). Clips that
+  only touch (one ends where the next starts) do not overlap. A clip on an element the project
+  does not define is only `ref.unknown`.
+- **An instant command that is the last thing of its own sequence** is never seen: its
+  sequence ends there, started on its own or included in the middle of another. A warning,
+  `clip.instant_at_end` (`sequence`: the one it is written in, `element`, `action`), at the
+  clip, or at the block that gives a component its element. Not reported: what a sequence
+  that holds keeps; one that asks for the safe state of its element's driver after something
+  else (an instant `on`, and an instant `off` to end with: the element goes there anyway),
+  though a sequence that is only that, and so lasts no time, is reported; one that another
+  element's later clip keeps alive; and two of one element in that instant (they overlap:
+  that error is enough). The safe state is told by the name of the action: `core` does not
+  know where an action leaves its element, so an instant `set` to a level of 0 at the end is
+  reported although it does what `off` does.
 - **Between sequences**, the engine arbitrates (decision 0006, phase 4): by `priority` (a higher
   one layers over a lower one while it runs; within one priority the latest command wins) and
   by `exclusiveGroup` (starting one sequence of a group stops the others). What can be said
@@ -151,7 +159,7 @@ The checks (`primum_core.overlaps`):
   own, or one of a component included without that argument) counts as no element, and so does
   an element the project does not define. An `exclusiveGroup` is one name for the whole
   project, outside the folder scopes of names (`variables-and-scopes.md`): two sequences in any
-  folders with the same group are in the same group. The `priority` and `exclusiveGroup` of an
+  folders with the same group are in the same group. The `priority`, `exclusiveGroup` and `whenDone` of an
   included sequence play no part when it runs inside another: the including sequence's apply to
   everything it flattens. They matter when the included sequence is started on its own.
 

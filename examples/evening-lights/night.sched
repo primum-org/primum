@@ -1,0 +1,20 @@
+{
+  "id": "397b3a94-f9c4-4d0c-9db2-75e29aaedda9",
+  "kind": "schedule",
+  "schemaVersion": 1,
+  "name": "Night",
+  "times": [
+    {
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "at": "23:00"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "ddf54f83-1dda-4953-bd82-5b0ef2297d5c",
+  "kind": "automation",
+  "schemaVersion": 1,
+  "name": "Lights off at night",
+  "when": [
+    "397b3a94-f9c4-4d0c-9db2-75e29aaedda9"
+  ],
+  "do": [
+    {
+      "action": "stop_sequence",
+      "sequence": "32c0570c-4738-4a9b-9ed3-4ab4b0df62d8"
+    }
+  ]
+}

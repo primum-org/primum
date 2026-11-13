@@ -1,0 +1,20 @@
+{
+  "id": "8888798d-c678-4b43-bf5b-27569c6db4a5",
+  "kind": "schedule",
+  "schemaVersion": 1,
+  "name": "Dusk",
+  "times": [
+    {
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "at": "19:00"
+    }
+  ]
+}
