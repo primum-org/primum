@@ -387,7 +387,9 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   out without having a default, a small change of the manifest format, not of the sequences.
 - For the UI (phase 5): a problem inside a component is reported at the block that gives it
   its element, without the clip of the component that has it (`FlatClip.clip` is at hand);
-  the timeline should show the standing command of an element under its clips.
+  the timeline should show the standing command of an element under its clips; an input is
+  set up by picking how it is wired (button to ground, button to 3V3, normally closed switch),
+  which fills in `pull` and `activeLow` together.
 - Small, older than this block: `atMs` and `durationMs` have no maximum (2^62 ms is accepted).
 - Small: the sequences are flattened twice, once for the actions and once for the overlaps;
   share it when the compiler (phase 4) needs it too.
