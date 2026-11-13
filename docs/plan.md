@@ -395,6 +395,8 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   set up by picking how it is wired (button to ground, button to 3V3, normally closed switch),
   which fills in `pull` and `activeLow` together.
 - Small, older than this block: `atMs` and `durationMs` have no maximum (2^62 ms is accepted).
+- Small, a pull request of its own: `core` has six copies of the helper that points inside a
+  file (`at`, `_at`), four of them older than this block.
 - Small: the sequences are flattened twice, once for the actions and once for the overlaps;
   share it when the compiler (phase 4) needs it too.
 
@@ -404,16 +406,27 @@ pull request with no test to hold it. This block makes it run, in `core`, before
 and long before the engine. No runtime code and no Pi.
 - Something can be left on: the most important thing left, since it is the first thing
   someone who does not program writes. Today nothing a clip does outlives its sequence and a
-  sequence ends with its last clip, so "on at dusk, off at 23:00" needs a clip whose length is worked
-  out by hand, and what people write first, a sequence *On* with an instant `on` and a
+  sequence ends with its last clip, so "on at dusk, off at 23:00" needs a clip whose length is
+  worked out by hand, and what people write first, a sequence *On* with an instant `on` and a
   sequence *Off* with an instant `off`, gives `clip.instant_at_end` and
-  `sequence.may_overlap`. Proposed: a sequence that does not end by itself, an optional field
+  `sequence.may_overlap`, with a hint ("give the clip a duration") that is the wrong advice
+  for it; *Off* gets no warning though it does nothing either. Proposed: a sequence that does not end by itself, an optional field
   of the sequence ("when its last clip ends, hold until it is stopped"). Dusk starts *Lights*,
   one instant `on` that stands; 23:00 stops it with the `stop_sequence` automations already
   have. Stop, panic, exclusive groups and priorities work as for any sequence, and nothing
   outlives its sequence still. Discarded: an automation that commands an element directly, a
   state outside the sequences that nobody releases. Loops (a sequence that starts again) are
   a separate question, with the re-trigger policy of phase 4.
+- To decide on purpose, before writing the function: decision 0016 holds two rules that agree
+  only while an instant command cannot fall inside a clip. "A clip plays over the standing
+  command" and "the command that started last wins" differ on an instant `off` at 5.5 s
+  inside a clip from 5 to 6 s. Proposed: one rule, the command that started last wins, within
+  a sequence as between sequences (where an instant command of another sequence already cuts
+  a clip). The `off` cuts the clip, which is what the timeline shows; "under" is then a
+  consequence, true of the clips that start after the instant command; in a tie (both start
+  in one millisecond) the clip with a length wins and gives the element back when it ends.
+  The other option, a clip always over the instant commands of its own sequence, is two
+  rules, and an `off` dropped inside a clip would do nothing until the clip ends.
 - A pure function of `core`: which command is in force on an element at an instant, given the
   sequences that are running and when each started. It implements the rule of decision 0016
   (a clip for its length; an instant command until the next one of its element in its own
@@ -430,10 +443,8 @@ and long before the engine. No runtime code and no Pi.
   command may fall inside a clip or in the instant one starts (the instant `off` where a
   `fade` ends, with another clip starting there). Only two instant commands of one element
   in one instant, and two clips with a length, overlap.
-- Not in this block: `core` knows the name of an action, not where it leaves its element, so
-  it cannot warn about a `fade` to 0 that gives the element back to a standing `on`, and
-  `clip.instant_at_end` compares names (an instant `set` to 0 at the end is reported, `off`
-  is not). Manifests that declare the state an action ends in would allow both.
+- Not in this block, with 3.3: `core` knows the name of an action, not where it leaves its
+  element (below).
 
 **3.3 · The three drivers**
 - `digital_output`, `digital_input` (debounce, pull), `pwm_output`, each implementing its
@@ -458,6 +469,15 @@ and long before the engine. No runtime code and no Pi.
   The provisional 1 Hz to 100 kHz and 0 to 10 s fit what the sources say (at 50 MHz, 1 Hz is
   50 million clock cycles of the 2^32 the driver takes and 100 kHz leaves 500 steps of level;
   the kernel takes a debounce of up to some 71 minutes), which is arithmetic, not a measure.
+- Manifests declare the state each action leaves its element in (`on` 100, `off` 0, `set` its
+  `level`, `fade` its `to`). A driver needs it anyway to carry out an instant command, which
+  is "the state the action ends in". With it `core` warns about the trap of decision 0016, a
+  `fade` to 0 in the middle of a sequence that gives the element back to a standing `on`
+  because no instant `off` follows it, and `clip.instant_at_end` stops comparing names (an
+  instant `set` to 0 at the end is reported today, `off` is not).
+- One loader of manifests in `core`, for the CLI and the runtime, that keys each by its own
+  `elementType`: today `load_workspace` trusts the key its caller gives, and only the CLI
+  checks it.
 - A driver hands the HAL every option, taken from the manifest and the element, never the
   HAL's own defaults, which say other things: `InputSpec.pull` is `UP` and the manifest has no
   default, `InputSpec.debounce_ms` is 0 and the manifest says 20. Take the defaults out of

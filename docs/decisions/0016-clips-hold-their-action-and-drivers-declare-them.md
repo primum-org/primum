@@ -48,7 +48,12 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
   *Provisional*: it is stricter than a standing command needs, since an instant command and a
   clip with a length do not compete. Today an instant `on` and a clip that start together
   overlap, and so does the instant `off` where a `fade` ends if another clip starts there.
-  Block 3.2b relaxes it, which breaks no project.
+  Block 3.2b relaxes it, which breaks no project. It is also what keeps two sentences of this
+  decision from disagreeing: "a clip with a length plays over the standing command" and "the
+  command that started last wins" say different things about an instant command that falls
+  inside a clip of its own sequence (it waits under the clip, or it cuts it), and between two
+  sequences of one priority the second already holds. Block 3.2b chooses one, on purpose and
+  with tests.
 - **The safe state of a driver is one of its actions** that needs no arguments (`off`): where
   the element rests when nothing commands it, on stop and on panic.
 - **Arguments and options are values given by name**, written in the file. A clip that takes the
