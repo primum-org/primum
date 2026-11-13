@@ -14,8 +14,6 @@ _HEADER_PIN_KIND: Final[tuple[Literal["gpio", "power_3v3", "power_5v", "ground"]
 _HEADER_PIN_DEFAULT_PULL: Final[tuple[Literal["up", "down"], ...]] = ("up", "down")
 _BUS_KIND: Final[tuple[Literal["i2c", "spi", "uart"], ...]] = ("i2c", "spi", "uart")
 _RESERVED_GPIO_REASON: Final[tuple[Literal["hat_eeprom"], ...]] = ("hat_eeprom",)
-_DRIVER_CAPABILITIES: Final[tuple[Literal["switch", "level", "color", "position", "measure"], ...]] = ("switch", "level", "color", "position", "measure")
-_DRIVER_PLATFORMS: Final[tuple[Literal["linux", "esp32", "rp2040", "avr"], ...]] = ("linux", "esp32", "rp2040", "avr")
 _DRIVER_CONFLICT_POLICY: Final[tuple[Literal["latest_wins", "exclusive"], ...]] = ("latest_wins", "exclusive")
 _DRIVER_PARAMETER_TYPE: Final[tuple[Literal["number", "integer", "boolean", "text"], ...]] = ("number", "integer", "boolean", "text")
 _EVENT_SOURCE: Final[tuple[Literal["element", "ui", "api"], ...]] = ("element", "ui", "api")
@@ -136,8 +134,6 @@ class Driver:
     kind: Literal["driver"] = "driver"
     schema_version: Literal[1] = 1
     element_type: str
-    capabilities: tuple[Literal["switch", "level", "color", "position", "measure"], ...]
-    platforms: tuple[Literal["linux", "esp32", "rp2040", "avr"], ...]
     conflict_policy: Literal["latest_wins", "exclusive"] | None = None
     safe_state: str | None = None
     config: tuple[DriverParameter, ...]
@@ -470,8 +466,6 @@ def parse_driver(data: JsonObject) -> Driver:
     return Driver(
         id=as_uuid(data["id"]),
         element_type=as_str(data["elementType"]),
-        capabilities=tuple(as_choice(item, _DRIVER_CAPABILITIES) for item in as_list(data["capabilities"])),
-        platforms=tuple(as_choice(item, _DRIVER_PLATFORMS) for item in as_list(data["platforms"])),
         conflict_policy=as_choice(data["conflictPolicy"], _DRIVER_CONFLICT_POLICY) if "conflictPolicy" in data else None,
         safe_state=as_str(data["safeState"]) if "safeState" in data else None,
         config=tuple(parse_driver_parameter(as_object(item)) for item in as_list(data["config"])),

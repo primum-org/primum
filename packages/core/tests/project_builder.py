@@ -57,8 +57,6 @@ def driver_manifest(element_type: str, **fields: object) -> dict[str, object]:
         "kind": "driver",
         "schemaVersion": 1,
         "elementType": element_type,
-        "capabilities": ["switch"],
-        "platforms": ["linux"],
         "conflictPolicy": "latest_wins",
         "safeState": "on",
         "config": [],

@@ -3,12 +3,6 @@
   "kind": "driver",
   "schemaVersion": 1,
   "elementType": "digital_input",
-  "capabilities": [
-    "measure"
-  ],
-  "platforms": [
-    "linux"
-  ],
   "config": [
     {
       "name": "pull",

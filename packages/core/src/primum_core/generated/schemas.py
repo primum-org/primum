@@ -452,8 +452,6 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
     "kind",
     "schemaVersion",
     "elementType",
-    "capabilities",
-    "platforms",
     "config",
     "actions"
   ],
@@ -472,35 +470,6 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]*$",
       "maxLength": 40
-    },
-    "capabilities": {
-      "description": "What the element can do in general terms.",
-      "type": "array",
-      "items": {
-        "enum": [
-          "switch",
-          "level",
-          "color",
-          "position",
-          "measure"
-        ]
-      },
-      "minItems": 1,
-      "uniqueItems": true
-    },
-    "platforms": {
-      "description": "The runtimes that implement it.",
-      "type": "array",
-      "items": {
-        "enum": [
-          "linux",
-          "esp32",
-          "rp2040",
-          "avr"
-        ]
-      },
-      "minItems": 1,
-      "uniqueItems": true
     },
     "conflictPolicy": {
       "description": "What happens when two sequences on one priority command the element: the latest command wins (lights, relays), or one sequence owns it while it runs (motors, servos). Needed by a driver with actions.",

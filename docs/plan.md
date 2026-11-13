@@ -349,7 +349,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 
 **3.2 · Driver manifests and what a clip is** · **done** (decision 0016, `specs/drivers.md`)
 - `schemas/driver.schema.json` and `drivers/`: one manifest per element type, with its
-  capabilities, platforms, actions with parameters, the options of an element (`config`), its
+  actions with parameters, the options of an element (`config`), its
   safe state and its conflict policy (latest wins / exclusive). Data, like the board profiles:
   `core` gets them from the caller. Three manifests: `digital_output` (`on`, `off`),
   `pwm_output` (`on`, `off`, `set(level)`, `fade(from, to)`; `frequencyHz`) and `digital_input`
@@ -377,11 +377,13 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   and `pull` (an option of the driver) are chosen together and should then live together.
 - A component nothing includes is not checked: a misspelt action in it passes until a block
   gives its parameter an element. An element parameter that declares the capability it
-  expects (`level`, `switch`) would let it be checked on its own, and would give
-  `capabilities` its first reader; it changes the format of sequences.
-- Nothing reads `platforms` and `capabilities` yet. A board profile has no platform, so "this
-  driver exists on the element's board" cannot be checked: with 3.3, together with moving the
-  limits to the profile.
+  expects (`level`, `switch`) would let it be checked on its own; it changes the format of
+  sequences, and it is when manifests get their `capabilities`.
+- A manifest has no `capabilities` and no `platforms`: the first draft had both, required and
+  with values for things that do not exist (`esp32`, `avr`, `color`, `position`), and nothing
+  read them. Each comes back with its first reader and the values that exist then:
+  `platforms` in 3.3, when a board profile says its platform and `core` can check that the
+  driver exists on the element's board; `capabilities` with the parameter above.
 - Later, no date: the safe state is per element type. `off` is right for everything there is
   today; an element whose safe rest is another (a work light, a fan) needs it per element.
 - For the engine (phase 4): `fade` needs its `from`, so "from where it is" cannot be
@@ -400,16 +402,9 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 Decision 0016 says in prose what the engine will do, and it was rewritten four times in its own
 pull request with no test to hold it. This block makes it run, in `core`, before the drivers
 and long before the engine. No runtime code and no Pi.
-- A pure function of `core`: which command is in force on an element at an instant, given the
-  sequences that are running and when each started. It implements the rule of decision 0016
-  (a clip for its length; an instant command until the next one of its element in its own
-  sequence or the end of that sequence, of the block when included; the highest priority, and
-  within it the command that started last; else the safe state), with a test per case the
-  reviews found: `on` and a dim, `fade` to 0 and an instant `off`, a component with an instant
-  command placed in the middle of a longer sequence, two sequences of one priority, a layer
-  over another. What it shows wrong in the decision is corrected with a new decision.
-- Something can be left on. Today nothing a clip does outlives its sequence and a sequence
-  ends with its last clip, so "on at dusk, off at 23:00" needs a clip whose length is worked
+- Something can be left on: the most important thing left, since it is the first thing
+  someone who does not program writes. Today nothing a clip does outlives its sequence and a
+  sequence ends with its last clip, so "on at dusk, off at 23:00" needs a clip whose length is worked
   out by hand, and what people write first, a sequence *On* with an instant `on` and a
   sequence *Off* with an instant `off`, gives `clip.instant_at_end` and
   `sequence.may_overlap`. Proposed: a sequence that does not end by itself, an optional field
@@ -419,6 +414,14 @@ and long before the engine. No runtime code and no Pi.
   outlives its sequence still. Discarded: an automation that commands an element directly, a
   state outside the sequences that nobody releases. Loops (a sequence that starts again) are
   a separate question, with the re-trigger policy of phase 4.
+- A pure function of `core`: which command is in force on an element at an instant, given the
+  sequences that are running and when each started. It implements the rule of decision 0016
+  (a clip for its length; an instant command until the next one of its element in its own
+  sequence or the end of that sequence, of the block when included; the highest priority, and
+  within it the command that started last; else the safe state), with a test per case the
+  reviews found: `on` and a dim, `fade` to 0 and an instant `off`, a component with an instant
+  command placed in the middle of a longer sequence, two sequences of one priority, a layer
+  over another. What it shows wrong in the decision is corrected with a new decision.
 - `clip.instant_at_end`, complete: it also reports an instant clip that ends a component
   placed in the middle of another sequence (never seen: its command ends with the block), it
   does not fire on a sequence that holds, and its hint ("give the clip a duration") offers
@@ -450,6 +453,11 @@ and long before the engine. No runtime code and no Pi.
   of resolution (steps between 0 and 100 %), derived from the clock. For inputs, the kernel's
   GPIO documentation sets no limit on the debounce time (32 bits of microseconds) and the Pi
   debounces in software: its limit is Primum's own, not a board's.
+- An `hw` test on `primum-dev` at both ends of each limit, when the limits move to the board
+  profile: a PWM output at its lowest and highest frequency, an input at its longest debounce.
+  The provisional 1 Hz to 100 kHz and 0 to 10 s fit what the sources say (at 50 MHz, 1 Hz is
+  50 million clock cycles of the 2^32 the driver takes and 100 kHz leaves 500 steps of level;
+  the kernel takes a debounce of up to some 71 minutes), which is arithmetic, not a measure.
 - A driver hands the HAL every option, taken from the manifest and the element, never the
   HAL's own defaults, which say other things: `InputSpec.pull` is `UP` and the manifest has no
   default, `InputSpec.debounce_ms` is 0 and the manifest says 20. Take the defaults out of

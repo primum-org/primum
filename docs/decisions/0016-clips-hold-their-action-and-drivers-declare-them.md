@@ -11,7 +11,7 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
 
 ## Decision
 - **Drivers are described by manifests**, data like the board profiles: one file per element
-  type in `drivers/` (`schemas/driver.schema.json`), with its capabilities, platforms, the
+  type in `drivers/` (`schemas/driver.schema.json`), with the
   actions a clip may ask with their parameters, the options an element takes in a `.hw` file
   (its `config`), its safe state and its conflict policy. `core` gets them from the caller and
   checks every clip and every element against them. A new driver is a new manifest and no
@@ -45,6 +45,10 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
   clip that is the last thing of its sequence therefore shows nothing: the sequence is over.
 - **An instant clip takes its instant**: no other clip of its element may start in that same
   millisecond, nor may it fall inside another clip of the element (`track.clips_overlap`).
+  *Provisional*: it is stricter than a standing command needs, since an instant command and a
+  clip with a length do not compete. Today an instant `on` and a clip that start together
+  overlap, and so does the instant `off` where a `fade` ends if another clip starts there.
+  Block 3.2b relaxes it, which breaks no project.
 - **The safe state of a driver is one of its actions** that needs no arguments (`off`): where
   the element rests when nothing commands it, on stop and on panic.
 - **Arguments and options are values given by name**, written in the file. A clip that takes the

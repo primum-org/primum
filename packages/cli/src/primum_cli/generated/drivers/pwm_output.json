@@ -3,13 +3,6 @@
   "kind": "driver",
   "schemaVersion": 1,
   "elementType": "pwm_output",
-  "capabilities": [
-    "switch",
-    "level"
-  ],
-  "platforms": [
-    "linux"
-  ],
   "conflictPolicy": "latest_wins",
   "safeState": "off",
   "config": [

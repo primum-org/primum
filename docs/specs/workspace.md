@@ -124,7 +124,8 @@ The checks (`primum_core.overlaps`):
   same millisecond; it does not overlap a clip that ends where it is, nor one that starts a
   millisecond later (that clip takes over). Clips that only touch (one ends where the next
   starts) do not overlap. A clip on an element the project does not define is only
-  `ref.unknown`.
+  `ref.unknown`. The part about instant clips is provisional (decision 0016): an instant
+  command and a clip with a length do not compete, and block 3.2b stops reporting them.
 - **An instant clip at the very end of a sequence that automations start** is never seen: the
   sequence ends there. A warning, `clip.instant_at_end` (`sequence`, `element`, `action`), at
   the clip, or at the block it comes through. Not reported: one that asks for the safe state

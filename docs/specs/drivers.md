@@ -12,12 +12,14 @@ The implementations live in the runtimes (block 3.3). Why: decision 0016.
 |---|---|
 | `id`, `kind` (`driver`), `schemaVersion` (1) | As every file format |
 | `elementType` | The type of the elements it serves, as `.hw` files write it (`pwm_output`): the file name |
-| `capabilities` | What the element can do in general terms: `switch`, `level`, `color`, `position`, `measure` |
-| `platforms` | The runtimes that implement it: `linux`, `esp32`, `rp2040`, `avr` |
 | `actions` | What a clip may ask of the element, each with a `name` and its `parameters`. None for an element that only reads |
 | `config` | The options an element of this type takes in a `.hw` file, beyond its wiring |
 | `safeState` | The action the element rests in when nothing commands it, on stop and on panic |
 | `conflictPolicy` | `latest_wins` (lights, relays) or `exclusive` (motors, servos: one sequence owns the element while it runs) |
+
+A manifest declares only what something reads. The capabilities of an element (`switch`,
+`level`: `docs/architecture.md`) and the platforms that implement a driver are not fields yet:
+each comes with its first reader (`docs/plan.md`).
 
 A parameter of an action and an option of the configuration are written the same way:
 
@@ -50,11 +52,11 @@ problem of a project.
 
 ## The drivers of this version
 
-| Type | Capabilities | Actions | Options (default) | Safe state | Conflicts |
-|---|---|---|---|---|---|
-| `digital_output` | switch | `on`, `off` | | `off` | latest wins |
-| `pwm_output` | switch, level | `on`, `off`, `set(level)`, `fade(from, to)` | `frequencyHz` 1–100000 (1000) | `off` | latest wins |
-| `digital_input` | measure | none | `pull` `up`, `down` or `none` (no default: required); `debounceMs` 0–10000 (20) | | |
+| Type | Actions | Options (default) | Safe state | Conflicts |
+|---|---|---|---|---|
+| `digital_output` | `on`, `off` | | `off` | latest wins |
+| `pwm_output` | `on`, `off`, `set(level)`, `fade(from, to)` | `frequencyHz` 1–100000 (1000) | `off` | latest wins |
+| `digital_input` | none | `pull` `up`, `down` or `none` (no default: required); `debounceMs` 0–10000 (20) | | |
 
 - A `level`, and the `from` and `to` of a fade, are percentages: 0 to 100, decimals allowed.
 - An input says its `pull`: it has no default, because every default is wrong for some wiring
