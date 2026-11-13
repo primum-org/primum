@@ -88,12 +88,16 @@ their offsets, each sequence flattened once (`primum_core.timeline`).
 
 What a clip does (decision 0016):
 
-- **A clip holds its action while it lasts.** When it ends, its sequence stops commanding the
-  element, which returns to what a sequence on a lower priority says or, if none does, to its
-  driver's safe state.
-- **A clip of `durationMs: 0` is an instant command whose effect stays** until the next clip of
-  that element starts or the sequence ends, both read in the flattened sequence. The element
-  takes the state the action ends in: a `fade`, its `to`.
+- **A clip holds its action while it lasts.** When it ends, the element returns to what was
+  under it: the standing command of its own sequence (next point), else what a sequence on a
+  lower priority says, else its driver's safe state.
+- **A clip of `durationMs: 0` is an instant command that stands**: the element takes the state
+  the action ends in (a `fade`, its `to`), and that is its background in the sequence until
+  the next instant command of that element or the end of the sequence, both read in the
+  flattened sequence. A clip with a length plays over it and gives the element back to it:
+  `on` at 0 s and `set(30)` from 5 to 6 s is on, dimmed for a second, and on again. To leave
+  the element somewhere else after a clip, an instant command goes where the clip ends (a
+  `fade` to 0, then an instant `off`).
 - **A sequence ends when its last clip ends**, an instant clip ending where it starts. So an
   instant clip that is the last thing of its sequence shows nothing: a warning (below).
 

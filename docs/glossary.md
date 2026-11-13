@@ -11,7 +11,7 @@ and docs; the Spanish term is the one shown by the Spanish UI.
 | Folder | Carpeta | A group of files inside a project. Defines a scope for variables |
 | Sequence (`.sec`) | Secuencia | Actions placed in time on tracks, one track per element. Can include other sequences as blocks |
 | Track | Pista | The clips of one element in a sequence |
-| Clip | Clip | An action of an element placed in time on its track. It holds the action while it lasts; without a duration it is an instant command that stays until the next clip of the element or the end of the sequence |
+| Clip | Clip | An action of an element placed in time on its track. It holds the action while it lasts; without a duration it is an instant command that stands, under the clips that have one, until the next instant command of the element or the end of the sequence |
 | Component | Componente | A sequence with parameters, reused from other sequences |
 | Parameter | Parámetro | An input of a component; exists only inside that use (instance) |
 | Automation (`.auto`) | Automatización | When an event happens → if conditions hold → do something (start/stop a sequence, change a variable) |

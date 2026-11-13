@@ -57,6 +57,8 @@ problem of a project.
 | `digital_input` | measure | none | `pull` `up`, `down` or `none` (`up`); `debounceMs` 0–10000 (20) | | |
 
 - A `level`, and the `from` and `to` of a fade, are percentages: 0 to 100, decimals allowed.
+- On a PWM output `on` is the level 100 and `off` the level 0; on a digital output they are
+  its two states (which electrical level is "on" is the element's `activeLow`).
 - `fade` goes from one level to the other over the length of its clip; as an instant clip it
   jumps to `to`.
 - The limits of `frequencyHz` and `debounceMs` are provisional: they are what building the HAL

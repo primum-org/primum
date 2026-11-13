@@ -359,8 +359,9 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   `track.element_without_actions`, and `track.element_without_driver` for a type with no
   manifest yet); a component, where a block gives it its element.
 - What a clip is: it holds its action while it lasts and then releases the element to the layer
-  below or its safe state; a clip of 0 ms is an instant command that stays until the next clip
-  of the element or the end of the sequence, and counts for overlaps. Two started sequences on
+  below or its safe state; a clip of 0 ms is an instant command that stands, under the clips
+  with a length, until the next instant command of the element or the end of the sequence,
+  and counts for overlaps. Two started sequences on
   an element of an exclusive driver are an error (`sequence.exclusive_element_shared`).
 - Not here, for the compiler (phase 4): a clip that takes the value of a component's parameter
   or of a variable; the limits the HAL showed (frequency, debounce) are in the
@@ -372,6 +373,10 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   `hardware.schema.json`, and `variants`, `resources` and `references` know each type by name
   (its fields, its resources, whether it is an input). Opening the list needs manifests that
   declare their wiring and whether they are listened to.
+- A component nothing includes is not checked: a misspelt action in it passes until a block
+  gives its parameter an element. An element parameter that declares the capability it
+  expects (`level`, `switch`) would let it be checked on its own, and would give
+  `capabilities` its first reader; it changes the format of sequences.
 - Nothing reads `platforms` and `capabilities` yet. A board profile has no platform, so "this
   driver exists on the element's board" cannot be checked: with 3.3, together with moving the
   limits to the profile.
@@ -382,7 +387,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   out without having a default, a small change of the manifest format, not of the sequences.
 - For the UI (phase 5): a problem inside a component is reported at the block that gives it
   its element, without the clip of the component that has it (`FlatClip.clip` is at hand);
-  the timeline should show where an instant command stops holding.
+  the timeline should show the standing command of an element under its clips.
 - Small: the sequences are flattened twice, once for the actions and once for the overlaps;
   share it when the compiler (phase 4) needs it too.
 
@@ -450,17 +455,17 @@ on start must cover a service that does not come back.
 
 ## Phase 4 · Engine and deployment packages
 
-**Decide first, before the engine is written** (it implements decision 0016 exactly): what to
-do about an instant command followed later by a clip of the same element. `on` at 0 s and
-`set(30)` from 5 to 6 s leaves the element in its safe state from 6 s, not back at `on`: right
-by the decision, and what someone who does not program will write expecting the light to stay
-on. `core` cannot warn about it today without also flagging the commonest pattern, `on` and
-later a `fade` from 100 to 0, which has the same shape (instant, clip, rest): telling them
-apart needs to know where each action leaves its element, which a manifest does not say. The
-same gap makes `clip.instant_at_end` compare action names only (an instant `set` to 0 at the
-end is reported, `off` is not). Options: manifests declare the state an action ends in, and
-`core` warns when a clip ends somewhere else than the instant command before it; or the
-meaning changes; or only the timeline shows it (phase 5).
+**Left by decision 0016 for the engine:**
+- A clip with a length gives its element back to the standing command of its sequence (the
+  last instant command), then to the layer below, then to the safe state.
+- `core` knows the name of an action, not where it leaves its element. So it cannot warn
+  about a `fade` to 0 that gives the element back to a standing `on` (it needs an instant
+  `off` where it ends), and `clip.instant_at_end` compares names (an instant `set` to 0 at the
+  end is reported, `off` is not). Manifests that declare the state an action ends in would
+  allow both.
+- An instant command and a clip no longer compete, yet `track.clips_overlap` still refuses an
+  instant command inside a clip or in the instant one starts. Stricter than needed and safe:
+  relaxing it later breaks no project.
 
 1. Sequence engine (monotonic clock, components flattened by the compiler).
 2. Events (`.evt`), schedules (`.sched`), automations (`.auto`), runtime variables with atomic

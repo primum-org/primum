@@ -19,13 +19,18 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
   still a closed list in the hardware schema, and `core` knows how each one is wired (a pin,
   a bus and an address); a manifest that also declares its wiring would open that list.
 - **A clip holds its action while it lasts.** From `atMs`, for `durationMs`, its sequence
-  commands the element with that action. When the clip ends the sequence stops commanding the
-  element: it returns to what a sequence on a lower priority says (decision 0006) or, if none
-  does, to its safe state. Nothing a clip does outlives its sequence.
-- **A clip of 0 ms is an instant command whose effect stays**: the element takes the state the
-  action ends in (a fade, its `to`) and keeps it until the next clip of that element starts, or
-  until the sequence ends. Sequences are read flattened (`workspace.md`), so "next clip" and
-  "ends" are those of the sequence that runs, not of a component inside it.
+  commands the element with that action. When the clip ends, the element returns to what was
+  there under it: the standing command of its own sequence if there is one (next point), else
+  what a sequence on a lower priority says (decision 0006), else its safe state. Nothing a
+  clip does outlives its sequence.
+- **A clip of 0 ms is an instant command that stands**: the element takes the state the action
+  ends in (a fade, its `to`) and that state stays as the element's background in the sequence
+  until the next instant command of that element, or until the sequence ends. A clip with a
+  length plays over it and gives the element back to it: `on` at 0 s and `set(30)` from 5 to
+  6 s is a light that is on, dims for a second and is on again. To leave it somewhere else
+  after a clip, put an instant command where the clip ends (a `fade` to 0 and an instant
+  `off`). Sequences are read flattened (`workspace.md`), so "next" and "ends" are those of
+  the sequence that runs, not of a component inside it.
 - **A sequence ends when its last clip ends**; an instant clip ends where it starts. An instant
   clip that is the last thing of its sequence therefore shows nothing: the sequence is over.
 - **An instant clip takes its instant**: no other clip of its element may start in that same
@@ -49,6 +54,11 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
 - **A clip as a command that stays** (`on` leaves the relay on until an `off`): stopping a
   sequence halfway would leave elements wherever they were, and the timeline would not show
   what is on at each moment.
+- **An instant command that lasts only until the next clip** of its element, whatever its
+  length: after `on` at 0 s and `set(30)` from 5 to 6 s the light would be off from 6 s, which
+  is not what whoever writes it expects, and `core` could not warn about it without knowing
+  where each action leaves its element. With a standing command the rule is one: when a clip
+  ends, the element goes back to what was under it.
 - **Refusing clips of 0 ms** until a driver declares actions that are instant by nature (a
   servo's move, a sound): simpler, but "turn it on and leave it on for the rest of the sequence"
   would need its duration worked out by hand and kept in step with every edit.
@@ -67,7 +77,10 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
   element against the profile of its board and the drivers enforce them again.
 - A component is checked where a block gives its parameter an element: only there is the
   element's type known.
-- The engine (phase 4) implements exactly this: hold, release to the layer below or the safe
-  state, and instant commands that last until the next clip or the end.
+- The engine (phase 4) implements exactly this: hold, give back to the standing command, the
+  layer below or the safe state, and instant commands that stand until the next one or the end.
+- A `fade` to 0 that is not the last thing of its sequence gives the element back to a
+  standing `on`: it needs an instant `off` where it ends. `core` does not warn about it: it
+  does not know where an action leaves its element.
 - The names of actions, parameters and options are identifiers; what people read in the UI
   comes from the catalogs (phase 5).
