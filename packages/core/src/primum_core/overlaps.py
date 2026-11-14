@@ -59,12 +59,13 @@ def check_overlaps(files: Iterable[LocatedContent], drivers: Drivers) -> tuple[I
     ]
     element_drivers = _drivers_of_elements(files, drivers)
     issues += _may_overlap(started, names, _exclusive(element_drivers))
+    included = {
+        block.id: sequences[block.sequence][0].name
+        for sequence, _ in sequences.values()
+        for block in sequence.blocks
+        if block.sequence in sequences
+    }
     for sequence_id, (sequence, _) in sequences.items():
-        included = {
-            block.id: sequences[block.sequence][0].name
-            for block in sequence.blocks
-            if block.sequence in sequences
-        }
         clips = flattened[sequence_id]
         issues += _unseen_instants(sequence, included, clips, names, element_drivers)
     return tuple(issues)
@@ -199,7 +200,7 @@ def _unseen_instants(
 ) -> Iterator[Issue]:
     """Instant commands that are the last thing of their own sequence: it ends there, so what
     they ask is never seen, started on its own or included (``included``: the name of the
-    sequence each block includes).
+    sequence each block of the project includes).
 
     Each is reported once, where its element is known: in its own sequence, or at the block
     that gives a component its element. Left alone: what a sequence that holds keeps as it is
@@ -230,7 +231,8 @@ def _unseen_instants(
         if clip.clip.action == driver.safe_state and not lasts_no_time:
             continue
         params = {
-            "sequence": sequence.name if clip.via is None else included[clip.via],
+            # The sequence the clip is written in: what its innermost block includes.
+            "sequence": included[clip.scope[-1]] if clip.scope else sequence.name,
             "element": names[clip.element],
             "action": clip.clip.action,
         }

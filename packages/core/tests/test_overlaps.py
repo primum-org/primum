@@ -741,6 +741,41 @@ def test_an_instant_clip_that_ends_a_component_is_reported_at_the_block_that_giv
     ]
 
 
+def test_an_instant_clip_that_ends_a_component_two_levels_down_names_the_sequence_it_is_in(
+    project: Project, ids: Ids
+) -> None:
+    """Show gives the LED to Middle, which hands it on to Inner: the clip is Inner's."""
+    inner_parameter = {"id": ids(36), "name": "target", "type": "element"}
+    inner_track: dict[str, object] = {"element": ids(36), "clips": [_clip(ids, 31, 0, 0)]}
+    _sequence(project, ids, 30, "Inner", [inner_track], parameters=[inner_parameter])
+    middle_parameter = {"id": ids(46), "name": "target", "type": "element"}
+    middle_block = {
+        "id": ids(42),
+        "sequence": ids(30),
+        "atMs": 0,
+        "arguments": [{"parameter": ids(36), "element": ids(46)}],
+    }
+    _sequence(project, ids, 40, "Middle", [], parameters=[middle_parameter], blocks=[middle_block])
+    show_block = {
+        "id": ids(41),
+        "sequence": ids(40),
+        "atMs": 1000,
+        "arguments": [{"parameter": ids(46), "element": ids(LED)}],
+    }
+    _with_lamp(project, ids)
+    show_track: dict[str, object] = {"element": ids(LAMP), "clips": [_clip(ids, 21, 0, 60_000)]}
+    _sequence(project, ids, 20, "Show", [show_track], blocks=[show_block])
+
+    assert project.found() == [
+        (
+            CoreErrorCode.CLIP_INSTANT_AT_END,
+            {"sequence": "Inner", "element": "LED", "action": "on"},
+            "show.sec",
+            "/blocks/0",
+        )
+    ]
+
+
 def test_an_instant_clip_on_an_element_that_takes_no_clips_is_only_that_problem(
     project: Project, ids: Ids
 ) -> None:

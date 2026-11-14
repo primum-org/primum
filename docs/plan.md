@@ -419,6 +419,23 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - Left for the engine (phase 4): who is running is its caller's, so exclusive groups, the
   re-trigger policy, exclusive drivers and stopping are not in `command_at`; a sequence that
   starts again when it ends (a loop) is a third value of `whenDone`.
+- For the engine, about `primum_core.commands` as it is:
+  - `command_at` is an oracle for tests, not something to ask on every tick: each call walks
+    the clips of the element (0.5 ms on a Pi 4 with 1000 clips per track). The engine keeps
+    its own state and must agree with it.
+  - `timelines_of` is quadratic in the clips of a track: every instant command walks all the
+    clips of its element (8 tracks in each of 4 sequences: 0.1 s with 100 clips per track on
+    a Pi 4, 1.5 s with 500, 5 s with 1000). Sort the instant commands by element and scope
+    before the engine prepares projects with it.
+  - Its public shape, to settle before the engine depends on it: `Timeline.spans` shows the
+    private `_Span`, and a running sequence that is not among the timelines is a bare
+    `KeyError`.
+  - Two sequences that hold, *On* and *Off*, work the first day (*Off* started last, and
+    `sequence.may_overlap` says so), but both keep running for ever: whether *On* turns the
+    light on again the next day is the re-trigger policy's, or they share an exclusive group.
+- A gap in `clip.instant_at_end`, rare: an instant command in the same instant as a clip of
+  its element that lasts until the end of the sequence is never seen (the clip wins the tie
+  and the sequence ends with it), and is not reported.
 - Left for the UI (phase 5): a warning for a sequence that holds and that nothing stops, once
   what the phone and the API can stop is known.
 - Not in this block, with 3.3: `core` knows the name of an action, not where it leaves its
