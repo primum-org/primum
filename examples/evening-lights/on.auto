@@ -1,0 +1,15 @@
+{
+  "id": "42060563-f607-4db4-95c2-d09911d627aa",
+  "kind": "automation",
+  "schemaVersion": 1,
+  "name": "Lights on at dusk",
+  "when": [
+    "8888798d-c678-4b43-bf5b-27569c6db4a5"
+  ],
+  "do": [
+    {
+      "action": "start_sequence",
+      "sequence": "32c0570c-4738-4a9b-9ed3-4ab4b0df62d8"
+    }
+  ]
+}

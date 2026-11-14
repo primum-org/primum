@@ -400,51 +400,46 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - Small: the sequences are flattened twice, once for the actions and once for the overlaps;
   share it when the compiler (phase 4) needs it too.
 
-**3.2b · What commands an element, and when**
-Decision 0016 says in prose what the engine will do, and it was rewritten four times in its own
-pull request with no test to hold it. This block makes it run, in `core`, before the drivers
-and long before the engine. No runtime code and no Pi.
-- Something can be left on: the most important thing left, since it is the first thing
-  someone who does not program writes. Today nothing a clip does outlives its sequence and a
-  sequence ends with its last clip, so "on at dusk, off at 23:00" needs a clip whose length is
-  worked out by hand, and what people write first, a sequence *On* with an instant `on` and a
-  sequence *Off* with an instant `off`, gives `clip.instant_at_end` and
-  `sequence.may_overlap`, with a hint ("give the clip a duration") that is the wrong advice
-  for it; *Off* gets no warning though it does nothing either. Proposed: a sequence that does not end by itself, an optional field
-  of the sequence ("when its last clip ends, hold until it is stopped"). Dusk starts *Lights*,
-  one instant `on` that stands; 23:00 stops it with the `stop_sequence` automations already
-  have. Stop, panic, exclusive groups and priorities work as for any sequence, and nothing
-  outlives its sequence still. Discarded: an automation that commands an element directly, a
-  state outside the sequences that nobody releases. Loops (a sequence that starts again) are
-  a separate question, with the re-trigger policy of phase 4.
-- To decide on purpose, before writing the function: decision 0016 holds two rules that agree
-  only while an instant command cannot fall inside a clip. "A clip plays over the standing
-  command" and "the command that started last wins" differ on an instant `off` at 5.5 s
-  inside a clip from 5 to 6 s. Proposed: one rule, the command that started last wins, within
-  a sequence as between sequences (where an instant command of another sequence already cuts
-  a clip). The `off` cuts the clip, which is what the timeline shows; "under" is then a
-  consequence, true of the clips that start after the instant command; in a tie (both start
-  in one millisecond) the clip with a length wins and gives the element back when it ends.
-  The other option, a clip always over the instant commands of its own sequence, is two
-  rules, and an `off` dropped inside a clip would do nothing until the clip ends.
-- A pure function of `core`: which command is in force on an element at an instant, given the
-  sequences that are running and when each started. It implements the rule of decision 0016
-  (a clip for its length; an instant command until the next one of its element in its own
-  sequence or the end of that sequence, of the block when included; the highest priority, and
-  within it the command that started last; else the safe state), with a test per case the
-  reviews found: `on` and a dim, `fade` to 0 and an instant `off`, a component with an instant
-  command placed in the middle of a longer sequence, two sequences of one priority, a layer
-  over another. What it shows wrong in the decision is corrected with a new decision.
-- `clip.instant_at_end`, complete: it also reports an instant clip that ends a component
-  placed in the middle of another sequence (never seen: its command ends with the block), it
-  does not fire on a sequence that holds, and its hint ("give the clip a duration") offers
-  holding.
-- `track.clips_overlap`, relaxed: an instant command and a clip do not compete, so an instant
-  command may fall inside a clip or in the instant one starts (the instant `off` where a
-  `fade` ends, with another clip starting there). Only two instant commands of one element
-  in one instant, and two clips with a length, overlap.
+**3.2b · What commands an element, and when** · **done** (decision 0017, `specs/workspace.md`)
+- `primum_core.commands`: `command_at` says which command is in force on an element at an
+  instant, given the sequences that are running and when each started; `timelines_of` prepares
+  the sequences of a valid project. One rule: of the commands in force, the highest priority,
+  and within it the one that started last (a tie goes to the clip with a length, then to the
+  sequence started last); with nothing in force, the safe state. A clip with a length is in
+  force for its length; an instant command, until the next one of its element in its own
+  sequence or the end of that sequence, the block when it is included.
+- A sequence can hold (`whenDone`: `end` or `hold`): it stays as it is in its last instant
+  until it is stopped, its instant commands and the clips that end with it, each as it ended.
+  "On at dusk, off at 23:00" is `examples/evening-lights`. Ignored when included.
+- `track.clips_overlap` is two clips with a length, or two instant commands in one instant: an
+  instant command and a clip do not compete. `clip.instant_at_end` covers every sequence, the
+  components placed in the middle of another included, spares the sequences that hold,
+  reports the sequence that is only an instant `off`, and its hint offers holding.
+- A flattened clip knows the sequence it is written in (`FlatClip.scope`, `scope_end`).
+- Left for the engine (phase 4): who is running is its caller's, so exclusive groups, the
+  re-trigger policy, exclusive drivers and stopping are not in `command_at`; a sequence that
+  starts again when it ends (a loop) is a third value of `whenDone`.
+- For the engine, about `primum_core.commands` as it is:
+  - `command_at` is an oracle for tests, not something to ask on every tick: each call walks
+    the clips of the element (0.5 ms on a Pi 4 with 1000 clips per track). The engine keeps
+    its own state and must agree with it.
+  - `timelines_of` is quadratic in the clips of a track: every instant command walks all the
+    clips of its element (8 tracks in each of 4 sequences: 0.1 s with 100 clips per track on
+    a Pi 4, 1.5 s with 500, 5 s with 1000). Sort the instant commands by element and scope
+    before the engine prepares projects with it.
+  - Its public shape, to settle before the engine depends on it: `Timeline.spans` shows the
+    private `_Span`, and a running sequence that is not among the timelines is a bare
+    `KeyError`.
+  - Two sequences that hold, *On* and *Off*, work the first day (*Off* started last, and
+    `sequence.may_overlap` says so), but both keep running for ever: whether *On* turns the
+    light on again the next day is the re-trigger policy's, or they share an exclusive group.
+- A gap in `clip.instant_at_end`, rare: an instant command in the same instant as a clip of
+  its element that lasts until the end of the sequence is never seen (the clip wins the tie
+  and the sequence ends with it), and is not reported.
+- Left for the UI (phase 5): a warning for a sequence that holds and that nothing stops, once
+  what the phone and the API can stop is known.
 - Not in this block, with 3.3: `core` knows the name of an action, not where it leaves its
-  element (below).
+  element (below). Holding a clip "as it ended" needs it too.
 
 **3.3 · The three drivers**
 - `digital_output`, `digital_input` (debounce, pull), `pwm_output`, each implementing its

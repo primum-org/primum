@@ -1,6 +1,7 @@
 # 0016. A clip holds its action while it lasts; drivers declare what an element can be asked
 
-- Status: Accepted
+- Status: Accepted. What it says about how long an instant command lasts, about who commands
+  an element and about instant clips overlapping clips with a length is superseded by 0017
 - Date: 2026-11-11
 
 ## Context

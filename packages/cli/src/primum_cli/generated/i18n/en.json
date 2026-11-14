@@ -253,7 +253,7 @@
     },
     "clip.instant_at_end": {
       "message": "{action} on {element} is the last thing {sequence} does and lasts 0 ms, so it will not be seen.",
-      "hint": "A sequence ends with its last clip. Give the clip a duration: how long {element} should stay that way."
+      "hint": "A sequence ends with its last clip. Give the clip a duration, or make the sequence hold until it is stopped."
     },
     "track.element_without_actions": {
       "message": "{element} takes no actions, so it cannot have a track.",

@@ -253,7 +253,7 @@
     },
     "clip.instant_at_end": {
       "message": "{action} en {element} es lo último que hace {sequence} y dura 0 ms, así que no llegará a verse.",
-      "hint": "Una secuencia termina con su último clip. Dale una duración al clip: el tiempo que {element} debe seguir así."
+      "hint": "Una secuencia termina con su último clip. Dale una duración al clip, o haz que la secuencia se mantenga hasta que la paren."
     },
     "track.element_without_actions": {
       "message": "{element} no admite acciones, así que no puede tener una pista.",

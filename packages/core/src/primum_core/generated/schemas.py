@@ -903,6 +903,14 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
       "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
       "maxLength": 40
     },
+    "whenDone": {
+      "description": "What the sequence does when its last clip ends: end, and its elements go back to what was under it; or hold as it is in that instant until it is stopped (decision 0017). Ignored when the sequence is included in another.",
+      "enum": [
+        "end",
+        "hold"
+      ],
+      "default": "end"
+    },
     "parameters": {
       "type": "array",
       "items": {
@@ -973,7 +981,7 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
     "clip": {
       "type": "object",
       "additionalProperties": false,
-      "description": "An action of the element from atMs: held for durationMs, or, with durationMs 0, an instant command that stands, under the clips with a length, until the next instant command of the element in this sequence or the end of this sequence, of its block when it is included (decision 0016).",
+      "description": "An action of the element from atMs: held for durationMs, or, with durationMs 0, an instant command, in force until the next instant command of the element in this sequence or the end of this sequence, of its block when it is included (decision 0017).",
       "required": [
         "id",
         "atMs",
