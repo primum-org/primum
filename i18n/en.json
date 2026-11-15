@@ -239,6 +239,10 @@
       "message": "The sequence {sequence} includes itself through {chain}.",
       "hint": "Sequences cannot include each other in a loop: remove one of those blocks."
     },
+    "block.hold_ignored": {
+      "message": "{sequence} holds until it is stopped, but included in {including} it ends with its last clip.",
+      "hint": "A sequence only holds when it is started on its own: start {sequence} from an automation instead of including it."
+    },
     "track.clips_overlap": {
       "message": "Two clips of {element} overlap at {atMs} ms.",
       "hint": "An element does one thing at a time: move or shorten one of them."

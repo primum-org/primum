@@ -48,6 +48,8 @@ class CoreErrorCode(StrEnum):
     ARGUMENT_EXPECTED_VALUE = "argument.expected_value"  # parameter
     SEQUENCE_INCLUDES_ITSELF = "sequence.includes_itself"  # sequence
     SEQUENCE_CYCLE = "sequence.cycle"  # sequence, chain
+    # A sequence holds only when it is started on its own: a block ends with its last clip.
+    BLOCK_HOLD_IGNORED = "block.hold_ignored"  # (warning) sequence, including
     TRACK_CLIPS_OVERLAP = "track.clips_overlap"  # element, atMs
     SEQUENCE_MAY_OVERLAP = "sequence.may_overlap"  # (warning) sequence, other, element
     # On an element only one sequence can use at a time (its driver is exclusive).

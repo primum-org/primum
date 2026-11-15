@@ -239,6 +239,10 @@
       "message": "La secuencia {sequence} se incluye a sí misma a través de {chain}.",
       "hint": "Las secuencias no pueden incluirse unas a otras en bucle: quita uno de esos bloques."
     },
+    "block.hold_ignored": {
+      "message": "{sequence} se mantiene hasta que la paren, pero incluida en {including} termina con su último clip.",
+      "hint": "Una secuencia solo se mantiene cuando se arranca por sí sola: arranca {sequence} desde una automatización en vez de incluirla."
+    },
     "track.clips_overlap": {
       "message": "Dos clips de {element} se solapan en el milisegundo {atMs}.",
       "hint": "Un elemento hace una sola cosa a la vez: mueve o acorta uno de los dos."

@@ -198,3 +198,36 @@ def test_a_chain_of_thousands_of_inclusions_is_walked_without_recursion(
         )
 
     assert project.found() == []
+
+
+def _on(project: Project, ids: Ids, **fields: object) -> Project:
+    """A sequence that turns the LED on in an instant, included in a show at 5 s."""
+    clip = {"id": ids(31), "atMs": 0, "durationMs": 0, "action": "on"}
+    track = {"element": ids(LED), "clips": [clip]}
+    project.add("on.sec", "sequence", ids(30), name="On", tracks=[track], **fields)
+    block = {"id": ids(41), "sequence": ids(30), "atMs": 5000}
+    return project.add("show.sec", "sequence", ids(40), name="Show", tracks=[], blocks=[block])
+
+
+def test_a_sequence_that_holds_does_not_hold_when_it_is_included(
+    project: Project, ids: Ids
+) -> None:
+    _on(project, ids, whenDone="hold")
+
+    assert project.found() == [
+        (
+            CoreErrorCode.BLOCK_HOLD_IGNORED,
+            {"sequence": "On", "including": "Show"},
+            "show.sec",
+            "/blocks/0",
+        )
+    ]
+    assert project.found(severity=Severity.ERROR) == []
+
+
+def test_including_a_sequence_that_does_not_hold_says_nothing_about_holding(
+    project: Project, ids: Ids
+) -> None:
+    _on(project, ids)
+
+    assert CoreErrorCode.BLOCK_HOLD_IGNORED not in [code for code, *_ in project.found()]

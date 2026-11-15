@@ -47,7 +47,8 @@ All notable changes to this project are documented here. The format follows
   back to it, and an instant command inside a clip cuts it.
 - A sequence can hold (`whenDone: "hold"`): instead of ending with its last clip it stays as
   it is until it is stopped. "On at dusk, off at 23:00" is one sequence that holds, started by
-  one automation and stopped by another (`examples/evening-lights/`). A sequence that ends
+  one automation and stopped by another (`examples/evening-lights/`). It only holds when it
+  is started on its own: including it in another sequence gets a warning. A sequence that ends
   with an instant command and does not hold gets a warning: it would not be seen.
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and

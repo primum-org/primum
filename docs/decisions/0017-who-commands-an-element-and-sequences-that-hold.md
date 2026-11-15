@@ -43,7 +43,8 @@ sequence *Off* with an instant `off`, did nothing.
   the sequence leaves the lamp at 100). A clip that ended earlier is not kept.
 - A sequence that holds is stopped as any other: an automation (`stop_sequence`), another
   sequence of its exclusive group starting, stop and panic. Nothing outlives its sequence
-  still. `whenDone` is ignored when the sequence is included in another: a block ends with the
+  still. `whenDone` is ignored when the sequence is included in another (a warning says so,
+  `block.hold_ignored`): a block ends with the
   last clip of what it includes.
 - **The rule runs**: `primum_core.commands.command_at` says which command is in force on an
   element at an instant, given the sequences that are running and when each started. Its
@@ -83,6 +84,10 @@ name, exclusive drivers.
   where manifests declare it). With it `core` can also warn about the trap that stays: a
   `fade` to 0 in the middle of a sequence gives its element back to a standing `on` unless an
   instant `off` follows it.
+- The advice "a `fade` to 0, then an instant `off`" holds within a sequence, not between
+  two. A sequence *Off* made that way, started over an *On* that holds on the same priority,
+  dims the lamp and gives it back to *On* at 100 when *Off* ends. Fading out at 23:00 needs
+  the two in one exclusive group, so that starting *Off* stops *On*: the engine's (phase 4).
 - `command_at` does not know who stops a sequence: its caller says which are running.
   Exclusive groups, the re-trigger policy and exclusive drivers are the engine's (phase 4).
 - A loop is a third value of `whenDone`, decided with the re-trigger policy.

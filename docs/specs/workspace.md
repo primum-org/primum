@@ -110,7 +110,10 @@ What a clip does (decisions 0016 and 0017):
   stopped (an automation's `stop_sequence`, another sequence of its exclusive group starting,
   stop or panic). Every command in force just before its end stays in force: its instant
   commands, and the clips that end with it, each in the state its action ends in. A clip that
-  ended earlier is not kept. `whenDone` is ignored when the sequence is included in another.
+  ended earlier is not kept. `whenDone` is ignored when the sequence is included in another:
+  a block ends with the last clip of what it includes. Including a sequence that holds is a
+  warning at the block, `block.hold_ignored` (`sequence`: the included one, `including`),
+  since what it was meant to keep is given back.
 
 `primum_core.commands` runs these rules, for tests today and for the engine to agree with
 (phase 4): `timelines_of(workspace)` prepares the sequences of a valid project, and

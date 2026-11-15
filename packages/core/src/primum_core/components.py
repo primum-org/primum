@@ -3,6 +3,9 @@
 A block that includes a sequence gives one argument to each of its parameters: an element for
 a parameter of type ``element``, a value of the declared type for the others. Sequences that
 include each other, directly or through others, can never be flattened: a cycle is an error.
+
+A sequence holds (``whenDone``) only when it is started on its own: included, it ends with its
+last clip. Including one that holds is a warning, since what it was meant to keep is given back.
 """
 
 from collections.abc import Iterable, Iterator
@@ -10,17 +13,19 @@ from dataclasses import replace
 from enum import Enum, auto
 from uuid import UUID
 
-from primum_core.errors import CoreErrorCode, Issue, Location
+from primum_core.errors import CoreErrorCode, Issue, Location, Severity
 from primum_core.generated.model import Argument, Block, Parameter, Sequence
 from primum_core.pointers import Step, field_name, pointer
 from primum_core.references import LocatedContent
+from primum_core.timeline import holds
 from primum_core.values import check_value
 
 type Sequences = dict[UUID, tuple[Sequence, Location]]
 
 
 def check_components(files: Iterable[LocatedContent]) -> tuple[Issue, ...]:
-    """Arguments that do not fit the parameters of the included sequence, then cycles."""
+    """Arguments that do not fit the parameters of the included sequence and included
+    sequences that hold, then cycles."""
     sequences: Sequences = {
         file.content.id: (file.content, file.location)
         for file in files
@@ -34,6 +39,11 @@ def check_components(files: Iterable[LocatedContent]) -> tuple[Issue, ...]:
                 issues += _argument_issues(
                     block.arguments, included[0], ("blocks", index), location
                 )
+                if holds(included[0]):
+                    params = {"sequence": included[0].name, "including": sequence.name}
+                    place = _at(location, "blocks", index)
+                    code = CoreErrorCode.BLOCK_HOLD_IGNORED
+                    issues.append(Issue(code, params, place, Severity.WARNING))
     issues += _cycles(sequences)
     return tuple(issues)
 

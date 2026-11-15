@@ -414,28 +414,38 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - `track.clips_overlap` is two clips with a length, or two instant commands in one instant: an
   instant command and a clip do not compete. `clip.instant_at_end` covers every sequence, the
   components placed in the middle of another included, spares the sequences that hold,
-  reports the sequence that is only an instant `off`, and its hint offers holding.
+  reports the sequence that is only an instant `off`, and its hint offers holding. Including
+  a sequence that holds is `block.hold_ignored`: it holds only when started on its own.
 - A flattened clip knows the sequence it is written in (`FlatClip.scope`, `scope_end`).
 - Left for the engine (phase 4): who is running is its caller's, so exclusive groups, the
   re-trigger policy, exclusive drivers and stopping are not in `command_at`; a sequence that
   starts again when it ends (a loop) is a third value of `whenDone`.
 - For the engine, about `primum_core.commands` as it is:
   - `command_at` is an oracle for tests, not something to ask on every tick: each call walks
-    the clips of the element (0.5 ms on a Pi 4 with 1000 clips per track). The engine keeps
+    the clips of the element (0.28 ms on a Pi 4 with 1000 clips per track). The engine keeps
     its own state and must agree with it.
-  - `timelines_of` is quadratic in the clips of a track: every instant command walks all the
-    clips of its element (8 tracks in each of 4 sequences: 0.1 s with 100 clips per track on
-    a Pi 4, 1.5 s with 500, 5 s with 1000). Sort the instant commands by element and scope
-    before the engine prepares projects with it.
+  - `timelines_of` is quadratic in the instant commands of a track: each walks all the clips
+    of its element, so the cost depends on the mix. Measured on a Pi 4 with 4 sequences of 8
+    tracks: with every clip instant, 0.19 s at 100 clips per track, 3.4 s at 500, 13 s at
+    1000; with every clip with a length, 0.7 s at 1000. Sort the instant commands by element
+    and scope before the engine prepares projects with it.
   - Its public shape, to settle before the engine depends on it: `Timeline.spans` shows the
-    private `_Span`, and a running sequence that is not among the timelines is a bare
-    `KeyError`.
+    private `_Span`; a running sequence that is not among the timelines is a bare
+    `KeyError`; and in a sequence that holds, an instant command already replaced reads as
+    in force for ever (`on` at 0 and `off` in the last instant both get `until=None`: the
+    answer is right, since the one that started last wins, the span is not).
+  - A first test for the engine: *Off* (a `fade` to 0, then an instant `off`) started over an
+    *On* that holds on the same priority dims the lamp and gives it back to *On* when *Off*
+    ends. Fading out at 23:00 needs both in one exclusive group.
   - Two sequences that hold, *On* and *Off*, work the first day (*Off* started last, and
     `sequence.may_overlap` says so), but both keep running for ever: whether *On* turns the
     light on again the next day is the re-trigger policy's, or they share an exclusive group.
-- A gap in `clip.instant_at_end`, rare: an instant command in the same instant as a clip of
-  its element that lasts until the end of the sequence is never seen (the clip wins the tie
-  and the sequence ends with it), and is not reported.
+- Gaps in `clip.instant_at_end`, both rare. An instant command in the same instant as a
+  clip of its element that lasts until the end of the sequence is never seen (the clip wins
+  the tie and the sequence ends with it), and is not reported. A component that is only an
+  instant `off`, placed in the middle of a show over a standing `on`, leaves the light on and
+  is not reported: the safe state is spared unless the sequence lasts no time, which is only
+  looked at for a sequence's own clips, not for those a block brings.
 - Left for the UI (phase 5): a warning for a sequence that holds and that nothing stops, once
   what the phone and the API can stop is known.
 - Not in this block, with 3.3: `core` knows the name of an action, not where it leaves its
