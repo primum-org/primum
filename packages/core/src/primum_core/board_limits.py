@@ -5,6 +5,10 @@ documentation: the frequencies its PWM takes, for one. A driver manifest says th
 exists, its type and its default, for every platform; the profile of a board says which values
 that board takes. An option the element does not give is checked with its driver's default: a
 default is a value like any other, and a board may not take it.
+
+A number must be limited by someone: its driver, on every board, or the board. One that
+neither limits (a profile that forgot it, or misspelt its option) is an error, whatever its
+value: otherwise anything would reach the hardware.
 """
 
 from collections.abc import Iterable, Iterator
@@ -56,6 +60,12 @@ def check_board_limits(
 def _element_issues(
     element: Element, driver: Driver, board: _Board, place: Location, steps: tuple[Step, ...]
 ) -> Iterator[Issue]:
+    limited = {limit.option for limit in board.profile.limits if limit.element_type == element.type}
+    for option in driver.config:
+        unlimited = option.min is None and option.name not in limited
+        if option.type in NUMERIC and unlimited:
+            params = {"element": element.name, "option": option.name, "board": board.name}
+            yield Issue(CoreErrorCode.CONFIG_UNLIMITED, params, place)
     for limit in board.profile.limits:
         if limit.element_type != element.type:
             continue

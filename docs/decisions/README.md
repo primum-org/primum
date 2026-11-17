@@ -26,6 +26,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0016](0016-clips-hold-their-action-and-drivers-declare-them.md) | A clip holds its action while it lasts; drivers declare what an element can be asked | Accepted, in part superseded by 0017 |
 | [0017](0017-who-commands-an-element-and-sequences-that-hold.md) | One rule says who commands an element; a sequence can hold until it is stopped | Accepted |
 | [0018](0018-boards-limit-options-and-actions-declare-their-end-state.md) | A board limits options in its profile; an action declares the state it ends in | Accepted |
+| [0019](0019-drivers-on-the-hal.md) | Drivers implement manifests on the HAL; commands are instant and read back | Accepted |
 
 ## Template
 

@@ -31,6 +31,12 @@ from primum_runtime.errors import ErrorCode, PrimumError
 log = logging.getLogger(__name__)
 
 
+NS_PER_S = 1_000_000_000
+# What a period in whole nanoseconds can express: 1 Hz at least, and a period of 2 ns at most
+# (the shortest with a level between 0 and 100 %). A board narrows it in its profile.
+PWM_FREQUENCY_HZ = (1, NS_PER_S // 2)
+
+
 class Pull(StrEnum):
     """The resistor the board applies to an input when nothing drives it."""
 
@@ -54,21 +60,24 @@ class OutputSpec:
 class InputSpec:
     """How a digital input is wired: a button to ground is ``Pull.UP`` and active low.
 
-    ``debounce_ms`` ignores bounces shorter than that; 0 leaves the signal as it is.
+    ``debounce_ms`` ignores bounces shorter than that; 0 leaves the signal as it is. Nothing
+    has a default: every default is wrong for some wiring, so whoever asks for an input (a
+    driver, from its manifest and its element) says all of it, and the type checker sees to it.
     """
 
     pin: int
-    pull: Pull = Pull.UP
-    active_low: bool = False
-    debounce_ms: int = 0
+    pull: Pull
+    active_low: bool
+    debounce_ms: int
 
 
 @dataclass(frozen=True)
 class PwmSpec:
-    """A hardware PWM output: its GPIO and the frequency of the signal."""
+    """A hardware PWM output: its GPIO and the frequency of the signal (no default: its
+    driver gives it, from its manifest and its element)."""
 
     pin: int
-    frequency_hz: int = 1000
+    frequency_hz: int
 
 
 @dataclass(frozen=True)
@@ -89,7 +98,9 @@ class BoardGpio:
 
     ``lines`` maps each GPIO number the board has to its line on the GPIO chip labelled
     ``chip_label``: a pin missing from it does not exist on this board. ``pwm_channels`` maps
-    the GPIOs with hardware PWM to their channel on the controller ``pwm_device``.
+    the GPIOs with hardware PWM to their channel on the controller ``pwm_device``, and
+    ``pwm_frequency_hz`` is the lowest and the highest frequency the board takes, from the
+    limits of its profile; a board that says nothing takes what the HAL can express at all.
     """
 
     model: str
@@ -97,6 +108,7 @@ class BoardGpio:
     lines: Mapping[int, int]
     pwm_device: str = ""
     pwm_channels: Mapping[int, int] = field(default_factory=dict[int, int])
+    pwm_frequency_hz: tuple[int, int] = PWM_FREQUENCY_HZ
 
     def __post_init__(self) -> None:
         # Read-only copies: the board cannot change under a HAL that is using it.
@@ -121,11 +133,18 @@ class BoardGpio:
 
 @dataclass(frozen=True)
 class InputEvent:
-    """An input changed: to ``active`` or not, at ``timestamp_ns`` of the monotonic clock."""
+    """An input changed: to ``active`` or not, at ``timestamp_ns`` of the monotonic clock.
+
+    ``sequence`` numbers the events of its pin from 1, as the kernel does: a jump says that
+    events in between were lost (the kernel drops the oldest of a burst it cannot hold). Two
+    events in a row may say the same state: a pulse too short for the kernel to tell its
+    edges apart.
+    """
 
     pin: int
     active: bool
     timestamp_ns: int
+    sequence: int
 
 
 class LineDriver(Protocol):
@@ -328,7 +347,7 @@ class Hal(ABC):
         ``hal.pwm_unsupported_pin`` for a PWM output on a pin without hardware PWM and
         ``hal.pwm_channel_in_use`` for two PWM outputs on one channel (GPIO 12 and 18 on a
         Raspberry Pi: the controller has one channel for both) and ``hal.pwm_frequency_invalid``
-        for a frequency under 1 Hz (how high it may go is the driver's limit). The
+        for a frequency the board does not take (``BoardGpio.pwm_frequency_hz``). The
         implementation then reports the lines it cannot get; a claim that fails leaves nothing
         behind.
         """
@@ -344,8 +363,10 @@ class Hal(ABC):
         pin_by_channel: dict[int, int] = {}
         for spec in claim.pwms:
             channel = self._board.pwm_channel(spec.pin)
-            if spec.frequency_hz < 1:
+            lowest, highest = self._board.pwm_frequency_hz
+            if not lowest <= spec.frequency_hz <= highest:
                 params = {"pin": spec.pin, "frequency_hz": spec.frequency_hz}
+                params.update(min_hz=lowest, max_hz=highest)
                 raise PrimumError(ErrorCode.HAL_PWM_FREQUENCY_INVALID, params)
             other = pin_by_channel.setdefault(channel, spec.pin)
             if other != spec.pin:
@@ -388,6 +409,13 @@ class Hal(ABC):
         may stop after a bounded amount: what is left comes with the next call."""
         self.ensure_open()
         return self._read_events()
+
+    def events_fd(self) -> int | None:
+        """A file descriptor that becomes readable when there are input changes to read, for
+        an event loop to watch (``add_reader``) instead of waiting or polling. ``None`` when
+        no input was claimed: there is nothing to watch."""
+        self.ensure_open()
+        return self._events_fd()
 
     def wait_events(self, timeout_s: float) -> bool:
         """Wait up to ``timeout_s`` for an input change; whether there is one to read."""
@@ -486,6 +514,9 @@ class Hal(ABC):
 
     @abstractmethod
     def _read_events(self) -> list[InputEvent]: ...
+
+    @abstractmethod
+    def _events_fd(self) -> int | None: ...
 
     @abstractmethod
     def _wait_events(self, timeout_s: float) -> bool: ...

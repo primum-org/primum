@@ -1,5 +1,7 @@
 """A HAL without hardware, for tests and for running the runtime on a laptop (``--simulate``)."""
 
+import contextlib
+import os
 from collections import deque
 from collections.abc import Mapping
 from types import MappingProxyType
@@ -84,6 +86,7 @@ class SimulatedInput:
     def __init__(self, spec: InputSpec) -> None:
         self._spec = spec
         self.active = False
+        self.events = 0  # how many it has had: the sequence number of the last one
 
     def read(self) -> bool:
         return self.active
@@ -143,7 +146,8 @@ class SimulatedHal(Hal):
 
     It takes the board profile like the real HAL, so ``--simulate`` refuses the pins the board
     does not have, as the Pi would. It has no clock: ``simulate_input`` takes the time of the
-    change, and ``wait_events`` never waits.
+    change, and ``wait_events`` never waits. With inputs claimed it has a pipe that is
+    readable while events wait, so an event loop watches it as it watches the real one.
     """
 
     def __init__(self, board: BoardGpio) -> None:
@@ -152,6 +156,7 @@ class SimulatedHal(Hal):
         self._input_lines: dict[int, SimulatedInput] = {}
         self._pwm_lines: dict[int, SimulatedPwm] = {}
         self._events: deque[InputEvent] = deque()
+        self._pipe: tuple[int, int] | None = None
 
     @property
     def lines(self) -> Mapping[int, SimulatedLine]:
@@ -168,16 +173,34 @@ class SimulatedHal(Hal):
     def simulate_input(self, pin: int, active: bool, timestamp_ns: int = 0) -> None:
         """Change a claimed input from outside, as a button or a sensor would, and queue the
         event. Changes to the same state are not events, as on hardware."""
+        if self._input_lines[pin].active != active:
+            self.simulate_event(pin, active, timestamp_ns)
+
+    def simulate_event(self, pin: int, active: bool, timestamp_ns: int = 0) -> None:
+        """Queue an event of a claimed input whatever its state: with ``active`` as it already
+        is, it is what the kernel gives for a pulse too short to tell its edges apart."""
         line = self._input_lines[pin]
-        if line.active == active:
-            return
         line.active = active
-        self._events.append(InputEvent(pin, active, timestamp_ns))
+        line.events += 1
+        if not self._events and self._pipe is not None:
+            os.write(self._pipe[1], b"e")
+        self._events.append(InputEvent(pin, active, timestamp_ns, line.events))
+
+    def lose_events(self, count: int) -> None:
+        """Drop the ``count`` oldest unread events, as the kernel does with a burst it cannot
+        hold: the ones that follow keep their sequence numbers."""
+        for _ in range(min(count, len(self._events))):
+            self._events.popleft()
+        if not self._events:
+            self._drain_pipe()
 
     def _claim(self, claim: Claim) -> Drivers:
         self._lines = {spec.pin: SimulatedLine(spec) for spec in claim.outputs}
         self._input_lines = {spec.pin: SimulatedInput(spec) for spec in claim.inputs}
         self._pwm_lines = {spec.pin: SimulatedPwm(spec) for spec in claim.pwms}
+        if claim.inputs:
+            self._pipe = os.pipe()
+            os.set_blocking(self._pipe[0], False)
         return Drivers(dict(self._lines), dict(self._input_lines), dict(self._pwm_lines))
 
     def _release(self) -> dict[int, Exception]:
@@ -187,12 +210,27 @@ class SimulatedHal(Hal):
                 line.release()
             except Exception as error:  # collected: the others are released too
                 failures[pin] = error
+        if self._pipe is not None:
+            for end in self._pipe:
+                os.close(end)
+            self._pipe = None
         return failures
 
     def _read_events(self) -> list[InputEvent]:
         events = list(self._events)
         self._events.clear()
+        self._drain_pipe()
         return events
+
+    def _events_fd(self) -> int | None:
+        return None if self._pipe is None else self._pipe[0]
+
+    def _drain_pipe(self) -> None:
+        if self._pipe is None:
+            return
+        # Nothing to read is fine: the pipe holds a byte only while events wait.
+        with contextlib.suppress(BlockingIOError):
+            os.read(self._pipe[0], 1)
 
     def _wait_events(self, timeout_s: float) -> bool:
         return bool(self._events)

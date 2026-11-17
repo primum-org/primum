@@ -1,4 +1,4 @@
-// The runtime's page: one switch per output and the panic button. The service is the only
+// The runtime's page: one switch per output, the state of each input and the panic button. The service is the only
 // source of truth: the page shows the states it receives and never guesses one.
 
 import { loadCatalog, pickLanguage } from "./i18n.js";
@@ -19,6 +19,9 @@ const page = {
   errorClose: document.getElementById("error-close"),
   outputs: document.getElementById("outputs"),
   outputRow: document.getElementById("output-row"),
+  inputsSection: document.getElementById("inputs-section"),
+  inputs: document.getElementById("inputs"),
+  inputRow: document.getElementById("input-row"),
   panic: document.getElementById("panic"),
 };
 
@@ -44,6 +47,25 @@ function render() {
     button.querySelector(".switch-state").textContent = online ? word : "";
     button.disabled = !online || state.panic;
   }
+  const inputs = state?.inputs ?? [];
+  page.inputsSection.hidden = inputs.length === 0;
+  for (const input of inputs) {
+    const shown = inputRowFor(input.name).querySelector(".input-state");
+    // Offline the last state may be stale: no word, as for a switch.
+    const word = input.active ? catalog.t("input.active") : catalog.t("input.inactive");
+    shown.textContent = online ? word : "";
+    shown.dataset.active = String(online && input.active);
+  }
+}
+
+function inputRowFor(name) {
+  const existing = page.inputs.querySelector(`[data-input="${CSS.escape(name)}"]`);
+  if (existing) return existing;
+  const row = page.inputRow.content.firstElementChild.cloneNode(true);
+  row.dataset.input = name;
+  row.querySelector(".output-name").textContent = name;
+  page.inputs.append(row);
+  return row;
 }
 
 function rowFor(name) {

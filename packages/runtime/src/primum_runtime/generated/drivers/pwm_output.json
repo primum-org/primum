@@ -1,0 +1,58 @@
+{
+  "id": "d05ca25a-5f22-4b6b-8948-952fc18402ce",
+  "kind": "driver",
+  "schemaVersion": 1,
+  "elementType": "pwm_output",
+  "conflictPolicy": "latest_wins",
+  "safeState": "off",
+  "config": [
+    {
+      "name": "frequencyHz",
+      "type": "integer",
+      "default": 1000
+    }
+  ],
+  "actions": [
+    {
+      "name": "on",
+      "parameters": [],
+      "endState": 100
+    },
+    {
+      "name": "off",
+      "parameters": [],
+      "endState": 0
+    },
+    {
+      "name": "set",
+      "parameters": [
+        {
+          "name": "level",
+          "type": "number",
+          "min": 0,
+          "max": 100
+        }
+      ],
+      "endState": "level"
+    },
+    {
+      "name": "fade",
+      "parameters": [
+        {
+          "name": "from",
+          "type": "number",
+          "min": 0,
+          "max": 100
+        },
+        {
+          "name": "to",
+          "type": "number",
+          "min": 0,
+          "max": 100
+        }
+      ],
+      "endState": "to",
+      "startState": "from"
+    }
+  ]
+}

@@ -117,6 +117,7 @@ layers = [
     "primum_runtime.config",
     "primum_runtime.board",
     "primum_runtime.control",
+    "primum_runtime.drivers",
     "primum_runtime.hal",
     "primum_runtime.errors",
 ]
@@ -128,6 +129,7 @@ source_modules = [
     "primum_runtime.config",
     "primum_runtime.board",
     "primum_runtime.control",
+    "primum_runtime.drivers",
     "primum_runtime.hal",
     "primum_runtime.errors",
 ]

@@ -77,7 +77,11 @@ def test_sigterm_stops_the_service_with_every_output_in_its_safe_state(
     service: tuple[subprocess.Popen[str], int],
 ) -> None:
     process, port = service
-    assert _turn_led_on(port) == {"outputs": [{"name": "led", "on": True}], "panic": False}
+    assert _turn_led_on(port) == {
+        "outputs": [{"name": "led", "on": True}],
+        "inputs": [],
+        "panic": False,
+    }
 
     process.send_signal(signal.SIGTERM)
     _, log = process.communicate(timeout=TIMEOUT_S)

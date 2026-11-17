@@ -99,7 +99,8 @@ checks every element wired to a board against the limits of its profile for its 
 number outside them is `config.out_of_board_range` (`element`, `option`, `board`, `min`,
 `max`). An option the element does not give is checked with its driver's default, and
 reported at the element. A profile limits what it must; an option it does not mention has
-only its driver's limits, and the frequency of a PWM output has none: a test checks that
+only its driver's limits, and an option nobody limits is an error (`config.unlimited`). The
+frequency of a PWM output has no limit but the board's: a test checks that
 every shipped profile with PWM channels limits it, and that every limit names a numeric
 option a shipped driver has (a misspelt one would limit nothing).
 

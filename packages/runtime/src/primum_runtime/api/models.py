@@ -20,14 +20,21 @@ class OutputStateBody(_Body):
     on: bool
 
 
+class InputStateBody(_Body):
+    name: str
+    active: bool
+
+
 class StateBody(_Body):
     outputs: list[OutputStateBody]
+    inputs: list[InputStateBody]
     panic: bool
 
     @classmethod
     def of(cls, state: State) -> "StateBody":
         outputs = [OutputStateBody(name=output.name, on=output.on) for output in state.outputs]
-        return cls(outputs=outputs, panic=state.panic)
+        inputs = [InputStateBody(name=item.name, active=item.active) for item in state.inputs]
+        return cls(outputs=outputs, inputs=inputs, panic=state.panic)
 
 
 class ErrorBody(_Body):

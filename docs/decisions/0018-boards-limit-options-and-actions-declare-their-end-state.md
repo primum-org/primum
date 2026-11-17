@@ -71,8 +71,8 @@ back on.
   on the shipped profiles and manifests hold it (every limit names a numeric option of a
   shipped driver; every profile with PWM channels limits the frequency), not `core`, and a
   profile someone adds is not under them. `core` can check it where it has both the
-  manifests and the profiles, and will (block 3.3b): a numeric option that neither its
-  driver nor its board limits is an error.
+  manifests and the profiles, and does since block 3.3b: a numeric option that neither its
+  driver nor its board limits is an error (`config.unlimited`).
 - Both formats gain a required field without a new `schemaVersion`: formats are drafts until
   the first release (decision 0014), and these two are files that ship with Primum, read by
   the same version that wrote them, not files of a project.

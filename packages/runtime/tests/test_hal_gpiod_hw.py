@@ -67,7 +67,12 @@ def test_an_input_with_a_pull_up_reads_as_not_pressed_and_has_no_pending_events(
         hal.claim(
             Claim(
                 inputs=(
-                    InputSpec(pin=_optional_pin(INPUT_VARIABLE), pull=Pull.UP, active_low=True),
+                    InputSpec(
+                        pin=_optional_pin(INPUT_VARIABLE),
+                        pull=Pull.UP,
+                        active_low=True,
+                        debounce_ms=0,
+                    ),
                 )
             )
         )
@@ -104,7 +109,7 @@ def test_the_other_gpio_of_the_pwm_channel_is_refused_as_not_routed() -> None:
     (other,) = [pin for pin, ch in board.pwm_channels.items() if ch == channel and pin != routed]
 
     with GpiodHal(board) as hal, pytest.raises(PrimumError) as raised:
-        hal.claim(Claim(pwms=(PwmSpec(pin=other),)))
+        hal.claim(Claim(pwms=(PwmSpec(pin=other, frequency_hz=1000),)))
 
     assert raised.value.code == "hal.pwm_not_routed"
     assert raised.value.params == {"pin": other, "channel": channel}
