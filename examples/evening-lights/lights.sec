@@ -1,0 +1,31 @@
+{
+  "id": "32c0570c-4738-4a9b-9ed3-4ab4b0df62d8",
+  "kind": "sequence",
+  "schemaVersion": 1,
+  "name": "Lights",
+  "description": "Fades the lamp in and holds it there until something stops the sequence.",
+  "whenDone": "hold",
+  "tracks": [
+    {
+      "element": "aa038d23-8be1-4be4-8936-8af71d642a27",
+      "clips": [
+        {
+          "id": "7f70820d-8391-4e2f-8804-808fe8753143",
+          "atMs": 0,
+          "durationMs": 2000,
+          "action": "fade",
+          "arguments": [
+            {
+              "name": "from",
+              "value": 0
+            },
+            {
+              "name": "to",
+              "value": 100
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

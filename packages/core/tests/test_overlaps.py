@@ -106,20 +106,29 @@ def _overlaps(project: Project, ids: Ids, *clips: dict[str, object]) -> list[obj
     return [params["atMs"] for _, params, *_ in found]
 
 
-def test_an_instant_clip_while_another_clip_runs_overlaps_it(project: Project, ids: Ids) -> None:
-    assert _overlaps(project, ids, _clip(ids, 21, 0, 500), _clip(ids, 22, 100, 0)) == [100]
+def test_an_instant_command_inside_a_clip_does_not_overlap_it(project: Project, ids: Ids) -> None:
+    # It cuts the clip (decision 0017): they do not compete.
+    assert _overlaps(project, ids, _clip(ids, 21, 0, 500), _clip(ids, 22, 100, 0)) == []
 
 
-def test_an_instant_clip_where_another_clip_ends_does_not_overlap(
+def test_an_instant_command_where_a_clip_ends_does_not_overlap_it(
     project: Project, ids: Ids
 ) -> None:
-    assert _overlaps(project, ids, _clip(ids, 21, 0, 500), _clip(ids, 22, 500, 0)) == []
+    assert _overlaps(project, ids, _clip(ids, 21, 0, 500), _instant_off(ids, 22, 500)) == []
 
 
-def test_a_clip_that_starts_in_the_instant_of_an_instant_clip_overlaps_it(
+def test_a_clip_that_starts_in_the_instant_of_an_instant_command_does_not_overlap_it(
     project: Project, ids: Ids
 ) -> None:
-    assert _overlaps(project, ids, _clip(ids, 21, 100, 0), _clip(ids, 22, 100, 500)) == [100]
+    assert _overlaps(project, ids, _clip(ids, 21, 100, 0), _clip(ids, 22, 100, 500)) == []
+
+
+def test_an_instant_off_where_a_clip_ends_and_another_starts_does_not_overlap(
+    project: Project, ids: Ids
+) -> None:
+    clips = [_clip(ids, 21, 0, 500), _instant_off(ids, 22, 500), _clip(ids, 23, 500, 500)]
+
+    assert _overlaps(project, ids, *clips) == []
 
 
 def test_two_instant_clips_in_the_same_instant_overlap(project: Project, ids: Ids) -> None:
@@ -129,7 +138,6 @@ def test_two_instant_clips_in_the_same_instant_overlap(project: Project, ids: Id
 def test_a_clip_after_an_instant_clip_takes_over_without_overlapping(
     project: Project, ids: Ids
 ) -> None:
-    # The instant clip's effect stays until the next clip of the element starts.
     assert _overlaps(project, ids, _clip(ids, 21, 100, 0), _clip(ids, 22, 101, 500)) == []
 
 
@@ -598,12 +606,37 @@ def test_an_instant_clip_that_ends_a_started_sequence_is_never_seen(
     assert project.found(severity=Severity.ERROR) == []
 
 
-def test_an_instant_clip_at_the_end_of_a_sequence_nothing_starts_is_not_reported(
+def test_an_instant_clip_that_ends_a_sequence_nothing_starts_is_never_seen_either(
     project: Project, ids: Ids
 ) -> None:
     _sequence(project, ids, 20, "Blink", [{"element": ids(LED), "clips": [_clip(ids, 21, 0, 0)]}])
 
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.CLIP_INSTANT_AT_END]
+
+
+def test_a_sequence_that_holds_keeps_the_instant_command_it_ends_with(
+    project: Project, ids: Ids
+) -> None:
+    track: dict[str, object] = {"element": ids(LED), "clips": [_clip(ids, 21, 0, 0)]}
+    _sequence(project, ids, 20, "Lights", [track], whenDone="hold")
+    _started(project, ids, 20)
+
     assert project.found() == []
+
+
+def test_a_sequence_that_only_asks_for_the_safe_state_in_an_instant_does_nothing(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(project, ids, 20, "Off", [{"element": ids(LED), "clips": [_instant_off(ids, 21, 0)]}])
+
+    assert project.found() == [
+        (
+            CoreErrorCode.CLIP_INSTANT_AT_END,
+            {"sequence": "Off", "element": "LED", "action": "off"},
+            "off.sec",
+            "/tracks/0/clips/0",
+        )
+    ]
 
 
 def test_a_sequence_may_end_with_an_instant_clip_that_asks_for_the_safe_state(
@@ -644,18 +677,99 @@ def test_an_instant_clip_where_the_last_clip_of_another_element_ends_is_never_se
     ]
 
 
-def test_an_instant_clip_that_ends_a_started_sequence_through_a_block_is_reported_at_the_block(
+def test_an_instant_clip_that_ends_an_included_sequence_is_reported_in_that_sequence(
     project: Project, ids: Ids
 ) -> None:
+    """Its command ends with its own sequence, wherever that one is placed (decision 0017)."""
     _sequence(project, ids, 30, "Flash", [{"element": ids(LED), "clips": [_clip(ids, 31, 0, 0)]}])
     block = {"id": ids(41), "sequence": ids(30), "atMs": 1000}
-    _sequence(project, ids, 20, "Show", [], blocks=[block])
+    _with_lamp(project, ids)
+    _sequence(
+        project,
+        ids,
+        20,
+        "Show",
+        [{"element": ids(LAMP), "clips": [_clip(ids, 21, 0, 60_000)]}],
+        blocks=[block],
+    )
     _started(project, ids, 20)
 
     assert project.found() == [
         (
             CoreErrorCode.CLIP_INSTANT_AT_END,
-            {"sequence": "Show", "element": "LED", "action": "on"},
+            {"sequence": "Flash", "element": "LED", "action": "on"},
+            "flash.sec",
+            "/tracks/0/clips/0",
+        )
+    ]
+
+
+def test_an_instant_clip_that_ends_a_component_is_reported_at_the_block_that_gives_its_element(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(
+        project,
+        ids,
+        30,
+        "Flash",
+        [{"element": ids(36), "clips": [_clip(ids, 31, 0, 0)]}],
+        parameters=[{"id": ids(36), "name": "target", "type": "element"}],
+    )
+    block = {
+        "id": ids(41),
+        "sequence": ids(30),
+        "atMs": 1000,
+        "arguments": [{"parameter": ids(36), "element": ids(LED)}],
+    }
+    _with_lamp(project, ids)
+    _sequence(
+        project,
+        ids,
+        20,
+        "Show",
+        [{"element": ids(LAMP), "clips": [_clip(ids, 21, 0, 60_000)]}],
+        blocks=[block],
+    )
+
+    assert project.found() == [
+        (
+            CoreErrorCode.BLOCK_INSTANT_AT_END,
+            {"sequence": "Flash", "element": "LED", "action": "on"},
+            "show.sec",
+            "/blocks/0",
+        )
+    ]
+
+
+def test_an_instant_clip_that_ends_a_component_two_levels_down_names_the_sequence_it_is_in(
+    project: Project, ids: Ids
+) -> None:
+    """Show gives the LED to Middle, which hands it on to Inner: the clip is Inner's."""
+    inner_parameter = {"id": ids(36), "name": "target", "type": "element"}
+    inner_track: dict[str, object] = {"element": ids(36), "clips": [_clip(ids, 31, 0, 0)]}
+    _sequence(project, ids, 30, "Inner", [inner_track], parameters=[inner_parameter])
+    middle_parameter = {"id": ids(46), "name": "target", "type": "element"}
+    middle_block = {
+        "id": ids(42),
+        "sequence": ids(30),
+        "atMs": 0,
+        "arguments": [{"parameter": ids(36), "element": ids(46)}],
+    }
+    _sequence(project, ids, 40, "Middle", [], parameters=[middle_parameter], blocks=[middle_block])
+    show_block = {
+        "id": ids(41),
+        "sequence": ids(40),
+        "atMs": 1000,
+        "arguments": [{"parameter": ids(46), "element": ids(LED)}],
+    }
+    _with_lamp(project, ids)
+    show_track: dict[str, object] = {"element": ids(LAMP), "clips": [_clip(ids, 21, 0, 60_000)]}
+    _sequence(project, ids, 20, "Show", [show_track], blocks=[show_block])
+
+    assert project.found() == [
+        (
+            CoreErrorCode.BLOCK_INSTANT_AT_END,
+            {"sequence": "Inner", "element": "LED", "action": "on"},
             "show.sec",
             "/blocks/0",
         )
@@ -685,3 +799,126 @@ def test_an_instant_clip_with_an_action_its_element_does_not_have_is_only_that_p
     _blink(project, ids, {**_clip(ids, 21, 0, 0), "action": "onn"})
 
     assert [code for code, *_ in project.found()] == [CoreErrorCode.ACTION_UNKNOWN]
+
+
+def _show_including(
+    project: Project, ids: Ids, included: int, at_ms: int, **show: object
+) -> Project:
+    """A show whose lamp is on for ten seconds, which includes another sequence at ``at_ms``."""
+    _with_lamp(project, ids)
+    track: dict[str, object] = {"element": ids(LAMP), "clips": [_clip(ids, 21, 0, 10_000)]}
+    block = {"id": ids(41), "sequence": ids(included), "atMs": at_ms}
+    return _sequence(project, ids, 20, "Show", [track], blocks=[block], **show)
+
+
+def _lights(project: Project, ids: Ids, **fields: object) -> Project:
+    """A sequence that turns the LED on for two seconds."""
+    track: dict[str, object] = {"element": ids(LED), "clips": [_clip(ids, 31, 0, 2000)]}
+    return _sequence(project, ids, 30, "Lights", [track], **fields)
+
+
+def _all_on(project: Project, ids: Ids, **fields: object) -> Project:
+    """A sequence that turns the LED on in an instant, and nothing else."""
+    track: dict[str, object] = {"element": ids(LED), "clips": [_clip(ids, 31, 0, 0)]}
+    return _sequence(project, ids, 30, "All on", [track], **fields)
+
+
+def test_a_sequence_that_holds_does_not_hold_when_it_is_included(
+    project: Project, ids: Ids
+) -> None:
+    _lights(project, ids, whenDone="hold")
+    _show_including(project, ids, 30, 1000)
+
+    assert project.found() == [
+        (
+            CoreErrorCode.BLOCK_HOLD_IGNORED,
+            {"sequence": "Lights", "including": "Show"},
+            "show.sec",
+            "/blocks/0",
+        )
+    ]
+    assert project.found(severity=Severity.ERROR) == []
+
+
+def test_including_a_sequence_that_does_not_hold_says_nothing_about_holding(
+    project: Project, ids: Ids
+) -> None:
+    _lights(project, ids)
+    _show_including(project, ids, 30, 1000)
+
+    assert project.found() == []
+
+
+def test_a_sequence_that_holds_is_kept_where_it_ends_another_that_holds(
+    project: Project, ids: Ids
+) -> None:
+    """The show holds and the block ends with it: what Lights would keep, the show keeps."""
+    _lights(project, ids, whenDone="hold")
+    _show_including(project, ids, 30, 8000, whenDone="hold")
+
+    assert project.found() == []
+
+
+def test_a_sequence_that_holds_is_not_kept_in_the_middle_of_another_that_holds(
+    project: Project, ids: Ids
+) -> None:
+    _lights(project, ids, whenDone="hold")
+    _show_including(project, ids, 30, 1000, whenDone="hold")
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.BLOCK_HOLD_IGNORED]
+
+
+def test_a_sequence_that_holds_is_kept_two_levels_down_too(project: Project, ids: Ids) -> None:
+    _lights(project, ids, whenDone="hold")
+    middle_block = {"id": ids(51), "sequence": ids(30), "atMs": 0}
+    _sequence(project, ids, 50, "Middle", [], blocks=[middle_block])
+    _show_including(project, ids, 50, 8000, whenDone="hold")
+
+    assert project.found() == []
+
+
+def test_a_sequence_that_holds_and_only_includes_another_is_kept_where_it_ends_a_show_that_holds(
+    project: Project, ids: Ids
+) -> None:
+    """Middle holds and has no clips of its own, only the block that brings Lights."""
+    _lights(project, ids)
+    middle_block = {"id": ids(51), "sequence": ids(30), "atMs": 0}
+    _sequence(project, ids, 50, "Middle", [], blocks=[middle_block], whenDone="hold")
+    _show_including(project, ids, 50, 8000, whenDone="hold")
+
+    assert project.found() == []
+
+
+def test_an_instant_clip_that_ends_a_sequence_is_seen_where_a_sequence_that_holds_keeps_it(
+    project: Project, ids: Ids
+) -> None:
+    """All on is over in an instant on its own, but it closes a show that holds."""
+    _all_on(project, ids)
+    _show_including(project, ids, 30, 10_000, whenDone="hold")
+
+    assert project.found() == []
+
+
+def test_the_same_with_the_included_sequence_holding_as_well(project: Project, ids: Ids) -> None:
+    _all_on(project, ids, whenDone="hold")
+    _show_including(project, ids, 30, 10_000, whenDone="hold")
+
+    assert project.found() == []
+
+
+def test_an_instant_clip_that_ends_a_sequence_included_in_a_show_that_ends_is_not_seen(
+    project: Project, ids: Ids
+) -> None:
+    _all_on(project, ids)
+    _show_including(project, ids, 30, 10_000)
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.CLIP_INSTANT_AT_END]
+
+
+def test_a_sequence_that_holds_and_includes_itself_does_not_hang_the_check(
+    project: Project, ids: Ids
+) -> None:
+    block = {"id": ids(41), "sequence": ids(20), "atMs": 0}
+    _sequence(project, ids, 20, "Show", [], blocks=[block], whenDone="hold")
+
+    assert CoreErrorCode.SEQUENCE_INCLUDES_ITSELF in [code for code, *_ in project.found()]

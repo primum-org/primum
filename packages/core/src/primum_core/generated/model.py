@@ -21,6 +21,7 @@ _EVENT_TRIGGER: Final[tuple[Literal["on", "off"], ...]] = ("on", "off")
 _ELEMENT_TYPE: Final[tuple[Literal["digital_output", "digital_input", "pwm_output", "i2c_device"], ...]] = ("digital_output", "digital_input", "pwm_output", "i2c_device")
 _SCHEDULE_TIME_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 _SCHEDULE_WINDOW_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+_SEQUENCE_WHEN_DONE: Final[tuple[Literal["end", "hold"], ...]] = ("end", "hold")
 _PARAMETER_TYPE: Final[tuple[Literal["element", "number", "integer", "boolean", "text"], ...]] = ("element", "number", "integer", "boolean", "text")
 _CONSTANT_TYPE: Final[tuple[Literal["number", "integer", "boolean", "text"], ...]] = ("number", "integer", "boolean", "text")
 _VARIABLE_TYPE: Final[tuple[Literal["number", "integer", "boolean", "text"], ...]] = ("number", "integer", "boolean", "text")
@@ -260,6 +261,7 @@ class Sequence:
     description: str | None = None
     priority: int = 0
     exclusive_group: str | None = None
+    when_done: Literal["end", "hold"] = "end"
     parameters: tuple[Parameter, ...] = ()
     tracks: tuple[Track, ...]
     blocks: tuple[Block, ...] = ()
@@ -284,7 +286,7 @@ class Track:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class Clip:
-    """An action of the element from atMs: held for durationMs, or, with durationMs 0, an instant command that stands, under the clips with a length, until the next instant command of the element in this sequence or the end of this sequence, of its block when it is included (decision 0016)."""
+    """An action of the element from atMs: held for durationMs, or, with durationMs 0, an instant command, in force until the next instant command of the element in this sequence or the end of this sequence, of its block when it is included (decision 0017)."""
 
     id: UUID
     at_ms: int
@@ -582,6 +584,7 @@ def parse_sequence(data: JsonObject) -> Sequence:
         description=as_str(data["description"]) if "description" in data else None,
         priority=as_int(data["priority"]) if "priority" in data else 0,
         exclusive_group=as_str(data["exclusiveGroup"]) if "exclusiveGroup" in data else None,
+        when_done=as_choice(data["whenDone"], _SEQUENCE_WHEN_DONE) if "whenDone" in data else "end",
         parameters=tuple(parse_parameter(as_object(item)) for item in as_list(data["parameters"])) if "parameters" in data else (),
         tracks=tuple(parse_track(as_object(item)) for item in as_list(data["tracks"])),
         blocks=tuple(parse_block(as_object(item)) for item in as_list(data["blocks"])) if "blocks" in data else (),

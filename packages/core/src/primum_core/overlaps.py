@@ -1,16 +1,19 @@
-"""Sequences that ask one element to do two things at once (decisions 0006 and 0016).
+"""Sequences that ask one element to do two things at once (decisions 0006, 0016 and 0017).
 
-Within a sequence, the clips of one element never overlap in time, the sequences it includes
-counted at their offset: an error. A clip of 0 ms, an instant command, holds its instant: no
-other clip of its element may start in it. Between sequences, the engine arbitrates (phase 4),
-so two sequences that may run at the same time and touch the same element are a warning, unless
-they are in one exclusive group (they cancel each other) or on different priorities (one layers
-over the other); on an element whose driver is exclusive (one sequence owns it while it runs)
-it is an error. Which sequences may run at the same time is approximated statically: those that
-automations start.
+Within a sequence, two clips with a length of one element never overlap in time, the sequences
+it includes counted at their offset: an error. Two instant commands of one element in one
+instant are an error too: which of them stands? An instant command and a clip with a length do
+not compete (the one that started last commands, decision 0017), so they may share a moment.
+Between sequences, the engine arbitrates (phase 4), so two sequences that may run at the same
+time and touch the same element are a warning, unless they are in one exclusive group (they
+cancel each other) or on different priorities (one layers over the other); on an element whose
+driver is exclusive (one sequence owns it while it runs) it is an error. Which sequences may run
+at the same time is approximated statically: those that automations start.
 
-A sequence ends when its last clip ends, so an instant clip that is the last thing of a sequence
-is never seen: a warning on the sequences automations start, the ones known to run on their own.
+An instant command lasts until its own sequence ends, so one that is the last thing of its
+sequence is never seen: a warning. A sequence holds only when it is started on its own, so
+including one that holds is a warning too. Neither is given for what some sequence that holds
+keeps: its own last instant, and the blocks that end with it.
 """
 
 from collections import Counter
@@ -23,7 +26,15 @@ from primum_core.drivers import Drivers
 from primum_core.errors import CoreErrorCode, Issue, Location, Severity
 from primum_core.generated.model import Automation, Driver, Hardware, Sequence
 from primum_core.references import LocatedContent
-from primum_core.timeline import FlatClip, Sequences, flatten_all, sequences_of
+from primum_core.timeline import (
+    FlatClip,
+    Sequences,
+    at,
+    duration,
+    flatten_all,
+    holds,
+    sequences_of,
+)
 
 EXCLUSIVE = "exclusive"
 
@@ -58,10 +69,70 @@ def check_overlaps(files: Iterable[LocatedContent], drivers: Drivers) -> tuple[I
     ]
     element_drivers = _drivers_of_elements(files, drivers)
     issues += _may_overlap(started, names, _exclusive(element_drivers))
-    for sequence_id in started_ids:
-        sequence = sequences[sequence_id][0]
-        issues += _unseen_instants(sequence, flattened[sequence_id], names, element_drivers)
+    included = {
+        block.id: sequences[block.sequence][0].name
+        for sequence, _ in sequences.values()
+        for block in sequence.blocks
+        if block.sequence in sequences
+    }
+    kept = _kept(sequences, flattened)
+    for sequence_id, (sequence, location) in sequences.items():
+        clips = flattened[sequence_id]
+        issues += _unseen_instants(sequence, included, clips, names, element_drivers, kept)
+        issues += _holds_ignored(sequence, location, sequences, kept)
     return tuple(issues)
+
+
+@dataclass(frozen=True)
+class _Kept:
+    """What the sequences that hold keep as it is in their last instant, when started."""
+
+    clips: frozenset[UUID]  # the instant clips that are the last thing of such a sequence
+    blocks: frozenset[UUID]  # the blocks that end with it, at any depth
+
+
+def _kept(sequences: Sequences, flattened: Mapping[UUID, list[FlatClip]]) -> _Kept:
+    lengths = {sequence_id: duration(clips) for sequence_id, clips in flattened.items()}
+    clips: set[UUID] = set()
+    blocks: set[UUID] = set()
+    for sequence_id, (sequence, _) in sequences.items():
+        if not holds(sequence):
+            continue
+        end = lengths[sequence_id]
+        clips.update(
+            clip.clip.id
+            for clip in flattened[sequence_id]
+            if clip.instant and clip.start == clip.scope_end == end
+        )
+        # Every block that ends with the sequence, and inside each, those that end with it:
+        # a block inside one that ends earlier ends earlier too.
+        pending = [(sequence, 0)]
+        while pending:
+            outer, offset = pending.pop()
+            for block in outer.blocks:
+                start = offset + block.at_ms
+                # A block seen before was walked then (a loop of inclusions comes back to it).
+                if block.id in blocks or block.sequence not in sequences:
+                    continue
+                if start + lengths[block.sequence] == end:
+                    blocks.add(block.id)
+                    pending.append((sequences[block.sequence][0], start))
+    return _Kept(frozenset(clips), frozenset(blocks))
+
+
+def _holds_ignored(
+    sequence: Sequence, location: Location, sequences: Sequences, kept: _Kept
+) -> Iterator[Issue]:
+    """Blocks that include a sequence that holds: it holds only when it is started on its own,
+    so what it was meant to keep is given back. Unless the block ends with a sequence that
+    holds, which keeps it all the same."""
+    for index, block in enumerate(sequence.blocks):
+        included = sequences.get(block.sequence)  # absent: the references check reports it
+        if included is None or not holds(included[0]) or block.id in kept.blocks:
+            continue
+        params = {"sequence": included[0].name, "including": sequence.name}
+        place = at(location, "blocks", index)
+        yield Issue(CoreErrorCode.BLOCK_HOLD_IGNORED, params, place, Severity.WARNING)
 
 
 def _drivers_of_elements(
@@ -97,7 +168,9 @@ def _names(files: tuple[LocatedContent, ...], sequences: Sequences) -> dict[UUID
 
 
 def _clip_overlaps(clips: list[FlatClip], names: Mapping[UUID, str]) -> Iterator[Issue]:
-    """Each clip that starts while an earlier clip of its element is still running.
+    """Each clip that starts while an earlier clip of its element is still running. Clips with
+    a length are compared with each other, and so are instant commands, never one with the
+    other.
 
     An element the project does not define is the references check's. Clips that arrive
     through one block on one inner element form a group: their overlaps are the included
@@ -105,11 +178,11 @@ def _clip_overlaps(clips: list[FlatClip], names: Mapping[UUID, str]) -> Iterator
     groups. Clips reported at one place (a block) are reported once per element, at the first
     overlap: a component of twenty clips included twice is one problem, not twenty.
     """
-    by_element: dict[UUID, list[FlatClip]] = {}
+    by_element: dict[tuple[UUID, bool], list[FlatClip]] = {}
     for clip in clips:
         if clip.element in names:
-            by_element.setdefault(clip.element, []).append(clip)
-    for element, element_clips in by_element.items():
+            by_element.setdefault((clip.element, clip.instant), []).append(clip)
+    for (element, _), element_clips in by_element.items():
         own_end = 0  # how far the sequence's own clips reach
         group_end: dict[tuple[UUID, UUID | None], int] = {}  # how far each block's clips reach
         reported: set[Location] = set()
@@ -129,8 +202,8 @@ def _clip_overlaps(clips: list[FlatClip], names: Mapping[UUID, str]) -> Iterator
 
 
 def _busy_until(clip: FlatClip) -> int:
-    """When the element is free for another clip to start. A clip of 0 ms takes its instant:
-    one that starts in that same millisecond overlaps it, one that starts in the next does
+    """When the element is free for another clip of the same kind to start. An instant command
+    takes its instant: another in that same millisecond overlaps it, one in the next does
     not."""
     return max(clip.end, clip.start + 1)
 
@@ -182,40 +255,55 @@ def _may_overlap(
             yield Issue(code, params, second.location, Severity.WARNING)
 
 
-def _seen_actions(driver: Driver) -> frozenset[str]:
-    """The actions of a driver that change what is seen when they end a sequence: all but its
-    safe state, where the element goes anyway."""
-    return frozenset(action.name for action in driver.actions) - {driver.safe_state}
-
-
 def _unseen_instants(
     sequence: Sequence,
+    included: Mapping[UUID, str],
     clips: list[FlatClip],
     names: Mapping[UUID, str],
     element_drivers: Mapping[UUID, Driver | None],
+    kept: _Kept,
 ) -> Iterator[Issue]:
-    """Instant clips at the very end of a sequence that runs on its own: it ends there, so what
-    they ask is never seen.
+    """Instant commands that are the last thing of their own sequence: it ends there, so what
+    they ask is never seen, started on its own or included (``included``: the name of the
+    sequence each block of the project includes).
 
-    One that asks for its element's safe state is left alone: that is where the element goes
-    when the sequence ends anyway (an instant ``on``, and an instant ``off`` to end with). Two
-    of one element in that instant overlap: that error is enough. A parameter bound to nothing
-    is not an element.
+    Each is reported once, where its element is known: in its own sequence, or at the block
+    that gives a component its element. Left alone: what some sequence that holds keeps as it
+    is in its last instant, its own or of what it includes (a clip seen in one place is not
+    reported for the others); an instant command that asks for its element's safe state after
+    something else (an instant ``on``, and an instant ``off`` to end with: that is where the
+    element goes anyway); and two of one element in that instant, which overlap: that error is
+    enough.
     """
-    end = max((clip.end for clip in clips), default=0)
-    last = [clip for clip in clips if clip.start == end and clip.end == end]
-    per_element = Counter(clip.element for clip in last)
+    end = duration(clips)
+    last = [
+        clip
+        for clip in clips
+        if clip.instant
+        and clip.start == clip.scope_end
+        and clip.clip.id not in kept.clips
+        and (clip.via is None or clip.bound_here)
+    ]
+    together = Counter((clip.scope, clip.element) for clip in last)
     for clip in last:
-        if per_element[clip.element] > 1 or clip.element not in element_drivers:
+        if together[clip.scope, clip.element] > 1 or clip.element not in element_drivers:
             continue
         driver = element_drivers[clip.element]
         # A track on an element that takes no clips, and an action its driver does not have,
         # are the actions check's.
-        if driver is None or clip.clip.action not in _seen_actions(driver):
+        if driver is None or clip.clip.action not in {action.name for action in driver.actions}:
+            continue
+        lasts_no_time = clip.via is None and end == 0
+        if clip.clip.action == driver.safe_state and not lasts_no_time:
             continue
         params = {
-            "sequence": sequence.name,
+            # The sequence the clip is written in: what its innermost block includes.
+            "sequence": included[clip.scope[-1]] if clip.scope else sequence.name,
             "element": names[clip.element],
             "action": clip.clip.action,
         }
-        yield Issue(CoreErrorCode.CLIP_INSTANT_AT_END, params, clip.at, Severity.WARNING)
+        # Through a block, holding is no way out: a sequence only holds started on its own.
+        code = CoreErrorCode.CLIP_INSTANT_AT_END
+        if clip.via is not None:
+            code = CoreErrorCode.BLOCK_INSTANT_AT_END
+        yield Issue(code, params, clip.at, Severity.WARNING)

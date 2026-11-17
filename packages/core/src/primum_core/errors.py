@@ -48,12 +48,16 @@ class CoreErrorCode(StrEnum):
     ARGUMENT_EXPECTED_VALUE = "argument.expected_value"  # parameter
     SEQUENCE_INCLUDES_ITSELF = "sequence.includes_itself"  # sequence
     SEQUENCE_CYCLE = "sequence.cycle"  # sequence, chain
+    # A sequence holds only when it is started on its own: a block ends with its last clip.
+    BLOCK_HOLD_IGNORED = "block.hold_ignored"  # (warning) sequence, including
     TRACK_CLIPS_OVERLAP = "track.clips_overlap"  # element, atMs
     SEQUENCE_MAY_OVERLAP = "sequence.may_overlap"  # (warning) sequence, other, element
     # On an element only one sequence can use at a time (its driver is exclusive).
     SEQUENCE_EXCLUSIVE_ELEMENT_SHARED = "sequence.exclusive_element_shared"  # the same params
-    # An instant clip that is the last thing of a sequence automations start: never seen.
+    # An instant clip that is the last thing of its sequence, which does not hold: never seen.
     CLIP_INSTANT_AT_END = "clip.instant_at_end"  # (warning) sequence, element, action
+    # The same, reported at the block that gives a component its element: its own hint.
+    BLOCK_INSTANT_AT_END = "block.instant_at_end"  # (warning) sequence, element, action
     # Clips against the driver of their element (decision 0016): its actions and their
     # parameters; and the configuration of an element against the same driver.
     TRACK_ELEMENT_WITHOUT_ACTIONS = "track.element_without_actions"  # element
