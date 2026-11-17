@@ -92,9 +92,10 @@ Drivers arrive in phase 3 and each needs a declared safe state, limits and confl
   missing, unknown or outside its limits, before anything reaches a board.
 - A manifest holds what is true of an element type on every platform. Two limits in the first
   manifests are not that: the PWM frequency and the debounce time are what building the HAL
-  showed on one Raspberry Pi 4. They stay as provisional values until block 3.3 moves them to
-  the board profile, sourced from the manufacturer's documentation, where `core` checks each
-  element against the profile of its board and the drivers enforce them again.
+  showed on one Raspberry Pi 4. They stayed as provisional values until decision 0018 gave each
+  its place: the frequency to the board profile, sourced from the manufacturer's
+  documentation, where `core` checks each element against the profile of its board; the
+  debounce time stays here, as a limit of Primum's own.
 - A component is checked where a block gives its parameter an element: only there is the
   element's type known.
 - These rules are prose until something runs them: block 3.2b turns "who commands an element

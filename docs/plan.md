@@ -315,7 +315,8 @@ MCP server in phase 8).
 
 The runtime drives digital outputs, digital inputs and hardware PWM through drivers with a
 declared safe state and limits, and the outputs end in their safe state even when the service
-dies at once. Blocks 3.2, 3.2b and 3.3 need no Pi; 3.1 and 3.4 are checked on `primum-dev` (the LED
+dies at once. Blocks 3.2, 3.2b and 3.3a need no Pi; 3.1, 3.3b and 3.4 are checked on
+`primum-dev` (the LED
 on GPIO 17, a button to ground on another GPIO, and an LED on GPIO 18 for PWM once the overlay
 is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `config.txt` (phase
 6), the new UI (phase 5). One pull request per block.
@@ -338,7 +339,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   provisioning, not `--app-only`). Checked on `primum-dev`: LED, button and PWM LED.
 - Until 3.4, after `kill -9` a PWM output stays at its last level: wire nothing but an LED to
   one. It is the safety gap this block leaves open.
-- Left for 3.3, with the driver limits: `PwmSpec.frequency_hz` has no upper limit (under 1 Hz
+- Left for 3.3b, with the driver limits: `PwmSpec.frequency_hz` has no upper limit (under 1 Hz
   it is `hal.pwm_frequency_invalid`; a huge value gives a period of 0 ns and a misleading
   `hal.pwm_unavailable`; a high one leaves few steps of level: at 20 MHz the period is 50 ns and
   `set(0.001)` reads back `0.0` with no error, so the limit is a maximum frequency or a minimum
@@ -364,8 +365,8 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   end of that sequence (of its block when included), and counts for overlaps. Two started sequences on
   an element of an exclusive driver are an error (`sequence.exclusive_element_shared`).
 - Not here, for the compiler (phase 4): a clip that takes the value of a component's parameter
-  or of a variable; the limits the HAL showed (frequency, debounce) are in the
-  manifests as provisional values: they belong to the board, and 3.3 moves them to its profile.
+  or of a variable; the limits the HAL showed (frequency, debounce) were in the
+  manifests as provisional values until 3.3a gave each its place (decision 0018).
 - An instant clip that is the last thing of a sequence shows nothing (the sequence ends
   there): a warning, `clip.instant_at_end`, on the sequences automations start, unless it asks
   for the safe state. The sequences the phone UI or the API start join it in phase 5; block
@@ -382,7 +383,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - A manifest has no `capabilities` and no `platforms`: the first draft had both, required and
   with values for things that do not exist (`esp32`, `avr`, `color`, `position`), and nothing
   read them. Each comes back with its first reader and the values that exist then:
-  `platforms` in 3.3, when a board profile says its platform and `core` can check that the
+  `platforms` in 3.3b, when a board profile says its platform and `core` can check that the
   driver exists on the element's board; `capabilities` with the parameter above.
 - Later, no date: the safe state is per element type. `off` is right for everything there is
   today; an element whose safe rest is another (a work light, a fan) needs it per element.
@@ -397,8 +398,8 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - Small, older than this block: `atMs` and `durationMs` have no maximum (2^62 ms is accepted).
 - Small, a pull request of its own: `core` has six copies of the helper that points inside a
   file (`at`, `_at`), four of them older than this block.
-- Small: the sequences are flattened twice, once for the actions and once for the overlaps;
-  share it when the compiler (phase 4) needs it too.
+- Small: the sequences are flattened twice, once for the actions and once for the overlaps
+  (three times since 3.3a); share it when the compiler (phase 4) needs it too.
 
 **3.2b · What commands an element, and when** · **done** (decision 0017, `specs/workspace.md`)
 - `primum_core.commands`: `command_at` says which command is in force on an element at an
@@ -444,41 +445,63 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   clips, not for those a block brings.
 - Left for the UI (phase 5): a warning for a sequence that holds and that nothing stops, once
   what the phone and the API can stop is known.
-- Not in this block, with 3.3: `core` knows the name of an action, not where it leaves its
-  element (below). Holding a clip "as it ended" needs it too.
+- Not in this block, done in 3.3a: `core` knew the name of an action, not where it leaves its
+  element. Holding a clip "as it ended" (phase 4) needs it too.
 
-**3.3 · The three drivers**
+**3.3a · What a board limits, and where an action ends** · **done** (decision 0018,
+`specs/board-profiles.md`, `specs/drivers.md`)
+- What a board can do is data of its profile, taken from the manufacturer's documentation and
+  cited there: a profile has `limits` (element type, option, minimum, maximum, sources, a
+  note), and `core` checks each element against those of its board
+  (`primum_core.board_limits`, `config.out_of_board_range`), its driver's default included.
+  `rpi4b` takes a PWM frequency of 1 Hz to 100 kHz: the Raspberry Pi kernel clocks the PWM at
+  50 MHz and `pwm-bcm2835` takes a period of 2 to 2^32 cycles, so the maximum is a choice of
+  resolution (500 steps of level). The manifest of `pwm_output` keeps the option, its type
+  and its default. The debounce time stays in the manifest of `digital_input`, 0 to 10 s: no
+  board limits it, so it is Primum's own.
+- Manifests declare the state each action leaves its element in (`endState`: `on` 100, `off`
+  0, `set` its `level`, `fade` its `to`) and, for an action that moves it, where it starts
+  (`startState`: `fade` its `from`). With it `clip.instant_at_end` compares states, not names
+  (an instant `set` to 0 may end a sequence, as `off` may), and `core` warns about the trap
+  of decision 0017: a clip that moves its element to rest and then gives it back to an
+  earlier instant command that asks for more (`clip.returns_to_instant`, checked against a
+  rule written apart on random sequences).
+- One loader of manifests in `core`, `read_drivers`, for the CLI and the runtime: each
+  manifest by its own `elementType`, two of one type refused.
+- Not reported by `clip.returns_to_instant`: a fade in an included sequence that names the
+  element itself, under a standing `on` of the sequence that includes it (a check of one
+  sequence does not know every way it is used); a fade to 0 with nothing standing, which
+  goes to rest anyway; an instant command inside a fade, which cuts it (a warning of its
+  own, if people fall into it); and across sequences (a fade in one under a held `on` of another: the
+  cases of phase 4).
+- The frequency of a PWM output has no limit but its board's, so a profile that forgets it,
+  or misspells its type or option, would let any frequency through. Two tests on the shipped
+  files hold it: every limit names a numeric option a shipped driver has, and every profile
+  with PWM channels limits `pwm_output.frequencyHz`. `core` itself does not check it yet (3.3b).
+- The profile cites the kernel branch `primum-dev` runs (`rpi-6.18.y`): cite the one Primum
+  OS ships when there is one (phase 7).
+- The limits are arithmetic on the sources, not a measure: the `hw` test at both ends is in
+  3.3b.
+- Small: the sequences are now flattened three times (actions, overlaps, states).
+
+**3.3b · The three drivers**
 - `digital_output`, `digital_input` (debounce, pull), `pwm_output`, each implementing its
   manifest on the HAL, with tests against the simulated HAL.
 - The `Controller` manages elements through drivers; the API and the page show inputs and PWM
   levels, and set levels.
-- What a board can do is data of its profile, taken from the manufacturer's documentation and
-  cited there, never a limit in a driver manifest (a manifest is for every platform): the
-  profile gains the limits of its PWM and of its inputs, the manifests keep the option, its
-  type and its default, and `core` checks each element against the profile of its board.
-  What the sources say for `rpi4b`: the Raspberry Pi kernel clocks the PWM at 50 MHz
-  (`assigned-clock-rates` in `bcm283x.dtsi`; mainline says 10 MHz and the `pwm-2chan` overlay
-  takes a `clock` parameter, so the profile describes the board with the system Primum
-  ships); `pwm-bcm2835` takes a period of 2 clock cycles at least and of 2^32 at most (40 ns
-  to about 85 s at 50 MHz, in steps of 20 ns); the BCM2711 peripherals datasheet gives the
-  32-bit range and data registers and no frequency limit. So the useful maximum is a choice
-  of resolution (steps between 0 and 100 %), derived from the clock. For inputs, the kernel's
-  GPIO documentation sets no limit on the debounce time (32 bits of microseconds) and the Pi
-  debounces in software: its limit is Primum's own, not a board's.
-- An `hw` test on `primum-dev` at both ends of each limit, when the limits move to the board
-  profile: a PWM output at its lowest and highest frequency, an input at its longest debounce.
-  The provisional 1 Hz to 100 kHz and 0 to 10 s fit what the sources say (at 50 MHz, 1 Hz is
-  50 million clock cycles of the 2^32 the driver takes and 100 kHz leaves 500 steps of level;
-  the kernel takes a debounce of up to some 71 minutes), which is arithmetic, not a measure.
-- Manifests declare the state each action leaves its element in (`on` 100, `off` 0, `set` its
-  `level`, `fade` its `to`). A driver needs it anyway to carry out an instant command, which
-  is "the state the action ends in". With it `core` warns about the trap of decision 0016, a
-  `fade` to 0 in the middle of a sequence that gives the element back to a standing `on`
-  because no instant `off` follows it, and `clip.instant_at_end` stops comparing names (an
-  instant `set` to 0 at the end is reported today, `off` is not).
-- One loader of manifests in `core`, for the CLI and the runtime, that keys each by its own
-  `elementType`: today `load_workspace` trusts the key its caller gives, and only the CLI
-  checks it.
+- The drivers enforce the limits again, on the board: the PWM driver refuses a frequency its
+  board's profile does not take, the input driver a debounce outside the manifest's limits.
+- An `hw` test on `primum-dev` at both ends of each limit: a PWM output at its lowest and
+  highest frequency (1 Hz and 100 kHz), an input at its longest debounce (10 s).
+- The PWM frequency fails open in `core`: its manifest has no limit, so a profile that says
+  nothing lets any value through, and only two tests on the shipped files hold it. A profile
+  someone adds is not under those tests (the hint of `board.unknown_model` invites to add
+  one). `check_board_limits` has both the manifests and the profiles: there `core` refuses a
+  numeric option of an element that neither its driver nor its board limits, and a limit
+  that names an option no driver has. With the upper limit of the HAL, which
+  `PwmSpec.frequency_hz` still lacks.
+- `platforms` comes back to the manifests when a board profile says its platform and `core`
+  can check that the driver exists on the element's board.
 - A driver hands the HAL every option, taken from the manifest and the element, never the
   HAL's own defaults, which say other things: `InputSpec.pull` is `UP` and the manifest has no
   default, `InputSpec.debounce_ms` is 0 and the manifest says 20. Take the defaults out of
@@ -487,8 +510,8 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   action leaves the simulated HAL where the HAL's own safe state does.
 - PWM is not exposed through the API before `primum-safe` covers PWM channels: today the
   `Controller` claims digital outputs only, so the `kill -9` gap of a PWM output cannot be
-  reached from the service. Either the PWM part of 3.4 comes first, or 3.3 and 3.4 are merged
-  together; decided when 3.3 is planned.
+  reached from the service. Either the PWM part of 3.4 comes first, or 3.3b and 3.4 are merged
+  together; decided when 3.3b is planned.
 - The API and the page do not show the safe state of a PWM output as *verified* the way a
   digital output's is: its read-back is the controller's setting, not the pin (decision 0015).
 - Input events without blocking the API's event loop (`control` has no locks): the gpiod

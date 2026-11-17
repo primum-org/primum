@@ -263,6 +263,10 @@
       "message": "{action} en {element} es lo último que hace {sequence} y dura 0 ms, así que no llegará a verse.",
       "hint": "Una secuencia termina con su último clip. Dale una duración a ese clip en {sequence}."
     },
+    "clip.returns_to_instant": {
+      "message": "{action} apaga {element}, pero cuando termina {element} vuelve a como lo dejó antes {standing}.",
+      "hint": "Un clip devuelve su elemento cuando termina, y la orden instantánea {standing} de antes sigue vigente. Para dejar {element} apagado, añade un clip instantáneo que lo apague justo donde termina {action}."
+    },
     "track.element_without_actions": {
       "message": "{element} no admite acciones, así que no puede tener una pista.",
       "hint": "Una pista es para un elemento que hace algo, como una luz o un relé. Para reaccionar a {element}, usa un evento."
@@ -314,6 +318,10 @@
     "config.not_allowed": {
       "message": "La opción {option} de {element} no es uno de los valores que admite.",
       "hint": "Valores admitidos: {allowed}."
+    },
+    "config.out_of_board_range": {
+      "message": "La opción {option} de {element} está fuera de lo que admite la placa {board}.",
+      "hint": "En esta placa, mantenla entre {min} y {max}."
     },
     "board.unknown_model": {
       "message": "La placa {board} es una {model}, y esta versión de Primum no tiene perfil para ese modelo.",
@@ -463,6 +471,14 @@
       "message": "El perfil de placa usa el nombre {id} más de una vez.",
       "hint": "Da a cada bus y a cada canal PWM un nombre distinto."
     },
+    "board.duplicate_limit": {
+      "message": "El perfil de placa limita la opción {option} de {type} más de una vez.",
+      "hint": "Deja un solo límite por opción de cada tipo de elemento."
+    },
+    "board.limits_invalid": {
+      "message": "Los límites de {option} de {type} están al revés: el mínimo ({min}) es mayor que el máximo ({max}).",
+      "hint": "Intercámbialos, o corrige el que esté mal."
+    },
     "driver.duplicate_action": {
       "message": "El driver declara la acción {action} más de una vez.",
       "hint": "Dale a cada acción su propio nombre."
@@ -482,6 +498,18 @@
     "driver.unknown_safe_state": {
       "message": "El estado seguro {action} no es una acción que el driver pueda ejecutar sin argumentos.",
       "hint": "Indica una de sus acciones cuyos parámetros tengan todos un valor por defecto."
+    },
+    "driver.unknown_state_parameter": {
+      "message": "La acción {action} toma su estado de {parameter}, que no es un número entre sus parámetros.",
+      "hint": "Indica uno de sus parámetros de tipo number o integer, o da el nivel directamente."
+    },
+    "driver.state_not_a_level": {
+      "message": "La acción {action} toma su estado de {parameter}, cuyos límites no están entre 0 y 100.",
+      "hint": "Un estado es un nivel de 0 a 100: da a {parameter} un mínimo de 0 o más y un máximo de 100 o menos."
+    },
+    "driver.duplicate_type": {
+      "message": "Más de un driver atiende el tipo de elemento {type}.",
+      "hint": "Deja un solo manifiesto por tipo de elemento."
     }
   }
 }

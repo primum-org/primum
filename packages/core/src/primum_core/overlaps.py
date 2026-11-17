@@ -26,6 +26,7 @@ from primum_core.drivers import Drivers
 from primum_core.errors import CoreErrorCode, Issue, Location, Severity
 from primum_core.generated.model import Automation, Driver, Hardware, Sequence
 from primum_core.references import LocatedContent
+from primum_core.states import end_level, rest_level
 from primum_core.timeline import (
     FlatClip,
     Sequences,
@@ -270,10 +271,10 @@ def _unseen_instants(
     Each is reported once, where its element is known: in its own sequence, or at the block
     that gives a component its element. Left alone: what some sequence that holds keeps as it
     is in its last instant, its own or of what it includes (a clip seen in one place is not
-    reported for the others); an instant command that asks for its element's safe state after
-    something else (an instant ``on``, and an instant ``off`` to end with: that is where the
-    element goes anyway); and two of one element in that instant, which overlap: that error is
-    enough.
+    reported for the others); an instant command that leaves its element where it rests after
+    something else (an instant ``on``, and an instant ``off`` or ``set`` to 0 to end with:
+    that is where the element goes anyway); and two of one element in that instant, which
+    overlap: that error is enough.
     """
     end = duration(clips)
     last = [
@@ -294,7 +295,8 @@ def _unseen_instants(
         if driver is None or clip.clip.action not in {action.name for action in driver.actions}:
             continue
         lasts_no_time = clip.via is None and end == 0
-        if clip.clip.action == driver.safe_state and not lasts_no_time:
+        level = end_level(clip.clip, driver)
+        if level is not None and level == rest_level(driver) and not lasts_no_time:
             continue
         params = {
             # The sequence the clip is written in: what its innermost block includes.

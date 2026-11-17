@@ -1,7 +1,8 @@
 # Driver manifests
 
-One data file per element type: what a clip may ask of its elements (actions and their
-parameters), the options an element takes in a `.hw` file, where it rests (safe state) and who
+One data file per element type: what a clip may ask of its elements (actions, their
+parameters and the state each leaves the element in), the options an element takes in a `.hw`
+file (what a board limits is in its profile, `boards/`), where it rests (safe state) and who
 wins when two sequences command it (conflict policy). Adding a driver starts with a file here,
 named after its `elementType`, then `uv run just gen` (the CLI ships a copy).
 

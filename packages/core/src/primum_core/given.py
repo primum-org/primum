@@ -107,8 +107,9 @@ def within(value: Value, parameter: DriverParameter) -> bool:
 def limits(parameter: DriverParameter) -> dict[str, float]:
     """The limits a parameter has, as messages show them: a whole number without its ``.0``."""
     limits = {"min": parameter.min, "max": parameter.max}
-    return {
-        key: int(limit) if float(limit).is_integer() else limit
-        for key, limit in limits.items()
-        if limit is not None
-    }
+    return {key: shown(limit) for key, limit in limits.items() if limit is not None}
+
+
+def shown(limit: float) -> float:
+    """A limit as messages show it: a whole number without its ``.0``."""
+    return int(limit) if float(limit).is_integer() else limit

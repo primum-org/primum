@@ -60,7 +60,7 @@ def driver_manifest(element_type: str, **fields: object) -> dict[str, object]:
         "conflictPolicy": "latest_wins",
         "safeState": "on",
         "config": [],
-        "actions": [{"name": "on", "parameters": []}],
+        "actions": [{"name": "on", "parameters": [], "endState": 100}],
         **fields,
     }
 
@@ -77,11 +77,12 @@ def driver(element_type: str, **fields: object) -> Driver:
 class Project:
     """The files of a project, built file by file; ``found()`` loads and flattens the issues.
 
-    ``drivers`` are the shipped manifests unless a test gives its own.
+    ``drivers`` and ``profiles`` are the shipped ones unless a test gives its own.
     """
 
     files: dict[PurePosixPath, bytes] = field(default_factory=dict[PurePosixPath, bytes])
     drivers: dict[str, Driver] = field(default_factory=lambda: dict(DRIVERS))
+    profiles: dict[str, BoardProfile] = field(default_factory=lambda: dict(PROFILES))
 
     def add(self, path: str, kind: str, id_: str, **fields: object) -> "Project":
         document = {"id": id_, "kind": kind, "schemaVersion": 1, **fields}
@@ -97,15 +98,15 @@ class Project:
                 str(issue.location.path) if issue.location else "",
                 issue.location.pointer if issue.location else "",
             )
-            for issue in load_workspace(self.files, PROFILES, self.drivers).issues
+            for issue in load_workspace(self.files, self.profiles, self.drivers).issues
             if severity is None or issue.severity is severity
         ]
 
     def loaded(self) -> Workspace:
         """The project, which must be valid."""
-        parsed = load_workspace(self.files, PROFILES, self.drivers)
+        parsed = load_workspace(self.files, self.profiles, self.drivers)
         assert parsed.value is not None, parsed.issues
         return parsed.value
 
     def is_valid(self) -> bool:
-        return load_workspace(self.files, PROFILES, self.drivers).value is not None
+        return load_workspace(self.files, self.profiles, self.drivers).value is not None

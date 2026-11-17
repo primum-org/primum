@@ -53,7 +53,7 @@ class AutomationAction:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class BoardProfile:
-    """What a board model offers: its header pins, buses, PWM channels and reserved pins, and how its GPIOs map to the lines of its GPIO chip. One file per model in boards/."""
+    """What a board model offers: its header pins, buses, PWM channels and reserved pins, how its GPIOs map to the lines of its GPIO chip, and the limits it puts on the options of its elements. One file per model in boards/."""
 
     id: UUID
     kind: Literal["board_profile"] = "board_profile"
@@ -66,6 +66,7 @@ class BoardProfile:
     buses: tuple[Bus, ...]
     pwm_channels: tuple[PwmChannel, ...]
     reserved: tuple[ReservedGpio, ...]
+    limits: tuple[OptionLimit, ...]
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -120,6 +121,18 @@ class PwmChip:
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
+class OptionLimit:
+    """The values this board takes for one option of the elements of one type (the frequency of a PWM output), and where that is documented."""
+
+    element_type: str
+    option: str
+    min: float
+    max: float
+    sources: tuple[str, ...]
+    note: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
 class NamedValue:
     """A value given by name: an argument of a clip's action, an option of an element's configuration."""
 
@@ -143,10 +156,12 @@ class Driver:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class DriverAction:
-    """An action of the element, with the parameters a clip gives it."""
+    """An action of the element, with the parameters a clip gives it and the state it leaves the element in."""
 
     name: str
     parameters: tuple[DriverParameter, ...]
+    end_state: float | str
+    start_state: float | str | None = None
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -393,6 +408,7 @@ def parse_board_profile(data: JsonObject) -> BoardProfile:
         buses=tuple(parse_bus(as_object(item)) for item in as_list(data["buses"])),
         pwm_channels=tuple(parse_pwm_channel(as_object(item)) for item in as_list(data["pwmChannels"])),
         reserved=tuple(parse_reserved_gpio(as_object(item)) for item in as_list(data["reserved"])),
+        limits=tuple(parse_option_limit(as_object(item)) for item in as_list(data["limits"])),
     )
 
 
@@ -455,6 +471,18 @@ def parse_pwm_chip(data: JsonObject) -> PwmChip:
     )
 
 
+def parse_option_limit(data: JsonObject) -> OptionLimit:
+    """Build a ``OptionLimit`` from a document that passed its schema."""
+    return OptionLimit(
+        element_type=as_str(data["elementType"]),
+        option=as_str(data["option"]),
+        min=as_float(data["min"]),
+        max=as_float(data["max"]),
+        sources=tuple(as_str(item) for item in as_list(data["sources"])),
+        note=as_str(data["note"]) if "note" in data else None,
+    )
+
+
 def parse_named_value(data: JsonObject) -> NamedValue:
     """Build a ``NamedValue`` from a document that passed its schema."""
     return NamedValue(
@@ -480,6 +508,8 @@ def parse_driver_action(data: JsonObject) -> DriverAction:
     return DriverAction(
         name=as_str(data["name"]),
         parameters=tuple(parse_driver_parameter(as_object(item)) for item in as_list(data["parameters"])),
+        end_state=as_scalar(data["endState"]),
+        start_state=as_scalar(data["startState"]) if "startState" in data else None,
     )
 
 

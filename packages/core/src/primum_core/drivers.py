@@ -12,12 +12,15 @@ from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import replace
 
 from primum_core.errors import CoreErrorCode, Issue, Location
-from primum_core.generated.model import Driver, DriverParameter
+from primum_core.generated.model import Driver, DriverAction, DriverParameter
 from primum_core.given import limits, within
 from primum_core.pointers import Step, field_name, pointer
 from primum_core.values import EXPECTED, NUMERIC, fits
 
 type Drivers = Mapping[str, Driver]  # by element type
+
+# A state of an element is a level (decision 0018), as the schema says of a fixed one.
+MIN_LEVEL, MAX_LEVEL = 0, 100
 
 
 def check_driver(driver: Driver, location: Location) -> tuple[Issue, ...]:
@@ -26,6 +29,7 @@ def check_driver(driver: Driver, location: Location) -> tuple[Issue, ...]:
     issues += _parameter_issues(driver.config, ("config",), location)
     for index, action in enumerate(driver.actions):
         issues += _parameter_issues(action.parameters, ("actions", index, "parameters"), location)
+        issues += _state_issues(action, ("actions", index), location)
     issues += _output_issues(driver, location)
     return tuple(issues)
 
@@ -107,6 +111,32 @@ def _default_issues(
     elif not within(default, parameter) or not allowed:
         params = {"parameter": parameter.name}
         yield Issue(CoreErrorCode.DRIVER_DEFAULT_NOT_ALLOWED, params, place)
+
+
+def _state_issues(
+    action: DriverAction, steps: tuple[Step, ...], location: Location
+) -> Iterator[Issue]:
+    """A state given by a parameter names a number among the action's parameters, one that
+    can only be a level: limited, from 0 or more to 100 or less."""
+    numbers = {p.name: p for p in action.parameters if p.type in NUMERIC}
+    states = {"endState": action.end_state, "startState": action.start_state}
+    for field, state in states.items():
+        if not isinstance(state, str):
+            continue
+        params = {"action": action.name, "parameter": state}
+        parameter = numbers.get(state)
+        if parameter is None:
+            code = CoreErrorCode.DRIVER_UNKNOWN_STATE_PARAMETER
+            yield Issue(code, params, _at(location, *steps, field))
+        elif not _is_a_level(parameter):
+            code = CoreErrorCode.DRIVER_STATE_NOT_A_LEVEL
+            yield Issue(code, params, _at(location, *steps, field))
+
+
+def _is_a_level(parameter: DriverParameter) -> bool:
+    if parameter.min is None or parameter.max is None:
+        return False
+    return parameter.min >= MIN_LEVEL and parameter.max <= MAX_LEVEL
 
 
 def _output_issues(driver: Driver, location: Location) -> Iterator[Issue]:

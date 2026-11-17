@@ -12,14 +12,18 @@
   "elements": [
     {
       "id": "34043e93-bf44-4b61-af7e-8e0e798f8c1d",
-      "name": "Lamp",
+      "name": "Button",
       "board": "48423809-94c9-4a57-ae7e-6c657b3f8cbd",
-      "type": "pwm_output",
-      "pin": 18,
+      "type": "digital_input",
+      "pin": 22,
       "config": [
         {
-          "name": "frequencyHz",
-          "value": 20000000
+          "name": "pull",
+          "value": "up"
+        },
+        {
+          "name": "debounceMs",
+          "value": 60000
         }
       ]
     }

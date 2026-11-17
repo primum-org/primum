@@ -96,5 +96,19 @@
   "reserved": [
     {"gpio": 0, "reason": "hat_eeprom"},
     {"gpio": 1, "reason": "hat_eeprom"}
+  ],
+  "limits": [
+    {
+      "elementType": "pwm_output",
+      "option": "frequencyHz",
+      "min": 1,
+      "max": 100000,
+      "sources": [
+        "https://github.com/raspberrypi/linux/blob/rpi-6.18.y/arch/arm/boot/dts/broadcom/bcm283x.dtsi",
+        "https://github.com/raspberrypi/linux/blob/rpi-6.18.y/drivers/pwm/pwm-bcm2835.c",
+        "https://datasheets.raspberrypi.com/bcm2711/bcm2711-peripherals.pdf"
+      ],
+      "note": "The Raspberry Pi kernel (6.18, the one Primum is developed on; 6.12 says the same) clocks the PWM at 50 MHz (assigned-clock-rates of the pwm node) and its driver takes a period of 2 to 2^32 clock cycles: 0.012 Hz to 25 MHz. The datasheet gives 32-bit range and data registers and no frequency limit. The minimum is the lowest whole number of hertz; the maximum is a choice of resolution: 100 kHz leaves 500 steps of level (50 MHz / 100 kHz)."
+    }
   ]
 }
