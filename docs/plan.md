@@ -339,7 +339,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   provisioning, not `--app-only`). Checked on `primum-dev`: LED, button and PWM LED.
 - Until 3.4, after `kill -9` a PWM output stays at its last level: wire nothing but an LED to
   one. It is the safety gap this block leaves open.
-- Left for 3.3b, with the driver limits: `PwmSpec.frequency_hz` has no upper limit (under 1 Hz
+- Done in 3.3b, with the driver limits: `PwmSpec.frequency_hz` had no upper limit (under 1 Hz
   it is `hal.pwm_frequency_invalid`; a huge value gives a period of 0 ns and a misleading
   `hal.pwm_unavailable`; a high one leaves few steps of level: at 20 MHz the period is 50 ns and
   `set(0.001)` reads back `0.0` with no error, so the limit is a maximum frequency or a minimum
@@ -484,52 +484,66 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   3.3b.
 - Small: the sequences are now flattened three times (actions, overlaps, states).
 
-**3.3b · The three drivers**
-- `digital_output`, `digital_input` (debounce, pull), `pwm_output`, each implementing its
-  manifest on the HAL, with tests against the simulated HAL.
-- The `Controller` manages elements through drivers; the API and the page show inputs and PWM
-  levels, and set levels.
-- The drivers enforce the limits again, on the board: the PWM driver refuses a frequency its
-  board's profile does not take, the input driver a debounce outside the manifest's limits.
-- An `hw` test on `primum-dev` at both ends of each limit: a PWM output at its lowest and
-  highest frequency (1 Hz and 100 kHz), an input at its longest debounce (10 s).
-- The PWM frequency fails open in `core`: its manifest has no limit, so a profile that says
-  nothing lets any value through, and only two tests on the shipped files hold it. A profile
-  someone adds is not under those tests (the hint of `board.unknown_model` invites to add
-  one). `check_board_limits` has both the manifests and the profiles: there `core` refuses a
-  numeric option of an element that neither its driver nor its board limits, and a limit
-  that names an option no driver has. With the upper limit of the HAL, which
-  `PwmSpec.frequency_hz` still lacks.
-- `platforms` comes back to the manifests when a board profile says its platform and `core`
-  can check that the driver exists on the element's board.
-- A driver hands the HAL every option, taken from the manifest and the element, never the
-  HAL's own defaults, which say other things: `InputSpec.pull` is `UP` and the manifest has no
-  default, `InputSpec.debounce_ms` is 0 and the manifest says 20. Take the defaults out of
-  `InputSpec` and `PwmSpec` so the type checker ties it, not a test. The safe state of the
-  manifest (`off`) is tied to the HAL's the same way: one test per driver that its safe-state
-  action leaves the simulated HAL where the HAL's own safe state does.
-- PWM is not exposed through the API before `primum-safe` covers PWM channels: today the
-  `Controller` claims digital outputs only, so the `kill -9` gap of a PWM output cannot be
-  reached from the service. Either the PWM part of 3.4 comes first, or 3.3b and 3.4 are merged
-  together; decided when 3.3b is planned.
-- The API and the page do not show the safe state of a PWM output as *verified* the way a
-  digital output's is: its read-back is the controller's setting, not the pin (decision 0015).
-- Input events without blocking the API's event loop (`control` has no locks): the gpiod
-  request exposes its `fd`, so the loop watches it with `add_reader` and calls `read_events`
-  when it fires; no thread, no polling. A HAL without inputs registers nothing (`wait_events`
-  returns `False` at once there, so a waiting loop would spin).
-- An `hw` test with a real edge and no finger: reconfiguring the input's bias from pull-up to
-  pull-down (`reconfigure_lines`) flips a line nothing drives, which covers the logical polarity
-  and the timestamps of the events; today's `hw` test only reads the idle state.
-- The PWM driver compares a read level with tolerance: sysfs holds the duty cycle in whole
-  nanoseconds, so `read()` is quantised to the period (`set(1/3)` reads back `0.33333` at 1 kHz).
-- Input events lost in a burst: the kernel drops the oldest once its buffer is full (60 unread
-  changes gave 32 on the Pi). The input driver decides what to do: detect the gap with the
-  event's `line_seqno` and report it, ask for a larger `event_buffer_size`, or both.
-- Two events of the same kind in a row: with both edges detected the kernel tells rising from
-  falling by reading the level after the interrupt, so a very short pulse can give two equal
-  events. The input driver takes the state from each event and never assumes they alternate;
-  the simulated HAL, which drops a change to the same state, learns to produce that case.
+**3.3b · The three drivers** · **code done; its `hw` tests are still to be run on
+`primum-dev`** (decision 0019, `specs/drivers.md`)
+- `primum_runtime.drivers`: `digital_output`, `digital_input` and `pwm_output`, each made from
+  its element, its manifest and the limits of its board, with tests against the simulated
+  HAL. An output is commanded with the actions of its manifest, as an instant command: it
+  goes to the state the action ends in and is read back (`element.level_not_reached`; a PWM
+  level within one step of its period, since sysfs holds whole nanoseconds, which the
+  simulated HAL does too). An output that does not follow reports what its hardware reads from then
+  on, until a command is followed again.
+- The drivers enforce the limits again: an option or an argument outside its manifest's
+  limits or its board's is refused before anything is claimed (`element.value_*`), and so
+  is a number that neither limits (`element.value_unlimited`), as in `core`. The HAL
+  refuses a PWM frequency outside what the board takes (`BoardGpio.pwm_frequency_hz`, from
+  the profile), which also ends the misleading errors a huge frequency gave.
+- `core` fails closed: a numeric option that neither its driver nor its board limits is
+  `config.unlimited`, so a profile that forgets the frequency of its PWM, or misspells it, no
+  longer lets any value through.
+- `InputSpec` and `PwmSpec` have no defaults: a driver hands the HAL every option, from the
+  manifest and the element, and the type checker sees to it. One test per output driver ties
+  the safe state of its manifest to the HAL's.
+- The `Controller` manages elements through their drivers and claims them all at once; its
+  state has every output (with its level) and every input. The service still takes its
+  elements from options: the LED, and now an optional input (`--input-pin`, `--input-pull`,
+  with no default pull). The API's state and the page show the inputs.
+- Input events without blocking the event loop: the HAL gives a descriptor (`events_fd`, the
+  gpiod request's; a pipe in the simulated HAL), the API watches it with `add_reader` and the
+  controller reads the events when it fires. Without inputs nothing is watched.
+- Lost events: the request asks the kernel for a buffer of 1024 events, each event carries its
+  line's sequence number, and the input driver counts and logs the gaps. The state stays
+  right, since every event carries it. Two events of the same kind in a row do not flip it;
+  the simulated HAL can produce both cases (`simulate_event`, `lose_events`).
+- `hw` tests written and not yet run (`test_drivers_hw.py`; this block was written without
+  access to `primum-dev`): a digital output read back, a PWM output at 1 Hz and at 100 kHz,
+  a real edge with no finger (the input's pull changed from up to down) with its polarity,
+  its time and its sequence number, and an input with a debounce of 10 s. Until they pass
+  there, the limits of `rpi4b` are still arithmetic on its sources.
+- PWM is not offered by the service: the drivers and the `Controller` handle PWM outputs
+  (tested against the simulated HAL and by the `hw` tests), but the options of the service
+  cannot ask for one, so the `kill -9` gap of a PWM channel cannot be reached from it. With
+  3.4, when `primum-safe` covers PWM channels: the option, the level in the API's state and
+  in the page, and setting a level. Then the API and the page must not show the safe state
+  of a PWM output as *verified* the way a digital output's is: its read-back is the
+  controller's setting, not the pin (decision 0015).
+- `platforms` does not come back yet: there is one platform, so a field for it would have one
+  value and a check that cannot fail. With the second platform (ESP32): a board profile says
+  its platform, a manifest the platforms that implement it, and `core` checks that the driver
+  exists on the element's board. Until then the runtime refuses a type it has no driver for
+  (`element.type_unsupported`).
+- A limit of a profile that names an option no driver has is still only caught by the test
+  on the shipped files, unless the option it meant is left unlimited (`config.unlimited`).
+- Lost input events are logged and counted by the driver, not shown in the API or the page;
+  when events start automations (phase 4), a loss is something to tell the user.
+- For 3.4, when the API takes commands with arguments: `element.value_*` and
+  `element.action_unknown` are the caller's mistakes and should be 4xx; today every
+  `element.*` is a 500, and only `element.level_not_reached` can be reached from the API.
+- If reading the inputs fails, the API stops watching them (the descriptor would stay
+  readable and spin the loop) and logs it; the inputs keep their last state and nothing tells
+  the user. With the watchdog of 3.4, decide whether that should restart the service.
+- The service's input is not in `image/provision.sh`: to try it on the Pi, add
+  `PRIMUM_INPUT_PIN` and `PRIMUM_INPUT_PULL` to `/etc/primum/runtime.env`.
 
 **3.4 · Safety**
 - Safe state on start, stop and crash: `Type=notify` and a systemd watchdog fed from the

@@ -50,6 +50,11 @@
       <h2 id="outputs-heading" data-i18n="outputs.heading"></h2>
       <ul id="outputs"></ul>
     </section>
+
+    <section id="inputs-section" class="outputs" aria-labelledby="inputs-heading" hidden>
+      <h2 id="inputs-heading" data-i18n="inputs.heading"></h2>
+      <ul id="inputs"></ul>
+    </section>
   </main>
 
   <footer class="panic-area">
@@ -68,6 +73,14 @@
         <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
         <span class="switch-state"></span>
       </button>
+    </li>
+  </template>
+
+  <template id="input-row">
+    <li class="output">
+      <span class="icon icon-button" aria-hidden="true"></span>
+      <span class="output-name"></span>
+      <span class="input-state" role="status"></span>
     </li>
   </template>
 </body>

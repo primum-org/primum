@@ -78,6 +78,8 @@ class CoreErrorCode(StrEnum):
     CONFIG_NOT_ALLOWED = "config.not_allowed"  # element, option, allowed
     # An option against the limits of the element's board (its profile), not of its driver.
     CONFIG_OUT_OF_BOARD_RANGE = "config.out_of_board_range"  # element, option, board, min, max
+    # A number that neither the driver nor the board limits: any value would pass.
+    CONFIG_UNLIMITED = "config.unlimited"  # element, option, board
     # Resources: what a board profile offers, given out to the elements wired to the board.
     BOARD_UNKNOWN_MODEL = "board.unknown_model"  # model, board
     PIN_NOT_ON_BOARD = "pin.not_on_board"  # pin, board

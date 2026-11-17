@@ -1,9 +1,11 @@
-"""The FastAPI application. The HAL lives in its lifespan.
+"""The FastAPI application. The HAL lives in its lifespan, and so does the watch on its
+input events: the event loop reads them when the HAL's descriptor says there are some.
 
 Opening the HAL and claiming the outputs happen at startup; at shutdown (Ctrl+C, or `SIGTERM`
 from systemd, both handled by uvicorn) the HAL is closed, which applies the safe state.
 """
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
@@ -18,6 +20,7 @@ from primum_runtime.api.errors import install_error_handlers
 from primum_runtime.api.routes import router
 from primum_runtime.config import RuntimeConfig
 from primum_runtime.control import Controller
+from primum_runtime.drivers import load_manifests
 from primum_runtime.hal import Hal, create_hal
 
 log = logging.getLogger(__name__)
@@ -40,15 +43,23 @@ def create_app(config: RuntimeConfig, open_hal: HalFactory | None = None) -> Fas
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         with (open_hal or default_hal)() as hal:
-            controller = Controller(hal, config.outputs)
+            controller = Controller(hal, config.elements, load_manifests(), config.limits)
             broadcaster = StateBroadcaster()
             unsubscribe = controller.subscribe(broadcaster.publish)
             app.state.controller = controller
             app.state.broadcaster = broadcaster
+            # Input changes are read when the HAL says there are some: no thread, no polling.
+            # Without inputs there is nothing to watch.
+            loop = asyncio.get_running_loop()
+            events_fd = controller.events_fd()
+            if events_fd is not None:
+                loop.add_reader(events_fd, _read_inputs, loop, events_fd, controller)
             log.info("started outputs=%s simulate=%s", _describe(controller), config.simulate)
             try:
                 yield
             finally:
+                if events_fd is not None:
+                    loop.remove_reader(events_fd)
                 unsubscribe()
                 broadcaster.close()
         # Only reached when closing the HAL raised nothing: every output is in its safe state.
@@ -62,6 +73,17 @@ def create_app(config: RuntimeConfig, open_hal: HalFactory | None = None) -> Fas
     app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")
     install_error_handlers(app)
     return app
+
+
+def _read_inputs(loop: asyncio.AbstractEventLoop, events_fd: int, controller: Controller) -> None:
+    """Read the input changes the descriptor announces. If reading fails the watch ends: the
+    descriptor would stay readable and the loop would call again at once, for ever. The
+    outputs and the panic button go on working; the inputs keep their last state."""
+    try:
+        controller.read_inputs()
+    except Exception:  # whatever it is, it must not spin the event loop
+        loop.remove_reader(events_fd)
+        log.exception("reading the inputs failed: inputs are no longer listened to")
 
 
 def _describe(controller: Controller) -> str:

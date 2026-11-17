@@ -100,9 +100,10 @@ def test_an_element_on_a_board_without_a_profile_is_not_checked(project: Project
 
 
 def test_a_limit_is_of_one_element_type(project: Project, ids: Ids) -> None:
-    project.drivers["digital_output"] = driver(
-        "digital_output", config=[{**FREQUENCY, "default": 0}]
-    )
+    """The LED's driver gets a frequency of its own, limited by itself: the board's limit on
+    the frequency of PWM outputs says nothing about it."""
+    own = {**FREQUENCY, "min": 0, "max": 10, "default": 0}
+    project.drivers["digital_output"] = driver("digital_output", config=[own])
 
     assert project.found() == []
 
@@ -124,3 +125,38 @@ def test_each_limit_of_a_type_is_reported_at_its_own_place(project: Project, ids
         ("frequencyHz", "/elements/0/config/0/value"),
         ("deadTimeNs", "/elements/0"),
     ]
+
+
+def test_a_number_that_neither_the_driver_nor_the_board_limits_is_refused(
+    project: Project, ids: Ids
+) -> None:
+    """Without the board's limit any frequency would pass: it fails closed."""
+    project.profiles["rpi4b"] = replace(PROFILES["rpi4b"], limits=())
+    _lamp(project, ids, frequencyHz=1000)
+
+    assert project.found() == [
+        (
+            CoreErrorCode.CONFIG_UNLIMITED,
+            {"element": "Lamp", "option": "frequencyHz", "board": "Pi"},
+            "lamp.hw",
+            "/elements/0",
+        )
+    ]
+
+
+def test_a_limit_that_misspells_its_option_limits_nothing_and_is_seen(
+    project: Project, ids: Ids
+) -> None:
+    (limit,) = PROFILES["rpi4b"].limits
+    project.profiles["rpi4b"] = replace(
+        PROFILES["rpi4b"], limits=(replace(limit, option="frequencyhz"),)
+    )
+    _lamp(project, ids)
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.CONFIG_UNLIMITED]
+
+
+def test_an_option_the_driver_limits_needs_nothing_of_the_board(project: Project, ids: Ids) -> None:
+    project.profiles["rpi4b"] = replace(PROFILES["rpi4b"], limits=())
+
+    assert project.found() == []  # the button's debounce has the limits of its manifest

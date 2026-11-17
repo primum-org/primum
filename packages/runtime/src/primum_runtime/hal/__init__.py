@@ -8,6 +8,7 @@ import sys
 
 from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.hal.base import (
+    PWM_FREQUENCY_HZ,
     BoardGpio,
     Claim,
     DigitalInput,
@@ -23,6 +24,7 @@ from primum_runtime.hal.base import (
 from primum_runtime.hal.simulated import SimulatedHal, SimulatedLine
 
 __all__ = [
+    "PWM_FREQUENCY_HZ",
     "BoardGpio",
     "Claim",
     "DigitalInput",

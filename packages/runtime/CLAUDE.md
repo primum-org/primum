@@ -10,10 +10,14 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   has a simulated implementation, and tests use it; tests that need a real board are marked
   `@pytest.mark.hw`.
 - `gpiod` is imported only by `hal/gpiod_hal.py` (`just arch` enforces it).
-- Layers: `cli` → `api` → `config` → `board` → `control` → `hal` → `errors`; each imports only
+- Elements are driven through drivers (`primum_runtime.drivers`, decision 0019): one per
+  element type, made from the element, its manifest (`drivers/`) and the limits of its board.
+  The HAL's specs have no defaults: a driver gives every option. A new driver comes with its
+  manifest and its tests against the simulated HAL.
+- Layers: `cli` → `api` → `config` → `board` → `control` → `drivers` → `hal` → `errors`; each imports only
   the ones below it, and FastAPI, uvicorn and pydantic stay in `api` and `cli` (`just arch`,
   decision 0011).
-  The API commands outputs through `control.Controller`, never through the HAL.
+  The API commands outputs through `control.Controller`, never through the HAL or a driver.
 - API handlers are `async`: they all run on the event loop's thread, so `control` needs no locks.
 - Never run `hw` tests or drive lines on a Pi that runs other GPIO software: the kernel does not
   see lines driven through `/dev/gpiomem`, so a "free" pin may have a relay on it (decision 0010).
@@ -21,7 +25,8 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   example `strerror`) goes in a `detail` param. A new code goes in `ErrorCode` and in both
   catalogs in `i18n/` (`test_catalogs.py` checks it).
 - The page lives in `ui/` (no build step). `ui/generated/` holds copies of `i18n/` and `design/`
-  assets, and `generated/boards/` copies of the board profiles, made by `just gen`: never edit
+  assets, and `generated/boards/` and `generated/drivers/` copies of the board profiles and the
+  driver manifests, made by `just gen`: never edit
   them, edit the source and regenerate. UI keys are written literally (`t("panic.button")`,
   `data-i18n="panic.button"`) so the catalog test finds them.
 - Safety first: every output has a safe state applied on start, stop, crash and panic.

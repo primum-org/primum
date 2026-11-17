@@ -5,6 +5,7 @@ The process uses the simulated HAL and reports the final state of its outputs in
 """
 
 import json
+import os
 import selectors
 import signal
 import socket
@@ -20,6 +21,7 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals a
 
 TIMEOUT_S = 10
 STARTED = "Application startup complete"
+READ_BYTES = 65536
 
 
 def _free_port() -> int:
@@ -29,33 +31,39 @@ def _free_port() -> int:
         return port
 
 
-def _lines_until(process: subprocess.Popen[str], marker: str) -> list[str]:
-    """Read the process's log until a line contains ``marker``; fail after ``TIMEOUT_S``."""
+def _log_until(process: subprocess.Popen[bytes], marker: str) -> str:
+    """Read the process's log until it contains ``marker``; fail after ``TIMEOUT_S``.
+
+    Read from the descriptor itself, with no buffer in between: a buffered reader may take two
+    lines at once and keep the second, and then waiting on the descriptor never ends although
+    the line with the marker has arrived.
+    """
     assert process.stderr is not None
+    descriptor = process.stderr.fileno()
     deadline = time.monotonic() + TIMEOUT_S
-    lines: list[str] = []
+    log = ""
     with selectors.DefaultSelector() as selector:
-        selector.register(process.stderr, selectors.EVENT_READ)
-        while not lines or marker not in lines[-1]:
+        selector.register(descriptor, selectors.EVENT_READ)
+        while marker not in log:
             remaining = deadline - time.monotonic()
             if remaining <= 0 or not selector.select(remaining):
-                pytest.fail(f"no {marker!r} in the log after {TIMEOUT_S} s: {lines}")
-            line = process.stderr.readline()
-            if not line:
-                pytest.fail(f"the process ended before {marker!r}: {lines}")
-            lines.append(line)
-    return lines
+                pytest.fail(f"no {marker!r} in the log after {TIMEOUT_S} s: {log}")
+            chunk = os.read(descriptor, READ_BYTES)
+            if not chunk:
+                pytest.fail(f"the process ended before {marker!r}: {log}")
+            log += chunk.decode()
+    return log
 
 
 @pytest.fixture
-def service() -> Iterator[tuple[subprocess.Popen[str], int]]:
+def service() -> Iterator[tuple[subprocess.Popen[bytes], int]]:
     port = _free_port()
     command = [sys.executable, "-m", "primum_runtime", "--simulate", "--pin", "17"]
     process = subprocess.Popen(  # noqa: S603 (fixed command, this interpreter)
-        [*command, "--port", str(port)], stderr=subprocess.PIPE, text=True
+        [*command, "--port", str(port)], stderr=subprocess.PIPE, bufsize=0
     )
     try:
-        _lines_until(process, STARTED)
+        _log_until(process, STARTED)
         yield process, port
     finally:
         process.kill()
@@ -74,13 +82,18 @@ def _turn_led_on(port: int) -> object:
 
 
 def test_sigterm_stops_the_service_with_every_output_in_its_safe_state(
-    service: tuple[subprocess.Popen[str], int],
+    service: tuple[subprocess.Popen[bytes], int],
 ) -> None:
     process, port = service
-    assert _turn_led_on(port) == {"outputs": [{"name": "led", "on": True}], "panic": False}
+    assert _turn_led_on(port) == {
+        "outputs": [{"name": "led", "on": True}],
+        "inputs": [],
+        "panic": False,
+    }
 
     process.send_signal(signal.SIGTERM)
-    _, log = process.communicate(timeout=TIMEOUT_S)
+    _, rest = process.communicate(timeout=TIMEOUT_S)
+    log = rest.decode()
 
     # uvicorn shuts down, then re-raises the signal: the process ends by SIGTERM, as systemd
     # expects. The log line is written only after the HAL closed without errors.

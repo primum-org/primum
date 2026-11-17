@@ -60,6 +60,7 @@ class FakeEdgeEvent:
     line_offset: int
     event_type: EdgeEvent.Type
     timestamp_ns: int
+    line_seqno: int = 1
 
 
 @dataclass
@@ -74,6 +75,8 @@ class FakeRequest:
     released: bool = False
     release_error: Exception | None = None
     event_buffer_size: int = 64  # gpiod's default: one read returns at most this many
+    kernel_buffer_size: int | None = None  # what the HAL asked the kernel to keep unread
+    fd: int = 99
 
     def set_value(self, line: int, value: Value) -> None:
         self.writes.append((line, value))
@@ -131,11 +134,15 @@ class FakeChip:
         return FakeLineInfo(line in self.owners, self.owners.get(line))
 
     def request_lines(
-        self, config: dict[int, LineSettings], consumer: str | None = None
+        self,
+        config: dict[int, LineSettings],
+        consumer: str | None = None,
+        event_buffer_size: int | None = None,
     ) -> FakeRequest:
         if self.request_error is not None:
             raise self.request_error
         request = FakeRequest(consumer, config, release_error=self.release_error)
+        request.kernel_buffer_size = event_buffer_size
         self.requests.append(request)
         return request
 
@@ -216,20 +223,46 @@ def test_set_writes_active_and_inactive_values(chip: FakeChip) -> None:
 
 
 def test_edge_events_become_input_events_by_pin(chip: FakeChip) -> None:
-    with _claimed(Claim(inputs=(InputSpec(pin=5),))) as hal:
+    with _claimed(
+        Claim(inputs=(InputSpec(pin=5, pull=Pull.UP, active_low=False, debounce_ms=0),))
+    ) as hal:
         assert hal.read_events() == []
         chip.requests[0].events = [
             FakeEdgeEvent(40, EdgeEvent.Type.RISING_EDGE, 1_000),
-            FakeEdgeEvent(40, EdgeEvent.Type.FALLING_EDGE, 2_000),
+            FakeEdgeEvent(40, EdgeEvent.Type.FALLING_EDGE, 2_000, line_seqno=2),
         ]
 
         assert hal.wait_events(0.5)
-        assert hal.read_events() == [InputEvent(5, True, 1_000), InputEvent(5, False, 2_000)]
+        assert hal.read_events() == [InputEvent(5, True, 1_000, 1), InputEvent(5, False, 2_000, 2)]
         assert timedelta(seconds=0.5) in chip.requests[0].waits
 
 
+def test_the_request_gives_the_descriptor_to_watch_and_asks_for_a_large_buffer(
+    chip: FakeChip,
+) -> None:
+    button = InputSpec(pin=5, pull=Pull.UP, active_low=False, debounce_ms=0)
+    with _claimed(Claim(inputs=(button,))) as hal:
+        assert hal.events_fd() == chip.requests[0].fd
+        assert chip.requests[0].kernel_buffer_size == gpiod_hal.EVENT_BUFFER_SIZE
+
+
+def test_a_request_of_outputs_only_has_no_events_to_watch(chip: FakeChip) -> None:
+    with _claimed(Claim(outputs=(LED,))) as hal:
+        assert hal.events_fd() is None
+
+
+def test_an_event_carries_the_sequence_number_the_kernel_gave_it(chip: FakeChip) -> None:
+    button = InputSpec(pin=5, pull=Pull.UP, active_low=False, debounce_ms=0)
+    with _claimed(Claim(inputs=(button,))) as hal:
+        chip.requests[0].events = [FakeEdgeEvent(40, EdgeEvent.Type.RISING_EDGE, 9, line_seqno=33)]
+
+        assert hal.read_events() == [InputEvent(5, True, 9, 33)]
+
+
 def test_read_events_drains_a_burst_larger_than_the_event_buffer(chip: FakeChip) -> None:
-    with _claimed(Claim(inputs=(InputSpec(pin=5),))) as hal:
+    with _claimed(
+        Claim(inputs=(InputSpec(pin=5, pull=Pull.UP, active_low=False, debounce_ms=0),))
+    ) as hal:
         chip.requests[0].event_buffer_size = 2
         chip.requests[0].events = [
             FakeEdgeEvent(40, EdgeEvent.Type.RISING_EDGE, t) for t in (1_000, 2_000, 3_000)
@@ -240,7 +273,9 @@ def test_read_events_drains_a_burst_larger_than_the_event_buffer(chip: FakeChip)
 
 
 def test_read_events_stops_after_a_bounded_number_of_reads(chip: FakeChip) -> None:
-    with _claimed(Claim(inputs=(InputSpec(pin=5),))) as hal:
+    with _claimed(
+        Claim(inputs=(InputSpec(pin=5, pull=Pull.UP, active_low=False, debounce_ms=0),))
+    ) as hal:
         chip.requests[0].event_buffer_size = 1
         chip.requests[0].events = [
             FakeEdgeEvent(40, EdgeEvent.Type.RISING_EDGE, t)
@@ -248,7 +283,7 @@ def test_read_events_stops_after_a_bounded_number_of_reads(chip: FakeChip) -> No
         ]
 
         assert len(hal.read_events()) == gpiod_hal.MAX_EVENT_READS
-        assert hal.read_events() == [InputEvent(5, True, gpiod_hal.MAX_EVENT_READS)]
+        assert hal.read_events() == [InputEvent(5, True, gpiod_hal.MAX_EVENT_READS, 1)]
 
 
 def test_without_lines_there_is_no_request_and_nothing_to_wait_for(chip: FakeChip) -> None:
@@ -324,7 +359,7 @@ def test_a_failed_request_names_only_the_gpios_it_covered_not_the_pwm_outputs(
     chip.owners[18] = None  # routed to the PWM controller: held by the kernel
 
     with GpiodHal(PWM_BOARD) as hal, pytest.raises(PrimumError) as raised:
-        hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
+        hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18, frequency_hz=1000),)))
 
     assert raised.value.params["pins"] == (17,)
 
@@ -335,7 +370,7 @@ def test_a_pwm_output_on_a_gpio_the_kernel_does_not_hold_is_not_routed(
     # The controller is there but nothing routes channel 0 to GPIO 18: its line is free and the
     # signal would come out of another GPIO.
     with GpiodHal(PWM_BOARD) as hal, pytest.raises(PrimumError) as raised:
-        hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
+        hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18, frequency_hz=1000),)))
 
     assert raised.value.code == "hal.pwm_not_routed"
     assert raised.value.params == {"pin": 18, "channel": 0}
@@ -347,7 +382,7 @@ def test_without_the_overlay_the_missing_controller_is_reported_not_the_routing(
 ) -> None:
     # No overlay: no controller and no routed line. The controller is the cause.
     with GpiodHal(PWM_BOARD) as hal, pytest.raises(PrimumError) as raised:
-        hal.claim(Claim(pwms=(PwmSpec(pin=18),)))
+        hal.claim(Claim(pwms=(PwmSpec(pin=18, frequency_hz=1000),)))
 
     assert raised.value.code == "hal.pwm_chip_not_found"
     assert chip.requests == []
@@ -359,7 +394,7 @@ def test_a_pwm_output_on_a_gpio_another_program_holds_is_unavailable_not_routed(
     chip.owners[18] = "other-app"  # used, but as that program's digital line, not by pinctrl
 
     with GpiodHal(PWM_BOARD) as hal, pytest.raises(PrimumError) as raised:
-        hal.claim(Claim(pwms=(PwmSpec(pin=18),)))
+        hal.claim(Claim(pwms=(PwmSpec(pin=18, frequency_hz=1000),)))
 
     assert raised.value.code == "hal.pin_unavailable"
     assert raised.value.params == {"pin": 18, "chip": CHIP, "consumer": "other-app"}
@@ -372,7 +407,7 @@ def test_a_claim_that_fails_after_the_request_releases_it_and_the_hal_can_claim_
 
     with GpiodHal(PWM_BOARD) as hal:
         with pytest.raises(PrimumError) as raised:
-            hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
+            hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18, frequency_hz=1000),)))
         assert raised.value.code == "hal.pwm_unavailable"
         (request,) = chip.requests
         assert request.released
@@ -394,7 +429,7 @@ def test_a_release_that_fails_after_a_failed_claim_is_logged_not_raised(
         caplog.at_level(logging.WARNING, logger="primum_runtime.hal.base"),
         pytest.raises(PrimumError) as raised,
     ):
-        hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18),)))
+        hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18, frequency_hz=1000),)))
 
     assert raised.value.code == "hal.pwm_unavailable"
     assert "GPIO 17 was not released after a failed claim" in caplog.text

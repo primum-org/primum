@@ -49,6 +49,7 @@ p { margin: 0; }
   color: var(--color-brand-secondary);
 }
 .icon-led { --icon: var(--icon-led); }
+.icon-button { --icon: var(--icon-button); }
 .icon-panic { --icon: var(--icon-panic); }
 .icon-warn { --icon: var(--icon-warn); }
 
@@ -120,6 +121,8 @@ main {
   border-bottom: var(--size-rule-md) solid var(--rule);
 }
 .output-name { flex: 1; font-family: var(--font-family-mono); }
+.input-state { padding: 0 var(--space-2); }
+.input-state[data-active="true"] { font-weight: 600; }
 
 .switch {
   display: flex;

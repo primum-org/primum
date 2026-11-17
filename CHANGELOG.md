@@ -55,6 +55,11 @@ All notable changes to this project are documented here. The format follows
   the documentation it comes from. It also warns when a fade to 0 would end with the light
   jumping back on because an earlier instant `on` is still in force, and no longer warns
   about a sequence that ends with an instant `set` to 0.
+- The runtime drives its elements through drivers, one per element type, that implement the
+  manifests: an output is read back after every command, and a value outside the limits of
+  its driver or of its board is refused. The service can listen to an input (`--input-pin`
+  and `--input-pull`, or `PRIMUM_INPUT_PIN` and `PRIMUM_INPUT_PULL`): the page shows whether
+  it is active, as it changes. `primum validate` refuses a number that nothing limits.
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.

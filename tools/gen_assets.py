@@ -3,7 +3,8 @@
 The sources stay where they are; the packages get byte-identical copies, never edited by hand:
 
 - runtime: the page's assets (``i18n/``, ``design/``) under ``primum_runtime/ui/generated/``,
-  and the board profiles (``boards/``) under ``primum_runtime/generated/boards/``;
+  the board profiles (``boards/``) under ``primum_runtime/generated/boards/`` and the driver
+  manifests (``drivers/``) under ``primum_runtime/generated/drivers/``;
 - CLI: the message catalogs (``i18n/``) under ``primum_cli/generated/i18n/``, the board
   profiles under ``primum_cli/generated/boards/`` and the driver manifests (``drivers/``) under
   ``primum_cli/generated/drivers/``.
@@ -40,6 +41,7 @@ TARGETS: dict[Path, tuple[Source, ...]] = {
         Source(ROOT / "design" / "logo", "*.svg", "logo"),
     ),
     RUNTIME / "generated" / "boards": (Source(ROOT / "boards", "*.json", "."),),
+    RUNTIME / "generated" / "drivers": (Source(ROOT / "drivers", "*.json", "."),),
     CLI / "generated" / "i18n": (Source(ROOT / "i18n", "*.json", "."),),
     CLI / "generated" / "boards": (Source(ROOT / "boards", "*.json", "."),),
     CLI / "generated" / "drivers": (Source(ROOT / "drivers", "*.json", "."),),

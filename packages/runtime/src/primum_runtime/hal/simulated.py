@@ -1,10 +1,13 @@
 """A HAL without hardware, for tests and for running the runtime on a laptop (``--simulate``)."""
 
+import contextlib
+import os
 from collections import deque
 from collections.abc import Mapping
 from types import MappingProxyType
 
 from primum_runtime.hal.base import (
+    NS_PER_S,
     BoardGpio,
     Claim,
     Drivers,
@@ -20,7 +23,8 @@ class SimulatedLine:
     """A simulated output line that remembers every value written to it.
 
     Faults can be injected to test what happens when the hardware misbehaves: ``fail_writes``,
-    ``fail_release``, and ``stick(True)`` for a line that reads back on whatever is written.
+    ``fail_reads``, ``fail_release``, and ``stick(True)`` for a line that reads back on whatever
+    is written.
     """
 
     def __init__(self, spec: OutputSpec) -> None:
@@ -29,6 +33,7 @@ class SimulatedLine:
         self._released = False
         self._history: list[bool] = []
         self._write_error: Exception | None = None
+        self._read_error: Exception | None = None
         self._release_error: Exception | None = None
         self._stuck: bool | None = None
 
@@ -55,6 +60,10 @@ class SimulatedLine:
         """From now on every write raises ``error`` (``None`` makes writes work again)."""
         self._write_error = error
 
+    def fail_reads(self, error: Exception | None) -> None:
+        """From now on every read raises ``error`` (``None`` makes reads work again)."""
+        self._read_error = error
+
     def fail_release(self, error: Exception | None) -> None:
         """Make ``release`` raise ``error`` (``None`` makes it work again)."""
         self._release_error = error
@@ -70,6 +79,8 @@ class SimulatedLine:
         self._history.append(active)
 
     def read(self) -> bool:
+        if self._read_error is not None:
+            raise self._read_error
         return self._active if self._stuck is None else self._stuck
 
     def release(self) -> None:
@@ -84,6 +95,7 @@ class SimulatedInput:
     def __init__(self, spec: InputSpec) -> None:
         self._spec = spec
         self.active = False
+        self.events = 0  # how many it has had: the sequence number of the last one
 
     def read(self) -> bool:
         return self.active
@@ -94,6 +106,7 @@ class SimulatedPwm:
 
     Faults can be injected as on a ``SimulatedLine``: ``fail_writes``, and ``stick(1.0)`` for a
     channel that reads back a level whatever is written (an inverted polarity, for instance).
+    It reads back as the real one does: the level written, in whole nanoseconds of its period.
     """
 
     def __init__(self, spec: PwmSpec) -> None:
@@ -131,7 +144,10 @@ class SimulatedPwm:
         self._history.append(duty)
 
     def read(self) -> float:
-        return self._duty if self._stuck is None else self._stuck
+        if self._stuck is not None:
+            return self._stuck
+        period_ns = NS_PER_S // self._spec.frequency_hz
+        return round(self._duty * period_ns) / period_ns
 
     def release(self) -> None:
         self._released = True
@@ -143,7 +159,8 @@ class SimulatedHal(Hal):
 
     It takes the board profile like the real HAL, so ``--simulate`` refuses the pins the board
     does not have, as the Pi would. It has no clock: ``simulate_input`` takes the time of the
-    change, and ``wait_events`` never waits.
+    change, and ``wait_events`` never waits. With inputs claimed it has a pipe that is
+    readable while events wait, so an event loop watches it as it watches the real one.
     """
 
     def __init__(self, board: BoardGpio) -> None:
@@ -152,6 +169,7 @@ class SimulatedHal(Hal):
         self._input_lines: dict[int, SimulatedInput] = {}
         self._pwm_lines: dict[int, SimulatedPwm] = {}
         self._events: deque[InputEvent] = deque()
+        self._pipe: tuple[int, int] | None = None
 
     @property
     def lines(self) -> Mapping[int, SimulatedLine]:
@@ -168,16 +186,34 @@ class SimulatedHal(Hal):
     def simulate_input(self, pin: int, active: bool, timestamp_ns: int = 0) -> None:
         """Change a claimed input from outside, as a button or a sensor would, and queue the
         event. Changes to the same state are not events, as on hardware."""
+        if self._input_lines[pin].active != active:
+            self.simulate_event(pin, active, timestamp_ns)
+
+    def simulate_event(self, pin: int, active: bool, timestamp_ns: int = 0) -> None:
+        """Queue an event of a claimed input whatever its state: with ``active`` as it already
+        is, it is what the kernel gives for a pulse too short to tell its edges apart."""
         line = self._input_lines[pin]
-        if line.active == active:
-            return
         line.active = active
-        self._events.append(InputEvent(pin, active, timestamp_ns))
+        line.events += 1
+        if not self._events and self._pipe is not None:
+            os.write(self._pipe[1], b"e")
+        self._events.append(InputEvent(pin, active, timestamp_ns, line.events))
+
+    def lose_events(self, count: int) -> None:
+        """Drop the ``count`` oldest unread events, as the kernel does with a burst it cannot
+        hold: the ones that follow keep their sequence numbers."""
+        for _ in range(min(count, len(self._events))):
+            self._events.popleft()
+        if not self._events:
+            self._drain_pipe()
 
     def _claim(self, claim: Claim) -> Drivers:
         self._lines = {spec.pin: SimulatedLine(spec) for spec in claim.outputs}
         self._input_lines = {spec.pin: SimulatedInput(spec) for spec in claim.inputs}
         self._pwm_lines = {spec.pin: SimulatedPwm(spec) for spec in claim.pwms}
+        if claim.inputs:
+            self._pipe = os.pipe()
+            os.set_blocking(self._pipe[0], False)
         return Drivers(dict(self._lines), dict(self._input_lines), dict(self._pwm_lines))
 
     def _release(self) -> dict[int, Exception]:
@@ -187,12 +223,27 @@ class SimulatedHal(Hal):
                 line.release()
             except Exception as error:  # collected: the others are released too
                 failures[pin] = error
+        if self._pipe is not None:
+            for end in self._pipe:
+                os.close(end)
+            self._pipe = None
         return failures
 
     def _read_events(self) -> list[InputEvent]:
         events = list(self._events)
         self._events.clear()
+        self._drain_pipe()
         return events
+
+    def _events_fd(self) -> int | None:
+        return None if self._pipe is None else self._pipe[0]
+
+    def _drain_pipe(self) -> None:
+        if self._pipe is None:
+            return
+        # Nothing to read is fine: the pipe holds a byte only while events wait.
+        with contextlib.suppress(BlockingIOError):
+            os.read(self._pipe[0], 1)
 
     def _wait_events(self, timeout_s: float) -> bool:
         return bool(self._events)

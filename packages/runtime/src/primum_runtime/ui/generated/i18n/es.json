@@ -5,6 +5,9 @@
     "output.on": "Encendida",
     "output.off": "Apagada",
     "output.toggle": "Encender o apagar {name}",
+    "inputs.heading": "Entradas",
+    "input.active": "Activa",
+    "input.inactive": "Inactiva",
     "panic.button": "Pánico",
     "panic.description": "Apaga todas las salidas y deja de aceptar órdenes.",
     "panic.active": "Pánico activo: todas las salidas están apagadas y no se aceptan órdenes.",
@@ -61,7 +64,7 @@
     },
     "hal.pwm_frequency_invalid": {
       "message": "Una frecuencia de {frequency_hz} Hz no es válida para la salida PWM del GPIO {pin}.",
-      "hint": "Usa una frecuencia de 1 Hz o más (1000 Hz va bien para la mayoría de los LED)."
+      "hint": "Usa una frecuencia de {min_hz} a {max_hz} Hz (1000 Hz va bien para la mayoría de los LED)."
     },
     "hal.duty_out_of_range": {
       "message": "El nivel {duty} no está entre 0 y 1.",
@@ -110,6 +113,38 @@
     "hal.release_incomplete": {
       "message": "No se pudieron liberar los pines {pins}.",
       "hint": "Reinicia la placa antes de volver a usarlos."
+    },
+    "element.type_unsupported": {
+      "message": "{element} es un {type}, y esta versión de Primum no tiene driver para ese tipo en esta placa.",
+      "hint": "Usa un tipo de elemento para el que esta placa tenga driver."
+    },
+    "element.action_unknown": {
+      "message": "{element} no puede hacer {action}.",
+      "hint": "Puede hacer: {available}."
+    },
+    "element.value_unknown": {
+      "message": "{element} no admite {name}.",
+      "hint": "Quítalo, o revisa cómo está escrito."
+    },
+    "element.value_missing": {
+      "message": "{element} necesita un valor para {name}.",
+      "hint": "Da un valor a {name}."
+    },
+    "element.value_invalid": {
+      "message": "El valor de {name} no es uno que {element} admita.",
+      "hint": "Revisa su tipo y los valores que permite."
+    },
+    "element.value_out_of_range": {
+      "message": "El valor de {name} para {element} está fuera de sus límites.",
+      "hint": "Mantenlo entre {min} y {max}."
+    },
+    "element.value_unlimited": {
+      "message": "Nada limita {name} para {element}.",
+      "hint": "Su driver o su placa deben decir qué valores admite {name}."
+    },
+    "element.level_not_reached": {
+      "message": "{element} se puso a {level} pero se lee {read}.",
+      "hint": "Revisa su cableado y si otra cosa lo está manejando. Usa el botón de pánico si no es seguro."
     },
     "output.unknown": {
       "message": "No hay ninguna salida llamada {name}.",
@@ -322,6 +357,10 @@
     "config.out_of_board_range": {
       "message": "La opción {option} de {element} está fuera de lo que admite la placa {board}.",
       "hint": "En esta placa, mantenla entre {min} y {max}."
+    },
+    "config.unlimited": {
+      "message": "Nada limita la opción {option} de {element} en la placa {board}.",
+      "hint": "El perfil de la placa debe decir qué valores admite para {option}: añade ese límite a su perfil en boards/."
     },
     "board.unknown_model": {
       "message": "La placa {board} es una {model}, y esta versión de Primum no tiene perfil para ese modelo.",

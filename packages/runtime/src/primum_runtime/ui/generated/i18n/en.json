@@ -5,6 +5,9 @@
     "output.on": "On",
     "output.off": "Off",
     "output.toggle": "Turn {name} on or off",
+    "inputs.heading": "Inputs",
+    "input.active": "Active",
+    "input.inactive": "Inactive",
     "panic.button": "Panic",
     "panic.description": "Turns every output off and stops accepting commands.",
     "panic.active": "Panic is active: every output is off and commands are refused.",
@@ -61,7 +64,7 @@
     },
     "hal.pwm_frequency_invalid": {
       "message": "A frequency of {frequency_hz} Hz is not valid for the PWM output on GPIO {pin}.",
-      "hint": "Use a frequency of 1 Hz or more (1000 Hz suits most LEDs)."
+      "hint": "Use a frequency from {min_hz} to {max_hz} Hz (1000 Hz suits most LEDs)."
     },
     "hal.duty_out_of_range": {
       "message": "The level {duty} is not between 0 and 1.",
@@ -110,6 +113,38 @@
     "hal.release_incomplete": {
       "message": "Pins {pins} could not be released.",
       "hint": "Restart the board before using them again."
+    },
+    "element.type_unsupported": {
+      "message": "{element} is a {type}, and this version of Primum has no driver for that type on this board.",
+      "hint": "Use an element type this board has a driver for."
+    },
+    "element.action_unknown": {
+      "message": "{element} cannot do {action}.",
+      "hint": "It can do: {available}."
+    },
+    "element.value_unknown": {
+      "message": "{element} takes no {name}.",
+      "hint": "Remove it, or check how it is written."
+    },
+    "element.value_missing": {
+      "message": "{element} needs a value for {name}.",
+      "hint": "Give {name} a value."
+    },
+    "element.value_invalid": {
+      "message": "The value of {name} is not one {element} takes.",
+      "hint": "Check its type and the values it allows."
+    },
+    "element.value_out_of_range": {
+      "message": "The value of {name} for {element} is outside its limits.",
+      "hint": "Keep it between {min} and {max}."
+    },
+    "element.value_unlimited": {
+      "message": "Nothing limits {name} for {element}.",
+      "hint": "Its driver or its board must say which values {name} takes."
+    },
+    "element.level_not_reached": {
+      "message": "{element} was set to {level} but reads back {read}.",
+      "hint": "Check its wiring and whether something else drives it. Use the panic button if it is not safe."
     },
     "output.unknown": {
       "message": "There is no output called {name}.",
@@ -322,6 +357,10 @@
     "config.out_of_board_range": {
       "message": "The option {option} of {element} is outside what the board {board} takes.",
       "hint": "On this board, keep it between {min} and {max}."
+    },
+    "config.unlimited": {
+      "message": "Nothing limits the option {option} of {element} on the board {board}.",
+      "hint": "The profile of the board must say which values it takes for {option}: add that limit to its profile in boards/."
     },
     "board.unknown_model": {
       "message": "The board {board} is a {model}, and this version of Primum has no profile for that model.",

@@ -1,20 +1,34 @@
 """Service configuration, from command-line options or ``PRIMUM_*`` environment variables.
 
-An option given on the command line wins over the environment. Phase 1 drives one output,
-named ``led``; later, outputs come from the deployment package. The board (``rpi4b`` by
-default, the only one so far) says which pins exist and on which GPIO chip.
+An option given on the command line wins over the environment. Until elements come from a
+deployment package (phase 4) the service drives one digital output, named ``led``, and may
+listen to one digital input, named ``button``. PWM outputs are not offered here until the
+safe-state unit covers their channels (block 3.4): after a ``kill -9`` one would stay at its
+last level. The board (``rpi4b`` by default, the only one so far) says which pins exist, on
+which GPIO chip, and what it takes for the options of its elements.
 
-The pin has no default on purpose: a default pin is a pin someone may have wired to a relay.
+The pins have no default on purpose: a default pin is a pin someone may have wired to a relay.
+Neither has the pull of the input: every default is wrong for some wiring.
 """
 
 import argparse
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from primum_runtime.board import DEFAULT_BOARD, available_boards, load_board
-from primum_runtime.hal import BoardGpio, OutputSpec
+from primum_core.values import Value
+from primum_runtime.board import (
+    DEFAULT_BOARD,
+    available_boards,
+    load_board,
+    load_profile,
+    option_limits,
+)
+from primum_runtime.drivers import ElementConfig, OptionLimits
+from primum_runtime.hal import BoardGpio, Pull
 
 LED = "led"
+BUTTON = "button"
+PULLS = tuple(pull.value for pull in Pull)
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
 _TRUE = frozenset({"1", "true", "yes", "on"})
@@ -25,7 +39,8 @@ _FALSE = frozenset({"0", "false", "no", "off", ""})
 class RuntimeConfig:
     simulate: bool
     board: BoardGpio
-    outputs: Mapping[str, OutputSpec]
+    limits: OptionLimits
+    elements: tuple[ElementConfig, ...]
     host: str
     port: int
 
@@ -47,12 +62,32 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
             f"no profile for board {board!r} (PRIMUM_BOARD): {', '.join(available_boards())}"
         )
     active_low: bool = args.active_low
+    elements = [ElementConfig(LED, "digital_output", pin, active_low)]
+    input_pin: int | None = args.input_pin
+    input_pull: str | None = args.input_pull
+    if input_pull is not None and input_pull not in PULLS:  # argparse checks options only
+        parser.error(f"PRIMUM_INPUT_PULL must be one of {', '.join(PULLS)}, not {input_pull!r}")
+    input_options = (input_pull, args.input_debounce_ms, args.input_active_low or None)
+    if input_pin is None and any(option is not None for option in input_options):
+        parser.error("options of an input without one: give --input-pin (PRIMUM_INPUT_PIN) too")
+    if input_pin is not None:
+        if input_pull is None:
+            parser.error("the input needs its pull: --input-pull or PRIMUM_INPUT_PULL")
+        options: dict[str, Value] = {"pull": input_pull}
+        debounce_ms: int | None = args.input_debounce_ms
+        if debounce_ms is not None:
+            options["debounceMs"] = debounce_ms
+        input_active_low: bool = args.input_active_low
+        elements.append(
+            ElementConfig(BUTTON, "digital_input", input_pin, input_active_low, options)
+        )
     host: str = args.host
     port: int = args.port
     return RuntimeConfig(
         simulate=simulate,
         board=load_board(board),
-        outputs={LED: OutputSpec(pin=pin, active_low=active_low)},
+        limits=option_limits(load_profile(board)),
+        elements=tuple(elements),
         host=host,
         port=port,
     )
@@ -85,6 +120,33 @@ def _parser(env: Mapping[str, str]) -> argparse.ArgumentParser:
         action=argparse.BooleanOptionalAction,
         default=_flag(env, "PRIMUM_ACTIVE_LOW"),
         help="the LED is on when the line is low (PRIMUM_ACTIVE_LOW)",
+    )
+    parser.add_argument(
+        "--input-pin",
+        type=int,
+        default=_int(env, "PRIMUM_INPUT_PIN"),
+        help="GPIO number of an input to listen to (a button); none by default (PRIMUM_INPUT_PIN)",
+    )
+    parser.add_argument(
+        "--input-pull",
+        choices=PULLS,
+        default=env.get("PRIMUM_INPUT_PULL") or None,  # empty in an env file: not given
+        help="the pull of the input: up for a button to ground, down for one to 3V3, none for "
+        "a sensor that drives the line; required with the input, no default (PRIMUM_INPUT_PULL)",
+    )
+    parser.add_argument(
+        "--input-active-low",
+        action=argparse.BooleanOptionalAction,
+        default=_flag(env, "PRIMUM_INPUT_ACTIVE_LOW"),
+        help="the input is active when the line is low, as a button to ground "
+        "(PRIMUM_INPUT_ACTIVE_LOW)",
+    )
+    parser.add_argument(
+        "--input-debounce-ms",
+        type=int,
+        default=_int(env, "PRIMUM_INPUT_DEBOUNCE_MS"),
+        help="ignore bounces of the input shorter than this; its driver's default if not given "
+        "(PRIMUM_INPUT_DEBOUNCE_MS)",
     )
     parser.add_argument(
         "--host",

@@ -4,7 +4,8 @@ A driver implements an element type on a platform. What it offers is described b
 **manifest**: data that `core` reads to check a project without hardware, and that the UI will
 read to show what each element can do. One file per element type in `drivers/`
 (`drivers/pwm_output.json`), named after the type. Format: `schemas/driver.schema.json`.
-The implementations live in the runtimes (block 3.3b). Why: decision 0016.
+The implementations live in the runtimes ([below](#on-a-board-the-runtime)). Why: decisions
+0016, 0018 and 0019.
 
 ## Contents
 
@@ -108,7 +109,9 @@ checked when its file is read (`primum_core.config`); `element` and `option` in 
 Once every file reads, each element is also checked against the limits of its board
 (`primum_core.board_limits`, [board profiles](board-profiles.md)): a number the board does not
 take is `config.out_of_board_range` (`element`, `option`, `board`, `min`, `max`), at the value,
-or at the element when the value is its driver's default.
+or at the element when the value is its driver's default. And a number must be limited by
+someone: an option that neither its driver (with both a `min` and a `max`) nor the board of
+the element limits is `config.unlimited` (`element`, `option`, `board`), whatever its value.
 
 **The action of a clip** (`.sec`, `tracks[].clips[]`: `action` and `arguments`, a list of
 `name` and `value`), once every file reads (`primum_core.actions`); `action` and `element` in
@@ -151,8 +154,52 @@ A component's clip is checked at the block that gives it its element. The same s
 `clip.instant_at_end`: a sequence may end with any instant command that leaves its element at
 rest, an `off` or a `set` to 0.
 
+## On a board (the runtime)
+
+`primum_runtime.drivers` implements each manifest on the HAL (decision 0019). A driver is
+made from its element (`ElementConfig`: name, type, pin, `active_low`, options), the manifest
+of its type and the limits of its board (`create_driver`); a type without an implementation
+is `element.type_unsupported` (`element`, `type`).
+
+**Values**, the options of an element and the arguments of an action, are checked again
+(`element` and `name` in every case), before anything is claimed or written:
+
+| Problem | Code | Also |
+|---|---|---|
+| A name the manifest does not declare | `element.value_unknown` | |
+| One without a default that is not given | `element.value_missing` | |
+| A value of another type, or not among the choices | `element.value_invalid` | |
+| A number outside the manifest's limits, or the board's | `element.value_out_of_range` | `min`, `max` |
+| A number that neither the manifest nor the board limits | `element.value_unlimited` | |
+
+**An output** (`digital_output`, `pwm_output`) is commanded with the actions of its manifest
+(`element.action_unknown` otherwise, with `action` and `available`). A command is instant: the
+element goes to the level the action ends in and is read back, and a level that does not
+read back is `element.level_not_reached` (`element`, `level`, `read`); from then on
+the output reports the level its hardware reads, each time it is asked, until a command is
+followed again: it is right whatever happened since (panic, or the hardware recovering). If
+that reading fails, the level written stands and the failure is logged: telling the state
+never fails. A digital output is on
+at any level above 0, and only on and off are told apart; a PWM output reads back within one
+step of its period (sysfs holds the duty cycle in whole nanoseconds: a third reads back as
+0.333333 at 1 kHz). Its safe state is the action the manifest names; a test ties it to the
+HAL's own.
+
+**An input** (`digital_input`) hands the HAL its pull, its debounce time and its `active_low`,
+all of them: the HAL has no defaults. Its state is the one read when it is claimed, then the
+one each event carries: two events of the same kind in a row (a pulse too short for the
+kernel to tell its edges apart) do not flip it. Events carry the sequence number of their
+line; a gap means the kernel dropped some (it keeps 1024 unread), which the driver counts and
+logs. The state is still right.
+
+The HAL also refuses a PWM frequency outside what the board takes
+(`hal.pwm_frequency_invalid`, with `min_hz` and `max_hz`), from the limit of the profile.
+
 ## Adding a driver
 
 Add its manifest to `drivers/`, named after the element type, and run `uv run just gen` (the
-CLI ships a copy). Its implementation, its limits enforced on the board and its test against
-the simulated HAL come with it (`CLAUDE.md`: no driver without them).
+CLI and the runtime ship copies). Then its implementation in `primum_runtime.drivers` (a
+class with what it asks of the HAL and how it writes and reads a level, and its entry in
+`DRIVERS`), its limits enforced on the board and its tests against the simulated HAL
+(`CLAUDE.md`: no driver without them). A test checks that every shipped manifest has an
+implementation and every implementation a manifest.

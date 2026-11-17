@@ -28,6 +28,10 @@ DEVICES = Path("/dev")
 # Reads of pending edge events per `read_events` call; what is left waits for the next call,
 # so a contact bouncing faster than it is drained cannot keep the loop going.
 MAX_EVENT_READS = 16
+# Unread edge events the kernel keeps for the request before dropping the oldest. Its default
+# is 16 per line (60 unread changes of one line gave 32 on a Pi 4); this holds a longer burst.
+# What is still lost shows as a jump in the events' sequence numbers.
+EVENT_BUFFER_SIZE = 1024
 BIAS = {Pull.UP: Bias.PULL_UP, Pull.DOWN: Bias.PULL_DOWN, Pull.NONE: Bias.DISABLED}
 
 
@@ -72,6 +76,7 @@ class GpiodHal(Hal):
         self._request: gpiod.LineRequest | None = None
         self._pins_by_line: dict[int, int] = {}
         self._channels: dict[int, SysfsPwmChannel] = {}
+        self._has_inputs = False
 
     def close(self) -> None:
         try:
@@ -99,6 +104,7 @@ class GpiodHal(Hal):
         if config:
             gpio_pins = [spec.pin for spec in (*claim.outputs, *claim.inputs)]
             self._request = self._request_lines(config, gpio_pins)
+            self._has_inputs = bool(claim.inputs)
         if chip is not None:
             for spec in claim.pwms:
                 channel = channels[spec.pin]
@@ -150,9 +156,15 @@ class GpiodHal(Hal):
                 self._pins_by_line[event.line_offset],
                 event.event_type is gpiod.EdgeEvent.Type.RISING_EDGE,
                 event.timestamp_ns,
+                event.line_seqno,
             )
             for event in events
         ]
+
+    def _events_fd(self) -> int | None:
+        if self._request is None or not self._has_inputs:
+            return None
+        return self._request.fd
 
     def _wait_events(self, timeout_s: float) -> bool:
         if self._request is None:
@@ -173,7 +185,9 @@ class GpiodHal(Hal):
             # Rebuilt for the type checker only: gpiod takes a wider key type, and dict keys are
             # invariant.
             return self._chip.request_lines(
-                {line: settings for line, settings in config.items()}, consumer=CONSUMER
+                {line: settings for line, settings in config.items()},
+                consumer=CONSUMER,
+                event_buffer_size=EVENT_BUFFER_SIZE,
             )
         except (OSError, ValueError) as error:
             # Another process may take a line after the check; gpiod raises ValueError(EINVAL)

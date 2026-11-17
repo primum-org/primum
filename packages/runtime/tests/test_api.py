@@ -7,17 +7,20 @@ from fastapi.testclient import TestClient
 
 from primum_runtime.api import create_app
 from primum_runtime.board import load_board
-from primum_runtime.config import LED, RuntimeConfig
-from primum_runtime.hal import OutputSpec, SimulatedHal
+from primum_runtime.config import BUTTON, LED, parse_config
+from primum_runtime.hal import SimulatedHal
 
 BOARD = load_board("rpi4b")
 
 PIN = 17
-CONFIG = RuntimeConfig(
-    simulate=True, board=BOARD, outputs={LED: OutputSpec(pin=PIN)}, host="127.0.0.1", port=8080
+BUTTON_PIN = 22
+CONFIG = parse_config(["--simulate", "--pin", str(PIN)], {})
+WITH_BUTTON = parse_config(
+    [*("--simulate", "--pin", str(PIN)), *("--input-pin", str(BUTTON_PIN), "--input-pull", "up")],
+    {},
 )
-OFF = {"outputs": [{"name": LED, "on": False}], "panic": False}
-ON = {"outputs": [{"name": LED, "on": True}], "panic": False}
+OFF = {"outputs": [{"name": LED, "on": False}], "inputs": [], "panic": False}
+ON = {"outputs": [{"name": LED, "on": True}], "inputs": [], "panic": False}
 
 
 @pytest.fixture
@@ -112,6 +115,73 @@ def test_websocket_sends_the_current_state_then_every_change(client: TestClient)
     assert first == OFF
     assert second == ON
     assert third == {**OFF, "panic": True}
+
+
+def _with_button(hal: SimulatedHal) -> TestClient:
+    return TestClient(create_app(WITH_BUTTON, open_hal=lambda: hal))
+
+
+def test_status_reports_the_inputs_too(hal: SimulatedHal) -> None:
+    with _with_button(hal) as client:
+        assert client.get("/api/status").json()["inputs"] == [{"name": BUTTON, "active": False}]
+
+
+def test_a_change_of_an_input_reaches_the_websocket_without_anyone_asking(
+    hal: SimulatedHal,
+) -> None:
+    """The event loop watches the HAL's descriptor: nothing polls and no request is made."""
+    with _with_button(hal) as client, client.websocket_connect("/api/ws") as websocket:
+        websocket.receive_json()
+
+        hal.simulate_input(BUTTON_PIN, True)
+        pressed = websocket.receive_json()
+        hal.simulate_input(BUTTON_PIN, False)
+        released = websocket.receive_json()
+
+    assert pressed["inputs"] == [{"name": BUTTON, "active": True}]
+    assert released["inputs"] == [{"name": BUTTON, "active": False}]
+
+
+def test_a_failure_reading_the_inputs_stops_the_watch_instead_of_spinning(
+    hal: SimulatedHal, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The descriptor stays readable when reading fails, so the loop would call again at
+    once, for ever. The watch ends, the failure is logged and the service goes on."""
+    calls: list[int] = []
+
+    def broken() -> list[object]:
+        calls.append(1)
+        raise OSError(5, "I/O error")
+
+    with _with_button(hal) as client:
+        monkeypatch.setattr(hal, "_read_events", broken)
+        hal.simulate_input(BUTTON_PIN, True)
+
+        assert client.get("/api/status").status_code == 200
+        assert client.get("/api/status").status_code == 200
+
+    assert calls == [1]
+    assert "inputs are no longer listened to" in caplog.text
+
+
+def test_a_service_without_inputs_watches_nothing(hal: SimulatedHal) -> None:
+    with TestClient(create_app(CONFIG, open_hal=lambda: hal)):
+        assert hal.events_fd() is None
+
+
+def test_a_line_that_does_not_follow_is_an_error_with_its_code(
+    client: TestClient, hal: SimulatedHal
+) -> None:
+    hal.lines[PIN].stick(False)
+
+    response = client.put(f"/api/outputs/{LED}", json={"on": True})
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "code": "element.level_not_reached",
+        "params": {"element": LED, "level": 100, "read": 0.0},
+    }
+    assert client.get("/api/status").json() == OFF  # what it reads, not what was asked
 
 
 def test_stopping_the_service_applies_the_safe_state_and_releases_the_line(

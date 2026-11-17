@@ -1,5 +1,6 @@
 """The HAL through its simulated implementation: claiming, the safe state, closing, faults."""
 
+import select
 import subprocess
 import sys
 import types
@@ -9,6 +10,7 @@ import pytest
 from primum_runtime.board import load_board
 from primum_runtime.errors import PrimumError
 from primum_runtime.hal import (
+    BoardGpio,
     Claim,
     InputEvent,
     InputSpec,
@@ -79,6 +81,58 @@ def test_a_level_outside_0_to_1_is_refused(duty: float) -> None:
     assert raised.value.params == {"duty": duty}
 
 
+def test_a_board_that_says_nothing_takes_any_frequency_a_period_can_express() -> None:
+    board = BoardGpio(model="bare", chip_label="chip", lines={18: 18}, pwm_channels={18: 0})
+
+    with SimulatedHal(board) as hal:
+        hal.claim(Claim(pwms=(PwmSpec(pin=18, frequency_hz=500_000_000),)))
+
+    with SimulatedHal(board) as hal, pytest.raises(PrimumError) as raised:
+        hal.claim(Claim(pwms=(PwmSpec(pin=18, frequency_hz=500_000_001),)))
+
+    assert raised.value.code == "hal.pwm_frequency_invalid"
+
+
+def test_a_pulse_too_short_gives_two_events_of_the_same_kind() -> None:
+    with _claimed() as hal:
+        hal.simulate_event(22, True, timestamp_ns=1_000)
+        hal.simulate_event(22, True, timestamp_ns=2_000)
+
+        events = hal.read_events()
+
+    assert [(event.active, event.sequence) for event in events] == [(True, 1), (True, 2)]
+
+
+def test_lost_events_leave_a_jump_in_the_sequence() -> None:
+    with _claimed() as hal:
+        for number in range(4):
+            hal.simulate_input(22, number % 2 == 0, timestamp_ns=number)
+        hal.lose_events(2)
+
+        assert [event.sequence for event in hal.read_events()] == [3, 4]
+
+
+def test_the_descriptor_is_readable_while_events_wait() -> None:
+    with _claimed() as hal:
+        fd = hal.events_fd()
+        assert fd is not None
+        assert not select.select([fd], [], [], 0)[0]
+
+        hal.simulate_input(22, True)
+        hal.simulate_input(22, False)
+        assert select.select([fd], [], [], 0)[0]
+
+        hal.read_events()
+        assert not select.select([fd], [], [], 0)[0]
+
+
+def test_without_inputs_there_is_no_descriptor_to_watch() -> None:
+    with SimulatedHal(BOARD) as hal:
+        hal.claim(Claim(outputs=(LED,)))
+
+        assert hal.events_fd() is None
+
+
 def test_an_input_is_read_and_reports_each_change_as_an_event() -> None:
     with _claimed() as hal:
         button = hal.inputs[22]
@@ -90,7 +144,10 @@ def test_an_input_is_read_and_reports_each_change_as_an_event() -> None:
         hal.simulate_input(22, False, timestamp_ns=3_000)
 
         assert hal.wait_events(0)
-        assert hal.read_events() == [InputEvent(22, True, 1_000), InputEvent(22, False, 3_000)]
+        assert hal.read_events() == [
+            InputEvent(22, True, 1_000, 1),
+            InputEvent(22, False, 3_000, 2),
+        ]
         assert hal.read_events() == []
         assert not button.read()
 
@@ -106,7 +163,12 @@ def test_a_pin_asked_for_twice_fails_with_pin_in_use_before_anything_is_claimed(
     hal = SimulatedHal(BOARD)
 
     with pytest.raises(PrimumError) as raised:
-        hal.claim(Claim(outputs=(LED,), inputs=(InputSpec(pin=17),)))
+        hal.claim(
+            Claim(
+                outputs=(LED,),
+                inputs=(InputSpec(pin=17, pull=Pull.UP, active_low=False, debounce_ms=0),),
+            )
+        )
 
     assert raised.value.code == "hal.pin_in_use"
     assert raised.value.params == {"pin": 17}
@@ -123,8 +185,8 @@ def test_a_pin_the_board_does_not_have_raises_pin_invalid(pin: int) -> None:
     assert hal.lines == {}
 
 
-@pytest.mark.parametrize("frequency_hz", [0, -50])
-def test_a_pwm_frequency_under_1_hz_is_refused_before_anything_is_claimed(
+@pytest.mark.parametrize("frequency_hz", [0, -50, 100_001, 10**12])
+def test_a_pwm_frequency_the_board_does_not_take_is_refused_before_anything_is_claimed(
     frequency_hz: int,
 ) -> None:
     hal = SimulatedHal(BOARD)
@@ -133,13 +195,14 @@ def test_a_pwm_frequency_under_1_hz_is_refused_before_anything_is_claimed(
         hal.claim(Claim(outputs=(LED,), pwms=(PwmSpec(pin=18, frequency_hz=frequency_hz),)))
 
     assert raised.value.code == "hal.pwm_frequency_invalid"
-    assert raised.value.params == {"pin": 18, "frequency_hz": frequency_hz}
+    limits = {"min_hz": 1, "max_hz": 100_000}
+    assert raised.value.params == {"pin": 18, "frequency_hz": frequency_hz, **limits}
     assert hal.lines == {}
 
 
 def test_a_pwm_output_needs_a_pin_with_hardware_pwm() -> None:
     with SimulatedHal(BOARD) as hal, pytest.raises(PrimumError) as raised:
-        hal.claim(Claim(pwms=(PwmSpec(pin=17),)))
+        hal.claim(Claim(pwms=(PwmSpec(pin=17, frequency_hz=1000),)))
 
     assert raised.value.code == "hal.pwm_unsupported_pin"
     assert raised.value.params == {"pin": 17, "board": "rpi4b"}
@@ -149,7 +212,9 @@ def test_two_pwm_outputs_on_one_channel_are_refused_before_anything_is_claimed()
     hal = SimulatedHal(BOARD)
 
     with pytest.raises(PrimumError) as raised:
-        hal.claim(Claim(pwms=(PwmSpec(pin=12), PwmSpec(pin=18))))  # both channel 0 on a Pi 4
+        hal.claim(
+            Claim(pwms=(PwmSpec(pin=12, frequency_hz=1000), PwmSpec(pin=18, frequency_hz=1000)))
+        )  # both channel 0 on a Pi 4
 
     assert raised.value.code == "hal.pwm_channel_in_use"
     assert raised.value.params == {"channel": 0, "pins": (12, 18)}
@@ -420,3 +485,14 @@ def test_close_reports_an_unverified_safe_state_with_the_release_failures() -> N
 
     assert raised.value.code == "hal.safe_state_unverified"
     assert raised.value.params == {"pins": (17,), "release_pins": (27,)}
+
+
+def test_a_simulated_pwm_reads_back_in_whole_nanoseconds_of_its_period_as_sysfs_does() -> None:
+    with SimulatedHal(BOARD) as hal:
+        hal.claim(Claim(pwms=(PwmSpec(pin=18, frequency_hz=1000),)))
+        pwm = hal.pwms[18]
+
+        pwm.set(1 / 3)
+
+        assert pwm.duty == 1 / 3
+        assert pwm.read() == 0.333333
