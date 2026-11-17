@@ -159,6 +159,7 @@ def test_a_line_that_does_not_follow_is_an_error_with_its_code(
         "code": "element.level_not_reached",
         "params": {"element": LED, "level": 100, "read": 0.0},
     }
+    assert client.get("/api/status").json() == OFF  # what it reads, not what was asked
 
 
 def test_stopping_the_service_applies_the_safe_state_and_releases_the_line(

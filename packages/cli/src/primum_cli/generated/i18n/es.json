@@ -138,6 +138,10 @@
       "message": "El valor de {name} para {element} está fuera de sus límites.",
       "hint": "Mantenlo entre {min} y {max}."
     },
+    "element.value_unlimited": {
+      "message": "Nada limita {name} para {element}.",
+      "hint": "Su driver o su placa deben decir qué valores admite {name}."
+    },
     "element.level_not_reached": {
       "message": "{element} se puso a {level} pero se lee {read}.",
       "hint": "Revisa su cableado y si otra cosa lo está manejando. Usa el botón de pánico si no es seguro."

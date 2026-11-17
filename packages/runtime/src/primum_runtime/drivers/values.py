@@ -25,8 +25,10 @@ def resolve(
 
     Fails with ``element.value_unknown`` for a name that is not declared,
     ``element.value_missing`` for one without a default that is not given,
-    ``element.value_invalid`` for a value of another type or not among the choices, and
-    ``element.value_out_of_range`` for a number outside the manifest's limits or the board's.
+    ``element.value_invalid`` for a value of another type or not among the choices,
+    ``element.value_out_of_range`` for a number outside the manifest's limits or the board's,
+    and ``element.value_unlimited`` for a number that neither limits: as in ``core``, a number
+    must be limited by someone, or anything would reach the hardware.
     """
     declared = {parameter.name for parameter in parameters}
     for name in given:
@@ -53,6 +55,8 @@ def _check(
     manifest = None
     if parameter.min is not None and parameter.max is not None:
         manifest = (parameter.min, parameter.max)
+    if manifest is None and board is None:
+        raise _problem(ErrorCode.ELEMENT_VALUE_UNLIMITED, element, parameter.name)
     for limits in (manifest, board):
         if limits is not None and not limits[0] <= value <= limits[1]:
             params = {"min": limits[0], "max": limits[1]}

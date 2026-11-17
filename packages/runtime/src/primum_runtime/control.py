@@ -104,14 +104,21 @@ class Controller:
         """Ask output ``name`` for one of the actions of its driver, as an instant command.
 
         Fails with ``output.unknown`` (param ``name``), ``panic.active`` while panic is on, or
-        what the driver reports for the action and its arguments.
+        what the driver reports for the action and its arguments. Listeners are told when the
+        command was carried out, and also when the output did not follow it
+        (``element.level_not_reached``): its state is then the level it read back.
         """
         output = self._outputs.get(name)
         if output is None:
             raise PrimumError(ErrorCode.OUTPUT_UNKNOWN, {"name": name})
         if self._panic:
             raise PrimumError(ErrorCode.PANIC_ACTIVE)
-        output.command(action, arguments)
+        try:
+            output.command(action, arguments)
+        except PrimumError as error:
+            if error.code is ErrorCode.ELEMENT_LEVEL_NOT_REACHED:
+                self._notify()
+            raise
         self._notify()
 
     def set_output(self, name: str, on: bool) -> None:

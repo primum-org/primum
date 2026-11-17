@@ -23,11 +23,14 @@ loop's, so nothing may block it or need a lock.
 - **A command is an action of the manifest, carried out as an instant command**: the element
   goes to the state the action ends in (`endState`, decision 0018) and is read back. A level
   that does not read back is an error (`element.level_not_reached`): for a digital output, on
-  or off; for a PWM output, within one step of its period. Moving an element over time (a
+  or off; for a PWM output, within one step of its period. The output then reports the
+  level it read, and listeners are told: the state never shows what was only asked. Moving an element over time (a
   `fade` with a length) is the engine's (phase 4), on top of this.
 - **Limits are enforced three times**, each by who can: `core` on the project, the driver on
   what reaches it (the manifest's limits and the board's), and the HAL on what it can express
-  at all (the PWM frequency its board takes). The runtime's errors for values are
+  at all (the PWM frequency its board takes). The driver fails closed as `core` does: a
+  number that neither its manifest nor its board limits is refused
+  (`element.value_unlimited`), since the service's own options never pass through `core`. The runtime's errors for values are
   `element.*`; `driver.*` stays for problems of a manifest.
 - **The `Controller` owns the drivers**: it makes them, claims everything at once
   (decision 0015) and keeps outputs by name. Panic stays the HAL's safe state, read back,

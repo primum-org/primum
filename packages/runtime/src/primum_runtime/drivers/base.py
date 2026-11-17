@@ -72,10 +72,19 @@ class ElementDriver(ABC):
 class OutputDriver(ElementDriver):
     """An element that is commanded: it has a level, from 0 (off) to 100 (fully on)."""
 
+    # The level written by a command that the hardware did not follow, and the one it read
+    # back instead.
+    _not_reached: tuple[float, float] | None = None
+
     @property
-    @abstractmethod
     def level(self) -> float:
-        """The last level commanded successfully."""
+        """The level the element is at, as far as is known: the last one written, or, when
+        the hardware did not follow that command, the one it read back instead. Whatever
+        writes another level afterwards (a command, the safe state) makes that reading old."""
+        written = self._written()
+        if self._not_reached is not None and self._not_reached[0] == written:
+            return self._not_reached[1]
+        return written
 
     @property
     def actions(self) -> tuple[str, ...]:
@@ -95,9 +104,11 @@ class OutputDriver(ElementDriver):
         level = values[state] if isinstance(state, str) else state
         if isinstance(level, bool | str):  # the manifest check refuses it: a state is a number
             raise TypeError(f"the state of {action!r} is not a level: {level!r}")
+        self._not_reached = None
         self._write(level)
         read = self._read()
         if not self._reached(level, read):
+            self._not_reached = (self._written(), read)
             params = {"element": self.name, "level": level, "read": read}
             raise PrimumError(ErrorCode.ELEMENT_LEVEL_NOT_REACHED, params)
 
@@ -117,6 +128,10 @@ class OutputDriver(ElementDriver):
 
     @abstractmethod
     def _write(self, level: float) -> None: ...
+
+    @abstractmethod
+    def _written(self) -> float:
+        """The last level written successfully, as the HAL remembers it."""
 
     @abstractmethod
     def _read(self) -> float:

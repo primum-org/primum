@@ -138,6 +138,10 @@
       "message": "The value of {name} for {element} is outside its limits.",
       "hint": "Keep it between {min} and {max}."
     },
+    "element.value_unlimited": {
+      "message": "Nothing limits {name} for {element}.",
+      "hint": "Its driver or its board must say which values {name} takes."
+    },
     "element.level_not_reached": {
       "message": "{element} was set to {level} but reads back {read}.",
       "hint": "Check its wiring and whether something else drives it. Use the panic button if it is not safe."

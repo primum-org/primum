@@ -17,8 +17,7 @@ class DigitalOutputDriver(OutputDriver):
     def bind(self, hal: Hal) -> None:
         self._output = hal.outputs[self.pin]
 
-    @property
-    def level(self) -> float:
+    def _written(self) -> float:
         return MAX_LEVEL if self._output.is_on else 0.0
 
     def _write(self, level: float) -> None:

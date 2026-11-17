@@ -42,6 +42,7 @@ class ErrorCode(StrEnum):
     ELEMENT_VALUE_MISSING = "element.value_missing"
     ELEMENT_VALUE_INVALID = "element.value_invalid"
     ELEMENT_VALUE_OUT_OF_RANGE = "element.value_out_of_range"
+    ELEMENT_VALUE_UNLIMITED = "element.value_unlimited"
     ELEMENT_LEVEL_NOT_REACHED = "element.level_not_reached"
     OUTPUT_UNKNOWN = "output.unknown"
     PANIC_ACTIVE = "panic.active"

@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 
 from primum_runtime.hal.base import (
+    NS_PER_S,
     BoardGpio,
     Claim,
     Drivers,
@@ -97,6 +98,7 @@ class SimulatedPwm:
 
     Faults can be injected as on a ``SimulatedLine``: ``fail_writes``, and ``stick(1.0)`` for a
     channel that reads back a level whatever is written (an inverted polarity, for instance).
+    It reads back as the real one does: the level written, in whole nanoseconds of its period.
     """
 
     def __init__(self, spec: PwmSpec) -> None:
@@ -134,7 +136,10 @@ class SimulatedPwm:
         self._history.append(duty)
 
     def read(self) -> float:
-        return self._duty if self._stuck is None else self._stuck
+        if self._stuck is not None:
+            return self._stuck
+        period_ns = NS_PER_S // self._spec.frequency_hz
+        return round(self._duty * period_ns) / period_ns
 
     def release(self) -> None:
         self._released = True

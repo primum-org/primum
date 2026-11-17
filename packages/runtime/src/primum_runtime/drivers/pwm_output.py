@@ -19,8 +19,7 @@ class PwmOutputDriver(OutputDriver):
     def bind(self, hal: Hal) -> None:
         self._output = hal.pwms[self.pin]
 
-    @property
-    def level(self) -> float:
+    def _written(self) -> float:
         return self._output.duty * MAX_LEVEL
 
     def _write(self, level: float) -> None:

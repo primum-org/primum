@@ -170,11 +170,13 @@ is `element.type_unsupported` (`element`, `type`).
 | One without a default that is not given | `element.value_missing` | |
 | A value of another type, or not among the choices | `element.value_invalid` | |
 | A number outside the manifest's limits, or the board's | `element.value_out_of_range` | `min`, `max` |
+| A number that neither the manifest nor the board limits | `element.value_unlimited` | |
 
 **An output** (`digital_output`, `pwm_output`) is commanded with the actions of its manifest
 (`element.action_unknown` otherwise, with `action` and `available`). A command is instant: the
 element goes to the level the action ends in and is read back, and a level that does not
-read back is `element.level_not_reached` (`element`, `level`, `read`). A digital output is on
+read back is `element.level_not_reached` (`element`, `level`, `read`); the output then
+reports the level it read, not the one asked, until something writes another. A digital output is on
 at any level above 0, and only on and off are told apart; a PWM output reads back within one
 step of its period (sysfs holds the duty cycle in whole nanoseconds: a third reads back as
 0.333333 at 1 kHz). Its safe state is the action the manifest names; a test ties it to the

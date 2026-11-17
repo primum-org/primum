@@ -64,6 +64,8 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
     elements = [ElementConfig(LED, "digital_output", pin, active_low)]
     input_pin: int | None = args.input_pin
     input_pull: str | None = args.input_pull
+    if input_pin is None and input_pull is not None:
+        parser.error("a pull without an input: give --input-pin (PRIMUM_INPUT_PIN) too")
     if input_pin is not None:
         if input_pull is None:
             parser.error("the input needs its pull: --input-pull or PRIMUM_INPUT_PULL")

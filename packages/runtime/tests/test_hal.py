@@ -485,3 +485,14 @@ def test_close_reports_an_unverified_safe_state_with_the_release_failures() -> N
 
     assert raised.value.code == "hal.safe_state_unverified"
     assert raised.value.params == {"pins": (17,), "release_pins": (27,)}
+
+
+def test_a_simulated_pwm_reads_back_in_whole_nanoseconds_of_its_period_as_sysfs_does() -> None:
+    with SimulatedHal(BOARD) as hal:
+        hal.claim(Claim(pwms=(PwmSpec(pin=18, frequency_hz=1000),)))
+        pwm = hal.pwms[18]
+
+        pwm.set(1 / 3)
+
+        assert pwm.duty == 1 / 3
+        assert pwm.read() == 0.333333

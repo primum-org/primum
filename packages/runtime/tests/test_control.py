@@ -217,3 +217,53 @@ def test_a_wrong_option_fails_before_anything_is_claimed(hal: SimulatedHal) -> N
 def test_two_elements_of_one_name_are_the_caller_s_mistake(hal: SimulatedHal) -> None:
     with pytest.raises(ValueError, match="same name"):
         _controller(hal, LED, LED)
+
+
+def test_an_output_that_does_not_follow_is_reported_as_it_reads_and_listeners_are_told(
+    hal: SimulatedHal,
+) -> None:
+    controller = _controller(hal)
+    hal.lines[17].stick(False)
+    states: list[State] = []
+    controller.subscribe(states.append)
+
+    with pytest.raises(PrimumError) as raised:
+        controller.set_output("led", True)
+
+    assert raised.value.code == "element.level_not_reached"
+    assert controller.state().outputs[0] == OutputState("led", on=False, level=0)
+    assert states == [controller.state()]
+
+
+def test_a_pwm_output_that_does_not_follow_reports_the_level_it_reads(hal: SimulatedHal) -> None:
+    controller = _controller(hal, DIMMER)
+    hal.pwm_lines[18].stick(0.2)
+
+    with pytest.raises(PrimumError):
+        controller.command("dimmer", "set", {"level": 80})
+
+    assert controller.state().outputs == (OutputState("dimmer", on=True, level=20),)
+
+
+def test_the_next_command_that_is_followed_says_what_it_did(hal: SimulatedHal) -> None:
+    controller = _controller(hal)
+    hal.lines[17].stick(False)
+    with pytest.raises(PrimumError):
+        controller.set_output("led", True)
+    hal.lines[17].stick(None)
+
+    controller.set_output("led", True)
+
+    assert controller.state().outputs[0] == OutputState("led", on=True, level=100)
+
+
+def test_panic_after_an_output_did_not_follow_reports_its_safe_state(hal: SimulatedHal) -> None:
+    controller = _controller(hal, DIMMER)
+    hal.pwm_lines[18].stick(0.2)
+    with pytest.raises(PrimumError):
+        controller.command("dimmer", "set", {"level": 80})
+    hal.pwm_lines[18].stick(None)
+
+    controller.panic()
+
+    assert controller.state().outputs == (OutputState("dimmer", on=False, level=0),)

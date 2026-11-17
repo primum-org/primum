@@ -193,9 +193,48 @@ def test_arguments_an_action_does_not_take_as_given_change_nothing(
 def test_a_level_read_back_within_one_step_is_the_level_written() -> None:
     """At 1 kHz the period is a million nanoseconds: a third reads back as 0.333333."""
     driver, hal = _output(DIMMER)
-    hal.pwm_lines[18].stick(0.333333)
 
     driver.command("set", {"level": 100 / 3})
+
+    assert hal.pwm_lines[18].read() == 0.333333
+
+
+def test_at_the_highest_frequency_a_level_under_one_step_does_not_pass_for_another() -> None:
+    """At 100 kHz a step is 0.01: 0.004 rounds to 0 and is within a step of it, 0.02 is not."""
+    fast = replace(DIMMER, options={"frequencyHz": 100_000})
+    driver, hal = _output(fast)
+
+    driver.command("set", {"level": 0.004})
+    assert hal.pwm_lines[18].read() == 0.0
+
+    hal.pwm_lines[18].stick(0.0)
+    with pytest.raises(PrimumError) as raised:
+        driver.command("set", {"level": 0.02})
+    assert raised.value.code == "element.level_not_reached"
+
+
+def test_a_number_that_nothing_limits_is_refused_by_the_driver_too() -> None:
+    """As ``core`` does: without the board's limit any frequency would reach the HAL."""
+    with pytest.raises(PrimumError) as raised:
+        create_driver(replace(DIMMER, options={"frequencyHz": 20_000_000}), MANIFESTS, {})
+
+    assert raised.value.code == "element.value_unlimited"
+    assert raised.value.params == {"element": "dimmer", "name": "frequencyHz"}
+
+
+def test_an_argument_that_nothing_limits_is_refused() -> None:
+    level = replace(MANIFESTS["pwm_output"].actions[2].parameters[0], min=None, max=None)
+    action = replace(MANIFESTS["pwm_output"].actions[2], parameters=(level,))
+    manifest = replace(MANIFESTS["pwm_output"], actions=(action,), safe_state=None)
+    driver = create_driver(DIMMER, {"pwm_output": manifest}, LIMITS)
+    assert isinstance(driver, OutputDriver)
+    hal = _claimed(driver)
+
+    with pytest.raises(PrimumError) as raised:
+        driver.command("set", {"level": 5})
+
+    assert raised.value.code == "element.value_unlimited"
+    assert hal.pwm_lines[18].history == ()
 
 
 def test_a_level_read_back_further_than_one_step_is_an_error() -> None:

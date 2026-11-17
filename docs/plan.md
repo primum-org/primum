@@ -490,9 +490,11 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   its element, its manifest and the limits of its board, with tests against the simulated
   HAL. An output is commanded with the actions of its manifest, as an instant command: it
   goes to the state the action ends in and is read back (`element.level_not_reached`; a PWM
-  level within one step of its period, since sysfs holds whole nanoseconds).
+  level within one step of its period, since sysfs holds whole nanoseconds, which the
+  simulated HAL does too). An output that does not follow reports the level it read.
 - The drivers enforce the limits again: an option or an argument outside its manifest's
-  limits or its board's is refused before anything is claimed (`element.value_*`). The HAL
+  limits or its board's is refused before anything is claimed (`element.value_*`), and so
+  is a number that neither limits (`element.value_unlimited`), as in `core`. The HAL
   refuses a PWM frequency outside what the board takes (`BoardGpio.pwm_frequency_hz`, from
   the profile), which also ends the misleading errors a huge frequency gave.
 - `core` fails closed: a numeric option that neither its driver nor its board limits is

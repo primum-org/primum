@@ -90,3 +90,8 @@ def test_an_input_without_its_pull_exits_instead_of_assuming_one() -> None:
 def test_a_pull_that_is_not_one_exits() -> None:
     with pytest.raises(SystemExit):
         parse_config(["--pin", "17", "--input-pin", "22", "--input-pull", "sideways"], {})
+
+
+def test_a_pull_without_an_input_exits_instead_of_being_ignored() -> None:
+    with pytest.raises(SystemExit):
+        parse_config(["--pin", "17", "--input-pull", "up"], {})
