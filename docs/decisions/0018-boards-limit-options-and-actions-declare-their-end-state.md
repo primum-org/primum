@@ -15,20 +15,25 @@ the trap decision 0017 left: a `fade` to 0 under a standing `on` ends with the l
 back on.
 
 ## Decision
-- **What a board can do is data of its profile**: a list of `limits`, each the element type
+- **What an option can be on a board is data of its profile**: a list of `limits`, each the element type
   and the option it limits, a minimum and a maximum, and the `sources` it comes from (the
   manufacturer's documentation, or the source of the system Primum ships), with a `note` on
   how it follows from them. A limit without a source is refused. `core` checks each element
   against the limits of its board, generically: no code per driver, and a new board is only
   data.
-- **A manifest keeps the option, its type, its default, and the limits Primum itself sets**
-  on every board. The debounce time is one: no board limits it (the kernel takes 32 bits of
+- **A manifest keeps the option, its type, its default, and the limits that depend on no
+  board.** The debounce time is one: no board limits it (the kernel takes 32 bits of
   microseconds and a Raspberry Pi debounces in software), so 0 to 10 s stays in the manifest.
+- The line between the two is not "the board's against Primum's". A limit in a profile is
+  the useful range on that board: what its sources allow, narrowed by choices of Primum's
+  that only make sense with that board's numbers (whole hertz, a resolution worth having).
+  The `note` of each limit says which part is which.
 - **`rpi4b` takes a PWM frequency of 1 Hz to 100 kHz**, read in the kernel branch the
   development board runs (`rpi-6.18.y`); the profile is read again for the kernel Primum OS
   ships. Its controller would go from 0.012 Hz
-  to 25 MHz (a 50 MHz clock, a period of 2 to 2^32 cycles). The minimum is the lowest whole
-  number of hertz. The maximum is a choice of resolution: 100 kHz leaves 500 steps of level.
+  to 25 MHz (a 50 MHz clock, a period of 2 to 2^32 cycles). Both ends are Primum's choice within that:
+  the minimum is the lowest whole number of hertz, and the maximum is a choice of resolution
+  (100 kHz leaves 500 steps of level).
 - **An action declares the state it leaves its element in**, its `endState`: a level from 0 to
   100, fixed or given by one of its parameters. An action that moves its element over its
   clip also declares its `startState`. A driver needs the first anyway to carry out an

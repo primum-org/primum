@@ -266,3 +266,15 @@ def test_a_limit_no_float_holds_is_reported_not_raised() -> None:
     assert _found(config=[parameter]) == [
         (CoreErrorCode.SCHEMA_EXPECTED_NUMBER, {"field": "config[0].max"}, "/config/0/max")
     ]
+
+
+def test_a_state_names_a_parameter_as_parameters_are_named() -> None:
+    """``actionState`` is a number or a name, so it cannot refer to ``parameterName``: it
+    repeats its rules, and they must stay the same."""
+    schemas = ROOT / "schemas"
+    state = json.loads((schemas / "driver.schema.json").read_text())["$defs"]["actionState"]
+    name = json.loads((schemas / "common.schema.json").read_text())["$defs"]["parameterName"]
+
+    assert [state[rule] for rule in ("pattern", "maxLength")] == [
+        name[rule] for rule in ("pattern", "maxLength")
+    ]

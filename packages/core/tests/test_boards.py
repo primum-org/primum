@@ -230,3 +230,12 @@ def test_a_shipped_profile_with_pwm_limits_its_frequency(model: str) -> None:
     limited = {(limit.element_type, limit.option) for limit in profile.limits}
 
     assert not profile.pwm_channels or ("pwm_output", "frequencyHz") in limited
+
+
+def test_limits_are_shown_as_whole_numbers_when_they_are() -> None:
+    document = json.loads(RPI4B.read_text(encoding="utf-8"))
+    document["limits"] = [{**LIMIT, "min": 5, "max": 2.5}]
+    parsed = read_board_profile(PurePosixPath("rpi4b.json"), json.dumps(document).encode())
+
+    (issue,) = parsed.issues
+    assert [repr(issue.params[key]) for key in ("min", "max")] == ["5", "2.5"]

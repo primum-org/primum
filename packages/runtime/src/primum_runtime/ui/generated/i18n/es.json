@@ -264,8 +264,8 @@
       "hint": "Una secuencia termina con su último clip. Dale una duración a ese clip en {sequence}."
     },
     "clip.returns_to_instant": {
-      "message": "{action} apaga {element}, pero cuando termina {element} vuelve al {standing} de antes.",
-      "hint": "Un clip devuelve su elemento cuando termina, y el {standing} anterior sigue vigente. Para dejar {element} apagado, añade un clip instantáneo que lo apague justo donde termina {action}."
+      "message": "{action} apaga {element}, pero cuando termina {element} vuelve a como lo dejó antes {standing}.",
+      "hint": "Un clip devuelve su elemento cuando termina, y la orden instantánea {standing} de antes sigue vigente. Para dejar {element} apagado, añade un clip instantáneo que lo apague justo donde termina {action}."
     },
     "track.element_without_actions": {
       "message": "{element} no admite acciones, así que no puede tener una pista.",

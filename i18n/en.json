@@ -264,8 +264,8 @@
       "hint": "A sequence ends with its last clip. Give that clip a duration in {sequence}."
     },
     "clip.returns_to_instant": {
-      "message": "{action} turns {element} off, but when it ends {element} goes back to the {standing} from before.",
-      "hint": "A clip gives its element back when it ends, and the earlier {standing} is still in force. To leave {element} off, add an instant clip that turns it off right where {action} ends."
+      "message": "{action} turns {element} off, but when it ends {element} goes back to where {standing} left it before.",
+      "hint": "A clip gives its element back when it ends, and the earlier instant {standing} is still in force. To leave {element} off, add an instant clip that turns it off right where {action} ends."
     },
     "track.element_without_actions": {
       "message": "{element} takes no actions, so it cannot have a track.",

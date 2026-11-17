@@ -13,6 +13,7 @@ from dataclasses import replace
 
 from primum_core.errors import CoreErrorCode, Issue, Location, ParamValue
 from primum_core.generated.model import BoardProfile, HeaderPin
+from primum_core.given import shown
 
 
 def check_board_profile(profile: BoardProfile, location: Location) -> tuple[Issue, ...]:
@@ -88,7 +89,7 @@ def _limit_issues(profile: BoardProfile, location: Location) -> Iterator[Issue]:
             yield Issue(CoreErrorCode.BOARD_DUPLICATE_LIMIT, params, at)
         seen.add((limit.element_type, limit.option))
         if limit.min > limit.max:
-            params = {**params, "min": limit.min, "max": limit.max}
+            params = {**params, "min": shown(limit.min), "max": shown(limit.max)}
             yield Issue(CoreErrorCode.BOARD_LIMITS_INVALID, params, at)
 
 

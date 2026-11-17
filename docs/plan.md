@@ -494,6 +494,11 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   board's profile does not take, the input driver a debounce outside the manifest's limits.
 - An `hw` test on `primum-dev` at both ends of each limit: a PWM output at its lowest and
   highest frequency (1 Hz and 100 kHz), an input at its longest debounce (10 s).
+- The PWM frequency fails open in `core`: its manifest has no limit, so a profile that says
+  nothing lets any value through, and only two tests on the shipped files hold it. A profile
+  someone adds is not under those tests. The manifest marks an option as limited by the
+  board, and `core` gives an error for an element of that type on a board whose profile does
+  not limit it (and for a limit that names an option no driver has, where it can know).
 - `platforms` comes back to the manifests when a board profile says its platform and `core`
   can check that the driver exists on the element's board.
 - A driver hands the HAL every option, taken from the manifest and the element, never the
