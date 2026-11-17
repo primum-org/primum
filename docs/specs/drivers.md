@@ -142,7 +142,9 @@ It is the trap of decision 0017: a clip gives its element back when it ends, so 
 out under a standing `on` jumps back on. An instant `off` (or `set` to 0) right where the
 fade ends keeps it off. Not reported: a clip whose action holds one state (`off` for two
 seconds over a standing `on` is how a light blinks off), a fade that ends elsewhere than at
-rest, one followed at its end by another clip or instant command of the element, one with
+rest (or that starts there too: a fade from 0 to 0 moves nothing), one followed at its end
+by another clip or instant command of the element, one with an instant command inside it
+(that one cuts the fade from its instant on: another matter, not reported), one with
 nothing standing (the element goes to rest anyway) and one that ends a sequence that holds.
 A component's clip is checked at the block that gives it its element. The same states spare
 `clip.instant_at_end`: a sequence may end with any instant command that leaves its element at

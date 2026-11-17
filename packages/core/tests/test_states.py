@@ -114,6 +114,30 @@ def test_an_instant_command_replaced_before_the_fade_does_not_come_back(
     assert project.found() == []
 
 
+def test_an_instant_on_inside_the_fade_cuts_it_which_is_another_matter(
+    project: Project, ids: Ids
+) -> None:
+    """The on commands from 6 s: the fade never reaches 0, so nothing "comes back"."""
+    _show(project, ids, _fade_out(ids, 22, 5000), _clip(ids, 23, 6000, 0))
+
+    assert project.found() == []
+
+
+def test_an_instant_on_where_the_fade_starts_stands_under_it_and_comes_back(
+    project: Project, ids: Ids
+) -> None:
+    _show(project, ids, _clip(ids, 21, 5000, 0), _fade_out(ids, 22, 5000))
+
+    assert project.found() == [_returns("/tracks/0/clips/1")]
+
+
+def test_a_fade_from_0_to_0_moves_nothing(project: Project, ids: Ids) -> None:
+    still = _clip(ids, 22, 5000, 2000, "fade", from_=0, to=0)
+    _show(project, ids, _clip(ids, 21, 0, 0), still)
+
+    assert project.found() == []
+
+
 def test_a_clip_that_holds_0_for_a_while_is_meant_to_give_the_element_back(
     project: Project, ids: Ids
 ) -> None:
@@ -246,7 +270,8 @@ def _random_clips(random: Random, ids: Ids) -> list[dict[str, object]]:
 
 def _expected_to_return(clips: list[dict[str, object]]) -> list[str]:
     """Where the warning belongs, told without asking who commands: a fade to 0, nothing
-    starting where it ends, and the last instant command before that asking for more than 0."""
+    starting where it ends, and the last instant command before that, which is not inside
+    the fade, asking for more than 0."""
 
     def number(clip: dict[str, object], field: str) -> int:
         value = clip[field]
@@ -266,7 +291,10 @@ def _expected_to_return(clips: list[dict[str, object]]) -> list[str]:
         if any(number(other, "atMs") == end for other in clips):
             continue
         before = [o for o in clips if o["durationMs"] == 0 and number(o, "atMs") < end]
-        if before and level(max(before, key=lambda o: number(o, "atMs")), "level") != 0:
+        last = max(before, key=lambda o: number(o, "atMs")) if before else None
+        if last is None or number(last, "atMs") > number(clip, "atMs"):
+            continue
+        if level(last, "level") != 0:
             expected.append(f"/tracks/0/clips/{index}")
     return expected
 

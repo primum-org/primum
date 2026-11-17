@@ -471,10 +471,13 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - Not reported by `clip.returns_to_instant`: a fade in an included sequence that names the
   element itself, under a standing `on` of the sequence that includes it (a check of one
   sequence does not know every way it is used); a fade to 0 with nothing standing, which
-  goes to rest anyway; and across sequences (a fade in one under a held `on` of another: the
+  goes to rest anyway; an instant command inside a fade, which cuts it (a warning of its
+  own, if people fall into it); and across sequences (a fade in one under a held `on` of another: the
   cases of phase 4).
 - Nothing checks that a profile with PWM channels limits their frequency: a new board that
   forgets it leaves the option unlimited. With the second profile.
+- The profile cites the kernel branch `primum-dev` runs (`rpi-6.18.y`): cite the one Primum
+  OS ships when there is one (phase 7).
 - The limits are arithmetic on the sources, not a measure: the `hw` test at both ends is in
   3.3b.
 - Small: the sequences are now flattened three times (actions, overlaps, states).

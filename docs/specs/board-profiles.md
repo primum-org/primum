@@ -116,7 +116,9 @@ only its driver's limits.
   RX 15). The other buses of the BCM2711 come with the hardware manager (phase 6).
 - PWM: channel 0 on GPIO 12 or 18, channel 1 on GPIO 13 or 19.
 - Reserved: GPIO 0 and 1, the I2C bus of the HAT EEPROM (ID_SD, ID_SC).
-- Limits: a PWM output takes 1 Hz to 100 kHz. The Raspberry Pi kernel clocks the PWM at 50 MHz
+- Limits: a PWM output takes 1 Hz to 100 kHz. The Raspberry Pi kernel (the profile cites
+  `rpi-6.18.y`, the branch `primum-dev` runs; `rpi-6.12.y` says the same; to be cited again
+  for the kernel Primum OS ships, phase 7) clocks the PWM at 50 MHz
   (`assigned-clock-rates` of the `pwm` node in `bcm283x.dtsi`; mainline says 10 MHz and the
   `pwm-2chan` overlay takes a `clock` parameter, so the profile describes the board with the
   system Primum ships) and `pwm-bcm2835` takes a period of 2 to 2^32 clock cycles: 0.012 Hz to

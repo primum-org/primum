@@ -1,4 +1,4 @@
-"""The state each action leaves its element in, as its driver declares it (decision 0017).
+"""The state each action leaves its element in, as its driver declares it (decision 0018).
 
 A manifest gives each action an end state, a level from 0 to 100: fixed (``on`` is 100,
 ``off`` is 0) or given by one of its parameters (``set`` its ``level``, ``fade`` its ``to``).
@@ -40,7 +40,7 @@ def rest_level(driver: Driver) -> float | None:
 
 def check_returns(files: Iterable[LocatedContent], drivers: Drivers) -> tuple[Issue, ...]:
     """Every clip that moves its element to rest and, when it ends, gives it back to an instant
-    command of before that asks for another state.
+    command of before (placed no later than the clip starts) that asks for another state.
 
     A clip is checked where its element is known: in its own sequence, or at the block that
     gives a component its element, once per different problem.
@@ -66,9 +66,10 @@ def check_returns(files: Iterable[LocatedContent], drivers: Drivers) -> tuple[Is
         for clip in moving:
             name, driver = elements[clip.element]
             after = command_at(clip.element, clip.end, running, timelines)
-            # Nothing, a clip with a length, or an instant command placed where this one ends:
-            # nothing of before comes back.
-            if after is None or after.clip.duration_ms > 0 or after.since_ms >= clip.end:
+            # Nothing, or a clip with a length: nothing comes back. An instant command placed
+            # after the clip started is not of before: where the clip ends it is the cure,
+            # and inside the clip it cuts it, which is another matter.
+            if after is None or after.clip.duration_ms > 0 or after.since_ms > clip.start:
                 continue
             standing = end_level(after.clip, driver)
             if standing is None or standing == rest_level(driver):
@@ -80,8 +81,8 @@ def check_returns(files: Iterable[LocatedContent], drivers: Drivers) -> tuple[Is
 
 
 def _moves_to_rest(clip: FlatClip, elements: _Elements) -> bool:
-    """A clip with a length, of an element known here, whose action moves it and ends where
-    the element rests."""
+    """A clip with a length, of an element known here, whose action moves it from another
+    state to where the element rests."""
     if clip.instant or clip.element not in elements:
         return False
     if clip.via is not None and not clip.bound_here:
@@ -90,8 +91,9 @@ def _moves_to_rest(clip: FlatClip, elements: _Elements) -> bool:
     action = _action(driver, clip.clip.action)
     if action is None or action.start_state is None:
         return False
+    starts = _level(action.start_state, action, clip.clip.arguments)
     ends = end_level(clip.clip, driver)
-    return ends is not None and ends == rest_level(driver)
+    return ends is not None and ends == rest_level(driver) and starts != ends
 
 
 def _action(driver: Driver, name: str | None) -> DriverAction | None:
