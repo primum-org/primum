@@ -131,6 +131,13 @@ def test_an_instant_on_where_the_fade_starts_stands_under_it_and_comes_back(
     assert project.found() == [_returns("/tracks/0/clips/1")]
 
 
+def test_a_fade_without_its_from_is_only_that_problem(project: Project, ids: Ids) -> None:
+    fade = _clip(ids, 22, 5000, 2000, "fade", to=0)
+    _show(project, ids, _clip(ids, 21, 0, 0), fade)
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.ACTION_PARAM_MISSING]
+
+
 def test_a_fade_from_0_to_0_moves_nothing(project: Project, ids: Ids) -> None:
     still = _clip(ids, 22, 5000, 2000, "fade", from_=0, to=0)
     _show(project, ids, _clip(ids, 21, 0, 0), still)

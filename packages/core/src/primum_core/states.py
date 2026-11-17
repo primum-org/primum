@@ -93,7 +93,10 @@ def _moves_to_rest(clip: FlatClip, elements: _Elements) -> bool:
         return False
     starts = _level(action.start_state, action, clip.clip.arguments)
     ends = end_level(clip.clip, driver)
-    return ends is not None and ends == rest_level(driver) and starts != ends
+    # A start or an end that cannot be told is the actions check's.
+    if starts is None or ends is None:
+        return False
+    return ends == rest_level(driver) and starts != ends
 
 
 def _action(driver: Driver, name: str | None) -> DriverAction | None:
