@@ -27,6 +27,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0017](0017-who-commands-an-element-and-sequences-that-hold.md) | One rule says who commands an element; a sequence can hold until it is stopped | Accepted |
 | [0018](0018-boards-limit-options-and-actions-declare-their-end-state.md) | A board limits options in its profile; an action declares the state it ends in | Accepted |
 | [0019](0019-drivers-on-the-hal.md) | Drivers implement manifests on the HAL; commands are instant and read back | Accepted |
+| [0020](0020-safe-state-after-the-process-dies.md) | The runtime declares what it claims; `primum-safe` makes it safe after every stop | Accepted |
 
 ## Template
 

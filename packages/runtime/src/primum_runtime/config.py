@@ -9,11 +9,16 @@ which GPIO chip, and what it takes for the options of its elements.
 
 The pins have no default on purpose: a default pin is a pin someone may have wired to a relay.
 Neither has the pull of the input: every default is wrong for some wiring.
+
+The service writes in one directory only, ``/data`` unless told otherwise: there it declares
+the outputs it claims, so that ``primum-safe`` can make them safe if it dies (decision 0020).
+A simulated service has no real outputs and declares nothing.
 """
 
 import argparse
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 from primum_core.values import Value
 from primum_runtime.board import (
@@ -31,6 +36,7 @@ BUTTON = "button"
 PULLS = tuple(pull.value for pull in Pull)
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
+DEFAULT_DATA_DIR = "/data"
 _TRUE = frozenset({"1", "true", "yes", "on"})
 _FALSE = frozenset({"0", "false", "no", "off", ""})
 
@@ -41,6 +47,7 @@ class RuntimeConfig:
     board: BoardGpio
     limits: OptionLimits
     elements: tuple[ElementConfig, ...]
+    data_dir: Path
     host: str
     port: int
 
@@ -88,6 +95,7 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
         board=load_board(board),
         limits=option_limits(load_profile(board)),
         elements=tuple(elements),
+        data_dir=args.data_dir,
         host=host,
         port=port,
     )
@@ -147,6 +155,13 @@ def _parser(env: Mapping[str, str]) -> argparse.ArgumentParser:
         default=_int(env, "PRIMUM_INPUT_DEBOUNCE_MS"),
         help="ignore bounces of the input shorter than this; its driver's default if not given "
         "(PRIMUM_INPUT_DEBOUNCE_MS)",
+    )
+    parser.add_argument(
+        "--data-dir",
+        type=Path,
+        default=Path(env.get("PRIMUM_DATA_DIR", DEFAULT_DATA_DIR)),
+        help="the only directory the service writes: there it declares the outputs it claims, "
+        f"for primum-safe; {DEFAULT_DATA_DIR} by default (PRIMUM_DATA_DIR)",
     )
     parser.add_argument(
         "--host",

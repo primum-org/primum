@@ -63,6 +63,7 @@ class Controller:
         elements: Sequence[ElementConfig],
         manifests: Mapping[str, Driver],
         limits: OptionLimits,
+        before_claim: Callable[[Claim], None] | None = None,
     ) -> None:
         """Make the driver of every element and claim them all at once. Outputs start in
         their safe state.
@@ -71,6 +72,9 @@ class Controller:
         (a type without a driver, an option its manifest or its board does not take); then
         with what the HAL reports for the claim. Two elements of one name are a mistake of
         the caller: ``ValueError``.
+
+        ``before_claim`` is called with what is about to be claimed, and may refuse it by
+        raising: it is how the service declares its outputs before they can go on.
         """
         names = [element.name for element in elements]
         if len(set(names)) != len(names):
@@ -78,13 +82,14 @@ class Controller:
         self._hal = hal
         drivers = [create_driver(element, manifests, limits) for element in elements]
         specs = [driver.spec for driver in drivers]
-        hal.claim(
-            Claim(
-                outputs=[spec for spec in specs if isinstance(spec, OutputSpec)],
-                inputs=[spec for spec in specs if isinstance(spec, InputSpec)],
-                pwms=[spec for spec in specs if isinstance(spec, PwmSpec)],
-            )
+        claim = Claim(
+            outputs=[spec for spec in specs if isinstance(spec, OutputSpec)],
+            inputs=[spec for spec in specs if isinstance(spec, InputSpec)],
+            pwms=[spec for spec in specs if isinstance(spec, PwmSpec)],
         )
+        if before_claim is not None:
+            before_claim(claim)
+        hal.claim(claim)
         for driver in drivers:
             driver.bind(hal)
         self._outputs = {d.name: d for d in drivers if isinstance(d, OutputDriver)}

@@ -10,7 +10,7 @@ the spec in the same pull request. They are written from phase 2 on.
 | `expressions.md` | The small, safe expression language used in conditions | 4 |
 | `events.md` | Event sources, debounce, schedules and time windows | 4 |
 | `engine-semantics.md` | Sequences in time, automations, arbitration, re-trigger, exclusive groups | 4 |
-| `safety.md` | Safe state, limits, panic, test mode, watchdog | 3 |
+| [`safety.md`](safety.md) | Safe state, panic, the watchdog and `primum-safe` after a crash; test mode to come | 3 |
 | `deployment-package.md` | Package format, hash, minimum runtime version, activation, rollback | 4 |
 | [`board-profiles.md`](board-profiles.md) | Board profile format, rules and use | 2 |
 | [`drivers.md`](drivers.md) | Driver manifest: actions, config, safe state, conflict policy; what `core` checks against it; the drivers of the runtime | 3 |

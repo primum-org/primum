@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from primum_runtime.board import load_board
@@ -124,3 +126,9 @@ def test_any_option_of_the_input_without_its_pin_exits_instead_of_being_ignored(
 ) -> None:
     with pytest.raises(SystemExit):
         parse_config(["--pin", "17", *argv], env)
+
+
+def test_the_service_writes_in_data_unless_told_otherwise() -> None:
+    assert parse_config(["--pin", "17"], {}).data_dir == Path("/data")
+    assert parse_config(["--pin", "17"], {"PRIMUM_DATA_DIR": "/srv/p"}).data_dir == Path("/srv/p")
+    assert parse_config(["--pin", "17", "--data-dir", "/tmp/p"], {}).data_dir == Path("/tmp/p")  # noqa: S108 (a value under test)

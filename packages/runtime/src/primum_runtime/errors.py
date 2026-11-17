@@ -44,6 +44,8 @@ class ErrorCode(StrEnum):
     ELEMENT_VALUE_OUT_OF_RANGE = "element.value_out_of_range"
     ELEMENT_VALUE_UNLIMITED = "element.value_unlimited"
     ELEMENT_LEVEL_NOT_REACHED = "element.level_not_reached"
+    SAFE_DECLARATION_UNWRITABLE = "safe.declaration_unwritable"
+    SAFE_DECLARATION_INVALID = "safe.declaration_invalid"
     OUTPUT_UNKNOWN = "output.unknown"
     PANIC_ACTIVE = "panic.active"
     REQUEST_INVALID = "request.invalid"

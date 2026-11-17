@@ -62,6 +62,10 @@ class SysfsPwmChannel:
                 _write(chip / "export", channel)
                 exported = True
                 _wait_until_writable(self._path, wait)
+            else:
+                # A channel has no owner: this is how one left by a crash is recovered, and
+                # it would take one from another program just the same. Worth a line.
+                log.warning("PWM channel %d was already exported: adopting it", channel)
             self._configure()
         except OSError as error:
             if exported:

@@ -4,7 +4,11 @@ Description=Primum runtime
 Documentation=https://github.com/primum-org/primum
 
 [Service]
-Type=exec
+# The runtime says when it is ready, and then that it is alive, twice in every WatchdogSec. If
+# it goes silent (a stuck event loop), systemd kills it: a failure, so it is restarted.
+Type=notify
+NotifyAccess=main
+WatchdogSec=10
 User=primum
 Group=primum
 SupplementaryGroups=gpio
@@ -16,6 +20,10 @@ ExecStartPre=+/opt/primum/app/image/check-gpio-users.sh
 ExecStart=/opt/primum/venv/bin/primum-runtime
 # SIGTERM makes uvicorn close the HAL, which applies the safe state (decision 0011).
 TimeoutStopSec=10
+# After every stop, whatever stopped it (SIGKILL and the watchdog too), before any restart:
+# put the outputs the runtime declared in /data in their safe state (decision 0020). After a
+# clean stop nothing is declared and it does nothing.
+ExecStopPost=/opt/primum/venv/bin/primum-safe
 Restart=on-failure
 RestartSec=2
 

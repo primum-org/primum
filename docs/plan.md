@@ -545,20 +545,42 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - The service's input is not in `image/provision.sh`: to try it on the Pi, add
   `PRIMUM_INPUT_PIN` and `PRIMUM_INPUT_PULL` to `/etc/primum/runtime.env`.
 
-**3.4 · Safety**
-- Safe state on start, stop and crash: `Type=notify` and a systemd watchdog fed from the
-  runtime; `OnFailure=primum-safe.service` drives what the runtime declared in `/data` to its
-  safe state when the service does not come back (the 1.4 finding, `StartLimitBurst`): the GPIO
-  lines, and the PWM channels too (`duty_cycle` 0, `polarity` normal and `enable` 0 through
-  sysfs; seen on the Pi: after `kill -9` a channel stays at 50 % and its pin high, and with an
-  inversed polarity a disabled channel holds it high).
-- Test mode: manual commands that expire on their own, above sequences and below panic
-  (decision 0006).
-- `docs/specs/safety.md`; on the Pi: `kill -9`, restart, exhausted
-  restarts, with the LED as witness.
-- A sysfs PWM channel has no owner: the HAL adopts one already exported (what recovers it after
-  a crash) and would take it from another program just the same. `check-gpio-users.sh` looks
-  at the exported `pwmN` of `/sys/class/pwm` too, and the runtime logs a channel it adopted.
+**3.4a · Safe state after the process dies** · **code done; to be checked on `primum-dev`**
+(decision 0020, `specs/safety.md`)
+- The runtime declares what it claims in its data directory before claiming it
+  (`/data/claimed.json`, `--data-dir`), and removes the declaration after a clean stop.
+- `primum-safe`, a second command of the runtime: it claims what was declared with the same
+  HAL and closes it, which starts every output in its safe state, reads it back and releases
+  it. systemd runs it after every stop of the service (`ExecStopPost=`), before any restart,
+  not only when it gives up (the plan said `OnFailure=`): the output is not left on while the
+  service restarts. Nothing declared, it does nothing; a declaration it cannot read is an
+  error and nothing is touched.
+- The watchdog: `Type=notify`, `WatchdogSec=10`, and the runtime tells systemd it is ready and
+  then, from the event loop, that it is alive.
+- The HAL logs a PWM channel it adopted.
+- Not run, written without the board: the `hw` tests of `test_safe_hw.py` (a digital and a
+  PWM output left on by a killed process) and the procedure of `specs/safety.md` with the
+  service itself (`kill -9`, a stuck process, a stop, restarts exhausted). Nothing of the
+  systemd side can be checked off the board: whether uvicorn's lifespan and `Type=notify`
+  agree on "ready", and whether `ExecStopPost=` runs as expected after the watchdog.
+- If reading the inputs fails, the API still only stops watching them: whether that should
+  end the service, now that a watchdog restarts it, is open.
+
+**3.4b · PWM in the service**
+- Once 3.4a is checked on the board: the service's option for a PWM output, its level in the
+  API's state and in the page, and setting it. The API and the page must not show the safe
+  state of a PWM output as *verified* the way a digital output's is: its read-back is the
+  controller's setting, not the pin (decision 0015).
+- `element.value_*` and `element.action_unknown` become 4xx when the API takes commands with
+  arguments.
+- A sysfs PWM channel has no owner: the HAL adopts one already exported (what recovers it
+  after a crash) and would take it from another program just the same.
+  `check-gpio-users.sh` looks at the exported `pwmN` of `/sys/class/pwm` too; with
+  `primum-safe` unexporting what a crash left, an exported channel at start is someone
+  else's, or one `primum-safe` could not make safe.
+
+**3.4c · Test mode**
+- Manual commands that expire on their own, above sequences and below panic (decision 0006).
 
 **Done when:** after `kill -9` of the service every output, PWM included, is in its safe state.
 
