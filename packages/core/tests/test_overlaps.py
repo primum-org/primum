@@ -799,3 +799,105 @@ def test_an_instant_clip_with_an_action_its_element_does_not_have_is_only_that_p
     _blink(project, ids, {**_clip(ids, 21, 0, 0), "action": "onn"})
 
     assert [code for code, *_ in project.found()] == [CoreErrorCode.ACTION_UNKNOWN]
+
+
+def _show_including(
+    project: Project, ids: Ids, included: int, at_ms: int, **show: object
+) -> Project:
+    """A show whose lamp is on for ten seconds, which includes another sequence at ``at_ms``."""
+    _with_lamp(project, ids)
+    track: dict[str, object] = {"element": ids(LAMP), "clips": [_clip(ids, 21, 0, 10_000)]}
+    block = {"id": ids(41), "sequence": ids(included), "atMs": at_ms}
+    return _sequence(project, ids, 20, "Show", [track], blocks=[block], **show)
+
+
+def _lights(project: Project, ids: Ids, **fields: object) -> Project:
+    """A sequence that turns the LED on for two seconds."""
+    track: dict[str, object] = {"element": ids(LED), "clips": [_clip(ids, 31, 0, 2000)]}
+    return _sequence(project, ids, 30, "Lights", [track], **fields)
+
+
+def _all_on(project: Project, ids: Ids, **fields: object) -> Project:
+    """A sequence that turns the LED on in an instant, and nothing else."""
+    track: dict[str, object] = {"element": ids(LED), "clips": [_clip(ids, 31, 0, 0)]}
+    return _sequence(project, ids, 30, "All on", [track], **fields)
+
+
+def test_a_sequence_that_holds_does_not_hold_when_it_is_included(
+    project: Project, ids: Ids
+) -> None:
+    _lights(project, ids, whenDone="hold")
+    _show_including(project, ids, 30, 1000)
+
+    assert project.found() == [
+        (
+            CoreErrorCode.BLOCK_HOLD_IGNORED,
+            {"sequence": "Lights", "including": "Show"},
+            "show.sec",
+            "/blocks/0",
+        )
+    ]
+    assert project.found(severity=Severity.ERROR) == []
+
+
+def test_including_a_sequence_that_does_not_hold_says_nothing_about_holding(
+    project: Project, ids: Ids
+) -> None:
+    _lights(project, ids)
+    _show_including(project, ids, 30, 1000)
+
+    assert project.found() == []
+
+
+def test_a_sequence_that_holds_is_kept_where_it_ends_another_that_holds(
+    project: Project, ids: Ids
+) -> None:
+    """The show holds and the block ends with it: what Lights would keep, the show keeps."""
+    _lights(project, ids, whenDone="hold")
+    _show_including(project, ids, 30, 8000, whenDone="hold")
+
+    assert project.found() == []
+
+
+def test_a_sequence_that_holds_is_not_kept_in_the_middle_of_another_that_holds(
+    project: Project, ids: Ids
+) -> None:
+    _lights(project, ids, whenDone="hold")
+    _show_including(project, ids, 30, 1000, whenDone="hold")
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.BLOCK_HOLD_IGNORED]
+
+
+def test_a_sequence_that_holds_is_kept_two_levels_down_too(project: Project, ids: Ids) -> None:
+    _lights(project, ids, whenDone="hold")
+    middle_block = {"id": ids(51), "sequence": ids(30), "atMs": 0}
+    _sequence(project, ids, 50, "Middle", [], blocks=[middle_block])
+    _show_including(project, ids, 50, 8000, whenDone="hold")
+
+    assert project.found() == []
+
+
+def test_an_instant_clip_that_ends_a_sequence_is_seen_where_a_sequence_that_holds_keeps_it(
+    project: Project, ids: Ids
+) -> None:
+    """All on is over in an instant on its own, but it closes a show that holds."""
+    _all_on(project, ids)
+    _show_including(project, ids, 30, 10_000, whenDone="hold")
+
+    assert project.found() == []
+
+
+def test_the_same_with_the_included_sequence_holding_as_well(project: Project, ids: Ids) -> None:
+    _all_on(project, ids, whenDone="hold")
+    _show_including(project, ids, 30, 10_000, whenDone="hold")
+
+    assert project.found() == []
+
+
+def test_an_instant_clip_that_ends_a_sequence_included_in_a_show_that_ends_is_not_seen(
+    project: Project, ids: Ids
+) -> None:
+    _all_on(project, ids)
+    _show_including(project, ids, 30, 10_000)
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.CLIP_INSTANT_AT_END]

@@ -427,9 +427,13 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   Pi 4 with 1000 clips per track). The engine keeps its own state and must agree with it.
   `timelines_of` sorts the instant commands of each element once (it walked all the clips of
   the element for each, 13 s on a Pi 4 for 4 sequences of 8 tracks of 1000 instant clips).
-- Gaps in `clip.instant_at_end`, rare, none of them a false warning. An instant command is
-  never seen, and not reported, when something of its element covers it from its instant to
-  the end of the sequence: a clip that lasts until the end, several clips one after another
+- Gaps in `clip.instant_at_end`, rare: things never seen and not reported. (Two false
+  warnings were found in review and fixed: a sequence that is only an instant `on`, and a
+  sequence that holds, each placed at the end of a show that holds, are kept there.) An
+  instant clip that some sequence that holds keeps is not reported for the other places
+  where it runs and is not seen: a check of one sequence does not know every way it is used.
+  An instant command is never seen when something of its element covers it from its instant
+  to the end of the sequence: a clip that lasts until the end, several clips one after another
   until the end, or a clip that comes through a block (each wins the tie, and the sequence
   ends with the last). And a component that is only an instant `off`, placed in the middle of
   a show over a standing `on`, leaves the light on and is not reported: the safe state is
@@ -532,6 +536,11 @@ if the engine ignores the start because *On* is already running, the lamp stays 
 Checked with `command_at` under both. Next to it, *Off* as a `fade` to 0 and an instant `off`
 over an *On* that holds: it dims the lamp and gives it back to *On* at 100 when it ends, so
 fading out needs both in one exclusive group. Both are tests of the engine before its code.
+And restarts: nothing says what a sequence that holds does when the Pi restarts. In
+`examples/evening-lights`, a power cut at 20:00 leaves the lamp off until the next day,
+since *Lights* is started at 19:00 and not again. To decide with the same policy: whether
+the engine remembers which sequences were holding, or a schedule can say "between 19:00 and
+23:00" instead of "at 19:00".
 
 1. Sequence engine (monotonic clock, components flattened by the compiler).
 2. Events (`.evt`), schedules (`.sched`), automations (`.auto`), runtime variables with atomic

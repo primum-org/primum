@@ -11,7 +11,9 @@ driver is exclusive (one sequence owns it while it runs) it is an error. Which s
 at the same time is approximated statically: those that automations start.
 
 An instant command lasts until its own sequence ends, so one that is the last thing of its
-sequence is never seen: a warning, unless the sequence holds.
+sequence is never seen: a warning. A sequence holds only when it is started on its own, so
+including one that holds is a warning too. Neither is given for what some sequence that holds
+keeps: its own last instant, and the blocks that end with it.
 """
 
 from collections import Counter
@@ -24,7 +26,15 @@ from primum_core.drivers import Drivers
 from primum_core.errors import CoreErrorCode, Issue, Location, Severity
 from primum_core.generated.model import Automation, Driver, Hardware, Sequence
 from primum_core.references import LocatedContent
-from primum_core.timeline import FlatClip, Sequences, duration, flatten_all, holds, sequences_of
+from primum_core.timeline import (
+    FlatClip,
+    Sequences,
+    at,
+    duration,
+    flatten_all,
+    holds,
+    sequences_of,
+)
 
 EXCLUSIVE = "exclusive"
 
@@ -65,10 +75,52 @@ def check_overlaps(files: Iterable[LocatedContent], drivers: Drivers) -> tuple[I
         for block in sequence.blocks
         if block.sequence in sequences
     }
-    for sequence_id, (sequence, _) in sequences.items():
+    kept = _kept(sequences, flattened)
+    for sequence_id, (sequence, location) in sequences.items():
         clips = flattened[sequence_id]
-        issues += _unseen_instants(sequence, included, clips, names, element_drivers)
+        issues += _unseen_instants(sequence, included, clips, names, element_drivers, kept)
+        issues += _holds_ignored(sequence, location, sequences, kept)
     return tuple(issues)
+
+
+@dataclass(frozen=True)
+class _Kept:
+    """What the sequences that hold keep as it is in their last instant, when started."""
+
+    clips: frozenset[UUID]  # the instant clips that are the last thing of such a sequence
+    blocks: frozenset[UUID]  # the blocks that end with it, at any depth
+
+
+def _kept(sequences: Sequences, flattened: Mapping[UUID, list[FlatClip]]) -> _Kept:
+    clips: set[UUID] = set()
+    blocks: set[UUID] = set()
+    for sequence_id, (sequence, _) in sequences.items():
+        if not holds(sequence):
+            continue
+        end = duration(flattened[sequence_id])
+        for clip in flattened[sequence_id]:
+            if clip.scope_end != end:
+                continue
+            if clip.scope:
+                blocks.add(clip.scope[-1])
+            if clip.instant and clip.start == end:
+                clips.add(clip.clip.id)
+    return _Kept(frozenset(clips), frozenset(blocks))
+
+
+def _holds_ignored(
+    sequence: Sequence, location: Location, sequences: Sequences, kept: _Kept
+) -> Iterator[Issue]:
+    """Blocks that include a sequence that holds: it holds only when it is started on its own,
+    so what it was meant to keep is given back. Unless the block ends with a sequence that
+    holds, which keeps it all the same."""
+    for index, block in enumerate(sequence.blocks):
+        included = sequences.get(block.sequence)  # absent: the references check reports it
+        if included is None or not holds(included[0]) or block.id in kept.blocks:
+            continue
+        params = {"sequence": included[0].name, "including": sequence.name}
+        place = at(location, "blocks", index)
+        yield Issue(CoreErrorCode.BLOCK_HOLD_IGNORED, params, place, Severity.WARNING)
 
 
 def _drivers_of_elements(
@@ -197,14 +249,16 @@ def _unseen_instants(
     clips: list[FlatClip],
     names: Mapping[UUID, str],
     element_drivers: Mapping[UUID, Driver | None],
+    kept: _Kept,
 ) -> Iterator[Issue]:
     """Instant commands that are the last thing of their own sequence: it ends there, so what
     they ask is never seen, started on its own or included (``included``: the name of the
     sequence each block of the project includes).
 
     Each is reported once, where its element is known: in its own sequence, or at the block
-    that gives a component its element. Left alone: what a sequence that holds keeps as it is
-    in its last instant; an instant command that asks for its element's safe state after
+    that gives a component its element. Left alone: what some sequence that holds keeps as it
+    is in its last instant, its own or of what it includes (a clip seen in one place is not
+    reported for the others); an instant command that asks for its element's safe state after
     something else (an instant ``on``, and an instant ``off`` to end with: that is where the
     element goes anyway); and two of one element in that instant, which overlap: that error is
     enough.
@@ -215,7 +269,7 @@ def _unseen_instants(
         for clip in clips
         if clip.instant
         and clip.start == clip.scope_end
-        and not (holds(sequence) and clip.scope_end == end)
+        and clip.clip.id not in kept.clips
         and (clip.via is None or clip.bound_here)
     ]
     together = Counter((clip.scope, clip.element) for clip in last)

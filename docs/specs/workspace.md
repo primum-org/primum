@@ -114,7 +114,8 @@ What a clip does (decisions 0016 and 0017):
   ended earlier is not kept. `whenDone` is ignored when the sequence is included in another:
   a block ends with the last clip of what it includes. Including a sequence that holds is a
   warning at the block, `block.hold_ignored` (`sequence`: the included one, `including`),
-  since what it was meant to keep is given back.
+  since what it was meant to keep is given back. Not when the block ends with a sequence
+  that holds, at any depth: that one keeps it all the same.
 
 `primum_core.commands` runs these rules, for tests today and for the engine to agree with
 (phase 4): `timelines_of(workspace)` prepares the sequences of a valid project, and
@@ -149,8 +150,10 @@ The checks (`primum_core.overlaps`):
   clip. When the element is a component's parameter the clip is reported at the block that
   gives it its element, as `block.instant_at_end`, with the same params and a hint of its
   own: there, holding is no way out, since a sequence holds only when started on its own.
-  Not reported: what a sequence
-  that holds keeps; one that asks for the safe state of its element's driver after something
+  Not reported: what some sequence
+  that holds keeps in its last instant, its own clips or those of what it includes (a
+  sequence that is only an instant `on`, placed at the end of a show that holds, is seen
+  there; it is then not reported for where it is not); one that asks for the safe state of its element's driver after something
   else (an instant `on`, and an instant `off` to end with: the element goes there anyway),
   though a sequence that is only that, and so lasts no time, is reported; one that another
   element's later clip keeps alive; and two of one element in that instant (they overlap:

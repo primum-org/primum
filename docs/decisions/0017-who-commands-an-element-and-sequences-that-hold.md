@@ -45,7 +45,8 @@ sequence *Off* with an instant `off`, did nothing.
   sequence of its exclusive group starting, stop and panic. Nothing outlives its sequence
   still. `whenDone` is ignored when the sequence is included in another (a warning says so,
   `block.hold_ignored`): a block ends with the
-  last clip of what it includes.
+  last clip of what it includes. When that block ends with a sequence that holds, the result
+  is the same as holding, and nothing is warned.
 - **The rule runs**: `primum_core.commands.command_at` says which command is in force on an
   element at an instant, given the sequences that are running and when each started. Its
   tests are the specification the engine (phase 4) must meet.
