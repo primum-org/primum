@@ -877,6 +877,18 @@ def test_a_sequence_that_holds_is_kept_two_levels_down_too(project: Project, ids
     assert project.found() == []
 
 
+def test_a_sequence_that_holds_and_only_includes_another_is_kept_where_it_ends_a_show_that_holds(
+    project: Project, ids: Ids
+) -> None:
+    """Middle holds and has no clips of its own, only the block that brings Lights."""
+    _lights(project, ids)
+    middle_block = {"id": ids(51), "sequence": ids(30), "atMs": 0}
+    _sequence(project, ids, 50, "Middle", [], blocks=[middle_block], whenDone="hold")
+    _show_including(project, ids, 50, 8000, whenDone="hold")
+
+    assert project.found() == []
+
+
 def test_an_instant_clip_that_ends_a_sequence_is_seen_where_a_sequence_that_holds_keeps_it(
     project: Project, ids: Ids
 ) -> None:
@@ -901,3 +913,12 @@ def test_an_instant_clip_that_ends_a_sequence_included_in_a_show_that_ends_is_no
     _show_including(project, ids, 30, 10_000)
 
     assert [code for code, *_ in project.found()] == [CoreErrorCode.CLIP_INSTANT_AT_END]
+
+
+def test_a_sequence_that_holds_and_includes_itself_does_not_hang_the_check(
+    project: Project, ids: Ids
+) -> None:
+    block = {"id": ids(41), "sequence": ids(20), "atMs": 0}
+    _sequence(project, ids, 20, "Show", [], blocks=[block], whenDone="hold")
+
+    assert CoreErrorCode.SEQUENCE_INCLUDES_ITSELF in [code for code, *_ in project.found()]

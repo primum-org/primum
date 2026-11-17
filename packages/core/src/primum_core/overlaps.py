@@ -92,19 +92,31 @@ class _Kept:
 
 
 def _kept(sequences: Sequences, flattened: Mapping[UUID, list[FlatClip]]) -> _Kept:
+    lengths = {sequence_id: duration(clips) for sequence_id, clips in flattened.items()}
     clips: set[UUID] = set()
     blocks: set[UUID] = set()
     for sequence_id, (sequence, _) in sequences.items():
         if not holds(sequence):
             continue
-        end = duration(flattened[sequence_id])
-        for clip in flattened[sequence_id]:
-            if clip.scope_end != end:
-                continue
-            if clip.scope:
-                blocks.add(clip.scope[-1])
-            if clip.instant and clip.start == end:
-                clips.add(clip.clip.id)
+        end = lengths[sequence_id]
+        clips.update(
+            clip.clip.id
+            for clip in flattened[sequence_id]
+            if clip.instant and clip.start == clip.scope_end == end
+        )
+        # Every block that ends with the sequence, and inside each, those that end with it:
+        # a block inside one that ends earlier ends earlier too.
+        pending = [(sequence, 0)]
+        while pending:
+            outer, offset = pending.pop()
+            for block in outer.blocks:
+                start = offset + block.at_ms
+                # A block seen before was walked then (a loop of inclusions comes back to it).
+                if block.id in blocks or block.sequence not in sequences:
+                    continue
+                if start + lengths[block.sequence] == end:
+                    blocks.add(block.id)
+                    pending.append((sequences[block.sequence][0], start))
     return _Kept(frozenset(clips), frozenset(blocks))
 
 

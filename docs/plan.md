@@ -427,11 +427,14 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   Pi 4 with 1000 clips per track). The engine keeps its own state and must agree with it.
   `timelines_of` sorts the instant commands of each element once (it walked all the clips of
   the element for each, 13 s on a Pi 4 for 4 sequences of 8 tracks of 1000 instant clips).
-- Gaps in `clip.instant_at_end`, rare: things never seen and not reported. (Two false
-  warnings were found in review and fixed: a sequence that is only an instant `on`, and a
-  sequence that holds, each placed at the end of a show that holds, are kept there.) An
-  instant clip that some sequence that holds keeps is not reported for the other places
-  where it runs and is not seen: a check of one sequence does not know every way it is used.
+- Gaps in `clip.instant_at_end` and `block.hold_ignored`, rare: things not reported. (Three
+  false warnings were found in review and fixed, all at the end of a show that holds: a
+  sequence that is only an instant `on`, a sequence that holds, and a sequence that holds
+  with nothing but a block. `clip.instant_at_end` is now checked against `command_at` on
+  random projects; `block.hold_ignored` has no such test yet, and should before the engine
+  relies on it.) An instant clip, or a block, that some sequence that holds keeps is not
+  reported for the other places where its sequence runs and it is not kept: a check of one
+  sequence does not know every way it is used.
   An instant command is never seen when something of its element covers it from its instant
   to the end of the sequence: a clip that lasts until the end, several clips one after another
   until the end, or a clip that comes through a block (each wins the tie, and the sequence

@@ -35,7 +35,13 @@ sequence *Off* with an instant `off`, did nothing.
   - an instant command and a clip that start together: the clip plays, then the element goes
     to the instant command;
   - to leave an element somewhere else after a clip, an instant command goes where the clip
-    ends (a `fade` to 0, then an instant `off`).
+    ends (a `fade` to 0, then an instant `off`);
+  - an instant command lasts "until the next one of its element in its own sequence". That
+    is said above because it is how a timeline is read, but it is a consequence too: the next
+    one is on the same priority, starts later and lasts at least as long, so it wins anyway.
+    Checked by a reviewer on 327 random valid projects: `command_at` gives the same with and
+    without it. `primum_core.commands` keeps it in its spans, which then show when a command
+    is replaced.
 - **A sequence can hold** (`whenDone`: `end`, the default, or `hold`). One that holds does not
   end with its last clip: it stays as it is in its last instant until it is stopped. Every
   command in force just before its end stays in force: its standing commands, and the clips

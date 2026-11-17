@@ -6,7 +6,9 @@ can ask. A sequence that was started commands its elements through its clips, re
 
 - a clip with a length is in force while it lasts;
 - an instant command (a clip of 0 ms) is in force until the next instant command of that
-  element in its own sequence, or until its own sequence ends: the block, when it is included;
+  element in its own sequence, or until its own sequence ends: the block, when it is included
+  (the first half follows from the rule below, since the next one starts later on the same
+  priority; a span says it all the same, so that it shows what replaced what);
 - a sequence that holds (``whenDone``) stays as it is in its last instant: what is in force
   just before its end stays in force until the sequence is stopped.
 

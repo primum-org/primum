@@ -1,10 +1,12 @@
 """Who commands an element at an instant (decision 0017): ``command_at``."""
 
+from random import Random
 from uuid import UUID
 
 import pytest
 
 from primum_core.commands import Command, Running, command_at, timelines_of
+from primum_core.errors import CoreErrorCode
 from project_builder import Ids, Project
 
 LED, LAMP = 4, 9
@@ -382,3 +384,57 @@ def test_the_spans_of_a_sequence_that_holds_show_what_replaced_what(
         ("on", 0, 5000),
         ("off", 5000, None),
     ]
+
+
+def _random_project(project: Project, ids: Ids, random: Random) -> dict[str, list[str]]:
+    """Four sequences on the LED, each with a few clips and blocks of the ones before it, any
+    of them holding. Returns the clip ids of each file, in the order they are written."""
+    written: dict[str, list[str]] = {}
+    for number in range(4):
+        clips: list[dict[str, object]] = []
+        at_ms = 0
+        for index in range(random.randint(0, 3)):
+            at_ms += random.choice([0, 500, 1000])
+            length = random.choice([0, 0, 500])
+            action = random.choice(["on", "off"])
+            clips.append(_clip(ids, 100 + number * 10 + index, at_ms, length, action))
+            at_ms += max(length, 1)
+        blocks = [
+            {"id": ids(200 + number * 10 + index), "sequence": ids(300 + included), "atMs": at}
+            for index, (included, at) in enumerate(
+                (random.randrange(number), random.choice([0, 500, 2000, 3000]))
+                for _ in range(random.randint(0, 2) if number else 0)
+            )
+        ]
+        fields: dict[str, object] = {"whenDone": random.choice(["end", "hold"]), "blocks": blocks}
+        name = f"S{number}"
+        _sequence(project, ids, 300 + number, name, {LED: clips} if clips else {}, **fields)
+        written[f"{name.lower()}.sec"] = [str(clip["id"]) for clip in clips]
+    return written
+
+
+@pytest.mark.parametrize("seed", range(300))
+def test_a_clip_reported_as_never_seen_never_commands_however_its_sequence_runs(
+    project: Project, ids: Ids, seed: int
+) -> None:
+    """``clip.instant_at_end`` against the oracle, on random projects: no false warning."""
+    # A seeded generator: the same projects on every run. Nothing here is a secret.
+    written = _random_project(project, ids, Random(seed))  # noqa: S311 (a fixed seed)
+    if not project.is_valid():
+        return  # two clips overlap: nothing to compare
+    timelines = timelines_of(project.loaded())
+    reported = {
+        written[path][int(pointer.rsplit("/", 1)[1])]
+        for code, _, path, pointer in project.found()
+        if code is CoreErrorCode.CLIP_INSTANT_AT_END
+    }
+    instants = range(0, 12_000, 250)
+
+    seen = {
+        str(command.clip.id)
+        for sequence in timelines
+        for at_ms in instants
+        if (command := command_at(UUID(ids(LED)), at_ms, [Running(sequence, 0)], timelines))
+    }
+
+    assert reported.isdisjoint(seen)
