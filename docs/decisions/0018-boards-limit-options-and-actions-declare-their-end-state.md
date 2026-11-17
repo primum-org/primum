@@ -60,8 +60,13 @@ back on.
   naming the board; the same project on another board may be valid.
 - The limits of `rpi4b` are arithmetic on its sources, not a measure: the `hw` test at both
   ends comes with the PWM driver (block 3.3b).
-- A profile that says nothing about an option leaves it with its driver's limits only: a new
-  board with PWM must not forget its frequency. Nothing checks that yet.
+- A profile that says nothing about an option leaves it with its driver's limits only, and
+  the PWM frequency has none: a profile that forgets it, or misspells it, fails open. Tests
+  on the shipped profiles and manifests hold it (every limit names a numeric option of a
+  shipped driver; every profile with PWM channels limits the frequency), not `core`.
+- Both formats gain a required field without a new `schemaVersion`: formats are drafts until
+  the first release (decision 0014), and these two are files that ship with Primum, read by
+  the same version that wrote them, not files of a project.
 - The warning is given where a clip's element is known and looks at one sequence: a fade in
   an included sequence under a standing `on` of the sequence that includes it is not reported
   when the included sequence names the element itself, not through a parameter.

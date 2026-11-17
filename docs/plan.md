@@ -474,8 +474,11 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   goes to rest anyway; an instant command inside a fade, which cuts it (a warning of its
   own, if people fall into it); and across sequences (a fade in one under a held `on` of another: the
   cases of phase 4).
-- Nothing checks that a profile with PWM channels limits their frequency: a new board that
-  forgets it leaves the option unlimited. With the second profile.
+- The frequency of a PWM output has no limit but its board's, so a profile that forgets it,
+  or misspells its type or option, would let any frequency through. Two tests on the shipped
+  files hold it: every limit names a numeric option a shipped driver has, and every profile
+  with PWM channels limits `pwm_output.frequencyHz`. `core` itself does not check it: a
+  profile is read without the manifests.
 - The profile cites the kernel branch `primum-dev` runs (`rpi-6.18.y`): cite the one Primum
   OS ships when there is one (phase 7).
 - The limits are arithmetic on the sources, not a measure: the `hw` test at both ends is in

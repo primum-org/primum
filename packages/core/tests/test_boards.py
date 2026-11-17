@@ -10,6 +10,8 @@ from primum_core.boards import gpio_lines
 from primum_core.errors import CoreErrorCode
 from primum_core.formats import read_board_profile
 from primum_core.generated.model import BoardProfile
+from primum_core.values import NUMERIC
+from project_builder import DRIVERS, PROFILES
 
 BOARDS = Path(__file__).resolve().parents[3] / "boards"
 RPI4B = BOARDS / "rpi4b.json"
@@ -202,3 +204,29 @@ def test_a_limit_without_a_source_is_refused() -> None:
             "/limits/0/sources",
         )
     ]
+
+
+@pytest.mark.parametrize("model", sorted(PROFILES))
+def test_each_limit_of_a_shipped_profile_is_of_a_numeric_option_a_shipped_driver_has(
+    model: str,
+) -> None:
+    """A limit that misspells its type or its option limits nothing, and says nothing."""
+    numeric_options = {
+        (name, option.name)
+        for name, manifest in DRIVERS.items()
+        for option in manifest.config
+        if option.type in NUMERIC
+    }
+
+    for limit in PROFILES[model].limits:
+        assert (limit.element_type, limit.option) in numeric_options
+
+
+@pytest.mark.parametrize("model", sorted(PROFILES))
+def test_a_shipped_profile_with_pwm_limits_its_frequency(model: str) -> None:
+    """The manifest of ``pwm_output`` has no limit of its own: without the board's, any
+    frequency would pass."""
+    profile = PROFILES[model]
+    limited = {(limit.element_type, limit.option) for limit in profile.limits}
+
+    assert not profile.pwm_channels or ("pwm_output", "frequencyHz") in limited
