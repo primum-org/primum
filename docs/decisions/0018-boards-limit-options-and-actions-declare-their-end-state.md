@@ -35,7 +35,8 @@ back on.
   the minimum is the lowest whole number of hertz, and the maximum is a choice of resolution
   (100 kHz leaves 500 steps of level).
 - **An action declares the state it leaves its element in**, its `endState`: a level from 0 to
-  100, fixed or given by one of its parameters. An action that moves its element over its
+  100, fixed or given by one of its parameters, which must itself be limited within 0 and
+  100. An action that moves its element over its
   clip also declares its `startState`. A driver needs the first anyway to carry out an
   instant command.
 - With it `core` compares states, not names: a sequence may end with any instant command that
@@ -68,7 +69,10 @@ back on.
 - A profile that says nothing about an option leaves it with its driver's limits only, and
   the PWM frequency has none: a profile that forgets it, or misspells it, fails open. Tests
   on the shipped profiles and manifests hold it (every limit names a numeric option of a
-  shipped driver; every profile with PWM channels limits the frequency), not `core`.
+  shipped driver; every profile with PWM channels limits the frequency), not `core`, and a
+  profile someone adds is not under them. `core` can check it where it has both the
+  manifests and the profiles, and will (block 3.3b): a numeric option that neither its
+  driver nor its board limits is an error.
 - Both formats gain a required field without a new `schemaVersion`: formats are drafts until
   the first release (decision 0014), and these two are files that ship with Primum, read by
   the same version that wrote them, not files of a project.

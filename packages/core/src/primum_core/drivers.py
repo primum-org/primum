@@ -19,6 +19,9 @@ from primum_core.values import EXPECTED, NUMERIC, fits
 
 type Drivers = Mapping[str, Driver]  # by element type
 
+# A state of an element is a level (decision 0018), as the schema says of a fixed one.
+MIN_LEVEL, MAX_LEVEL = 0, 100
+
 
 def check_driver(driver: Driver, location: Location) -> tuple[Issue, ...]:
     """Every problem of meaning in ``driver``, pointing inside the file at ``location``."""
@@ -113,14 +116,27 @@ def _default_issues(
 def _state_issues(
     action: DriverAction, steps: tuple[Step, ...], location: Location
 ) -> Iterator[Issue]:
-    """A state given by a parameter names a number among the action's parameters."""
-    numbers = {parameter.name for parameter in action.parameters if parameter.type in NUMERIC}
+    """A state given by a parameter names a number among the action's parameters, one that
+    can only be a level: limited, from 0 or more to 100 or less."""
+    numbers = {p.name: p for p in action.parameters if p.type in NUMERIC}
     states = {"endState": action.end_state, "startState": action.start_state}
     for field, state in states.items():
-        if isinstance(state, str) and state not in numbers:
-            params = {"action": action.name, "parameter": state}
+        if not isinstance(state, str):
+            continue
+        params = {"action": action.name, "parameter": state}
+        parameter = numbers.get(state)
+        if parameter is None:
             code = CoreErrorCode.DRIVER_UNKNOWN_STATE_PARAMETER
             yield Issue(code, params, _at(location, *steps, field))
+        elif not _is_a_level(parameter):
+            code = CoreErrorCode.DRIVER_STATE_NOT_A_LEVEL
+            yield Issue(code, params, _at(location, *steps, field))
+
+
+def _is_a_level(parameter: DriverParameter) -> bool:
+    if parameter.min is None or parameter.max is None:
+        return False
+    return parameter.min >= MIN_LEVEL and parameter.max <= MAX_LEVEL
 
 
 def _output_issues(driver: Driver, location: Location) -> Iterator[Issue]:

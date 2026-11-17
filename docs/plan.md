@@ -477,8 +477,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - The frequency of a PWM output has no limit but its board's, so a profile that forgets it,
   or misspells its type or option, would let any frequency through. Two tests on the shipped
   files hold it: every limit names a numeric option a shipped driver has, and every profile
-  with PWM channels limits `pwm_output.frequencyHz`. `core` itself does not check it: a
-  profile is read without the manifests.
+  with PWM channels limits `pwm_output.frequencyHz`. `core` itself does not check it yet (3.3b).
 - The profile cites the kernel branch `primum-dev` runs (`rpi-6.18.y`): cite the one Primum
   OS ships when there is one (phase 7).
 - The limits are arithmetic on the sources, not a measure: the `hw` test at both ends is in
@@ -496,9 +495,11 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   highest frequency (1 Hz and 100 kHz), an input at its longest debounce (10 s).
 - The PWM frequency fails open in `core`: its manifest has no limit, so a profile that says
   nothing lets any value through, and only two tests on the shipped files hold it. A profile
-  someone adds is not under those tests. The manifest marks an option as limited by the
-  board, and `core` gives an error for an element of that type on a board whose profile does
-  not limit it (and for a limit that names an option no driver has, where it can know).
+  someone adds is not under those tests (the hint of `board.unknown_model` invites to add
+  one). `check_board_limits` has both the manifests and the profiles: there `core` refuses a
+  numeric option of an element that neither its driver nor its board limits, and a limit
+  that names an option no driver has. With the upper limit of the HAL, which
+  `PwmSpec.frequency_hz` still lacks.
 - `platforms` comes back to the manifests when a board profile says its platform and `core`
   can check that the driver exists on the element's board.
 - A driver hands the HAL every option, taken from the manifest and the element, never the

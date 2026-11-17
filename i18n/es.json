@@ -503,6 +503,10 @@
       "message": "La acción {action} toma su estado de {parameter}, que no es un número entre sus parámetros.",
       "hint": "Indica uno de sus parámetros de tipo number o integer, o da el nivel directamente."
     },
+    "driver.state_not_a_level": {
+      "message": "La acción {action} toma su estado de {parameter}, cuyos límites no están entre 0 y 100.",
+      "hint": "Un estado es un nivel de 0 a 100: da a {parameter} un mínimo de 0 o más y un máximo de 100 o menos."
+    },
     "driver.duplicate_type": {
       "message": "Más de un driver atiende el tipo de elemento {type}.",
       "hint": "Deja un solo manifiesto por tipo de elemento."

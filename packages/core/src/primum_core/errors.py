@@ -126,6 +126,7 @@ class CoreErrorCode(StrEnum):
     DRIVER_DEFAULT_NOT_ALLOWED = "driver.default_not_allowed"  # parameter
     DRIVER_UNKNOWN_SAFE_STATE = "driver.unknown_safe_state"  # action
     DRIVER_UNKNOWN_STATE_PARAMETER = "driver.unknown_state_parameter"  # action, parameter
+    DRIVER_STATE_NOT_A_LEVEL = "driver.state_not_a_level"  # action, parameter
     DRIVER_DUPLICATE_TYPE = "driver.duplicate_type"  # type
 
 

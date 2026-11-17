@@ -88,8 +88,28 @@ def test_a_state_given_by_a_parameter_names_a_number_of_the_action(
     ]
 
 
+@pytest.mark.parametrize(
+    "limits",
+    [{}, {"min": 0, "max": 255}, {"min": -100, "max": 100}],
+    ids=["no limits", "above 100", "below 0"],
+)
+def test_a_state_given_by_a_parameter_is_a_level_from_0_to_100_too(
+    limits: dict[str, object],
+) -> None:
+    level: dict[str, object] = {"name": "level", "type": "number", "default": 50, **limits}
+
+    assert _found(actions=[{**_action("on", level), "endState": "level"}]) == [
+        (
+            CoreErrorCode.DRIVER_STATE_NOT_A_LEVEL,
+            {"action": "on", "parameter": "level"},
+            "/actions/0/endState",
+        )
+    ]
+
+
 def test_a_state_given_by_a_number_of_the_action() -> None:
-    level: dict[str, object] = {"name": "level", "type": "number", "default": 100}
+    level: dict[str, object] = {"name": "level", "type": "number", "min": 0, "max": 100}
+    level["default"] = 100
 
     assert _found(actions=[{**_action("on", level), "endState": "level"}]) == []
 

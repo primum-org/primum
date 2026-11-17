@@ -72,9 +72,10 @@ def _element_issues(
             "min": shown(limit.min),
             "max": shown(limit.max),
         }
+        at = place  # the element, for a default
         if index is not None:
-            place = replace(place, pointer=pointer((*steps, "config", index, "value")))
-        yield Issue(CoreErrorCode.CONFIG_OUT_OF_BOARD_RANGE, params, place)
+            at = replace(place, pointer=pointer((*steps, "config", index, "value")))
+        yield Issue(CoreErrorCode.CONFIG_OUT_OF_BOARD_RANGE, params, at)
 
 
 def _value(element: Element, driver: Driver, limit: OptionLimit) -> tuple[Value, int | None] | None:

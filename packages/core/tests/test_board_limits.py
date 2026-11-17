@@ -1,9 +1,12 @@
 """The options of each element, against the limits of its board."""
 
+from dataclasses import replace
+
 import pytest
 
 from primum_core.errors import CoreErrorCode
-from project_builder import Ids, Project, driver
+from primum_core.generated.model import OptionLimit
+from project_builder import PROFILES, Ids, Project, driver
 
 BOARD = 3
 FREQUENCY: dict[str, object] = {"name": "frequencyHz", "type": "integer"}
@@ -102,3 +105,22 @@ def test_a_limit_is_of_one_element_type(project: Project, ids: Ids) -> None:
     )
 
     assert project.found() == []
+
+
+def test_each_limit_of_a_type_is_reported_at_its_own_place(project: Project, ids: Ids) -> None:
+    """Two limits on PWM outputs: the frequency, given, and a dead time left to a default
+    the board does not take. The second is at the element, not where the first was."""
+    dead_time = {"name": "deadTimeNs", "type": "integer", "default": 0}
+    project.drivers["pwm_output"] = driver("pwm_output", config=[FREQUENCY, dead_time])
+    rpi4b = PROFILES["rpi4b"]
+    source = ("https://example.org/datasheet.pdf",)
+    second = OptionLimit(
+        element_type="pwm_output", option="deadTimeNs", min=10, max=20, sources=source
+    )
+    project.profiles["rpi4b"] = replace(rpi4b, limits=(*rpi4b.limits, second))
+    _lamp(project, ids, frequencyHz=0)
+
+    assert [(params["option"], pointer) for _, params, _, pointer in project.found()] == [
+        ("frequencyHz", "/elements/0/config/0/value"),
+        ("deadTimeNs", "/elements/0"),
+    ]

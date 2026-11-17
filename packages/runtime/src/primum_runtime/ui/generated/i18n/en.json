@@ -503,6 +503,10 @@
       "message": "The action {action} takes its state from {parameter}, which is not a number among its parameters.",
       "hint": "Name one of its parameters of type number or integer, or give the level itself."
     },
+    "driver.state_not_a_level": {
+      "message": "The action {action} takes its state from {parameter}, whose limits are not within 0 and 100.",
+      "hint": "A state is a level from 0 to 100: give {parameter} a minimum of 0 or more and a maximum of 100 or less."
+    },
     "driver.duplicate_type": {
       "message": "More than one driver serves the element type {type}.",
       "hint": "Keep one manifest per element type."

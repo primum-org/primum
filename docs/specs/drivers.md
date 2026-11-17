@@ -51,7 +51,8 @@ The schema checks the shape; `core` (`primum_core.drivers`, run by
 - a default of the parameter's type (`value.expected_*`), within its limits or among its choices
   (`driver.default_not_allowed`);
 - a state given by a parameter names a `number` or `integer` parameter of its action
-  (`driver.unknown_state_parameter`); a fixed one is from 0 to 100 (the schema);
+  (`driver.unknown_state_parameter`) whose limits are within 0 and 100
+  (`driver.state_not_a_level`); a fixed one is from 0 to 100 (the schema);
 - a driver with actions has a `safeState` and a `conflictPolicy` (`schema.missing_field`), and
   the safe state is one of its actions that needs no arguments (`driver.unknown_safe_state`); a
   driver without actions has neither (`schema.unexpected_field`).
