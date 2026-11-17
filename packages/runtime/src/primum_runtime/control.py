@@ -93,10 +93,9 @@ class Controller:
         self._listeners: list[Listener] = []
 
     def state(self) -> State:
-        outputs = tuple(
-            OutputState(name, driver.level > 0, driver.level)
-            for name, driver in self._outputs.items()
-        )
+        # One reading per output: its level may come from the hardware, and change.
+        levels = {name: driver.level for name, driver in self._outputs.items()}
+        outputs = tuple(OutputState(name, level > 0, level) for name, level in levels.items())
         inputs = tuple(InputState(driver.name, driver.active) for driver in self._inputs.values())
         return State(outputs, inputs, self._panic)
 

@@ -9,6 +9,7 @@ leaves the element in the state the action ends in (its ``endState``, a level fr
 Moving an element over time (a ``fade`` with a length) is the engine's, on top of this.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -18,6 +19,8 @@ from primum_core.values import Value
 from primum_runtime.drivers.values import Limits, resolve
 from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.hal import Hal, InputSpec, OutputSpec, PwmSpec
+
+log = logging.getLogger(__name__)
 
 type Spec = OutputSpec | InputSpec | PwmSpec
 # What a board takes for an option of its elements: (element type, option) → (min, max).
@@ -84,6 +87,8 @@ class OutputDriver(ElementDriver):
         every time instead, so it is right whatever happened since: the safe state was
         applied, or the hardware recovered on its own. Once the HAL is closed there is
         nothing to read, and it left every output in its safe state: what it wrote stands.
+        If the reading itself fails, what was written stands too, and the failure is logged:
+        saying the state must never fail, least of all while panic reports its own.
         """
         if not self._unsure:
             return self._written()
@@ -91,8 +96,10 @@ class OutputDriver(ElementDriver):
             return self._read()
         except PrimumError as error:
             if error.code is not ErrorCode.HAL_CLOSED:
-                raise
-            return self._written()
+                log.warning("the level of %s could not be read: %s", self.name, error)
+        except Exception as error:  # whatever the hardware raises: the state is still told
+            log.warning("the level of %s could not be read: %s", self.name, error)
+        return self._written()
 
     @property
     def actions(self) -> tuple[str, ...]:
@@ -118,13 +125,6 @@ class OutputDriver(ElementDriver):
         if self._unsure:
             params = {"element": self.name, "level": level, "read": read}
             raise PrimumError(ErrorCode.ELEMENT_LEVEL_NOT_REACHED, params)
-
-    def to_safe_state(self) -> None:
-        """Rest: the action the manifest names as the safe state."""
-        safe_state = self._manifest.safe_state
-        if safe_state is None:  # the manifest check refuses an output without one
-            raise TypeError(f"the driver of {self._manifest.element_type!r} has no safe state")
-        self.command(safe_state)
 
     def _action(self, name: str) -> DriverAction:
         for action in self._manifest.actions:

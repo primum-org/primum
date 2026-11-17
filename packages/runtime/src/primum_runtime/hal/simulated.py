@@ -23,7 +23,8 @@ class SimulatedLine:
     """A simulated output line that remembers every value written to it.
 
     Faults can be injected to test what happens when the hardware misbehaves: ``fail_writes``,
-    ``fail_release``, and ``stick(True)`` for a line that reads back on whatever is written.
+    ``fail_reads``, ``fail_release``, and ``stick(True)`` for a line that reads back on whatever
+    is written.
     """
 
     def __init__(self, spec: OutputSpec) -> None:
@@ -32,6 +33,7 @@ class SimulatedLine:
         self._released = False
         self._history: list[bool] = []
         self._write_error: Exception | None = None
+        self._read_error: Exception | None = None
         self._release_error: Exception | None = None
         self._stuck: bool | None = None
 
@@ -58,6 +60,10 @@ class SimulatedLine:
         """From now on every write raises ``error`` (``None`` makes writes work again)."""
         self._write_error = error
 
+    def fail_reads(self, error: Exception | None) -> None:
+        """From now on every read raises ``error`` (``None`` makes reads work again)."""
+        self._read_error = error
+
     def fail_release(self, error: Exception | None) -> None:
         """Make ``release`` raise ``error`` (``None`` makes it work again)."""
         self._release_error = error
@@ -73,6 +79,8 @@ class SimulatedLine:
         self._history.append(active)
 
     def read(self) -> bool:
+        if self._read_error is not None:
+            raise self._read_error
         return self._active if self._stuck is None else self._stuck
 
     def release(self) -> None:

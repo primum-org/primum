@@ -44,6 +44,11 @@ def _claimed(driver: ElementDriver) -> SimulatedHal:
     return hal
 
 
+def _safe_state(manifest: Driver) -> str:
+    assert manifest.safe_state is not None
+    return manifest.safe_state
+
+
 def _output(element: ElementConfig) -> tuple[OutputDriver, SimulatedHal]:
     driver = create_driver(element, MANIFESTS, LIMITS)
     assert isinstance(driver, OutputDriver)
@@ -259,7 +264,7 @@ def test_the_safe_state_of_the_manifest_leaves_the_hal_where_its_own_does(
     for driver, _ in (by_driver, by_hal):
         driver.command("on")
 
-    by_driver[0].to_safe_state()
+    by_driver[0].command(_safe_state(MANIFESTS[element.type]))
     by_hal[1].apply_safe_state()
 
     for _, hal in (by_driver, by_hal):
@@ -276,7 +281,7 @@ def test_a_safe_state_that_is_not_the_hal_s_would_be_seen(kind: str) -> None:
     assert isinstance(driver, OutputDriver)
     hal = _claimed(driver)
 
-    driver.to_safe_state()
+    driver.command(_safe_state(manifest))
 
     assert [line.active for line in hal.lines.values()] == [True] * len(hal.lines)
     assert [line.duty for line in hal.pwm_lines.values()] == [1.0] * len(hal.pwm_lines)

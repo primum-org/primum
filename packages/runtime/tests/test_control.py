@@ -311,3 +311,48 @@ def test_the_state_can_still_be_told_after_the_hal_is_closed(hal: SimulatedHal) 
     hal.close()
 
     assert controller.state().outputs[0] == OutputState("led", on=False, level=0)
+
+
+def _unsure_led_whose_reads_fail(hal: SimulatedHal) -> Controller:
+    """The LED did not follow a command, and then its line cannot even be read."""
+    controller = _controller(hal)
+    hal.lines[17].stick(False)
+    with pytest.raises(PrimumError):
+        controller.set_output("led", True)
+    hal.lines[17].fail_reads(OSError(5, "I/O error"))
+    return controller
+
+
+def test_a_level_that_cannot_be_read_does_not_break_the_state(
+    hal: SimulatedHal, caplog: pytest.LogCaptureFixture
+) -> None:
+    controller = _unsure_led_whose_reads_fail(hal)
+
+    state = controller.state()
+
+    assert state.outputs[0] == OutputState("led", on=True, level=100)  # what was written
+    assert "led" in caplog.text
+    assert "I/O error" in caplog.text
+
+
+def test_a_level_that_cannot_be_read_does_not_hide_a_failed_safe_state(hal: SimulatedHal) -> None:
+    controller = _unsure_led_whose_reads_fail(hal)
+    states: list[State] = []
+    controller.subscribe(states.append)
+
+    with pytest.raises(PrimumError) as raised:
+        controller.panic()
+
+    assert raised.value.code == "hal.safe_state_incomplete"
+    assert [state.panic for state in states] == [True]
+
+
+def test_on_and_level_come_from_one_reading(hal: SimulatedHal) -> None:
+    controller = _controller(hal)
+    hal.lines[17].stick(False)
+    with pytest.raises(PrimumError):
+        controller.set_output("led", True)
+    readings = iter([True, False])
+    hal.lines[17].read = lambda: next(readings)  # type: ignore[method-assign]  # a line that flickers
+
+    assert controller.state().outputs[0] == OutputState("led", on=True, level=100)

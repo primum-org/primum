@@ -67,8 +67,9 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
     input_pull: str | None = args.input_pull
     if input_pull is not None and input_pull not in PULLS:  # argparse checks options only
         parser.error(f"PRIMUM_INPUT_PULL must be one of {', '.join(PULLS)}, not {input_pull!r}")
-    if input_pin is None and input_pull is not None:
-        parser.error("a pull without an input: give --input-pin (PRIMUM_INPUT_PIN) too")
+    input_options = (input_pull, args.input_debounce_ms, args.input_active_low or None)
+    if input_pin is None and any(option is not None for option in input_options):
+        parser.error("options of an input without one: give --input-pin (PRIMUM_INPUT_PIN) too")
     if input_pin is not None:
         if input_pull is None:
             parser.error("the input needs its pull: --input-pull or PRIMUM_INPUT_PULL")

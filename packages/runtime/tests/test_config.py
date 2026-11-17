@@ -108,3 +108,19 @@ def test_an_empty_pull_in_the_environment_is_a_pull_not_given() -> None:
     config = parse_config(["--pin", "17"], {"PRIMUM_INPUT_PULL": ""})
 
     assert len(config.elements) == 1
+
+
+@pytest.mark.parametrize(
+    ("argv", "env"),
+    [
+        (["--input-active-low"], {}),
+        (["--input-debounce-ms", "50"], {}),
+        ([], {"PRIMUM_INPUT_ACTIVE_LOW": "1"}),
+        ([], {"PRIMUM_INPUT_DEBOUNCE_MS": "50"}),
+    ],
+)
+def test_any_option_of_the_input_without_its_pin_exits_instead_of_being_ignored(
+    argv: list[str], env: dict[str, str]
+) -> None:
+    with pytest.raises(SystemExit):
+        parse_config(["--pin", "17", *argv], env)

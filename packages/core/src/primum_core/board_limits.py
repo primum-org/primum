@@ -62,7 +62,9 @@ def _element_issues(
 ) -> Iterator[Issue]:
     limited = {limit.option for limit in board.profile.limits if limit.element_type == element.type}
     for option in driver.config:
-        unlimited = option.min is None and option.name not in limited
+        # Limited by its driver means both ends, as the driver itself takes it.
+        by_driver = option.min is not None and option.max is not None
+        unlimited = not by_driver and option.name not in limited
         if option.type in NUMERIC and unlimited:
             params = {"element": element.name, "option": option.name, "board": board.name}
             yield Issue(CoreErrorCode.CONFIG_UNLIMITED, params, place)

@@ -110,8 +110,8 @@ Once every file reads, each element is also checked against the limits of its bo
 (`primum_core.board_limits`, [board profiles](board-profiles.md)): a number the board does not
 take is `config.out_of_board_range` (`element`, `option`, `board`, `min`, `max`), at the value,
 or at the element when the value is its driver's default. And a number must be limited by
-someone: an option that neither its driver nor the board of the element limits is
-`config.unlimited` (`element`, `option`, `board`), whatever its value.
+someone: an option that neither its driver (with both a `min` and a `max`) nor the board of
+the element limits is `config.unlimited` (`element`, `option`, `board`), whatever its value.
 
 **The action of a clip** (`.sec`, `tracks[].clips[]`: `action` and `arguments`, a list of
 `name` and `value`), once every file reads (`primum_core.actions`); `action` and `element` in
@@ -177,7 +177,9 @@ is `element.type_unsupported` (`element`, `type`).
 element goes to the level the action ends in and is read back, and a level that does not
 read back is `element.level_not_reached` (`element`, `level`, `read`); from then on
 the output reports the level its hardware reads, each time it is asked, until a command is
-followed again: it is right whatever happened since (panic, or the hardware recovering). A digital output is on
+followed again: it is right whatever happened since (panic, or the hardware recovering). If
+that reading fails, the level written stands and the failure is logged: telling the state
+never fails. A digital output is on
 at any level above 0, and only on and off are told apart; a PWM output reads back within one
 step of its period (sysfs holds the duty cycle in whole nanoseconds: a third reads back as
 0.333333 at 1 kHz). Its safe state is the action the manifest names; a test ties it to the

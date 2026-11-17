@@ -113,7 +113,7 @@ def test_a_digital_output_reads_back_what_its_driver_commands() -> None:
         driver.command("on")  # raises if the line does not read back on
         assert driver.level == 100
 
-        driver.to_safe_state()
+        driver.command("off")  # the safe state of its manifest
         assert driver.level == 0
 
 
@@ -129,7 +129,7 @@ def test_a_pwm_output_works_at_both_ends_of_what_the_profile_says(frequency_hz: 
         driver.command("set", {"level": 50})
         driver.command("set", {"level": 100 / 3})
         driver.command("on")
-        driver.to_safe_state()
+        driver.command("off")  # the safe state of its manifest
 
         assert hal.pwms[dimmer.pin].read() == 0.0
 
