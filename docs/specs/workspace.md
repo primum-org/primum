@@ -153,13 +153,16 @@ The checks (`primum_core.overlaps`):
   Not reported: what some sequence
   that holds keeps in its last instant, its own clips or those of what it includes (a
   sequence that is only an instant `on`, placed at the end of a show that holds, is seen
-  there; it is then not reported for where it is not); one that asks for the safe state of its element's driver after something
-  else (an instant `on`, and an instant `off` to end with: the element goes there anyway),
+  there; it is then not reported for where it is not); one that leaves its element where its driver's safe state does, after something
+  else (an instant `on`, and an instant `off` or `set` to 0 to end with: the element goes
+  there anyway),
   though a sequence that is only that, and so lasts no time, is reported; one that another
   element's later clip keeps alive; and two of one element in that instant (they overlap:
-  that error is enough). The safe state is told by the name of the action: `core` does not
-  know where an action leaves its element, so an instant `set` to a level of 0 at the end is
-  reported although it does what `off` does.
+  that error is enough). Where an action leaves its element is what its driver declares
+  (`endState`, [drivers](drivers.md)), not its name.
+- **A clip that moves its element to rest and gives it back to an earlier instant command**
+  (a `fade` to 0 under a standing `on`): a warning, `clip.returns_to_instant`
+  ([drivers](drivers.md)).
 - **Between sequences**, the engine arbitrates (decision 0006, phase 4): by `priority` (a higher
   one layers over a lower one while it runs; within one priority the latest command wins) and
   by `exclusiveGroup` (starting one sequence of a group stops the others). What can be said

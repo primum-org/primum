@@ -9,11 +9,13 @@
   "actions": [
     {
       "name": "on",
-      "parameters": []
+      "parameters": [],
+      "endState": 100
     },
     {
       "name": "off",
-      "parameters": []
+      "parameters": [],
+      "endState": 0
     }
   ]
 }

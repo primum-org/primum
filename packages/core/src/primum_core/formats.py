@@ -109,6 +109,26 @@ def read_driver(path: PurePosixPath, content: bytes) -> Parsed[Driver]:
     return _read(path, content, "driver.schema.json", parse_driver, check_driver)
 
 
+def read_drivers(files: Mapping[PurePosixPath, bytes]) -> Parsed[Mapping[str, Driver]]:
+    """Read every driver manifest of ``drivers/`` (path → content) into what the workspace
+    loader takes: each by its own element type, whatever its file is called. They come back
+    when all of them read and no two are of one type."""
+    drivers: dict[str, Driver] = {}
+    issues: list[Issue] = []
+    for path in sorted(files):
+        parsed = read_driver(path, files[path])
+        issues += parsed.issues
+        if parsed.value is None:
+            continue
+        element_type = parsed.value.element_type
+        if element_type in drivers:
+            location = Location(path, "/elementType", parsed.value.id)
+            code = CoreErrorCode.DRIVER_DUPLICATE_TYPE
+            issues.append(Issue(code, {"type": element_type}, location))
+        drivers[element_type] = parsed.value
+    return Parsed(None, tuple(issues)) if issues else Parsed(drivers)
+
+
 def _read[T](
     path: PurePosixPath,
     content: bytes,

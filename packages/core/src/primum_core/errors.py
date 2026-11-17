@@ -58,6 +58,9 @@ class CoreErrorCode(StrEnum):
     CLIP_INSTANT_AT_END = "clip.instant_at_end"  # (warning) sequence, element, action
     # The same, reported at the block that gives a component its element: its own hint.
     BLOCK_INSTANT_AT_END = "block.instant_at_end"  # (warning) sequence, element, action
+    # A clip that moves its element (a fade) and then gives it back to an instant command that
+    # asks for another state: the element jumps there.
+    CLIP_RETURNS_TO_INSTANT = "clip.returns_to_instant"  # (warning) element, action, standing
     # Clips against the driver of their element (decision 0016): its actions and their
     # parameters; and the configuration of an element against the same driver.
     TRACK_ELEMENT_WITHOUT_ACTIONS = "track.element_without_actions"  # element
@@ -73,6 +76,8 @@ class CoreErrorCode(StrEnum):
     CONFIG_MISSING = "config.missing"  # element, option
     CONFIG_OUT_OF_RANGE = "config.out_of_range"  # element, option, min, max
     CONFIG_NOT_ALLOWED = "config.not_allowed"  # element, option, allowed
+    # An option against the limits of the element's board (its profile), not of its driver.
+    CONFIG_OUT_OF_BOARD_RANGE = "config.out_of_board_range"  # element, option, board, min, max
     # Resources: what a board profile offers, given out to the elements wired to the board.
     BOARD_UNKNOWN_MODEL = "board.unknown_model"  # model, board
     PIN_NOT_ON_BOARD = "pin.not_on_board"  # pin, board
@@ -113,11 +118,15 @@ class CoreErrorCode(StrEnum):
     BOARD_DUPLICATE_LINE = "board.duplicate_line"  # line
     BOARD_UNKNOWN_GPIO = "board.unknown_gpio"  # gpio
     BOARD_DUPLICATE_ID = "board.duplicate_id"  # id
+    BOARD_DUPLICATE_LIMIT = "board.duplicate_limit"  # type, option
+    BOARD_LIMITS_INVALID = "board.limits_invalid"  # type, option, min, max
     DRIVER_DUPLICATE_ACTION = "driver.duplicate_action"  # action
     DRIVER_DUPLICATE_PARAMETER = "driver.duplicate_parameter"  # parameter
     DRIVER_LIMITS_INVALID = "driver.limits_invalid"  # parameter, min, max
     DRIVER_DEFAULT_NOT_ALLOWED = "driver.default_not_allowed"  # parameter
     DRIVER_UNKNOWN_SAFE_STATE = "driver.unknown_safe_state"  # action
+    DRIVER_UNKNOWN_STATE_PARAMETER = "driver.unknown_state_parameter"  # action, parameter
+    DRIVER_DUPLICATE_TYPE = "driver.duplicate_type"  # type
 
 
 class Severity(StrEnum):

@@ -5,8 +5,8 @@ relative to the folder, with its content. ``project.json`` at the root is the ma
 other files are read by their extension (``.hw``, ``.vars``, ``.sec``, ``.evt``, ``.sched``,
 ``.auto``). A file of no project type is ignored with a warning. The caller also passes the
 board profiles (``boards/``, by model) and the driver manifests (``drivers/``, by element
-type): the elements of each board are checked against the first, and their configuration and
-what clips ask of them against the second.
+type): the elements of each board are checked against the first (its resources and its
+limits), and their configuration and what clips ask of them against the second.
 
 Extensions are matched without regard to case (``SHOW.SEC`` is a sequence), as Windows does.
 
@@ -15,7 +15,7 @@ Checks come in stages, so a problem is reported once, where it is: first each fi
 element),
 and, once every file reads, the project as a whole: ids and references, which need every file;
 then the scopes of names, the components, the actions of the clips, the clips and sequences
-that overlap, and the resources of each board.
+that overlap, the resources of each board and the limits it puts on its elements' options.
 """
 
 from collections.abc import Mapping
@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 
 from primum_core.actions import check_actions
+from primum_core.board_limits import check_board_limits
 from primum_core.components import check_components
 from primum_core.config import check_config
 from primum_core.drivers import Drivers
@@ -39,6 +40,7 @@ from primum_core.overlaps import check_overlaps
 from primum_core.references import LocatedContent, check_references
 from primum_core.resources import Profiles, check_resources
 from primum_core.scopes import check_scopes
+from primum_core.states import check_returns
 from primum_core.variants import check_variants
 
 MANIFEST = PurePosixPath("project.json")
@@ -95,7 +97,9 @@ def load_workspace(
         issues += check_components(located)
         issues += check_actions(located, drivers)
         issues += check_overlaps(located, drivers)
+        issues += check_returns(located, drivers)
         issues += check_resources(located, profiles)
+        issues += check_board_limits(located, profiles, drivers)
     if manifest is None or any(issue.severity is Severity.ERROR for issue in issues):
         return Parsed(None, tuple(issues))
     return Parsed(Workspace(manifest, tuple(read)), tuple(issues))

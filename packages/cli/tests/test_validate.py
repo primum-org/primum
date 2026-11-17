@@ -47,6 +47,7 @@ INVALID_CODES = {
     "track-element-without-actions": "track.element_without_actions",
     "track-element-without-driver": "track.element_without_driver",
     "config-out-of-range": "config.out_of_range",
+    "config-out-of-board-range": "config.out_of_board_range",
     "config-not-allowed": "config.not_allowed",
 }
 

@@ -100,7 +100,7 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "board-profile.schema.json",
   "title": "Board profile",
-  "description": "What a board model offers: its header pins, buses, PWM channels and reserved pins, and how its GPIOs map to the lines of its GPIO chip. One file per model in boards/.",
+  "description": "What a board model offers: its header pins, buses, PWM channels and reserved pins, how its GPIOs map to the lines of its GPIO chip, and the limits it puts on the options of its elements. One file per model in boards/.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -114,7 +114,8 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
     "pins",
     "buses",
     "pwmChannels",
-    "reserved"
+    "reserved",
+    "limits"
   ],
   "properties": {
     "id": {
@@ -168,6 +169,13 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
       "type": "array",
       "items": {
         "$ref": "#/$defs/reservedGpio"
+      }
+    },
+    "limits": {
+      "description": "The limits this board puts on options of the elements wired to it, each taken from the documentation it cites.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/optionLimit"
       }
     }
   },
@@ -331,6 +339,54 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
           "type": "string",
           "minLength": 1,
           "maxLength": 80
+        }
+      }
+    },
+    "optionLimit": {
+      "description": "The values this board takes for one option of the elements of one type (the frequency of a PWM output), and where that is documented.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "elementType",
+        "option",
+        "min",
+        "max",
+        "sources"
+      ],
+      "properties": {
+        "elementType": {
+          "description": "The type of the elements it applies to, as .hw files write it (pwm_output).",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 40
+        },
+        "option": {
+          "$ref": "common.schema.json#/$defs/parameterName"
+        },
+        "min": {
+          "description": "The lowest value the board takes.",
+          "type": "number"
+        },
+        "max": {
+          "description": "The highest value the board takes.",
+          "type": "number"
+        },
+        "sources": {
+          "description": "Where the limit comes from: the manufacturer's documentation or the source of the system Primum ships, as links.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^https://",
+            "maxLength": 300
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "note": {
+          "description": "How the limit follows from the sources, for whoever maintains the profile.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600
         }
       }
     }
@@ -503,10 +559,11 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
     "driverAction": {
       "type": "object",
       "additionalProperties": false,
-      "description": "An action of the element, with the parameters a clip gives it.",
+      "description": "An action of the element, with the parameters a clip gives it and the state it leaves the element in.",
       "required": [
         "name",
-        "parameters"
+        "parameters",
+        "endState"
       ],
       "properties": {
         "name": {
@@ -519,6 +576,14 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
           "items": {
             "$ref": "#/$defs/driverParameter"
           }
+        },
+        "endState": {
+          "description": "The state the action leaves the element in: what an instant command sets, and where a clip with a length ends.",
+          "$ref": "#/$defs/actionState"
+        },
+        "startState": {
+          "description": "The state a clip with a length starts from, for an action that moves the element from one state to another over its clip (a fade). Without it the action holds its end state for the whole clip.",
+          "$ref": "#/$defs/actionState"
         }
       }
     },
@@ -538,7 +603,7 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
           "$ref": "common.schema.json#/$defs/valueType"
         },
         "min": {
-          "description": "The lowest value allowed (numbers only, with max).",
+          "description": "The lowest value allowed on every board (numbers only, with max). What only a board limits is in its profile.",
           "type": "number"
         },
         "max": {
@@ -560,6 +625,17 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
           "$ref": "common.schema.json#/$defs/value"
         }
       }
+    },
+    "actionState": {
+      "description": "A state of the element as a level, from 0 (off) to 100 (fully on): the level itself, or the name of the parameter of the action that gives it.",
+      "type": [
+        "number",
+        "string"
+      ],
+      "minimum": 0,
+      "maximum": 100,
+      "pattern": "^[a-z][A-Za-z0-9]*$",
+      "maxLength": 40
     }
   }
 }

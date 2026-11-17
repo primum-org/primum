@@ -12,7 +12,7 @@ from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import replace
 
 from primum_core.errors import CoreErrorCode, Issue, Location
-from primum_core.generated.model import Driver, DriverParameter
+from primum_core.generated.model import Driver, DriverAction, DriverParameter
 from primum_core.given import limits, within
 from primum_core.pointers import Step, field_name, pointer
 from primum_core.values import EXPECTED, NUMERIC, fits
@@ -26,6 +26,7 @@ def check_driver(driver: Driver, location: Location) -> tuple[Issue, ...]:
     issues += _parameter_issues(driver.config, ("config",), location)
     for index, action in enumerate(driver.actions):
         issues += _parameter_issues(action.parameters, ("actions", index, "parameters"), location)
+        issues += _state_issues(action, ("actions", index), location)
     issues += _output_issues(driver, location)
     return tuple(issues)
 
@@ -107,6 +108,19 @@ def _default_issues(
     elif not within(default, parameter) or not allowed:
         params = {"parameter": parameter.name}
         yield Issue(CoreErrorCode.DRIVER_DEFAULT_NOT_ALLOWED, params, place)
+
+
+def _state_issues(
+    action: DriverAction, steps: tuple[Step, ...], location: Location
+) -> Iterator[Issue]:
+    """A state given by a parameter names a number among the action's parameters."""
+    numbers = {parameter.name for parameter in action.parameters if parameter.type in NUMERIC}
+    states = {"endState": action.end_state, "startState": action.start_state}
+    for field, state in states.items():
+        if isinstance(state, str) and state not in numbers:
+            params = {"action": action.name, "parameter": state}
+            code = CoreErrorCode.DRIVER_UNKNOWN_STATE_PARAMETER
+            yield Issue(code, params, _at(location, *steps, field))
 
 
 def _output_issues(driver: Driver, location: Location) -> Iterator[Issue]:

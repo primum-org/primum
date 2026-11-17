@@ -150,3 +150,55 @@ def test_an_incomplete_gpio_pin_is_reported_once_not_again_by_each_reference() -
     assert _issues(change) == [
         (CoreErrorCode.BOARD_INCOMPLETE_GPIO_PIN, {"physical": 11}, "/pins/0")
     ]
+
+
+LIMIT: dict[str, object] = {
+    "elementType": "pwm_output",
+    "option": "frequencyHz",
+    "min": 1,
+    "max": 1000,
+    "sources": ["https://example.org/datasheet.pdf"],
+}
+
+
+def test_the_pi_limits_the_frequency_of_its_pwm_and_says_where_that_comes_from() -> None:
+    (limit,) = _rpi4b().limits
+
+    assert (limit.element_type, limit.option, limit.min, limit.max) == (
+        "pwm_output",
+        "frequencyHz",
+        1,
+        100_000,
+    )
+    assert all(source.startswith("https://") for source in limit.sources)
+    assert limit.note
+
+
+def test_an_option_limited_twice() -> None:
+    assert _issues({"limits": [LIMIT, LIMIT]}) == [
+        (
+            CoreErrorCode.BOARD_DUPLICATE_LIMIT,
+            {"type": "pwm_output", "option": "frequencyHz"},
+            "/limits/1",
+        )
+    ]
+
+
+def test_limits_the_wrong_way_round() -> None:
+    assert _issues({"limits": [{**LIMIT, "min": 2000}]}) == [
+        (
+            CoreErrorCode.BOARD_LIMITS_INVALID,
+            {"type": "pwm_output", "option": "frequencyHz", "min": 2000, "max": 1000},
+            "/limits/0",
+        )
+    ]
+
+
+def test_a_limit_without_a_source_is_refused() -> None:
+    assert _issues({"limits": [{**LIMIT, "sources": []}]}) == [
+        (
+            CoreErrorCode.SCHEMA_TOO_FEW_ITEMS,
+            {"field": "limits[0].sources", "min": 1},
+            "/limits/0/sources",
+        )
+    ]

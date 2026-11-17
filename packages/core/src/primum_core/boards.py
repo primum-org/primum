@@ -2,8 +2,9 @@
 
 A profile (``boards/<model>.json``) describes a board model as data. Its schema checks the
 shape; this module checks what the shape cannot say: each physical pin and each GPIO appears
-once, a GPIO pin has its number, line and pull while power pins have none, and buses, PWM
-channels and reserved pins name GPIOs the board has. Callers read the file and use
+once, a GPIO pin has its number, line and pull while power pins have none, buses, PWM
+channels and reserved pins name GPIOs the board has, and each option is limited once, its
+minimum not above its maximum. Callers read the file and use
 ``primum_core.formats.read_board_profile``, which runs these checks.
 """
 
@@ -16,7 +17,11 @@ from primum_core.generated.model import BoardProfile, HeaderPin
 
 def check_board_profile(profile: BoardProfile, location: Location) -> tuple[Issue, ...]:
     """Every problem of meaning in ``profile``, pointing inside the file at ``location``."""
-    return (*_pin_issues(profile.pins, location), *_reference_issues(profile, location))
+    return (
+        *_pin_issues(profile.pins, location),
+        *_reference_issues(profile, location),
+        *_limit_issues(profile, location),
+    )
 
 
 def gpio_lines(profile: BoardProfile) -> Mapping[int, int]:
@@ -72,6 +77,19 @@ def _reference_issues(profile: BoardProfile, location: Location) -> Iterator[Iss
     yield from _unique_ids(
         "pwmChannels", (channel.id for channel in profile.pwm_channels), location
     )
+
+
+def _limit_issues(profile: BoardProfile, location: Location) -> Iterator[Issue]:
+    seen: set[tuple[str, str]] = set()
+    for index, limit in enumerate(profile.limits):
+        at = replace(location, pointer=f"/limits/{index}")
+        params: dict[str, ParamValue] = {"type": limit.element_type, "option": limit.option}
+        if (limit.element_type, limit.option) in seen:
+            yield Issue(CoreErrorCode.BOARD_DUPLICATE_LIMIT, params, at)
+        seen.add((limit.element_type, limit.option))
+        if limit.min > limit.max:
+            params = {**params, "min": limit.min, "max": limit.max}
+            yield Issue(CoreErrorCode.BOARD_LIMITS_INVALID, params, at)
 
 
 def _unique_ids(field: str, ids: Iterable[str], location: Location) -> Iterator[Issue]:

@@ -166,8 +166,8 @@ def test_an_argument_of_another_type(project: Project, ids: Ids) -> None:
 def test_an_argument_that_is_not_one_of_the_choices(project: Project, ids: Ids) -> None:
     direction: dict[str, object] = {"name": "direction", "type": "text"}
     direction["choices"] = ["up", "down"]
-    off: dict[str, object] = {"name": "off", "parameters": []}
-    actions = [off, {"name": "on", "parameters": [direction]}]
+    off: dict[str, object] = {"name": "off", "parameters": [], "endState": 0}
+    actions = [off, {"name": "on", "parameters": [direction], "endState": 100}]
     project.drivers["digital_output"] = driver("digital_output", actions=actions, safeState="off")
     _show(project, ids, LED, _clip(ids, 21, "on", direction="sideways"))
 

@@ -23,13 +23,16 @@ enters as a parameter, as everywhere in ``core``.
 from bisect import bisect_right
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from primum_core.errors import Location
 from primum_core.generated.model import Clip, Sequence
 from primum_core.references import LocatedContent
 from primum_core.timeline import FlatClip, duration, flatten_all, holds, sequences_of
-from primum_core.workspace import Workspace
+
+if TYPE_CHECKING:  # the workspace loader runs checks that ask this module
+    from primum_core.workspace import Workspace
 
 
 @dataclass(frozen=True)
@@ -77,7 +80,7 @@ class Timeline:
 type Timelines = Mapping[UUID, Timeline]
 
 
-def timelines_of(workspace: Workspace) -> dict[UUID, Timeline]:
+def timelines_of(workspace: "Workspace") -> dict[UUID, Timeline]:
     """Every sequence of a valid project, by id, ready for ``command_at``."""
     files = [
         LocatedContent(file.content, Location(file.path, file_id=file.content.id))
@@ -86,7 +89,7 @@ def timelines_of(workspace: Workspace) -> dict[UUID, Timeline]:
     sequences = sequences_of(files)
     flattened = flatten_all(sequences)
     return {
-        sequence_id: _timeline(sequence, flattened[sequence_id])
+        sequence_id: timeline_of(sequence, flattened[sequence_id])
         for sequence_id, (sequence, _) in sequences.items()
     }
 
@@ -118,7 +121,8 @@ def command_at(
     return winner[1] if winner else None
 
 
-def _timeline(sequence: Sequence, clips: list[FlatClip]) -> Timeline:
+def timeline_of(sequence: Sequence, clips: list[FlatClip]) -> Timeline:
+    """A sequence ready to be asked, from its clips flattened."""
     end = duration(clips)
     held = holds(sequence)
     # When the instant commands of each element start, in each sequence they are written in.

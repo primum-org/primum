@@ -60,7 +60,7 @@ def driver_manifest(element_type: str, **fields: object) -> dict[str, object]:
         "conflictPolicy": "latest_wins",
         "safeState": "on",
         "config": [],
-        "actions": [{"name": "on", "parameters": []}],
+        "actions": [{"name": "on", "parameters": [], "endState": 100}],
         **fields,
     }
 

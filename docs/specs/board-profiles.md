@@ -1,8 +1,8 @@
 # Board profiles
 
 A board profile describes a board model as data: the pins of its header, its buses, its
-hardware PWM channels, the GPIOs Primum never assigns, and how its GPIOs map to the lines of
-its GPIO chip. One file per model in `boards/` (`boards/rpi4b.json`), named after the model.
+hardware PWM channels, the GPIOs Primum never assigns, how its GPIOs map to the lines of
+its GPIO chip, and the limits it puts on the options of its elements. One file per model in `boards/` (`boards/rpi4b.json`), named after the model.
 Format: `schemas/board-profile.schema.json`. Adding a compatible board means adding a profile.
 
 ## Contents
@@ -18,6 +18,7 @@ Format: `schemas/board-profile.schema.json`. Adding a compatible board means add
 | `buses` | Each bus (`i2c`, `spi`, `uart`) with the GPIO of each signal (`sda` → GPIO 2) |
 | `pwmChannels` | Each hardware PWM channel: its `channel` index on the controller and the GPIOs that can use it |
 | `reserved` | GPIOs never assigned to an element, with the reason (`hat_eeprom`) |
+| `limits` | What the board takes for an option of its elements: `elementType` and `option` (`pwm_output`, `frequencyHz`), `min` and `max`, the `sources` it comes from (links, one at least) and a `note` on how it follows from them |
 
 A `gpio` pin also has `gpio` (its number, BCM on a Raspberry Pi), `line` (its line on the GPIO
 chip) and `defaultPull` (`up` or `down`, its pull at power on, before anything configures it).
@@ -33,7 +34,9 @@ The schema checks the shape; `core` (`primum_core.boards`, run by
 - each GPIO is on one pin (`board.duplicate_gpio`) and each line belongs to one GPIO
   (`board.duplicate_line`);
 - buses, PWM channels and reserved pins name GPIOs the board has (`board.unknown_gpio`);
-- bus and PWM channel ids are unique (`board.duplicate_id`).
+- bus and PWM channel ids are unique (`board.duplicate_id`);
+- each option of an element type is limited once (`board.duplicate_limit`), its minimum not
+  above its maximum (`board.limits_invalid`).
 
 Every profile in `boards/` must read without issues and be named after its model: a test
 checks it.
@@ -87,6 +90,17 @@ Rules of the allocation:
 - Which GPIOs a bus really claims when enabled is the hardware manager's (phase 6,
   `config.txt`); here a device on a bus means the bus is enabled.
 
+## Limits
+
+What a board can do is data of its profile, taken from the manufacturer's documentation or
+from the source of the system Primum ships, and cited there (`sources`): never a number in a
+driver manifest, which is for every platform. `primum_core.board_limits.check_board_limits`
+checks every element wired to a board against the limits of its profile for its type: a
+number outside them is `config.out_of_board_range` (`element`, `option`, `board`, `min`,
+`max`). An option the element does not give is checked with its driver's default, and
+reported at the element. A profile limits what it must; an option it does not mention has
+only its driver's limits.
+
 `examples/invalid/` has one project per code, each kept giving exactly that code by a test.
 
 ## The Raspberry Pi 4 Model B (`rpi4b`)
@@ -102,3 +116,12 @@ Rules of the allocation:
   RX 15). The other buses of the BCM2711 come with the hardware manager (phase 6).
 - PWM: channel 0 on GPIO 12 or 18, channel 1 on GPIO 13 or 19.
 - Reserved: GPIO 0 and 1, the I2C bus of the HAT EEPROM (ID_SD, ID_SC).
+- Limits: a PWM output takes 1 Hz to 100 kHz. The Raspberry Pi kernel clocks the PWM at 50 MHz
+  (`assigned-clock-rates` of the `pwm` node in `bcm283x.dtsi`; mainline says 10 MHz and the
+  `pwm-2chan` overlay takes a `clock` parameter, so the profile describes the board with the
+  system Primum ships) and `pwm-bcm2835` takes a period of 2 to 2^32 clock cycles: 0.012 Hz to
+  25 MHz. The BCM2711 peripherals datasheet gives 32-bit range and data registers and no
+  frequency limit. So the minimum is the lowest whole number of hertz, and the maximum is a
+  choice of resolution: at 100 kHz the level has 500 steps, at 25 MHz it would have two. This
+  is arithmetic on the sources, not a measure: the `hw` test at both ends comes with the PWM
+  driver (block 3.3b).

@@ -61,10 +61,11 @@
     "driverAction": {
       "type": "object",
       "additionalProperties": false,
-      "description": "An action of the element, with the parameters a clip gives it.",
+      "description": "An action of the element, with the parameters a clip gives it and the state it leaves the element in.",
       "required": [
         "name",
-        "parameters"
+        "parameters",
+        "endState"
       ],
       "properties": {
         "name": {
@@ -77,6 +78,14 @@
           "items": {
             "$ref": "#/$defs/driverParameter"
           }
+        },
+        "endState": {
+          "description": "The state the action leaves the element in: what an instant command sets, and where a clip with a length ends.",
+          "$ref": "#/$defs/actionState"
+        },
+        "startState": {
+          "description": "The state a clip with a length starts from, for an action that moves the element from one state to another over its clip (a fade). Without it the action holds its end state for the whole clip.",
+          "$ref": "#/$defs/actionState"
         }
       }
     },
@@ -96,7 +105,7 @@
           "$ref": "common.schema.json#/$defs/valueType"
         },
         "min": {
-          "description": "The lowest value allowed (numbers only, with max).",
+          "description": "The lowest value allowed on every board (numbers only, with max). What only a board limits is in its profile.",
           "type": "number"
         },
         "max": {
@@ -118,6 +127,17 @@
           "$ref": "common.schema.json#/$defs/value"
         }
       }
+    },
+    "actionState": {
+      "description": "A state of the element as a level, from 0 (off) to 100 (fully on): the level itself, or the name of the parameter of the action that gives it.",
+      "type": [
+        "number",
+        "string"
+      ],
+      "minimum": 0,
+      "maximum": 100,
+      "pattern": "^[a-z][A-Za-z0-9]*$",
+      "maxLength": 40
     }
   }
 }

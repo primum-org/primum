@@ -50,6 +50,11 @@ All notable changes to this project are documented here. The format follows
   one automation and stopped by another (`examples/evening-lights/`). It only holds when it
   is started on its own: including it in another sequence gets a warning. A sequence that ends
   with an instant command and does not hold gets a warning: it would not be seen.
+- `primum validate` checks each element against what its board takes: a PWM output on a
+  Raspberry Pi 4 runs from 1 Hz to 100 kHz, a limit that now lives in the board's profile with
+  the documentation it comes from. It also warns when a fade to 0 would end with the light
+  jumping back on because an earlier instant `on` is still in force, and no longer warns
+  about a sequence that ends with an instant `set` to 0.
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.

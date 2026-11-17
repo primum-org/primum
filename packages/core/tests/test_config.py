@@ -36,20 +36,12 @@ def test_an_input_takes_its_pull_and_its_debounce(project: Project, ids: Ids) ->
     ("kind", "pin", "options", "code", "params", "pointer"),
     [
         (
-            "pwm_output",
-            18,
-            {"frequencyHz": 0},
+            "digital_input",
+            22,
+            {"pull": "up", "debounceMs": 10_001},
             CoreErrorCode.CONFIG_OUT_OF_RANGE,
-            {"option": "frequencyHz", "min": 1, "max": 100_000},
-            "/elements/0/config/0/value",
-        ),
-        (
-            "pwm_output",
-            18,
-            {"frequencyHz": 20_000_000},
-            CoreErrorCode.CONFIG_OUT_OF_RANGE,
-            {"option": "frequencyHz", "min": 1, "max": 100_000},
-            "/elements/0/config/0/value",
+            {"option": "debounceMs", "min": 0, "max": 10_000},
+            "/elements/0/config/1/value",
         ),
         (
             "digital_input",

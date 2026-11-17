@@ -6,7 +6,7 @@ from pathlib import PurePosixPath
 import pytest
 
 from primum_core.errors import CoreErrorCode
-from primum_core.formats import read_driver
+from primum_core.formats import read_driver, read_drivers
 from project_builder import DRIVERS, DRIVERS_FOLDER, ROOT, driver_manifest
 
 
@@ -20,7 +20,7 @@ def _found(**fields: object) -> list[tuple[CoreErrorCode, dict[str, object], str
 
 
 def _action(name: str, *parameters: dict[str, object]) -> dict[str, object]:
-    return {"name": name, "parameters": list(parameters)}
+    return {"name": name, "parameters": list(parameters), "endState": 100}
 
 
 def test_the_shipped_drivers_are_the_three_of_this_phase() -> None:
@@ -42,6 +42,93 @@ def test_an_output_rests_in_one_of_its_actions_and_an_input_has_none() -> None:
     assert DRIVERS["pwm_output"].safe_state == "off"
     assert DRIVERS["digital_input"].actions == ()
     assert DRIVERS["digital_input"].safe_state is None
+
+
+def test_each_shipped_action_says_the_state_it_leaves_its_element_in() -> None:
+    states = {
+        (name, action.name): (action.start_state, action.end_state)
+        for name, manifest in DRIVERS.items()
+        for action in manifest.actions
+    }
+
+    assert states == {
+        ("digital_output", "on"): (None, 100),
+        ("digital_output", "off"): (None, 0),
+        ("pwm_output", "on"): (None, 100),
+        ("pwm_output", "off"): (None, 0),
+        ("pwm_output", "set"): (None, "level"),
+        ("pwm_output", "fade"): ("from", "to"),
+    }
+
+
+def test_no_shipped_option_carries_a_limit_that_is_its_board_s() -> None:
+    frequency = DRIVERS["pwm_output"].config[0]
+
+    assert (frequency.name, frequency.min, frequency.max) == ("frequencyHz", None, None)
+
+
+@pytest.mark.parametrize(
+    ("field", "parameters"),
+    [
+        ("endState", []),  # no such parameter
+        ("startState", [{"name": "level", "type": "text", "default": "high"}]),  # not a number
+    ],
+)
+def test_a_state_given_by_a_parameter_names_a_number_of_the_action(
+    field: str, parameters: list[dict[str, object]]
+) -> None:
+    action = {**_action("on", *parameters), field: "level"}
+
+    assert _found(actions=[action]) == [
+        (
+            CoreErrorCode.DRIVER_UNKNOWN_STATE_PARAMETER,
+            {"action": "on", "parameter": "level"},
+            f"/actions/0/{field}",
+        )
+    ]
+
+
+def test_a_state_given_by_a_number_of_the_action() -> None:
+    level: dict[str, object] = {"name": "level", "type": "number", "default": 100}
+
+    assert _found(actions=[{**_action("on", level), "endState": "level"}]) == []
+
+
+def test_a_fixed_state_is_a_level_from_0_to_100() -> None:
+    assert _found(actions=[{**_action("on"), "endState": 101}]) == [
+        (
+            CoreErrorCode.SCHEMA_ABOVE_MAXIMUM,
+            {"field": "actions[0].endState", "maximum": 100},
+            "/actions/0/endState",
+        )
+    ]
+
+
+def test_the_manifests_are_read_together_each_by_its_own_type() -> None:
+    files = {PurePosixPath(path.name): path.read_bytes() for path in DRIVERS_FOLDER.glob("*.json")}
+    files[PurePosixPath("renamed.json")] = files.pop(PurePosixPath("pwm_output.json"))
+
+    parsed = read_drivers(files)
+
+    assert parsed.issues == ()
+    assert parsed.value == DRIVERS
+
+
+def test_two_manifests_of_one_type_are_refused() -> None:
+    lamp = json.dumps(driver_manifest("lamp")).encode()
+
+    parsed = read_drivers({PurePosixPath("a.json"): lamp, PurePosixPath("b.json"): lamp})
+
+    assert parsed.value is None
+    assert [(issue.code, dict(issue.params)) for issue in parsed.issues] == [
+        (CoreErrorCode.DRIVER_DUPLICATE_TYPE, {"type": "lamp"})
+    ]
+
+
+def test_a_broken_manifest_stops_them_all() -> None:
+    files = {PurePosixPath("lamp.json"): b"{}"}
+
+    assert read_drivers(files).value is None
 
 
 def test_a_manifest_as_the_tests_build_it_is_valid() -> None:
