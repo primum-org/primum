@@ -23,8 +23,10 @@ loop's, so nothing may block it or need a lock.
 - **A command is an action of the manifest, carried out as an instant command**: the element
   goes to the state the action ends in (`endState`, decision 0018) and is read back. A level
   that does not read back is an error (`element.level_not_reached`): for a digital output, on
-  or off; for a PWM output, within one step of its period. The output then reports the
-  level it read, and listeners are told: the state never shows what was only asked. Moving an element over time (a
+  or off; for a PWM output, within one step of its period. From then on the
+  output reports what its hardware reads, each time it is asked and until a command is
+  followed again, and listeners are told: the state never shows what was only asked, nor a
+  reading that something later made old. Moving an element over time (a
   `fade` with a length) is the engine's (phase 4), on top of this.
 - **Limits are enforced three times**, each by who can: `core` on the project, the driver on
   what reaches it (the manifest's limits and the board's), and the HAL on what it can express

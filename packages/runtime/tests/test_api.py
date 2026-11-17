@@ -142,6 +142,28 @@ def test_a_change_of_an_input_reaches_the_websocket_without_anyone_asking(
     assert released["inputs"] == [{"name": BUTTON, "active": False}]
 
 
+def test_a_failure_reading_the_inputs_stops_the_watch_instead_of_spinning(
+    hal: SimulatedHal, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The descriptor stays readable when reading fails, so the loop would call again at
+    once, for ever. The watch ends, the failure is logged and the service goes on."""
+    calls: list[int] = []
+
+    def broken() -> list[object]:
+        calls.append(1)
+        raise OSError(5, "I/O error")
+
+    with _with_button(hal) as client:
+        monkeypatch.setattr(hal, "_read_events", broken)
+        hal.simulate_input(BUTTON_PIN, True)
+
+        assert client.get("/api/status").status_code == 200
+        assert client.get("/api/status").status_code == 200
+
+    assert calls == [1]
+    assert "inputs are no longer listened to" in caplog.text
+
+
 def test_a_service_without_inputs_watches_nothing(hal: SimulatedHal) -> None:
     with TestClient(create_app(CONFIG, open_hal=lambda: hal)):
         assert hal.events_fd() is None

@@ -9,6 +9,7 @@ every board and what the board limits in its profile both count.
 from collections.abc import Mapping
 
 from primum_core.generated.model import DriverParameter
+from primum_core.given import shown
 from primum_core.values import Value, fits
 from primum_runtime.errors import ErrorCode, ErrorParam, PrimumError
 
@@ -59,7 +60,7 @@ def _check(
         raise _problem(ErrorCode.ELEMENT_VALUE_UNLIMITED, element, parameter.name)
     for limits in (manifest, board):
         if limits is not None and not limits[0] <= value <= limits[1]:
-            params = {"min": limits[0], "max": limits[1]}
+            params = {"min": shown(limits[0]), "max": shown(limits[1])}
             raise _problem(ErrorCode.ELEMENT_VALUE_OUT_OF_RANGE, element, parameter.name, params)
 
 

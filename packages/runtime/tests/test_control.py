@@ -267,3 +267,47 @@ def test_panic_after_an_output_did_not_follow_reports_its_safe_state(hal: Simula
     controller.panic()
 
     assert controller.state().outputs == (OutputState("dimmer", on=False, level=0),)
+
+
+def test_a_reading_from_before_panic_does_not_outlive_it(hal: SimulatedHal) -> None:
+    """Off is asked and the line stays on; it recovers, and panic turns it off. Panic writes
+    the same level the failed command did, and the state must still say what the line reads."""
+    controller = _controller(hal)
+    controller.set_output("led", True)
+    hal.lines[17].stick(True)
+    with pytest.raises(PrimumError):
+        controller.set_output("led", False)
+    assert controller.state().outputs[0].on
+    hal.lines[17].stick(None)
+
+    controller.panic()
+    after_panic = controller.state()
+    controller.release_panic()
+
+    assert not after_panic.outputs[0].on
+    assert not controller.state().outputs[0].on
+
+
+def test_an_output_that_recovers_on_its_own_is_reported_as_it_now_reads(hal: SimulatedHal) -> None:
+    """On is asked and the line stays off, written on. When it follows at last, it is on."""
+    controller = _controller(hal)
+    hal.lines[17].stick(False)
+    with pytest.raises(PrimumError):
+        controller.set_output("led", True)
+    assert not controller.state().outputs[0].on
+
+    hal.lines[17].stick(None)
+
+    assert controller.state().outputs[0] == OutputState("led", on=True, level=100)
+
+
+def test_the_state_can_still_be_told_after_the_hal_is_closed(hal: SimulatedHal) -> None:
+    controller = _controller(hal)
+    hal.lines[17].stick(False)
+    with pytest.raises(PrimumError):
+        controller.set_output("led", True)
+    hal.lines[17].stick(None)
+
+    hal.close()
+
+    assert controller.state().outputs[0] == OutputState("led", on=False, level=0)

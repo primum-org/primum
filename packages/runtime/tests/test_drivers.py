@@ -319,6 +319,13 @@ def test_a_debounce_outside_the_limits_of_the_manifest_is_refused(debounce: int)
     }
 
 
+def test_whole_limits_are_shown_without_decimals() -> None:
+    with pytest.raises(PrimumError) as raised:
+        _button(debounceMs=-1)
+
+    assert [repr(raised.value.params[key]) for key in ("min", "max")] == ["0", "10000"]
+
+
 def test_a_pull_that_is_not_one_is_refused() -> None:
     with pytest.raises(PrimumError) as raised:
         _button(pull="sideways")

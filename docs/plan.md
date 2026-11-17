@@ -491,7 +491,8 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   HAL. An output is commanded with the actions of its manifest, as an instant command: it
   goes to the state the action ends in and is read back (`element.level_not_reached`; a PWM
   level within one step of its period, since sysfs holds whole nanoseconds, which the
-  simulated HAL does too). An output that does not follow reports the level it read.
+  simulated HAL does too). An output that does not follow reports what its hardware reads from then
+  on, until a command is followed again.
 - The drivers enforce the limits again: an option or an argument outside its manifest's
   limits or its board's is refused before anything is claimed (`element.value_*`), and so
   is a number that neither limits (`element.value_unlimited`), as in `core`. The HAL
@@ -535,6 +536,12 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   on the shipped files, unless the option it meant is left unlimited (`config.unlimited`).
 - Lost input events are logged and counted by the driver, not shown in the API or the page;
   when events start automations (phase 4), a loss is something to tell the user.
+- For 3.4, when the API takes commands with arguments: `element.value_*` and
+  `element.action_unknown` are the caller's mistakes and should be 4xx; today every
+  `element.*` is a 500, and only `element.level_not_reached` can be reached from the API.
+- If reading the inputs fails, the API stops watching them (the descriptor would stay
+  readable and spin the loop) and logs it; the inputs keep their last state and nothing tells
+  the user. With the watchdog of 3.4, decide whether that should restart the service.
 - The service's input is not in `image/provision.sh`: to try it on the Pi, add
   `PRIMUM_INPUT_PIN` and `PRIMUM_INPUT_PULL` to `/etc/primum/runtime.env`.
 

@@ -95,3 +95,16 @@ def test_a_pull_that_is_not_one_exits() -> None:
 def test_a_pull_without_an_input_exits_instead_of_being_ignored() -> None:
     with pytest.raises(SystemExit):
         parse_config(["--pin", "17", "--input-pull", "up"], {})
+
+
+def test_a_pull_from_the_environment_that_is_not_one_exits_as_the_option_does() -> None:
+    env = {"PRIMUM_INPUT_PIN": "22", "PRIMUM_INPUT_PULL": "sideways"}
+
+    with pytest.raises(SystemExit):
+        parse_config(["--pin", "17"], env)
+
+
+def test_an_empty_pull_in_the_environment_is_a_pull_not_given() -> None:
+    config = parse_config(["--pin", "17"], {"PRIMUM_INPUT_PULL": ""})
+
+    assert len(config.elements) == 1

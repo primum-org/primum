@@ -53,7 +53,7 @@ def create_app(config: RuntimeConfig, open_hal: HalFactory | None = None) -> Fas
             loop = asyncio.get_running_loop()
             events_fd = controller.events_fd()
             if events_fd is not None:
-                loop.add_reader(events_fd, controller.read_inputs)
+                loop.add_reader(events_fd, _read_inputs, loop, events_fd, controller)
             log.info("started outputs=%s simulate=%s", _describe(controller), config.simulate)
             try:
                 yield
@@ -73,6 +73,17 @@ def create_app(config: RuntimeConfig, open_hal: HalFactory | None = None) -> Fas
     app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")
     install_error_handlers(app)
     return app
+
+
+def _read_inputs(loop: asyncio.AbstractEventLoop, events_fd: int, controller: Controller) -> None:
+    """Read the input changes the descriptor announces. If reading fails the watch ends: the
+    descriptor would stay readable and the loop would call again at once, for ever. The
+    outputs and the panic button go on working; the inputs keep their last state."""
+    try:
+        controller.read_inputs()
+    except Exception:  # whatever it is, it must not spin the event loop
+        loop.remove_reader(events_fd)
+        log.exception("reading the inputs failed: inputs are no longer listened to")
 
 
 def _describe(controller: Controller) -> str:

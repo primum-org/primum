@@ -28,6 +28,7 @@ from primum_runtime.hal import BoardGpio, Pull
 
 LED = "led"
 BUTTON = "button"
+PULLS = tuple(pull.value for pull in Pull)
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
 _TRUE = frozenset({"1", "true", "yes", "on"})
@@ -64,6 +65,8 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
     elements = [ElementConfig(LED, "digital_output", pin, active_low)]
     input_pin: int | None = args.input_pin
     input_pull: str | None = args.input_pull
+    if input_pull is not None and input_pull not in PULLS:  # argparse checks options only
+        parser.error(f"PRIMUM_INPUT_PULL must be one of {', '.join(PULLS)}, not {input_pull!r}")
     if input_pin is None and input_pull is not None:
         parser.error("a pull without an input: give --input-pin (PRIMUM_INPUT_PIN) too")
     if input_pin is not None:
@@ -125,8 +128,8 @@ def _parser(env: Mapping[str, str]) -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--input-pull",
-        choices=[pull.value for pull in Pull],
-        default=env.get("PRIMUM_INPUT_PULL"),
+        choices=PULLS,
+        default=env.get("PRIMUM_INPUT_PULL") or None,  # empty in an env file: not given
         help="the pull of the input: up for a button to ground, down for one to 3V3, none for "
         "a sensor that drives the line; required with the input, no default (PRIMUM_INPUT_PULL)",
     )
