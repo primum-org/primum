@@ -18,6 +18,7 @@ The caller says which sequences are running and when each started, on its own cl
 enters as a parameter, as everywhere in ``core``.
 """
 
+from bisect import bisect_right
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from uuid import UUID
@@ -54,9 +55,9 @@ class Command:
 
 
 @dataclass(frozen=True)
-class _Span:
+class Span:
     """A command in the time of its sequence: in force from ``start`` until ``until``, or
-    until the sequence is stopped (``None``)."""
+    until the sequence is stopped (``None``: what a sequence that holds keeps)."""
 
     clip: Clip
     start: int
@@ -68,7 +69,7 @@ class Timeline:
     """A sequence ready to be asked: its priority and the commands of each element."""
 
     priority: int
-    spans: Mapping[UUID, tuple[_Span, ...]]
+    spans: Mapping[UUID, tuple[Span, ...]]
 
 
 type Timelines = Mapping[UUID, Timeline]
@@ -93,12 +94,15 @@ def command_at(
 ) -> Command | None:
     """The command in force on ``element`` at ``at_ms``, or ``None``: its safe state.
 
-    ``running`` are the sequences started and not stopped, in the order they were started;
-    each must be one of ``timelines``.
+    ``running`` are the sequences started and not stopped, in the order they were started.
+    Each must be one of ``timelines``: a sequence of another project is the caller's mistake,
+    not a problem of the project, so it raises ``ValueError``.
     """
     winner: tuple[tuple[int, int, bool, int], Command] | None = None
     for order, run in enumerate(running):
-        timeline = timelines[run.sequence]
+        timeline = timelines.get(run.sequence)
+        if timeline is None:
+            raise ValueError(f"running sequence {run.sequence} is not among the timelines")
         local = at_ms - run.started_ms
         for span in timeline.spans.get(element, ()):
             if local < span.start or (span.until is not None and local >= span.until):
@@ -114,28 +118,29 @@ def command_at(
 
 def _timeline(sequence: Sequence, clips: list[FlatClip]) -> Timeline:
     end = duration(clips)
-    by_element: dict[UUID, list[FlatClip]] = {}
-    for clip in clips:
-        by_element.setdefault(clip.element, []).append(clip)
     held = holds(sequence)
-    return Timeline(
-        sequence.priority,
-        {
-            element: tuple(_span(clip, element_clips, end, held) for clip in element_clips)
-            for element, element_clips in by_element.items()
-        },
-    )
+    # When the instant commands of each element start, in each sequence they are written in.
+    instants: dict[tuple[UUID, tuple[UUID, ...]], list[int]] = {}
+    for clip in clips:
+        if clip.instant:
+            instants.setdefault((clip.element, clip.scope), []).append(clip.start)
+    for starts in instants.values():
+        starts.sort()
+    spans: dict[UUID, list[Span]] = {}
+    for clip in clips:
+        until = _until(clip, instants.get((clip.element, clip.scope), []), end, held)
+        spans.setdefault(clip.element, []).append(Span(clip.clip, clip.start, until))
+    return Timeline(sequence.priority, {element: tuple(of) for element, of in spans.items()})
 
 
-def _span(clip: FlatClip, element_clips: list[FlatClip], end: int, held: bool) -> _Span:
-    """When the clip's command stops being in force, among the clips of its element."""
+def _until(clip: FlatClip, instants: list[int], end: int, held: bool) -> int | None:
+    """When the clip's command stops being in force. ``instants``: when the instant commands
+    of its element start in its own sequence, in order."""
     until = clip.end
     if clip.instant:
-        later = [
-            other.start
-            for other in element_clips
-            if other.instant and other.scope == clip.scope and other.start > clip.start
-        ]
-        until = min(later, default=clip.scope_end)
+        following = bisect_right(instants, clip.start)
+        if following < len(instants):
+            return instants[following]  # replaced by the next one, so never held
+        until = clip.scope_end
     # A sequence that holds stays as it is in its last instant.
-    return _Span(clip.clip, clip.start, None if held and until == end else until)
+    return None if held and until == end else until

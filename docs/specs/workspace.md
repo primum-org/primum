@@ -105,7 +105,8 @@ What a clip does (decisions 0016 and 0017):
   - to leave an element somewhere else after a clip, an instant command goes where the clip
     ends (a `fade` to 0, then an instant `off`). Without it, a `fade` to 0 in the middle of a
     sequence gives the element back to a standing `on`; `core` does not warn about it yet.
-- **A sequence ends when its last clip ends**, an instant clip ending where it starts, unless
+- **A sequence ends when its last clip ends**, an instant clip ending where it starts (a
+  block that includes a sequence without clips adds none, so it does not make it longer), unless
   it **holds** (`whenDone: "hold"`): then it stays as it is in its last instant until it is
   stopped (an automation's `stop_sequence`, another sequence of its exclusive group starting,
   stop or panic). Every command in force just before its end stays in force: its instant
@@ -122,7 +123,12 @@ an instant, or nothing (its safe state). `running` are the sequences started and
 each with when it started, in the order they were started; the caller keeps that list, so
 exclusive groups and stopping are not this function's. A command says its clip, the sequence
 it is from, since when, and whether it is `settled`: the action is over and the element stays
-where it ends (an instant command, or a clip held by a sequence that holds).
+where it ends (an instant command, or a clip held by a sequence that holds). A `Timeline` is a
+priority and, per element, its `Span`s: a clip, when its command starts and until when it is
+in force in the time of its sequence (`None`: what a sequence that holds keeps). A running
+sequence that is not of the project is the caller's mistake: `ValueError`. `command_at` walks
+the commands of the element on each call: it is the oracle the engine is tested against, not
+what the engine asks on every tick.
 
 The checks (`primum_core.overlaps`):
 
@@ -140,7 +146,10 @@ The checks (`primum_core.overlaps`):
 - **An instant command that is the last thing of its own sequence** is never seen: its
   sequence ends there, started on its own or included in the middle of another. A warning,
   `clip.instant_at_end` (`sequence`: the one it is written in, `element`, `action`), at the
-  clip, or at the block that gives a component its element. Not reported: what a sequence
+  clip. When the element is a component's parameter the clip is reported at the block that
+  gives it its element, as `block.instant_at_end`, with the same params and a hint of its
+  own: there, holding is no way out, since a sequence holds only when started on its own.
+  Not reported: what a sequence
   that holds keeps; one that asks for the safe state of its element's driver after something
   else (an instant `on`, and an instant `off` to end with: the element goes there anyway),
   though a sequence that is only that, and so lasts no time, is reported; one that another

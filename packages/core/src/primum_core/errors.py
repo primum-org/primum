@@ -56,6 +56,8 @@ class CoreErrorCode(StrEnum):
     SEQUENCE_EXCLUSIVE_ELEMENT_SHARED = "sequence.exclusive_element_shared"  # the same params
     # An instant clip that is the last thing of its sequence, which does not hold: never seen.
     CLIP_INSTANT_AT_END = "clip.instant_at_end"  # (warning) sequence, element, action
+    # The same, reported at the block that gives a component its element: its own hint.
+    BLOCK_INSTANT_AT_END = "block.instant_at_end"  # (warning) sequence, element, action
     # Clips against the driver of their element (decision 0016): its actions and their
     # parameters; and the configuration of an element against the same driver.
     TRACK_ELEMENT_WITHOUT_ACTIONS = "track.element_without_actions"  # element

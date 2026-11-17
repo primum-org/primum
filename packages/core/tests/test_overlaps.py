@@ -733,7 +733,7 @@ def test_an_instant_clip_that_ends_a_component_is_reported_at_the_block_that_giv
 
     assert project.found() == [
         (
-            CoreErrorCode.CLIP_INSTANT_AT_END,
+            CoreErrorCode.BLOCK_INSTANT_AT_END,
             {"sequence": "Flash", "element": "LED", "action": "on"},
             "show.sec",
             "/blocks/0",
@@ -768,7 +768,7 @@ def test_an_instant_clip_that_ends_a_component_two_levels_down_names_the_sequenc
 
     assert project.found() == [
         (
-            CoreErrorCode.CLIP_INSTANT_AT_END,
+            CoreErrorCode.BLOCK_INSTANT_AT_END,
             {"sequence": "Inner", "element": "LED", "action": "on"},
             "show.sec",
             "/blocks/0",

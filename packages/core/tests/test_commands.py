@@ -2,6 +2,8 @@
 
 from uuid import UUID
 
+import pytest
+
 from primum_core.commands import Command, Running, command_at, timelines_of
 from project_builder import Ids, Project
 
@@ -341,3 +343,42 @@ def test_an_element_no_running_sequence_touches_is_in_its_safe_state(
     _sequence(project, ids, SHOW, "Show", {LED: [_clip(ids, 21, 0, 500)]})
 
     assert _action(project, ids, LAMP, 100) is None
+
+
+def test_a_block_that_includes_an_empty_sequence_does_not_make_its_sequence_longer(
+    project: Project, ids: Ids
+) -> None:
+    """A sequence ends with its last clip: a block with no clips adds none."""
+    project.add("empty.sec", "sequence", ids(PART), name="Empty", tracks=[])
+    block = {"id": ids(25), "sequence": ids(PART), "atMs": 5000}
+    tracks = {LED: [_clip(ids, 21, 0, 1000)]}
+    _sequence(project, ids, SHOW, "Show", tracks, blocks=[block], whenDone="hold")
+
+    # The show ended at 1 s, with its clip, which it therefore holds.
+    assert _action(project, ids, LED, 3000) == ("on", True)
+
+
+def test_a_running_sequence_that_is_not_of_the_project_is_the_callers_mistake(
+    project: Project, ids: Ids
+) -> None:
+    _sequence(project, ids, SHOW, "Show", {LED: [_clip(ids, 21, 0, 500)]})
+
+    with pytest.raises(ValueError, match=ids(OTHER)):
+        _asked(project, ids, LED, 100, (OTHER, 0))
+
+
+def test_the_spans_of_a_sequence_that_holds_show_what_replaced_what(
+    project: Project, ids: Ids
+) -> None:
+    """An instant command the next one replaced is not held; the last one is."""
+    _with_lamp(project, ids)
+    led = [_clip(ids, 21, 0, 0), _clip(ids, 22, 5000, 0, "off")]
+    tracks = {LED: led, LAMP: [_clip(ids, 23, 0, 5000)]}
+    _sequence(project, ids, SHOW, "Lights", tracks, whenDone="hold")
+
+    spans = timelines_of(project.loaded())[UUID(ids(SHOW))].spans[UUID(ids(LED))]
+
+    assert [(span.clip.action, span.start, span.until) for span in spans] == [
+        ("on", 0, 5000),
+        ("off", 5000, None),
+    ]

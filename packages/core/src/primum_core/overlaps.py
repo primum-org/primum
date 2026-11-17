@@ -236,4 +236,8 @@ def _unseen_instants(
             "element": names[clip.element],
             "action": clip.clip.action,
         }
-        yield Issue(CoreErrorCode.CLIP_INSTANT_AT_END, params, clip.at, Severity.WARNING)
+        # Through a block, holding is no way out: a sequence only holds started on its own.
+        code = CoreErrorCode.CLIP_INSTANT_AT_END
+        if clip.via is not None:
+            code = CoreErrorCode.BLOCK_INSTANT_AT_END
+        yield Issue(code, params, clip.at, Severity.WARNING)
