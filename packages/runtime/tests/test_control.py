@@ -546,5 +546,72 @@ def test_an_output_that_cannot_be_sent_to_rest_does_not_stop_the_others(
     controller.expire()
 
     assert not hal.lines[27].active
-    assert controller.next_expiry_s() is None
     assert "the test of led expired and it could not be sent to rest" in caplog.text
+
+
+def test_whatever_the_hardware_raises_does_not_stop_the_others_either(
+    hal: SimulatedHal,
+) -> None:
+    """The real HAL lets an ``OSError`` of a line through as it is: if it escaped ``expire``,
+    the timer would never be armed again and the lamp would stay on for good."""
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    controller.command("lamp", "on", duration_ms=2_000)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+
+    clock.now += 2
+    controller.expire()
+
+    assert not hal.lines[27].active
+    assert controller.state().outputs[1].remaining_ms is None
+
+
+def test_an_output_that_could_not_rest_says_so_and_is_tried_again(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+    states: list[State] = []
+    controller.subscribe(states.append)
+
+    clock.now += 2
+    controller.expire()
+
+    led = controller.state().outputs[0]
+    assert (led.on, led.remaining_ms, led.rest_failed) == (True, None, True)
+    assert [state.outputs[0].rest_failed for state in states] == [True]
+    assert controller.next_expiry_s() == 5.0  # when it is tried again
+
+    hal.lines[17].fail_writes(None)
+    clock.now += 5
+    controller.expire()
+
+    led = controller.state().outputs[0]
+    assert (led.on, led.rest_failed) == (False, False)
+    assert controller.next_expiry_s() is None
+
+
+def test_it_goes_on_trying_while_the_output_cannot_rest(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+
+    for wait in (2, 5, 5, 5):
+        clock.now += wait
+        controller.expire()
+
+    assert controller.state().outputs[0].rest_failed
+    assert controller.next_expiry_s() == 5.0
+
+
+def test_a_command_or_panic_ends_the_trying(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+    clock.now += 2
+    controller.expire()
+    hal.lines[17].fail_writes(None)
+
+    controller.command("led", "on")
+
+    assert not controller.state().outputs[0].rest_failed
+    assert controller.next_expiry_s() is None

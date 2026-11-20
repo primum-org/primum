@@ -28,6 +28,7 @@ class OutputStateBody(_Body):
     level: float
     actions: list[str]
     remainingMs: int | None  # noqa: N815 (the name in the JSON body)
+    restFailed: bool  # noqa: N815
 
 
 class InputStateBody(_Body):
@@ -49,6 +50,7 @@ class StateBody(_Body):
                 level=output.level,
                 actions=list(output.actions),
                 remainingMs=output.remaining_ms,
+                restFailed=output.rest_failed,
             )
             for output in state.outputs
         ]

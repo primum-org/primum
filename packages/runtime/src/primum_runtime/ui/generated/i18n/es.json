@@ -10,6 +10,7 @@
     "output.test": "Probar",
     "output.test_of": "Encender {name} {seconds} s y apagar",
     "output.testing": "Prueba: se apaga en {seconds} s",
+    "output.test_stuck": "La prueba ha terminado, pero no se ha podido apagar. Se sigue intentando.",
     "inputs.heading": "Entradas",
     "input.active": "Activa",
     "input.inactive": "Inactiva",
@@ -161,7 +162,7 @@
     },
     "test.duration_out_of_range": {
       "message": "Una orden no puede caducar a los {duration_ms} ms.",
-      "hint": "Una prueba dura de {min_ms} a {max_ms} ms: de un segundo a cinco minutos."
+      "hint": "Una prueba dura de {min_ms} a {max_ms} ms."
     },
     "output.unknown": {
       "message": "No hay ninguna salida llamada {name}.",

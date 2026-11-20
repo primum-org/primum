@@ -36,7 +36,14 @@ const [catalog] = await Promise.all([
 catalog.apply(document);
 
 let state = null;
+let stateAt = 0; // when it arrived, by the page's clock: what a countdown counts from
 let online = false;
+
+function take(newState) {
+  state = newState;
+  stateAt = performance.now();
+  render();
+}
 
 // --- Rendering -------------------------------------------------------------------------
 
@@ -68,16 +75,25 @@ function render() {
 // page counts down from there on its own clock, and never past zero.
 function renderTest(output) {
   const row = rowFor(output.name);
-  row.querySelector(".test").disabled = !online || state.panic;
+  // A test is for an output that is off: one left on on purpose would be turned off by it.
   const testing = online && output.remainingMs !== null;
-  row.dataset.testUntil = testing ? String(performance.now() + output.remainingMs) : "";
+  row.querySelector(".test").disabled = !online || state.panic || (output.on && !testing);
+  // Counted from when the state arrived, not from now: rendering the same state again must
+  // not start the countdown again. A test of something that is off has nothing to count.
+  row.dataset.testUntil = testing && output.on ? String(stateAt + output.remainingMs) : "";
+  row.dataset.restFailed = String(online && output.restFailed);
   countDown(row);
 }
 
 function countDown(row) {
   const shown = row.querySelector(".testing");
-  shown.hidden = row.dataset.testUntil === "";
+  const failed = row.dataset.restFailed === "true";
+  shown.hidden = row.dataset.testUntil === "" && !failed;
   if (shown.hidden) return;
+  if (failed) {
+    shown.textContent = catalog.t("output.test_stuck");
+    return;
+  }
   const left = Math.max(0, Number(row.dataset.testUntil) - performance.now());
   shown.textContent = catalog.t("output.testing", { seconds: Math.ceil(left / 1000) });
 }
@@ -200,8 +216,7 @@ async function command(method, path, body) {
     return;
   }
   page.error.hidden = true;
-  state = payload;
-  render();
+  take(payload);
 }
 
 // Ask an output for one of the actions of its driver, with the arguments it takes by name.
@@ -225,8 +240,7 @@ function connect(delay = RECONNECT_MIN_MS) {
     showOffline(false);
   });
   socket.addEventListener("message", (event) => {
-    state = JSON.parse(event.data);
-    render();
+    take(JSON.parse(event.data));
   });
   socket.addEventListener("close", () => {
     online = false;

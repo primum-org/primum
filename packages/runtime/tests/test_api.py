@@ -2,6 +2,7 @@
 
 import socket
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ from primum_runtime.hal import Claim, OutputSpec, PwmSpec, SimulatedHal
 BOARD = load_board("rpi4b")
 
 PIN = 17
+EXPIRY_WAIT_S = 5  # for a test of one second to expire: far more than it takes
 BUTTON_PIN = 22
 CONFIG = parse_config(["--simulate", "--pin", str(PIN)], {})
 WITH_BUTTON = parse_config(
@@ -26,12 +28,30 @@ WITH_BUTTON = parse_config(
 )
 SWITCH = ["on", "off"]
 OFF = {
-    "outputs": [{"name": LED, "on": False, "level": 0, "actions": SWITCH, "remainingMs": None}],
+    "outputs": [
+        {
+            "name": LED,
+            "on": False,
+            "level": 0,
+            "actions": SWITCH,
+            "remainingMs": None,
+            "restFailed": False,
+        }
+    ],
     "inputs": [],
     "panic": False,
 }
 ON = {
-    "outputs": [{"name": LED, "on": True, "level": 100, "actions": SWITCH, "remainingMs": None}],
+    "outputs": [
+        {
+            "name": LED,
+            "on": True,
+            "level": 100,
+            "actions": SWITCH,
+            "remainingMs": None,
+            "restFailed": False,
+        }
+    ],
     "inputs": [],
     "panic": False,
 }
@@ -381,6 +401,7 @@ def test_a_pwm_output_is_reported_with_its_level_and_what_it_can_be_asked(
         "level": 0,
         "actions": LEVEL,
         "remainingMs": None,
+        "restFailed": False,
     }
 
 
@@ -398,6 +419,7 @@ def test_setting_a_level_drives_the_channel_and_returns_the_new_state(
         "level": 40,
         "actions": LEVEL,
         "remainingMs": None,
+        "restFailed": False,
     }
     assert hal.pwm_lines[DIMMER_PIN].duty == 0.4
 
@@ -529,3 +551,25 @@ def test_a_duration_that_is_not_a_whole_number_is_an_invalid_request(client: Tes
 
     assert response.status_code == 422
     assert response.json()["code"] == "request.invalid"
+
+
+def test_a_test_expires_in_the_running_service_by_the_timer_of_its_own_loop(
+    client: TestClient, hal: SimulatedHal
+) -> None:
+    """The one test that waits, for a second: nothing else would notice if the service
+    stopped arming the timer. The WebSocket tells when the test is over; nothing polls. The
+    wait is bounded, so that a timer that is never armed fails the test instead of hanging
+    it."""
+    waiting = ThreadPoolExecutor(max_workers=1)
+    try:
+        with client.websocket_connect("/api/ws") as websocket:
+            websocket.receive_json()
+            client.put(f"/api/outputs/{LED}", json={"action": "on", "durationMs": 1_000})
+            started = websocket.receive_json()
+            expired = waiting.submit(websocket.receive_json).result(timeout=EXPIRY_WAIT_S)
+    finally:
+        waiting.shutdown(wait=False)
+
+    assert started["outputs"][0]["on"]
+    assert expired == OFF
+    assert not hal.lines[PIN].active

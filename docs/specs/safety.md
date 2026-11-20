@@ -104,8 +104,10 @@ no sequences yet (phase 4) there is nothing under it to return to but rest.
 - Any action can be a test: `on` for ten seconds, a level for five.
 - A command without a duration is not a test: the output stays as it leaves it. Either kind
   of command replaces a test of that output still under way, with its own time or with none.
-- When it expires the output is sent to rest and read back, as by any command. If that fails
-  it is logged; the other outputs still expire.
+- When it expires the output is sent to rest and read back, as by any command. If that
+  fails, whatever the hardware raises, the other outputs still expire; the failure is
+  logged, the state of the output says so (`restFailed`, shown on the page) and it is tried
+  again every 5 s until it rests, is commanded again, or panic takes over.
 - Panic ends every test at once; releasing it brings nothing back.
 - If the output did not follow the command (`element.level_not_reached`) the test still
   expires: the output was written.
@@ -116,7 +118,14 @@ Time is the monotonic clock's. The controller keeps the deadlines and the event 
 for the next one: no thread and no polling. The state says how long each test has left
 (`remainingMs`); the page counts down from there on its own clock.
 
-On the page each output has a *Test* button: on for 10 s, then off.
+On the page each output has a *Test* button: on for 10 s, then off. It is not offered for an
+output that was left on on purpose: the test would turn it off.
+
+Seen on `primum-dev` by its owner, with an LED on GPIO 17 and a PWM output on GPIO 18: a test
+of 2 s goes off at 2021 ms and five of 1 s between 1018 and 1032 ms; a level of 40 % for 2 s
+measures 37 % and then 0; two tests at once expire each at its time; a command without a
+duration over a test stays; panic ends a test at once and releasing it brings nothing back;
+after `kill -9` with a test of 60 s under way, `primum-safe` has the LED off in 602 ms.
 
 ## Not covered
 

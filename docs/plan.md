@@ -612,8 +612,14 @@ tried on `primum-dev`** (decision 0021)
 - The `Controller` keeps the deadlines on a monotonic clock it is given; the API arms one
   timer of the event loop for the next one (`api/expiry.py`). The state says how long each
   test has left, and the page has a *Test* button per output (on for 10 s) with a countdown.
+- An output that cannot rest when its test expires does not stop the others, whatever it
+  raises; it is tried again every 5 s and its state says so (`restFailed`).
 - Tried against the simulated service in a browser: the button, the countdown, a test of one
-  second expiring by the service's own timer, the switch ending a test, panic.
+  second expiring by the service's own timer, the switch ending a test, panic. And on
+  `primum-dev` by its owner, with the LED and the PWM output: tests expiring at their time
+  (2021 ms for one of 2 s), two at once, panic, and `kill -9` under a test (off in 602 ms by
+  `primum-safe`). Not seen on the page there, and `restFailed` not seen anywhere but in the
+  tests: the simulated service cannot be made to fail from outside.
 - No arbiter: with no sequences, "returns to the layer below" (decision 0006) is "goes to
   rest". For the engine (phase 4): expiry returns the output to what the sequences say, and
   a command without a duration becomes manual control, a layer the arbiter must place too.

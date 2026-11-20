@@ -93,6 +93,7 @@ def test_sigterm_stops_the_service_with_every_output_in_its_safe_state(
                 "level": 100,
                 "actions": ["on", "off"],
                 "remainingMs": None,
+                "restFailed": False,
             }
         ],
         "inputs": [],

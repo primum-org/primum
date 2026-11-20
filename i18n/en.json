@@ -10,6 +10,7 @@
     "output.test": "Test",
     "output.test_of": "Turn {name} on for {seconds} s, then off",
     "output.testing": "Test: off in {seconds} s",
+    "output.test_stuck": "The test is over, but it could not be turned off. Trying again.",
     "inputs.heading": "Inputs",
     "input.active": "Active",
     "input.inactive": "Inactive",
@@ -161,7 +162,7 @@
     },
     "test.duration_out_of_range": {
       "message": "A command cannot expire after {duration_ms} ms.",
-      "hint": "A test lasts from {min_ms} to {max_ms} ms: one second to five minutes."
+      "hint": "A test lasts from {min_ms} to {max_ms} ms."
     },
     "output.unknown": {
       "message": "There is no output called {name}.",

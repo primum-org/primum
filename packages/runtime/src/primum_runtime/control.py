@@ -39,6 +39,8 @@ MS_PER_S = 1000
 # How long a test may last: long enough to look at a wire, never long enough to forget it.
 MIN_TEST_MS = 1_000
 MAX_TEST_MS = 300_000
+# How long until an output that could not be sent to rest is tried again.
+RETRY_REST_S = 5.0
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,7 @@ class OutputState:
     level: float
     actions: tuple[str, ...]
     remaining_ms: int | None = None  # of a test: until it expires and the output rests
+    rest_failed: bool = False  # its test expired and it could not be sent to rest (yet)
 
 
 @dataclass(frozen=True)
@@ -114,6 +117,7 @@ class Controller:
         self._listeners: list[Listener] = []
         self._clock = clock
         self._deadlines: dict[str, float] = {}  # when the test of each output expires
+        self._rest_failed: set[str] = set()  # expired, could not rest: tried again
 
     def state(self) -> State:
         # One reading per output: its level may come from the hardware, and change.
@@ -121,7 +125,12 @@ class Controller:
         now = self._clock()
         outputs = tuple(
             OutputState(
-                name, levels[name] > 0, levels[name], driver.actions, self._remaining_ms(name, now)
+                name,
+                levels[name] > 0,
+                levels[name],
+                driver.actions,
+                self._remaining_ms(name, now),
+                name in self._rest_failed,
             )
             for name, driver in self._outputs.items()
         )
@@ -174,19 +183,28 @@ class Controller:
         return max(0.0, min(self._deadlines.values()) - self._clock())
 
     def expire(self) -> None:
-        """Send to rest every output whose test has run out; never blocks. An output that
-        fails to rest is logged, not raised: nobody is waiting for an answer, and the others
-        must still be sent. Listeners are told once, if any test expired."""
+        """Send to rest every output whose test has run out; never blocks.
+
+        An output that fails to rest does not stop the others, whatever it raises (the real
+        HAL lets an ``OSError`` of a line through): nobody is waiting for an answer here. It
+        is logged, its state says so (``rest_failed``), and it is tried again every
+        ``RETRY_REST_S`` until it rests, is commanded, or panic takes over. Listeners are
+        told once, if any test expired.
+        """
         now = self._clock()
         expired = [name for name, deadline in self._deadlines.items() if deadline <= now]
         for name in expired:
             del self._deadlines[name]
             try:
                 self._outputs[name].rest()
-            except PrimumError as error:
+            except Exception as error:  # the others must still be sent to rest
                 log.error(
                     "the test of %s expired and it could not be sent to rest: %s", name, error
                 )
+                self._rest_failed.add(name)
+                self._deadlines[name] = now + RETRY_REST_S
+            else:
+                self._rest_failed.discard(name)
         if expired:
             self._notify()
 
@@ -212,6 +230,7 @@ class Controller:
         """
         self._panic = True
         self._deadlines.clear()  # nothing is left to expire: everything rests now
+        self._rest_failed.clear()
         try:
             self._hal.apply_safe_state()
         finally:
@@ -230,6 +249,7 @@ class Controller:
         return lambda: self._listeners.remove(listener)
 
     def _set_deadline(self, name: str, duration_ms: int | None) -> None:
+        self._rest_failed.discard(name)  # commanded again: no longer waiting to rest
         if duration_ms is None:
             self._deadlines.pop(name, None)
         else:
@@ -237,7 +257,9 @@ class Controller:
 
     def _remaining_ms(self, name: str, now: float) -> int | None:
         deadline = self._deadlines.get(name)
-        return None if deadline is None else max(0, round((deadline - now) * MS_PER_S))
+        if deadline is None or name in self._rest_failed:  # its test is over
+            return None
+        return max(0, round((deadline - now) * MS_PER_S))
 
     def _notify(self) -> None:
         state = self.state()

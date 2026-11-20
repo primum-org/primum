@@ -22,6 +22,10 @@ driver and stays.
 - **On the page, a *Test* button per output**: on for 10 s, then off. The switch and the
   slider go on doing what they did.
 
+- **An output that cannot be sent to rest when its test expires is tried again** and says so
+  in its state: it is the one thing test mode promises not to leave on. A log line alone
+  would be read by nobody.
+
 ## Alternatives considered
 - **Building the layered arbiter now**, with the layer of sequences empty: the design of the
   arbiter without its main user, which the plan places in phase 4. Three blocks of this phase
