@@ -32,7 +32,7 @@ async def status(controller: ControllerDep) -> StateBody:
 
 @router.put("/outputs/{name}")
 async def command_output(name: str, command: OutputCommand, controller: ControllerDep) -> StateBody:
-    controller.command(name, command.action, command.arguments)
+    controller.command(name, command.action, command.arguments, command.durationMs)
     return StateBody.of(controller.state())
 
 

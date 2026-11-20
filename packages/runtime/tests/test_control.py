@@ -1,5 +1,7 @@
 """The controller: elements through their drivers, commands, inputs and panic."""
 
+import logging
+
 import pytest
 
 from primum_runtime.board import load_board, load_profile, option_limits
@@ -366,3 +368,419 @@ def test_on_and_level_come_from_one_reading(hal: SimulatedHal) -> None:
     hal.lines[17].read = lambda: next(readings)  # type: ignore[method-assign]  # a line that flickers
 
     assert controller.state().outputs[0] == OutputState("led", on=True, level=100, actions=SWITCH)
+
+
+# --- test mode: commands that expire on their own (decision 0006) ---------------------------
+
+
+class Clock:
+    """A monotonic clock a test moves by hand."""
+
+    def __init__(self) -> None:
+        self.now = 100.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def _timed(hal: SimulatedHal, *elements: ElementConfig) -> tuple[Controller, Clock]:
+    clock = Clock()
+    return Controller(hal, elements or SPECS, MANIFESTS, LIMITS, clock=clock), clock
+
+
+def test_a_test_turns_the_output_on_and_says_how_long_is_left(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+
+    controller.command("led", "on", duration_ms=10_000)
+    clock.now += 4
+
+    assert hal.lines[17].active
+    assert controller.state().outputs[0].remaining_ms == 6_000
+    assert controller.next_expiry_s() == 6.0
+
+
+def test_a_test_that_has_run_out_sends_the_output_to_rest_and_tells_the_listeners(
+    hal: SimulatedHal,
+) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=10_000)
+    states: list[State] = []
+    controller.subscribe(states.append)
+
+    clock.now += 10
+    controller.expire()
+
+    assert not hal.lines[17].active
+    assert states == [controller.state()]
+    assert states[0].outputs[0] == OutputState("led", on=False, level=0, actions=SWITCH)
+    assert controller.next_expiry_s() is None
+
+
+def test_expiring_before_time_changes_nothing_and_tells_nobody(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=10_000)
+    states: list[State] = []
+    controller.subscribe(states.append)
+
+    clock.now += 9.9
+    controller.expire()
+
+    assert hal.lines[17].active
+    assert states == []
+
+
+def test_a_test_of_a_level_rests_at_0(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal, DIMMER)
+    controller.command("dimmer", "set", {"level": 40}, duration_ms=5_000)
+
+    clock.now += 5
+    controller.expire()
+
+    assert hal.pwm_lines[18].duty == 0.0
+
+
+def test_each_output_expires_at_its_own_time(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    controller.command("lamp", "on", duration_ms=5_000)
+
+    clock.now += 3
+    controller.expire()
+
+    assert [line.active for line in (hal.lines[17], hal.lines[27])] == [False, True]
+    assert controller.next_expiry_s() == 2.0
+
+
+def test_a_command_without_a_duration_ends_the_test_and_stays(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+
+    controller.command("led", "on")
+    clock.now += 60
+    controller.expire()
+
+    assert hal.lines[17].active
+    assert controller.state().outputs[0].remaining_ms is None
+
+
+def test_a_new_test_starts_its_time_again(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    clock.now += 1.5
+
+    controller.command("led", "on", duration_ms=2_000)
+
+    assert controller.state().outputs[0].remaining_ms == 2_000
+
+
+@pytest.mark.parametrize("duration_ms", [0, 999, 300_001, -5])
+def test_a_test_lasts_from_a_second_to_five_minutes(hal: SimulatedHal, duration_ms: int) -> None:
+    controller, _ = _timed(hal)
+
+    with pytest.raises(PrimumError) as raised:
+        controller.command("led", "on", duration_ms=duration_ms)
+
+    assert raised.value.code == "test.duration_out_of_range"
+    assert raised.value.params == {
+        "duration_ms": duration_ms,
+        "min_ms": 1_000,
+        "max_ms": 300_000,
+    }
+    assert not hal.lines[17].active
+
+
+@pytest.mark.parametrize("duration_ms", [1_000, 300_000])
+def test_both_ends_of_what_a_test_may_last_are_taken(hal: SimulatedHal, duration_ms: int) -> None:
+    controller, _ = _timed(hal)
+
+    controller.command("led", "on", duration_ms=duration_ms)
+
+    assert controller.state().outputs[0].remaining_ms == duration_ms
+
+
+def test_panic_ends_every_test_and_releasing_it_brings_nothing_back(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=10_000)
+
+    controller.panic()
+    controller.release_panic()
+    clock.now += 60
+    controller.expire()
+
+    assert not hal.lines[17].active
+    assert controller.state().outputs[0].remaining_ms is None
+    assert controller.next_expiry_s() is None
+
+
+def test_a_command_that_fails_starts_no_test(hal: SimulatedHal) -> None:
+    controller, _ = _timed(hal)
+
+    with pytest.raises(PrimumError):
+        controller.command("led", "set", {"level": 5}, duration_ms=10_000)
+
+    assert controller.next_expiry_s() is None
+
+
+def test_a_test_the_output_did_not_follow_still_expires(hal: SimulatedHal) -> None:
+    """The output was written, whatever it reads back: it must be sent to rest all the same."""
+    controller, clock = _timed(hal)
+    hal.lines[17].stick(False)
+    with pytest.raises(PrimumError):
+        controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].stick(None)
+    assert hal.lines[17].active
+
+    clock.now += 2
+    controller.expire()
+
+    assert not hal.lines[17].active
+
+
+def test_an_output_that_cannot_be_sent_to_rest_does_not_stop_the_others(
+    hal: SimulatedHal, caplog: pytest.LogCaptureFixture
+) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    controller.command("lamp", "on", duration_ms=2_000)
+    hal.lines[17].stick(True)
+
+    clock.now += 2
+    controller.expire()
+
+    assert not hal.lines[27].active
+    assert "the test of led expired and it could not be sent to rest" in caplog.text
+
+
+def test_whatever_the_hardware_raises_does_not_stop_the_others_either(
+    hal: SimulatedHal,
+) -> None:
+    """The real HAL lets an ``OSError`` of a line through as it is: if it escaped ``expire``,
+    the timer would never be armed again and the lamp would stay on for good."""
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    controller.command("lamp", "on", duration_ms=2_000)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+
+    clock.now += 2
+    controller.expire()
+
+    assert not hal.lines[27].active
+    assert controller.state().outputs[1].remaining_ms is None
+
+
+def test_an_output_that_could_not_rest_says_so_and_is_tried_again(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+    states: list[State] = []
+    controller.subscribe(states.append)
+
+    clock.now += 2
+    controller.expire()
+
+    led = controller.state().outputs[0]
+    assert (led.on, led.remaining_ms, led.rest_failed) == (True, None, True)
+    assert [state.outputs[0].rest_failed for state in states] == [True]
+    assert controller.next_expiry_s() == 5.0  # when it is tried again
+
+    hal.lines[17].fail_writes(None)
+    clock.now += 5
+    controller.expire()
+
+    led = controller.state().outputs[0]
+    assert (led.on, led.rest_failed) == (False, False)
+    assert controller.next_expiry_s() is None
+
+
+def test_it_goes_on_trying_while_the_output_cannot_rest(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+
+    for wait in (2, 5, 5, 5):
+        clock.now += wait
+        controller.expire()
+
+    assert controller.state().outputs[0].rest_failed
+    assert controller.next_expiry_s() == 5.0
+
+
+def test_a_command_or_panic_ends_the_trying(hal: SimulatedHal) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+    clock.now += 2
+    controller.expire()
+    hal.lines[17].fail_writes(None)
+
+    controller.command("led", "on")
+
+    assert not controller.state().outputs[0].rest_failed
+    assert controller.next_expiry_s() is None
+
+
+def test_a_test_whose_read_back_fails_still_expires(hal: SimulatedHal) -> None:
+    """The output was written and then could not be read: whatever that raises, it is on
+    and it is a test, so it must still be sent to rest."""
+    controller, clock = _timed(hal)
+    hal.lines[17].fail_reads(OSError(5, "I/O error"))
+    states: list[State] = []
+    controller.subscribe(states.append)
+
+    with pytest.raises(OSError, match="I/O error"):
+        controller.command("led", "on", duration_ms=2_000)
+
+    assert hal.lines[17].active
+    assert controller.next_expiry_s() == 2.0
+    assert len(states) == 1  # the output changed: listeners are told
+
+    hal.lines[17].fail_reads(None)
+    clock.now += 2
+    controller.expire()
+
+    assert not hal.lines[17].active
+
+
+def test_a_command_that_fails_after_writing_does_not_end_a_test_under_way(
+    hal: SimulatedHal,
+) -> None:
+    """Without a duration it would have ended the test; failed, it leaves the output in a
+    state nobody knows, and the test's deadline is what still sends it to rest."""
+    controller, _ = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_reads(OSError(5, "I/O error"))
+
+    with pytest.raises(OSError, match="I/O error"):
+        controller.command("led", "on")
+
+    assert controller.next_expiry_s() == 2.0
+
+
+def test_a_command_refused_before_writing_leaves_a_test_under_way_as_it_was(
+    hal: SimulatedHal,
+) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    clock.now += 0.5
+
+    with pytest.raises(PrimumError):
+        controller.command("led", "blink", duration_ms=60_000)
+
+    assert controller.next_expiry_s() == 1.5
+    assert hal.lines[17].history == (True,)
+
+
+def test_panic_ends_the_trying_too(hal: SimulatedHal) -> None:
+    """After panic nothing is tried again, so nothing may go on saying that it is."""
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_reads(OSError(5, "I/O error"))  # written off, never confirmed
+    clock.now += 2
+    controller.expire()
+    assert controller.state().outputs[0].rest_failed
+    hal.lines[17].fail_reads(None)
+
+    controller.panic()
+
+    assert not controller.state().outputs[0].rest_failed
+    assert controller.next_expiry_s() is None
+
+
+def test_an_output_that_goes_on_failing_is_logged_once_and_again_when_it_rests(
+    hal: SimulatedHal, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+    for wait in (2, 5, 5, 5):
+        clock.now += wait
+        controller.expire()
+    failures = [
+        record for record in caplog.records if "could not be sent to rest" in record.message
+    ]
+
+    hal.lines[17].fail_writes(None)
+    clock.now += 5
+    controller.expire()
+
+    assert len(failures) == 1
+    assert "led is at rest after all" in caplog.text
+
+
+def test_a_panic_that_fails_goes_on_trying_what_it_could_not_make_safe(
+    hal: SimulatedHal,
+) -> None:
+    """Seen on the board: the dimmer could not rest and was being tried again; panic failed
+    on it too, dropped the retries, and left it on for good once the fault was gone."""
+    controller, clock = _timed(hal, LED, DIMMER)
+    controller.command("dimmer", "set", {"level": 40}, duration_ms=2_000)
+    hal.pwm_lines[18].fail_writes(OSError(13, "Permission denied"))
+    clock.now += 2
+    controller.expire()
+    assert controller.state().outputs[1].rest_failed
+
+    with pytest.raises(PrimumError) as raised:
+        controller.panic()
+
+    assert raised.value.code == "hal.safe_state_incomplete"
+    dimmer = controller.state().outputs[1]
+    assert (dimmer.on, dimmer.rest_failed) == (True, True)
+    assert controller.next_expiry_s() == 5.0
+
+    hal.pwm_lines[18].fail_writes(None)
+    clock.now += 5
+    controller.expire()
+
+    dimmer = controller.state().outputs[1]
+    assert (dimmer.on, dimmer.rest_failed) == (False, False)
+    assert hal.pwm_lines[18].duty == 0.0
+
+
+def test_a_panic_that_fails_tries_again_an_output_that_was_under_no_test(
+    hal: SimulatedHal,
+) -> None:
+    """What panic could not make safe is what matters, not why the output was on."""
+    controller, clock = _timed(hal)
+    controller.command("led", "on")
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+
+    with pytest.raises(PrimumError):
+        controller.panic()
+
+    led, lamp = controller.state().outputs
+    assert (led.rest_failed, lamp.rest_failed) == (True, False)
+
+    hal.lines[17].fail_writes(None)
+    clock.now += 5
+    controller.expire()
+
+    assert not hal.lines[17].active
+    assert not controller.state().outputs[0].rest_failed
+
+
+def test_releasing_panic_does_not_end_the_trying(hal: SimulatedHal) -> None:
+    controller, _ = _timed(hal)
+    controller.command("led", "on")
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+    with pytest.raises(PrimumError):
+        controller.panic()
+
+    controller.release_panic()
+
+    assert controller.state().outputs[0].rest_failed
+    assert controller.next_expiry_s() == 5.0
+
+
+def test_an_output_that_reads_back_unsafe_after_panic_is_tried_again_too(
+    hal: SimulatedHal,
+) -> None:
+    controller, _ = _timed(hal)
+    controller.command("led", "on")
+    hal.lines[17].stick(True)
+
+    with pytest.raises(PrimumError) as raised:
+        controller.panic()
+
+    assert raised.value.code == "hal.safe_state_unverified"
+    assert controller.state().outputs[0].rest_failed

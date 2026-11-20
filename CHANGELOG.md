@@ -67,6 +67,9 @@ All notable changes to this project are documented here. The format follows
   a slider for its level. The API now asks an output for an action
   (`{"action": "set", "arguments": {"level": 40}}`) instead of `{"on": true}`, and reports
   each output's level.
+- Each output of the page has a *Test* button: it turns the output on for ten seconds and
+  off on its own, to check a wire without leaving it on. Over the API, any command can
+  expire (`durationMs`, from one second to five minutes).
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.

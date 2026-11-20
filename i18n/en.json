@@ -7,6 +7,10 @@
     "output.toggle": "Turn {name} on or off",
     "output.level": "{level} %",
     "output.level_of": "Level of {name}",
+    "output.test": "Test",
+    "output.test_of": "Turn {name} on for {seconds} s, then off",
+    "output.testing": "Test: off in {seconds} s",
+    "output.test_stuck": "The test is over, but it could not be confirmed that it is off. Trying again.",
     "inputs.heading": "Inputs",
     "input.active": "Active",
     "input.inactive": "Inactive",
@@ -155,6 +159,10 @@
     "safe.declaration_invalid": {
       "message": "The note of which outputs Primum was using cannot be read, so they were not put in their safe state.",
       "hint": "Check the outputs by hand, then delete that file and restart the service."
+    },
+    "test.duration_out_of_range": {
+      "message": "A command cannot expire after {duration_ms} ms.",
+      "hint": "A test lasts from {min_ms} to {max_ms} ms."
     },
     "output.unknown": {
       "message": "There is no output called {name}.",

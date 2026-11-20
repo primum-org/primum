@@ -113,18 +113,37 @@ class OutputDriver(ElementDriver):
         ``resolve`` reports for the arguments, and with ``element.level_not_reached`` when the
         hardware reads back another level than the one written.
         """
+        self.go_to(self.level_for(action, arguments))
+
+    def level_for(self, action: str, arguments: Mapping[str, Value] | None = None) -> float:
+        """The level ``action`` ends in with these arguments, nothing written yet: what can
+        be refused of a command is refused here (``element.action_unknown``, and what
+        ``resolve`` reports for the arguments)."""
         declared = self._action(action)
         values = resolve(self.name, arguments or {}, declared.parameters)
         state = declared.end_state
         level = values[state] if isinstance(state, str) else state
         if isinstance(level, bool | str):  # the manifest check refuses it: a state is a number
             raise TypeError(f"the state of {action!r} is not a level: {level!r}")
+        return level
+
+    def go_to(self, level: float) -> None:
+        """Write ``level`` and read it back; ``element.level_not_reached`` if the hardware
+        reads another. From here on the output may have changed, whatever is raised."""
         self._write(level)
         read = self._read()
         self._unsure = not self._reached(level, read)
         if self._unsure:
             params = {"element": self.name, "level": level, "read": read}
             raise PrimumError(ErrorCode.ELEMENT_LEVEL_NOT_REACHED, params)
+
+    def rest(self) -> None:
+        """Go to rest: the action the manifest names as the safe state, as a command (read
+        back as any other)."""
+        safe_state = self._manifest.safe_state
+        if safe_state is None:  # the manifest check refuses an output without one
+            raise TypeError(f"the driver of {self._manifest.element_type!r} has no safe state")
+        self.command(safe_state)
 
     def _action(self, name: str) -> DriverAction:
         for action in self._manifest.actions:

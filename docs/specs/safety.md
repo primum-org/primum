@@ -2,7 +2,7 @@
 
 What Primum guarantees about its outputs when things go wrong, and how. Why: decisions 0006
 (panic above everything), 0010 and 0015 (the HAL's safe state) and 0020 (after a crash). This
-spec grows with block 3.4: test mode is not here yet.
+last section is test mode.
 
 ## The safe state
 
@@ -91,6 +91,55 @@ Seen on `primum-dev` (Raspberry Pi 4, kernel 6.18): `READY=1` reaches systemd fr
 lifespan, `ExecStopPost=` runs after the watchdog kills the service, and `primum-safe` takes
 about 0.34 s. The first run of this procedure found what rows 2, 3 and 6 say; with the fixes
 for them, the whole procedure and the `hw` tests pass, as the owner of the board reports.
+
+## Test mode
+
+A command may be a test: given a duration, it expires on its own and its output goes to rest
+(the safe-state action of its driver), so that an output switched on to check a wire is not
+left on by forgetting it. It is the layer between panic and sequences of decision 0006; with
+no sequences yet (phase 4) there is nothing under it to return to but rest.
+
+- A test lasts from 1 s to 5 min (`durationMs`, 1000 to 300000); outside that it is
+  `test.duration_out_of_range` (`duration_ms`, `min_ms`, `max_ms`), and nothing is commanded.
+- Any action can be a test: `on` for ten seconds, a level for five.
+- A command without a duration is not a test: the output stays as it leaves it. Either kind
+  of command replaces a test of that output still under way, with its own time or with none.
+- When it expires the output is sent to rest and read back, as by any command. If that
+  fails, whatever the hardware raises, the other outputs still expire; the failure is
+  logged (once, and again when it rests), the state of the output says so (`restFailed`,
+  shown on the page) and it is tried again every 5 s until it rests, is commanded again, or
+  panic takes over. `restFailed` does not say the output is on: the write may have worked
+  and only the read-back failed. It says that it could not be confirmed off.
+- Panic ends every test at once; releasing it brings nothing back. An output that panic
+  itself could not make safe (it answers `hal.safe_state_incomplete` or
+  `hal.safe_state_unverified`) is tried again every 5 s and says `restFailed`, whether it was
+  under a test or not, and releasing panic does not end that: a panic that fails must not
+  leave on for good what would have gone off by itself.
+- What can be refused of a command is refused before anything is written (an action the
+  output does not have, its arguments, the duration), and then nothing changes. Once the
+  output is being written, whatever fails (`element.level_not_reached`, or the hardware
+  failing to read it back) the test still expires: the output may be on. And a command
+  without a duration that fails so does not end a test under way.
+- If the service dies with a test under way, `primum-safe` puts the output in its safe state,
+  as any other.
+
+Time is the monotonic clock's. The controller keeps the deadlines and the event loop wakes it
+for the next one: no thread and no polling. The state says how long each test has left
+(`remainingMs`); the page counts down from there on its own clock.
+
+On the page each output has a *Test* button: on for 10 s, then off. It is not offered for an
+output that was left on on purpose: the test would turn it off. A level set with the slider
+during a test is part of the test: it keeps the time the test had left, whether the output
+is on at that moment or not.
+
+Seen on `primum-dev` by its owner, with an LED on GPIO 17 and a PWM output on GPIO 18: a test
+of 2 s goes off at 2021 ms and five of 1 s between 1018 and 1032 ms; a level of 40 % for 2 s
+measures 37 % and then 0; two tests at once expire each at its time; a command without a
+duration over a test stays; panic ends a test at once and releasing it brings nothing back;
+after `kill -9` with a test of 60 s under way, `primum-safe` has the LED off in 602 ms. With
+the write permission of the PWM's `duty_cycle` taken away during a test, the output says
+`restFailed`, is tried again every 5 s and rests by itself once the permission is back, while
+an LED expiring at the same time goes off as usual.
 
 ## Not covered
 

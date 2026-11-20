@@ -17,6 +17,9 @@ class OutputCommand(_Body):
 
     action: str
     arguments: dict[str, int | float | bool | str] = Field(default_factory=dict)
+    # A test: after this long the output goes to rest on its own. Its limits are the
+    # controller's, answered with their own code.
+    durationMs: int | None = None  # noqa: N815 (the name in the JSON body)
 
 
 class OutputStateBody(_Body):
@@ -24,6 +27,8 @@ class OutputStateBody(_Body):
     on: bool
     level: float
     actions: list[str]
+    remainingMs: int | None  # noqa: N815 (the name in the JSON body)
+    restFailed: bool  # noqa: N815
 
 
 class InputStateBody(_Body):
@@ -40,7 +45,12 @@ class StateBody(_Body):
     def of(cls, state: State) -> "StateBody":
         outputs = [
             OutputStateBody(
-                name=output.name, on=output.on, level=output.level, actions=list(output.actions)
+                name=output.name,
+                on=output.on,
+                level=output.level,
+                actions=list(output.actions),
+                remainingMs=output.remaining_ms,
+                restFailed=output.rest_failed,
             )
             for output in state.outputs
         ]

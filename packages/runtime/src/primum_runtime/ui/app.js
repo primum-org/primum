@@ -7,6 +7,10 @@ import { loadIcons } from "./icons.js";
 
 const RECONNECT_MIN_MS = 1000;
 const RECONNECT_MAX_MS = 10000;
+// A test from the page: the output goes on, and off on its own after this long.
+const TEST_MS = 10000;
+const COUNTDOWN_STEP_MS = 250;
+const MIN_TEST_MS = 1000;
 
 const page = {
   connection: document.getElementById("connection"),
@@ -33,7 +37,14 @@ const [catalog] = await Promise.all([
 catalog.apply(document);
 
 let state = null;
+let stateAt = 0; // when it arrived, by the page's clock: what a countdown counts from
 let online = false;
+
+function take(newState) {
+  state = newState;
+  stateAt = performance.now();
+  render();
+}
 
 // --- Rendering -------------------------------------------------------------------------
 
@@ -47,6 +58,7 @@ function render() {
     const word = output.on ? catalog.t("output.on") : catalog.t("output.off");
     button.querySelector(".switch-state").textContent = online ? word : "";
     button.disabled = !online || state.panic;
+    renderTest(output);
     renderLevel(output);
   }
   const inputs = state?.inputs ?? [];
@@ -59,6 +71,43 @@ function render() {
     shown.dataset.active = String(online && input.active);
   }
 }
+
+// A test under way shows how long is left. The service says it once, with the state; the
+// page counts down from there on its own clock, and never past zero.
+function renderTest(output) {
+  const row = rowFor(output.name);
+  // A test is for an output that is off: one left on on purpose would be turned off by it.
+  const testing = online && output.remainingMs !== null;
+  row.querySelector(".test").disabled = !online || state.panic || (output.on && !testing);
+  // Counted from when the state arrived, not from now: rendering the same state again must
+  // not start the countdown again.
+  row.dataset.testUntil = testing ? String(stateAt + output.remainingMs) : "";
+  // A test of something that is off has nothing to count down to.
+  row.dataset.countdown = String(testing && output.on);
+  row.dataset.restFailed = String(online && output.restFailed);
+  countDown(row);
+}
+
+function countDown(row) {
+  const shown = row.querySelector(".testing");
+  const failed = row.dataset.restFailed === "true";
+  shown.hidden = row.dataset.countdown !== "true" && !failed;
+  if (shown.hidden) return;
+  // A countdown is a timer: a screen reader does not announce each second of it. That an
+  // output could not be confirmed off is a status, said once when it appears.
+  shown.setAttribute("role", failed ? "status" : "timer");
+  if (failed) {
+    shown.textContent = catalog.t("output.test_stuck");
+    return;
+  }
+  shown.textContent = catalog.t("output.testing", { seconds: Math.ceil(testLeftMs(row) / 1000) });
+}
+
+// How long the test of a row has left, by the page's clock; 0 with no test under way.
+const testLeftMs = (row) =>
+  row.dataset.testUntil ? Math.max(0, Number(row.dataset.testUntil) - performance.now()) : 0;
+
+setInterval(() => page.outputs.querySelectorAll("[data-output]").forEach(countDown), COUNTDOWN_STEP_MS);
 
 // An output that can be set to a level (its driver has the action "set") gets a slider. While
 // a finger is on it, the slider is the person's: a state that arrives does not move it.
@@ -105,6 +154,10 @@ function rowFor(name) {
   const button = row.querySelector(".switch");
   button.setAttribute("aria-label", catalog.t("output.toggle", { name }));
   button.addEventListener("click", () => ask(name, button.getAttribute("aria-pressed") === "true" ? "off" : "on"));
+  const test = row.querySelector(".test");
+  test.textContent = catalog.t("output.test");
+  test.setAttribute("aria-label", catalog.t("output.test_of", { name, seconds: TEST_MS / 1000 }));
+  test.addEventListener("click", () => ask(name, "on", {}, TEST_MS));
   const slider = row.querySelector(".level-slider");
   slider.setAttribute("aria-label", catalog.t("output.level_of", { name }));
   // Moving the slider only shows the number; the level is asked for once, on letting go: of
@@ -117,7 +170,12 @@ function rowFor(name) {
     const wanted = Number(slider.value);
     if (wanted !== shownLevel(name)) {
       slider.dataset.asked = String(wanted);
-      await ask(name, "set", { level: wanted });
+      // During a test, the new level is part of the test: it keeps the time it had left
+      // (a second at least, the shortest a test lasts), instead of staying on for good.
+      // Whether a test is under way is the service's word, shown as a countdown or not.
+      const testing = row.dataset.testUntil !== "";
+      const left = testing ? Math.max(MIN_TEST_MS, Math.round(testLeftMs(row))) : null;
+      await ask(name, "set", { level: wanted }, left);
     }
     render(); // whatever came of it, the slider shows the level the service reports
   };
@@ -172,13 +230,13 @@ async function command(method, path, body) {
     return;
   }
   page.error.hidden = true;
-  state = payload;
-  render();
+  take(payload);
 }
 
 // Ask an output for one of the actions of its driver, with the arguments it takes by name.
-const ask = (name, action, args = {}) =>
-  command("PUT", `outputs/${encodeURIComponent(name)}`, { action, arguments: args });
+// With a duration it is a test: the output goes to rest on its own when it has passed.
+const ask = (name, action, args = {}, durationMs = null) =>
+  command("PUT", `outputs/${encodeURIComponent(name)}`, { action, arguments: args, durationMs });
 
 page.panic.addEventListener("click", () => command("POST", "panic"));
 page.releasePanic.addEventListener("click", () => command("DELETE", "panic"));
@@ -196,8 +254,7 @@ function connect(delay = RECONNECT_MIN_MS) {
     showOffline(false);
   });
   socket.addEventListener("message", (event) => {
-    state = JSON.parse(event.data);
-    render();
+    take(JSON.parse(event.data));
   });
   socket.addEventListener("close", () => {
     online = false;

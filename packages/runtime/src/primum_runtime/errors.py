@@ -46,6 +46,7 @@ class ErrorCode(StrEnum):
     ELEMENT_LEVEL_NOT_REACHED = "element.level_not_reached"
     SAFE_DECLARATION_UNWRITABLE = "safe.declaration_unwritable"
     SAFE_DECLARATION_INVALID = "safe.declaration_invalid"
+    TEST_DURATION_OUT_OF_RANGE = "test.duration_out_of_range"
     OUTPUT_UNKNOWN = "output.unknown"
     PANIC_ACTIVE = "panic.active"
     REQUEST_INVALID = "request.invalid"

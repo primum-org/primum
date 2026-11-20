@@ -605,8 +605,28 @@ tried on `primum-dev`** (decision 0021)
 - Tried here against the simulated service only, the page included. On the board, with an
   LED on the PWM pin: the slider, panic, and `kill -9` with the LED lit.
 
-**3.4c · Test mode**
-- Manual commands that expire on their own, above sequences and below panic (decision 0006).
+**3.4c · Test mode** · **done** (decision 0022, `specs/safety.md`)
+- A command with a duration is a test: it expires on its own and its output goes to rest.
+  From 1 s to 5 min (`test.duration_out_of_range`); a command without a duration stays, as
+  before. Panic ends every test.
+- The `Controller` keeps the deadlines on a monotonic clock it is given; the API arms one
+  timer of the event loop for the next one (`api/expiry.py`). The state says how long each
+  test has left, and the page has a *Test* button per output (on for 10 s) with a countdown.
+- An output that cannot rest when its test expires does not stop the others, whatever it
+  raises; it is tried again every 5 s and its state says so (`restFailed`).
+- Tried against the simulated service in a browser: the button, the countdown, a test of one
+  second expiring by the service's own timer, the switch ending a test, panic. And on
+  `primum-dev` by its owner, with the LED and the PWM output: tests expiring at their time
+  (2021 ms for one of 2 s), two at once, panic, and `kill -9` under a test (off in 602 ms by
+  `primum-safe`), and `restFailed` with its retries, by taking the write permission of the
+  PWM's `duty_cycle` away. Found there and fixed: a test whose read-back failed with an
+  error of the hardware stayed on with no deadline; and a panic that failed on an output
+  being tried again dropped the retries and left it on. The page was not opened on the board.
+- No arbiter: with no sequences, "returns to the layer below" (decision 0006) is "goes to
+  rest". For the engine (phase 4): expiry returns the output to what the sequences say, and
+  a command without a duration becomes manual control, a layer the arbiter must place too.
+- Found while trying it: the page showed the heading of the inputs with no inputs, since
+  3.3b (a `display` that overrode `hidden`). Fixed here.
 
 **Done when:** after `kill -9` of the service every output, PWM included, is in its safe state.
 

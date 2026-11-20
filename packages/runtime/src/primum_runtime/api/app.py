@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from primum_runtime import __version__, declared, systemd
 from primum_runtime.api.broadcast import StateBroadcaster
 from primum_runtime.api.errors import install_error_handlers
+from primum_runtime.api.expiry import ExpiryTimer
 from primum_runtime.api.routes import router
 from primum_runtime.config import RuntimeConfig
 from primum_runtime.control import Controller
@@ -79,6 +80,7 @@ def create_app(
             # Input changes are read when the HAL says there are some: no thread, no polling.
             # Without inputs there is nothing to watch.
             loop = asyncio.get_running_loop()
+            expiry = ExpiryTimer(controller, loop.call_later)  # tests that expire on their own
             events_fd = controller.events_fd()
             if events_fd is not None:
                 loop.add_reader(events_fd, _read_inputs, loop, events_fd, controller)
@@ -97,6 +99,7 @@ def create_app(
                     watchdog.cancel()
                 if events_fd is not None:
                     loop.remove_reader(events_fd)
+                expiry.close()
                 unsubscribe()
                 broadcaster.close()
         # Only reached when closing the HAL raised nothing: every output is in its safe state
