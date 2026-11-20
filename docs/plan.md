@@ -618,8 +618,9 @@ tried on `primum-dev`** (decision 0021)
   second expiring by the service's own timer, the switch ending a test, panic. And on
   `primum-dev` by its owner, with the LED and the PWM output: tests expiring at their time
   (2021 ms for one of 2 s), two at once, panic, and `kill -9` under a test (off in 602 ms by
-  `primum-safe`). Not seen on the page there, and `restFailed` not seen anywhere but in the
-  tests: the simulated service cannot be made to fail from outside.
+  `primum-safe`), and `restFailed` with its retries, by taking the write permission of the
+  PWM's `duty_cycle` away. Found there and fixed: a test whose read-back failed with an
+  error of the hardware stayed on with no deadline. The page was not opened on the board.
 - No arbiter: with no sequences, "returns to the layer below" (decision 0006) is "goes to
   rest". For the engine (phase 4): expiry returns the output to what the sequences say, and
   a command without a duration becomes manual control, a layer the arbiter must place too.

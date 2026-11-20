@@ -109,8 +109,11 @@ no sequences yet (phase 4) there is nothing under it to return to but rest.
   logged, the state of the output says so (`restFailed`, shown on the page) and it is tried
   again every 5 s until it rests, is commanded again, or panic takes over.
 - Panic ends every test at once; releasing it brings nothing back.
-- If the output did not follow the command (`element.level_not_reached`) the test still
-  expires: the output was written.
+- What can be refused of a command is refused before anything is written (an action the
+  output does not have, its arguments, the duration), and then nothing changes. Once the
+  output is being written, whatever fails (`element.level_not_reached`, or the hardware
+  failing to read it back) the test still expires: the output may be on. And a command
+  without a duration that fails so does not end a test under way.
 - If the service dies with a test under way, `primum-safe` puts the output in its safe state,
   as any other.
 
@@ -119,13 +122,17 @@ for the next one: no thread and no polling. The state says how long each test ha
 (`remainingMs`); the page counts down from there on its own clock.
 
 On the page each output has a *Test* button: on for 10 s, then off. It is not offered for an
-output that was left on on purpose: the test would turn it off.
+output that was left on on purpose: the test would turn it off. A level set with the slider
+during a test is part of the test: it keeps the time the test had left.
 
 Seen on `primum-dev` by its owner, with an LED on GPIO 17 and a PWM output on GPIO 18: a test
 of 2 s goes off at 2021 ms and five of 1 s between 1018 and 1032 ms; a level of 40 % for 2 s
 measures 37 % and then 0; two tests at once expire each at its time; a command without a
 duration over a test stays; panic ends a test at once and releasing it brings nothing back;
-after `kill -9` with a test of 60 s under way, `primum-safe` has the LED off in 602 ms.
+after `kill -9` with a test of 60 s under way, `primum-safe` has the LED off in 602 ms. With
+the write permission of the PWM's `duty_cycle` taken away during a test, the output says
+`restFailed`, is tried again every 5 s and rests by itself once the permission is back, while
+an LED expiring at the same time goes off as usual.
 
 ## Not covered
 

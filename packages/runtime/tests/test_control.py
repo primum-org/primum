@@ -615,3 +615,54 @@ def test_a_command_or_panic_ends_the_trying(hal: SimulatedHal) -> None:
 
     assert not controller.state().outputs[0].rest_failed
     assert controller.next_expiry_s() is None
+
+
+def test_a_test_whose_read_back_fails_still_expires(hal: SimulatedHal) -> None:
+    """The output was written and then could not be read: whatever that raises, it is on
+    and it is a test, so it must still be sent to rest."""
+    controller, clock = _timed(hal)
+    hal.lines[17].fail_reads(OSError(5, "I/O error"))
+    states: list[State] = []
+    controller.subscribe(states.append)
+
+    with pytest.raises(OSError, match="I/O error"):
+        controller.command("led", "on", duration_ms=2_000)
+
+    assert hal.lines[17].active
+    assert controller.next_expiry_s() == 2.0
+    assert len(states) == 1  # the output changed: listeners are told
+
+    hal.lines[17].fail_reads(None)
+    clock.now += 2
+    controller.expire()
+
+    assert not hal.lines[17].active
+
+
+def test_a_command_that_fails_after_writing_does_not_end_a_test_under_way(
+    hal: SimulatedHal,
+) -> None:
+    """Without a duration it would have ended the test; failed, it leaves the output in a
+    state nobody knows, and the test's deadline is what still sends it to rest."""
+    controller, _ = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_reads(OSError(5, "I/O error"))
+
+    with pytest.raises(OSError, match="I/O error"):
+        controller.command("led", "on")
+
+    assert controller.next_expiry_s() == 2.0
+
+
+def test_a_command_refused_before_writing_leaves_a_test_under_way_as_it_was(
+    hal: SimulatedHal,
+) -> None:
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    clock.now += 0.5
+
+    with pytest.raises(PrimumError):
+        controller.command("led", "blink", duration_ms=60_000)
+
+    assert controller.next_expiry_s() == 1.5
+    assert hal.lines[17].history == (True,)

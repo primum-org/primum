@@ -113,12 +113,23 @@ class OutputDriver(ElementDriver):
         ``resolve`` reports for the arguments, and with ``element.level_not_reached`` when the
         hardware reads back another level than the one written.
         """
+        self.go_to(self.level_for(action, arguments))
+
+    def level_for(self, action: str, arguments: Mapping[str, Value] | None = None) -> float:
+        """The level ``action`` ends in with these arguments, nothing written yet: what can
+        be refused of a command is refused here (``element.action_unknown``, and what
+        ``resolve`` reports for the arguments)."""
         declared = self._action(action)
         values = resolve(self.name, arguments or {}, declared.parameters)
         state = declared.end_state
         level = values[state] if isinstance(state, str) else state
         if isinstance(level, bool | str):  # the manifest check refuses it: a state is a number
             raise TypeError(f"the state of {action!r} is not a level: {level!r}")
+        return level
+
+    def go_to(self, level: float) -> None:
+        """Write ``level`` and read it back; ``element.level_not_reached`` if the hardware
+        reads another. From here on the output may have changed, whatever is raised."""
         self._write(level)
         read = self._read()
         self._unsure = not self._reached(level, read)

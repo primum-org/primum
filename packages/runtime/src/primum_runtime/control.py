@@ -152,10 +152,11 @@ class Controller:
 
         Fails with ``output.unknown`` (param ``name``), ``panic.active`` while panic is on,
         ``test.duration_out_of_range`` (``duration_ms``, ``min_ms``, ``max_ms``), or what the
-        driver reports for the action and its arguments. Listeners are told when the command
-        was carried out, and also when the output did not follow it
-        (``element.level_not_reached``): its state is then the level it read back, and a
-        test still expires, since the output was written.
+        driver reports for the action and its arguments: all of them before anything is
+        written, and then nothing changes, a test under way included. Once the output is
+        being written, whatever fails (``element.level_not_reached``, or an error of the
+        hardware reading it back) the output may have changed: listeners are told, a test
+        still expires, and a command without a duration does not end a test under way.
         """
         output = self._outputs.get(name)
         if output is None:
@@ -165,12 +166,15 @@ class Controller:
         if duration_ms is not None and not MIN_TEST_MS <= duration_ms <= MAX_TEST_MS:
             params = {"duration_ms": duration_ms, "min_ms": MIN_TEST_MS, "max_ms": MAX_TEST_MS}
             raise PrimumError(ErrorCode.TEST_DURATION_OUT_OF_RANGE, params)
+        level = output.level_for(action, arguments)  # refused here, nothing has changed
         try:
-            output.command(action, arguments)
-        except PrimumError as error:
-            if error.code is ErrorCode.ELEMENT_LEVEL_NOT_REACHED:
+            output.go_to(level)
+        except Exception:
+            # Written or not, nobody knows now: the output may be on. A test must still
+            # expire, and a test under way must not be ended by a command that failed.
+            if duration_ms is not None:
                 self._set_deadline(name, duration_ms)
-                self._notify()
+            self._notify()
             raise
         self._set_deadline(name, duration_ms)
         self._notify()

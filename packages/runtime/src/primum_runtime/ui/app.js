@@ -10,6 +10,7 @@ const RECONNECT_MAX_MS = 10000;
 // A test from the page: the output goes on, and off on its own after this long.
 const TEST_MS = 10000;
 const COUNTDOWN_STEP_MS = 250;
+const MIN_TEST_MS = 1000;
 
 const page = {
   connection: document.getElementById("connection"),
@@ -161,7 +162,11 @@ function rowFor(name) {
     const wanted = Number(slider.value);
     if (wanted !== shownLevel(name)) {
       slider.dataset.asked = String(wanted);
-      await ask(name, "set", { level: wanted });
+      // During a test, the new level is part of the test: it keeps the time it had left
+      // (a second at least, the shortest a test lasts), instead of staying on for good.
+      const until = Number(row.dataset.testUntil);
+      const left = until ? Math.max(MIN_TEST_MS, Math.round(until - performance.now())) : null;
+      await ask(name, "set", { level: wanted }, left);
     }
     render(); // whatever came of it, the slider shows the level the service reports
   };
