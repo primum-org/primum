@@ -706,3 +706,81 @@ def test_an_output_that_goes_on_failing_is_logged_once_and_again_when_it_rests(
 
     assert len(failures) == 1
     assert "led is at rest after all" in caplog.text
+
+
+def test_a_panic_that_fails_goes_on_trying_what_it_could_not_make_safe(
+    hal: SimulatedHal,
+) -> None:
+    """Seen on the board: the dimmer could not rest and was being tried again; panic failed
+    on it too, dropped the retries, and left it on for good once the fault was gone."""
+    controller, clock = _timed(hal, LED, DIMMER)
+    controller.command("dimmer", "set", {"level": 40}, duration_ms=2_000)
+    hal.pwm_lines[18].fail_writes(OSError(13, "Permission denied"))
+    clock.now += 2
+    controller.expire()
+    assert controller.state().outputs[1].rest_failed
+
+    with pytest.raises(PrimumError) as raised:
+        controller.panic()
+
+    assert raised.value.code == "hal.safe_state_incomplete"
+    dimmer = controller.state().outputs[1]
+    assert (dimmer.on, dimmer.rest_failed) == (True, True)
+    assert controller.next_expiry_s() == 5.0
+
+    hal.pwm_lines[18].fail_writes(None)
+    clock.now += 5
+    controller.expire()
+
+    dimmer = controller.state().outputs[1]
+    assert (dimmer.on, dimmer.rest_failed) == (False, False)
+    assert hal.pwm_lines[18].duty == 0.0
+
+
+def test_a_panic_that_fails_tries_again_an_output_that_was_under_no_test(
+    hal: SimulatedHal,
+) -> None:
+    """What panic could not make safe is what matters, not why the output was on."""
+    controller, clock = _timed(hal)
+    controller.command("led", "on")
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+
+    with pytest.raises(PrimumError):
+        controller.panic()
+
+    led, lamp = controller.state().outputs
+    assert (led.rest_failed, lamp.rest_failed) == (True, False)
+
+    hal.lines[17].fail_writes(None)
+    clock.now += 5
+    controller.expire()
+
+    assert not hal.lines[17].active
+    assert not controller.state().outputs[0].rest_failed
+
+
+def test_releasing_panic_does_not_end_the_trying(hal: SimulatedHal) -> None:
+    controller, _ = _timed(hal)
+    controller.command("led", "on")
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+    with pytest.raises(PrimumError):
+        controller.panic()
+
+    controller.release_panic()
+
+    assert controller.state().outputs[0].rest_failed
+    assert controller.next_expiry_s() == 5.0
+
+
+def test_an_output_that_reads_back_unsafe_after_panic_is_tried_again_too(
+    hal: SimulatedHal,
+) -> None:
+    controller, _ = _timed(hal)
+    controller.command("led", "on")
+    hal.lines[17].stick(True)
+
+    with pytest.raises(PrimumError) as raised:
+        controller.panic()
+
+    assert raised.value.code == "hal.safe_state_unverified"
+    assert controller.state().outputs[0].rest_failed

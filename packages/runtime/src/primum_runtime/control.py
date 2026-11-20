@@ -240,13 +240,20 @@ class Controller:
         """Latch panic and put every output in its safe state.
 
         Panic is latched before the safe state is tried, so no command gets through even if
-        some output fails; that failure is raised (``hal.safe_state_incomplete``).
+        some output fails; that failure is raised (``hal.safe_state_incomplete``,
+        ``hal.safe_state_unverified``). Every test ends. What panic could not make safe is
+        then tried again every ``RETRY_REST_S``, whatever it was doing, and says so
+        (``rest_failed``): a panic that fails must not leave an output on for good that
+        would have gone off by itself.
         """
         self._panic = True
         self._deadlines.clear()  # nothing is left to expire: everything rests now
         self._rest_failed.clear()
         try:
             self._hal.apply_safe_state()
+        except Exception as error:
+            self._retry_rest(self._not_safe(error))
+            raise
         finally:
             self._notify()
 
@@ -261,6 +268,20 @@ class Controller:
         """Call ``listener`` with the new state after every change; returns an unsubscribe."""
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
+
+    def _not_safe(self, error: Exception) -> list[str]:
+        """The outputs a failed safe state names (by the pins in its params); every output
+        when it does not say which."""
+        pins = error.params.get("pins") if isinstance(error, PrimumError) else None
+        if not isinstance(pins, tuple):
+            return list(self._outputs)
+        return [name for name, driver in self._outputs.items() if driver.pin in pins]
+
+    def _retry_rest(self, names: list[str]) -> None:
+        retry_at = self._clock() + RETRY_REST_S
+        for name in names:
+            self._rest_failed.add(name)
+            self._deadlines[name] = retry_at
 
     def _set_deadline(self, name: str, duration_ms: int | None) -> None:
         self._rest_failed.discard(name)  # commanded again: no longer waiting to rest

@@ -23,7 +23,9 @@ driver and stays.
   slider go on doing what they did.
 - **An output that cannot be sent to rest when its test expires is tried again** and says so
   in its state: it is the one thing test mode promises not to leave on. A log line alone
-  would be read by nobody.
+  would be read by nobody. So is an output that panic could not make safe, under a test or
+  not: found on the board, where a panic that failed dropped the retries and left on a
+  dimmer that would have gone off by itself.
 
 ## Alternatives considered
 - **Building the layered arbiter now**, with the layer of sequences empty: the design of the

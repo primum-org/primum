@@ -620,7 +620,8 @@ tried on `primum-dev`** (decision 0021)
   (2021 ms for one of 2 s), two at once, panic, and `kill -9` under a test (off in 602 ms by
   `primum-safe`), and `restFailed` with its retries, by taking the write permission of the
   PWM's `duty_cycle` away. Found there and fixed: a test whose read-back failed with an
-  error of the hardware stayed on with no deadline. The page was not opened on the board.
+  error of the hardware stayed on with no deadline; and a panic that failed on an output
+  being tried again dropped the retries and left it on. The page was not opened on the board.
 - No arbiter: with no sequences, "returns to the layer below" (decision 0006) is "goes to
   rest". For the engine (phase 4): expiry returns the output to what the sequences say, and
   a command without a duration becomes manual control, a layer the arbiter must place too.

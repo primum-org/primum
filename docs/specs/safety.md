@@ -110,7 +110,11 @@ no sequences yet (phase 4) there is nothing under it to return to but rest.
   shown on the page) and it is tried again every 5 s until it rests, is commanded again, or
   panic takes over. `restFailed` does not say the output is on: the write may have worked
   and only the read-back failed. It says that it could not be confirmed off.
-- Panic ends every test at once; releasing it brings nothing back.
+- Panic ends every test at once; releasing it brings nothing back. An output that panic
+  itself could not make safe (it answers `hal.safe_state_incomplete` or
+  `hal.safe_state_unverified`) is tried again every 5 s and says `restFailed`, whether it was
+  under a test or not, and releasing panic does not end that: a panic that fails must not
+  leave on for good what would have gone off by itself.
 - What can be refused of a command is refused before anything is written (an action the
   output does not have, its arguments, the duration), and then nothing changes. Once the
   output is being written, whatever fails (`element.level_not_reached`, or the hardware
