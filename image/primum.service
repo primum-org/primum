@@ -14,13 +14,14 @@ Group=primum
 SupplementaryGroups=gpio
 EnvironmentFile=/etc/primum/runtime.env
 WorkingDirectory=/data
-# Refuse to start next to other GPIO software (decision 0010). "+" runs the check as root and
-# outside the sandbox: only root can see other users' processes.
-ExecStartPre=+/opt/primum/app/image/check-gpio-users.sh
 # What an earlier runtime left declared and not made safe (primum-safe was killed with it, or
 # failed) is made safe before this one replaces the declaration with its own: the
 # configuration may name other pins by now. If it cannot be, the service does not start.
 ExecStartPre=/opt/primum/venv/bin/primum-safe
+# Refuse to start next to other GPIO software (decision 0010). "+" runs the check as root and
+# outside the sandbox: only root can see other users' processes. After primum-safe, which
+# unexports the PWM channels a crash of Primum left: one still exported is someone else's.
+ExecStartPre=+/opt/primum/app/image/check-gpio-users.sh --pwm
 ExecStart=/opt/primum/venv/bin/primum-runtime
 # SIGTERM makes uvicorn close the HAL, which applies the safe state (decision 0011).
 TimeoutStopSec=10

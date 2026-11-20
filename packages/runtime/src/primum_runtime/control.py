@@ -26,16 +26,16 @@ from primum_runtime.hal import Claim, Hal, InputSpec, OutputSpec, PwmSpec
 
 type Listener = Callable[[State], None]
 
-ON, OFF = "on", "off"
-
 
 @dataclass(frozen=True)
 class OutputState:
-    """An output: its level, from 0 to 100, and whether that is on at all."""
+    """An output: its level, from 0 to 100, whether that is on at all, and the actions it
+    can be asked for (those of its driver's manifest)."""
 
     name: str
     on: bool
     level: float
+    actions: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -99,8 +99,12 @@ class Controller:
 
     def state(self) -> State:
         # One reading per output: its level may come from the hardware, and change.
+        # One reading per output: its level may come from the hardware, and change.
         levels = {name: driver.level for name, driver in self._outputs.items()}
-        outputs = tuple(OutputState(name, level > 0, level) for name, level in levels.items())
+        outputs = tuple(
+            OutputState(name, levels[name] > 0, levels[name], driver.actions)
+            for name, driver in self._outputs.items()
+        )
         inputs = tuple(InputState(driver.name, driver.active) for driver in self._inputs.values())
         return State(outputs, inputs, self._panic)
 
@@ -124,10 +128,6 @@ class Controller:
                 self._notify()
             raise
         self._notify()
-
-    def set_output(self, name: str, on: bool) -> None:
-        """Turn output ``name`` on or off: ``command`` with ``on`` or ``off``."""
-        self.command(name, ON if on else OFF)
 
     def events_fd(self) -> int | None:
         """What to watch to know when ``read_inputs`` has something to read; ``None`` when

@@ -19,6 +19,12 @@ from primum_runtime.errors import ErrorCode, ErrorParam, PrimumError
 _STATUS_BY_CODE = {
     ErrorCode.OUTPUT_UNKNOWN: 404,
     ErrorCode.PANIC_ACTIVE: 409,
+    # What the caller asked of an output that it cannot do or take: the caller's to fix.
+    ErrorCode.ELEMENT_ACTION_UNKNOWN: 422,
+    ErrorCode.ELEMENT_VALUE_UNKNOWN: 422,
+    ErrorCode.ELEMENT_VALUE_MISSING: 422,
+    ErrorCode.ELEMENT_VALUE_INVALID: 422,
+    ErrorCode.ELEMENT_VALUE_OUT_OF_RANGE: 422,
     ErrorCode.REQUEST_INVALID: 422,
     ErrorCode.REQUEST_NOT_FOUND: 404,
     ErrorCode.REQUEST_METHOD_NOT_ALLOWED: 405,

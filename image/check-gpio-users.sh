@@ -6,9 +6,25 @@
 # so the HAL cannot see them. Nothing here is specific to one program. Limit: software that is
 # installed but not running holds nothing, so it is not found; a Pi for Primum has none.
 #
+# With --pwm it also refuses a board where a PWM channel is already exported
+# (/sys/class/pwm/pwmchipN/pwmM): a channel has no owner, so the HAL would adopt one another
+# program is using. The service asks for it at start, after primum-safe has unexported what a
+# crash of Primum itself left; provisioning does not, since the running service holds its own.
+#
 # Needs root: other users' open files are hidden from a normal user, so without root the
-# check would find nothing and pass. PROC (a fake process tree) is for the tests.
+# check would find nothing and pass. PROC (a fake process tree) and SYSFS_PWM (a fake
+# /sys/class/pwm) are for the tests.
 set -euo pipefail
+
+check_pwm=false
+case ${1:-} in
+  "") ;;
+  --pwm) check_pwm=true ;;
+  *)
+    echo "usage: $0 [--pwm]" >&2
+    exit 2
+    ;;
+esac
 
 if [[ -z ${PROC:-} ]] && ((EUID != 0)); then
   echo "check-gpio-users: run it as root (without root it cannot see other users' processes)" >&2
@@ -32,6 +48,14 @@ done
 
 if command -v systemctl >/dev/null && systemctl is-active --quiet pigpiod 2>/dev/null; then
   found+=("the pigpiod service is running")
+fi
+
+if $check_pwm; then
+  for channel in "${SYSFS_PWM:-/sys/class/pwm}"/pwmchip*/pwm[0-9]*; do
+    [[ -d $channel ]] || continue
+    chip=${channel%/*}
+    found+=("PWM channel ${channel##*/pwm} of ${chip##*/} is in use (exported)")
+  done
 fi
 
 if ((${#found[@]})); then

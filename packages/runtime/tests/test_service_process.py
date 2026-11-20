@@ -73,7 +73,7 @@ def service() -> Iterator[tuple[subprocess.Popen[bytes], int]]:
 def _turn_led_on(port: int) -> object:
     request = urllib.request.Request(
         f"http://127.0.0.1:{port}/api/outputs/led",
-        data=json.dumps({"on": True}).encode(),
+        data=json.dumps({"action": "on"}).encode(),
         headers={"Content-Type": "application/json"},
         method="PUT",
     )
@@ -86,7 +86,7 @@ def test_sigterm_stops_the_service_with_every_output_in_its_safe_state(
 ) -> None:
     process, port = service
     assert _turn_led_on(port) == {
-        "outputs": [{"name": "led", "on": True}],
+        "outputs": [{"name": "led", "on": True, "level": 100, "actions": ["on", "off"]}],
         "inputs": [],
         "panic": False,
     }

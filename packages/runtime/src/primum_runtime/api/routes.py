@@ -31,8 +31,8 @@ async def status(controller: ControllerDep) -> StateBody:
 
 
 @router.put("/outputs/{name}")
-async def set_output(name: str, command: OutputCommand, controller: ControllerDep) -> StateBody:
-    controller.set_output(name, command.on)
+async def command_output(name: str, command: OutputCommand, controller: ControllerDep) -> StateBody:
+    controller.command(name, command.action, command.arguments)
     return StateBody.of(controller.state())
 
 

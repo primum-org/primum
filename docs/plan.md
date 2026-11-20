@@ -520,7 +520,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   a real edge with no finger (the input's pull changed from up to down) with its polarity,
   its time and its sequence number, and an input with a debounce of 10 s. Until they pass
   there, the limits of `rpi4b` are still arithmetic on its sources.
-- PWM is not offered by the service: the drivers and the `Controller` handle PWM outputs
+- PWM was not offered by the service until 3.4b: the drivers and the `Controller` handle PWM outputs
   (tested against the simulated HAL and by the `hw` tests), but the options of the service
   cannot ask for one, so the `kill -9` gap of a PWM channel cannot be reached from it. With
   3.4, when `primum-safe` covers PWM channels: the option, the level in the API's state and
@@ -545,8 +545,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - The service's input is not in `image/provision.sh`: to try it on the Pi, add
   `PRIMUM_INPUT_PIN` and `PRIMUM_INPUT_PULL` to `/etc/primum/runtime.env`.
 
-**3.4a · Safe state after the process dies** · **code done; its last fixes and its `hw`
-tests are still to be run on `primum-dev`** (decision 0020, `specs/safety.md`)
+**3.4a · Safe state after the process dies** · **done** (decision 0020, `specs/safety.md`)
 - The runtime declares what it claims in its data directory before claiming it
   (`/data/claimed.json`, `--data-dir`), and removes the declaration after a clean stop, or
   when the claim fails.
@@ -567,27 +566,40 @@ tests are still to be run on `primum-dev`** (decision 0020, `specs/safety.md`)
   `primum-safe` too, so the LED stays on until the restart (the spec says so); systemd never
   gives up restarting with these timings; a claim that failed left a declaration that made
   `primum-safe` log an error at every stop.
-- Still to be run on the board: the procedure of `specs/safety.md` again, with those fixes,
-  and the `hw` tests of `test_safe_hw.py` (a digital and a PWM output left on by a killed
-  process).
+- Run on the board afterwards, as its owner reports: the procedure of `specs/safety.md` with
+  those fixes, and the `hw` tests of `test_safe_hw.py` (a digital and a PWM output left on by
+  a killed process). All passed.
 - A start blocked by a declaration that cannot be made safe (an output stuck on, a file that
   cannot be read) needs a person: the service does not start, so the page cannot say why;
   only the journal does. Showing it is the hardware manager's or the UI's, later.
 - If reading the inputs fails, the API still only stops watching them: whether that should
   end the service, now that a watchdog restarts it, is open.
 
-**3.4b · PWM in the service**
-- Once 3.4a is checked on the board: the service's option for a PWM output, its level in the
-  API's state and in the page, and setting it. The API and the page must not show the safe
-  state of a PWM output as *verified* the way a digital output's is: its read-back is the
-  controller's setting, not the pin (decision 0015).
-- `element.value_*` and `element.action_unknown` become 4xx when the API takes commands with
-  arguments.
-- A sysfs PWM channel has no owner: the HAL adopts one already exported (what recovers it
-  after a crash) and would take it from another program just the same.
-  `check-gpio-users.sh` looks at the exported `pwmN` of `/sys/class/pwm` too; with
-  `primum-safe` unexporting what a crash left, an exported channel at start is someone
-  else's, or one `primum-safe` could not make safe.
+**3.4b · PWM in the service** · **code done; the PWM output of the service is still to be
+tried on `primum-dev`** (decision 0021)
+- The service can drive one PWM output, named `dimmer`: `--pwm-pin` and `--pwm-frequency-hz`
+  (its driver's default if not given), or `PRIMUM_PWM_PIN` and `PRIMUM_PWM_FREQUENCY_HZ`. It
+  is declared for `primum-safe` like the LED.
+- The API asks an output for an action of its driver, with its arguments by name
+  (`{"action": "set", "arguments": {"level": 40}}`); `{"on": true}` is gone. Each output of
+  the state has its `level` and the `actions` it can be asked for.
+- What an output cannot do or take is the caller's mistake: `element.action_unknown` and
+  `element.value_unknown`, `_missing`, `_invalid` and `_out_of_range` are 422.
+- The page shows a slider for an output that can be `set`; the level is asked for once, on
+  letting go, and a state that arrives does not move a slider that is held.
+- `check-gpio-users.sh --pwm` refuses a board where a PWM channel is already exported; the
+  unit runs it after `primum-safe`, which unexports what a crash of Primum left, so one still
+  exported is someone else's. Provisioning runs it without `--pwm`: the running service
+  holds its own channel.
+- The page shows no output as *verified*, digital or PWM, so there is nothing to tell apart
+  yet. When the UI shows a safe state as checked (phase 5), a PWM output's must not count:
+  its read-back is the controller's setting, not the pin (decision 0015).
+- `fade` can be asked through the API and jumps to its `to`: fades in time are the engine's
+  (phase 4).
+- Not in `image/provision.sh`: to try the PWM output on the Pi, add `PRIMUM_PWM_PIN=18` to
+  `/etc/primum/runtime.env` (the overlay routes channels to GPIO 18 and 19).
+- Tried here against the simulated service only, the page included. On the board, with an
+  LED on the PWM pin: the slider, panic, and `kill -9` with the LED lit.
 
 **3.4c · Test mode**
 - Manual commands that expire on their own, above sequences and below panic (decision 0006).

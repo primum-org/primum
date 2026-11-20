@@ -63,6 +63,10 @@ All notable changes to this project are documented here. The format follows
 - If the service is killed or hangs, its outputs no longer stay as they were: systemd runs
   `primum-safe` after every stop, which puts the outputs the service had claimed in their
   safe state, and a watchdog restarts a service that stops answering.
+- The service can drive a dimmable output (`--pwm-pin`, or `PRIMUM_PWM_PIN`): the page shows
+  a slider for its level. The API now asks an output for an action
+  (`{"action": "set", "arguments": {"level": 40}}`) instead of `{"on": true}`, and reports
+  each output's level.
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.

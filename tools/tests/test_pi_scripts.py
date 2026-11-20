@@ -49,6 +49,50 @@ def test_check_gpio_users_names_a_process_that_holds_gpiomem(tmp_path: Path) -> 
     assert "41" not in result.stderr
 
 
+def _exported_channel(sysfs: Path, chip: int, channel: int) -> None:
+    (sysfs / f"pwmchip{chip}" / f"pwm{channel}").mkdir(parents=True)
+
+
+def test_check_gpio_users_names_a_pwm_channel_already_exported_when_asked(tmp_path: Path) -> None:
+    proc, sysfs = tmp_path / "proc", tmp_path / "pwm"
+    _process(proc, 41, "bash", "/dev/null")
+    _exported_channel(sysfs, 0, 1)
+
+    result = _run(CHECK_GPIO_USERS, "--pwm", PROC=str(proc), SYSFS_PWM=str(sysfs))
+
+    assert result.returncode == 1
+    assert "PWM channel 1 of pwmchip0 is in use (exported)" in result.stderr
+
+
+def test_check_gpio_users_takes_a_controller_with_no_channel_exported(tmp_path: Path) -> None:
+    proc, sysfs = tmp_path / "proc", tmp_path / "pwm"
+    _process(proc, 41, "bash", "/dev/null")
+    (sysfs / "pwmchip0").mkdir(parents=True)
+    (sysfs / "pwmchip0" / "npwm").write_text("2\n")
+
+    result = _run(CHECK_GPIO_USERS, "--pwm", PROC=str(proc), SYSFS_PWM=str(sysfs))
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_check_gpio_users_leaves_pwm_alone_unless_asked(tmp_path: Path) -> None:
+    """Provisioning runs it next to the running service, which holds its own channel."""
+    proc, sysfs = tmp_path / "proc", tmp_path / "pwm"
+    _process(proc, 41, "bash", "/dev/null")
+    _exported_channel(sysfs, 0, 1)
+
+    result = _run(CHECK_GPIO_USERS, PROC=str(proc), SYSFS_PWM=str(sysfs))
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_check_gpio_users_refuses_an_option_it_does_not_know(tmp_path: Path) -> None:
+    result = _run(CHECK_GPIO_USERS, "--everything", PROC=str(tmp_path))
+
+    assert result.returncode == 2
+    assert "usage" in result.stderr
+
+
 def test_check_gpio_users_passes_when_nothing_drives_gpio(tmp_path: Path) -> None:
     _process(tmp_path, 41, "bash", "/dev/null", "/dev/gpiochip0")
 
@@ -177,6 +221,10 @@ def test_the_unit_runs_primum_safe_after_every_stop_and_has_a_watchdog() -> None
     # Before a start too: the runtime replaces the declaration it finds, so what an earlier
     # one left declared and unsafe must be made safe first.
     assert "ExecStartPre=/opt/primum/venv/bin/primum-safe\n" in unit
+    # In that order: primum-safe unexports the PWM channels a crash left, and only then is a
+    # channel still exported someone else's.
+    safe = unit.index("ExecStartPre=/opt/primum/venv/bin/primum-safe\n")
+    assert safe < unit.index("ExecStartPre=+/opt/primum/app/image/check-gpio-users.sh --pwm\n")
     assert "Type=notify\n" in unit
     assert "WatchdogSec=10\n" in unit
     assert 'primum-safe = "primum_runtime.safe:main"' in scripts

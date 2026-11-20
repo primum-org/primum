@@ -1,4 +1,5 @@
-// The runtime's page: one switch per output, the state of each input and the panic button. The service is the only
+// The runtime's page: one switch per output (and a level for those that take one), the state
+// of each input and the panic button. The service is the only
 // source of truth: the page shows the states it receives and never guesses one.
 
 import { loadCatalog, pickLanguage } from "./i18n.js";
@@ -46,6 +47,7 @@ function render() {
     const word = output.on ? catalog.t("output.on") : catalog.t("output.off");
     button.querySelector(".switch-state").textContent = online ? word : "";
     button.disabled = !online || state.panic;
+    renderLevel(output);
   }
   const inputs = state?.inputs ?? [];
   page.inputsSection.hidden = inputs.length === 0;
@@ -57,6 +59,22 @@ function render() {
     shown.dataset.active = String(online && input.active);
   }
 }
+
+// An output that can be set to a level (its driver has the action "set") gets a slider. While
+// a finger is on it, the slider is the person's: a state that arrives does not move it.
+function renderLevel(output) {
+  const level = rowFor(output.name).querySelector(".level");
+  level.hidden = !output.actions.includes("set");
+  if (level.hidden) return;
+  const slider = level.querySelector(".level-slider");
+  slider.disabled = !online || state.panic;
+  if (slider.dataset.held === "true") return;
+  slider.value = String(Math.round(output.level));
+  // Offline the last level may be stale: no number, as a switch has no word.
+  level.querySelector(".level-value").textContent = online ? levelText(slider.value) : "";
+}
+
+const levelText = (level) => catalog.t("output.level", { level });
 
 function inputRowFor(name) {
   const existing = page.inputs.querySelector(`[data-input="${CSS.escape(name)}"]`);
@@ -76,7 +94,19 @@ function rowFor(name) {
   row.querySelector(".output-name").textContent = name;
   const button = row.querySelector(".switch");
   button.setAttribute("aria-label", catalog.t("output.toggle", { name }));
-  button.addEventListener("click", () => setOutput(name, button.getAttribute("aria-pressed") !== "true"));
+  button.addEventListener("click", () => ask(name, button.getAttribute("aria-pressed") === "true" ? "off" : "on"));
+  const slider = row.querySelector(".level-slider");
+  slider.setAttribute("aria-label", catalog.t("output.level_of", { name }));
+  // Moving the slider only shows the number; the level is asked for once, on letting go.
+  slider.addEventListener("input", () => {
+    slider.dataset.held = "true";
+    row.querySelector(".level-value").textContent = levelText(slider.value);
+  });
+  slider.addEventListener("change", async () => {
+    await ask(name, "set", { level: Number(slider.value) });
+    slider.dataset.held = "false";
+    render(); // whatever came of it, the slider shows the level the service reports
+  });
   page.outputs.append(row);
   return row;
 }
@@ -118,7 +148,9 @@ async function command(method, path, body) {
   render();
 }
 
-const setOutput = (name, on) => command("PUT", `outputs/${encodeURIComponent(name)}`, { on });
+// Ask an output for one of the actions of its driver, with the arguments it takes by name.
+const ask = (name, action, args = {}) =>
+  command("PUT", `outputs/${encodeURIComponent(name)}`, { action, arguments: args });
 
 page.panic.addEventListener("click", () => command("POST", "panic"));
 page.releasePanic.addEventListener("click", () => command("DELETE", "panic"));

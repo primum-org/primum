@@ -192,6 +192,11 @@ kernel to tell its edges apart) do not flip it. Events carry the sequence number
 line; a gap means the kernel dropped some (it keeps 1024 unread), which the driver counts and
 logs. The state is still right.
 
+Over the API (decision 0021) an output is asked for an action the same way: `PUT
+/api/outputs/{name}` with `{"action": "set", "arguments": {"level": 40}}`. The state gives
+each output's `level` and the `actions` it has. The codes above for what an output cannot do
+or take are answered with a 422; `element.level_not_reached` with a 500.
+
 The HAL also refuses a PWM frequency outside what the board takes
 (`hal.pwm_frequency_invalid`, with `min_hz` and `max_hz`), from the limit of the profile.
 
