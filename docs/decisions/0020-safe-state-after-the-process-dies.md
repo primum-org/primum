@@ -21,6 +21,12 @@ The plan asked for a systemd watchdog and a unit run when the service fails
 - **`primum-safe` runs after every stop of the service** (`ExecStopPost=`), not only when
   systemd gives up: it runs before any restart, so the output is not left on for the seconds
   a restart takes, and it cannot race with the restarted service for the lines.
+- **And before every start** (`ExecStartPre=`): the runtime replaces the declaration it finds
+  with its own, and the configuration may name other pins by now. What an earlier runtime
+  left declared and unsafe (`primum-safe` was killed with the service, or failed) is made
+  safe first; if it cannot be, the service does not start. Found on the board: without
+  this, an LED stayed on for good after a kill and a change of pin.
+- **A claim that fails leaves nothing declared**: nothing was claimed.
 - **`primum-safe` is the HAL used once more**: it claims what was declared and closes. A
   claim starts every output in its safe state; closing reads each one back and releases it.
   A second command of the runtime's package, in Python, tested against the simulated HAL.
@@ -51,5 +57,10 @@ The plan asked for a systemd watchdog and a unit run when the service fails
 - The service writes to disk on every start and removes a file on every clean stop.
 - What is not covered is said in `specs/safety.md`: power loss, the instant before
   `primum-safe` finishes, a broken installation.
-- The systemd side (`Type=notify`, the watchdog, `ExecStopPost=`) cannot be tested off the
-  board: its checks are a procedure in `specs/safety.md`.
+- The systemd side (`Type=notify`, the watchdog, `ExecStopPost=`, `ExecStartPre=`) cannot be
+  tested off the board: its checks are a procedure in `specs/safety.md`. The first run of it
+  found three things the tests could not.
+- A declaration that cannot be made safe blocks the start until a person looks: the price of
+  never forgetting an output that may be on.
+- `systemctl kill` on the whole unit kills `primum-safe` too; the output then waits for the
+  restart. Only a kill of the main process is covered at once.

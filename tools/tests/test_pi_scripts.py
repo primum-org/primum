@@ -174,6 +174,9 @@ def test_the_unit_runs_primum_safe_after_every_stop_and_has_a_watchdog() -> None
     scripts = (ROOT / "packages" / "runtime" / "pyproject.toml").read_text()
 
     assert "ExecStopPost=/opt/primum/venv/bin/primum-safe\n" in unit
+    # Before a start too: the runtime replaces the declaration it finds, so what an earlier
+    # one left declared and unsafe must be made safe first.
+    assert "ExecStartPre=/opt/primum/venv/bin/primum-safe\n" in unit
     assert "Type=notify\n" in unit
     assert "WatchdogSec=10\n" in unit
     assert 'primum-safe = "primum_runtime.safe:main"' in scripts

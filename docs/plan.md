@@ -545,24 +545,34 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - The service's input is not in `image/provision.sh`: to try it on the Pi, add
   `PRIMUM_INPUT_PIN` and `PRIMUM_INPUT_PULL` to `/etc/primum/runtime.env`.
 
-**3.4a · Safe state after the process dies** · **code done; to be checked on `primum-dev`**
-(decision 0020, `specs/safety.md`)
+**3.4a · Safe state after the process dies** · **code done; its last fixes and its `hw`
+tests are still to be run on `primum-dev`** (decision 0020, `specs/safety.md`)
 - The runtime declares what it claims in its data directory before claiming it
-  (`/data/claimed.json`, `--data-dir`), and removes the declaration after a clean stop.
+  (`/data/claimed.json`, `--data-dir`), and removes the declaration after a clean stop, or
+  when the claim fails.
 - `primum-safe`, a second command of the runtime: it claims what was declared with the same
   HAL and closes it, which starts every output in its safe state, reads it back and releases
   it. systemd runs it after every stop of the service (`ExecStopPost=`), before any restart,
-  not only when it gives up (the plan said `OnFailure=`): the output is not left on while the
-  service restarts. Nothing declared, it does nothing; a declaration it cannot read is an
+  not only when it gives up (the plan said `OnFailure=`), and before every start
+  (`ExecStartPre=`). Nothing declared, it does nothing; a declaration it cannot read is an
   error and nothing is touched.
 - The watchdog: `Type=notify`, `WatchdogSec=10`, and the runtime tells systemd it is ready and
   then, from the event loop, that it is alive.
 - The HAL logs a PWM channel it adopted.
-- Not run, written without the board: the `hw` tests of `test_safe_hw.py` (a digital and a
-  PWM output left on by a killed process) and the procedure of `specs/safety.md` with the
-  service itself (`kill -9`, a stuck process, a stop, restarts exhausted). Nothing of the
-  systemd side can be checked off the board: whether uvicorn's lifespan and `Type=notify`
-  agree on "ready", and whether `ExecStopPost=` runs as expected after the watchdog.
+- Seen on `primum-dev` with the first version: uvicorn's lifespan and `Type=notify` agree on
+  "ready", `ExecStopPost=` runs after the watchdog, `primum-safe` takes 0.34 s. Found there
+  and fixed since: an output could stay on for good when `primum-safe` did not finish and
+  the configuration changed pins, because the start replaced the declaration without making
+  it safe (now `ExecStartPre=`); `systemctl kill` without `--kill-whom=main` kills
+  `primum-safe` too, so the LED stays on until the restart (the spec says so); systemd never
+  gives up restarting with these timings; a claim that failed left a declaration that made
+  `primum-safe` log an error at every stop.
+- Still to be run on the board: the procedure of `specs/safety.md` again, with those fixes,
+  and the `hw` tests of `test_safe_hw.py` (a digital and a PWM output left on by a killed
+  process).
+- A start blocked by a declaration that cannot be made safe (an output stuck on, a file that
+  cannot be read) needs a person: the service does not start, so the page cannot say why;
+  only the journal does. Showing it is the hardware manager's or the UI's, later.
 - If reading the inputs fails, the API still only stops watching them: whether that should
   end the service, now that a watchdog restarts it, is open.
 

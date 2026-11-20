@@ -1,9 +1,12 @@
 """``primum-safe``: put the outputs the runtime declared in their safe state (decision 0020).
 
-systemd runs it after the service stops, whatever stopped it (``ExecStopPost=``). After a
-clean stop nothing is declared and it does nothing. After a crash it claims what the dead
-service had declared, with the same HAL: a claim starts every output in its safe state, and
-closing the HAL reads each one back and releases it. Then it forgets the declaration.
+systemd runs it after the service stops, whatever stopped it (``ExecStopPost=``), and before
+it starts (``ExecStartPre=``): the runtime replaces the declaration it finds with its own, so
+what an earlier one left declared (``primum-safe`` was killed too, or failed) must be made
+safe first, whatever the configuration says now. After a clean stop nothing is declared and
+it does nothing. After a crash it claims what the dead service had declared, with the same
+HAL: a claim starts every output in its safe state, and closing the HAL reads each one back
+and releases it. Then it forgets the declaration.
 
 It never guesses: without a declaration it touches nothing, and one it cannot read is an
 error. A line someone else holds (the service, still alive) is refused by the HAL.
@@ -35,7 +38,8 @@ def make_safe(directory: Path, open_hal: OpenHal) -> int:
 
     ``EXIT_SAFE`` when nothing was declared, or when every declared output read back safe and
     was released (the declaration is then removed). ``EXIT_FAILED`` otherwise, with the
-    declaration kept: the next stop, or the next start of the service, tries again.
+    declaration kept: it is tried again before the service next starts, and the service does
+    not start, and so does not replace the declaration, until it succeeds.
     """
     try:
         declaration = declared.read(directory)

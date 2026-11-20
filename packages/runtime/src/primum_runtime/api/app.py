@@ -49,8 +49,11 @@ def create_app(
     def default_hal() -> Hal:
         return create_hal(simulate=config.simulate, board=config.board)
 
+    declarations: list[Claim] = []  # what this service declared: one claim, or none yet
+
     def declare(claim: Claim) -> None:
         declared.write(config.data_dir, declared.Declaration.of(config.board.model, claim))
+        declarations.append(claim)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
@@ -58,9 +61,17 @@ def create_app(
             # A real service declares what it claims before it claims it, so that primum-safe
             # can make it safe if this process dies. A simulated one has nothing to make safe.
             before_claim = None if config.simulate else declare
-            controller = Controller(
-                hal, config.elements, load_manifests(), config.limits, before_claim
-            )
+            try:
+                controller = Controller(
+                    hal, config.elements, load_manifests(), config.limits, before_claim
+                )
+            except Exception:
+                # A claim that fails leaves nothing claimed: what was declared for it names
+                # outputs nobody holds (a pin the board lacks, say), and primum-safe would
+                # fail on it at every stop.
+                if declarations:
+                    declared.remove(config.data_dir)
+                raise
             broadcaster = StateBroadcaster()
             unsubscribe = controller.subscribe(broadcaster.publish)
             app.state.controller = controller

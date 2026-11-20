@@ -270,6 +270,35 @@ def test_a_service_that_cannot_declare_its_outputs_does_not_claim_them(
     assert hal.lines == {}
 
 
+def test_a_claim_that_fails_leaves_nothing_declared(tmp_path: Path) -> None:
+    """Nothing was claimed, so there is nothing for primum-safe to make safe: a declaration
+    left behind would name a pin the board may not even have."""
+    config = parse_config(["--pin", "99", "--data-dir", str(tmp_path)], {})
+    hal = SimulatedHal(BOARD)
+
+    with pytest.raises(PrimumError) as raised, TestClient(create_app(config, lambda: hal, {})):
+        pass
+
+    assert raised.value.code == "hal.pin_invalid"
+    assert declared.read(tmp_path) is None
+
+
+def test_a_start_that_fails_before_declaring_leaves_what_was_declared(tmp_path: Path) -> None:
+    """An element its driver refuses fails before anything is declared: what an earlier
+    service left declared is not this one's to forget."""
+    earlier = Declaration("rpi4b", (OutputSpec(pin=27, active_low=False),))
+    declared.write(tmp_path, earlier)
+    argv = ["--pin", str(PIN), "--input-pin", "22", "--input-pull", "up"]
+    config = parse_config([*argv, "--input-debounce-ms", "99999", "--data-dir", str(tmp_path)], {})
+    hal = SimulatedHal(BOARD)
+
+    with pytest.raises(PrimumError) as raised, TestClient(create_app(config, lambda: hal, {})):
+        pass
+
+    assert raised.value.code == "element.value_out_of_range"
+    assert declared.read(tmp_path) == earlier
+
+
 def test_a_stop_that_leaves_an_output_unsafe_keeps_it_declared(
     hal: SimulatedHal, tmp_path: Path
 ) -> None:

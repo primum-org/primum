@@ -15,7 +15,7 @@ manifest names it as an action (`safeState`), and a test ties the two.
 | Start | The HAL, on claiming: every output is requested in its safe state | The claim fails otherwise |
 | Panic | The HAL (`apply_safe_state`), for every output, even if some fail | Each output is read back; failures are raised together (`hal.safe_state_incomplete`, `hal.safe_state_unverified`) |
 | Stop (`SIGINT`, `SIGTERM`) | The HAL, on closing, before it releases the lines | The same; the service's exit status says so |
-| The process dies (`SIGKILL`, the watchdog, a crash) | `primum-safe`, run by systemd after the service stops | The same HAL: read back, then released; its exit status says so |
+| The process dies (`SIGKILL`, the watchdog, a crash) | `primum-safe`, run by systemd after the service stops, and again before it starts | The same HAL: read back, then released; its exit status says so |
 
 Safety is best-effort across outputs: one that fails never stops the others.
 
@@ -35,6 +35,13 @@ a line stays at its last level, a PWM channel keeps running. So:
    stopped it and before any restart. It reads the declaration and claims what it names with
    the same HAL (a claim starts every output in its safe state), then closes it (each output
    is read back and released) and removes the declaration.
+4. **systemd runs `primum-safe` before every start too** (`ExecStartPre=`). The runtime
+   replaces the declaration it finds with its own, and its configuration may name other pins
+   by now: what an earlier runtime left declared (because `primum-safe` was killed with it,
+   or failed) is made safe first. If it cannot be, the service does not start, and so does
+   not forget it; systemd tries again at each restart.
+5. **A claim that fails leaves nothing declared**: nothing was claimed, and a declaration
+   naming a pin the board lacks would fail `primum-safe` at every stop for no reason.
 
 | Case | What `primum-safe` does | Exit |
 |---|---|---|
@@ -69,18 +76,28 @@ With the service itself, the LED on, as witness (`ssh primum-dev`):
 
 | Do | Expect |
 |---|---|
-| `sudo systemctl kill -s KILL primum` | The LED goes off at once; `journalctl -u primum` shows `primum-safe` naming its GPIO; the service is back within seconds, the LED off |
-| `sudo systemctl kill -s STOP primum` (a stuck process) | Within 10 s the watchdog kills it; the LED goes off; the service is back |
+| `sudo systemctl kill -s KILL --kill-whom=main primum` | The LED goes off at once; `journalctl -u primum` shows `primum-safe` naming its GPIO; the service is back within seconds, the LED off |
+| `sudo systemctl kill -s KILL primum` (the whole control group, `primum-safe` included) | `primum-safe` is killed as it starts, so the LED stays on until the restart, some 5 s; then `primum-safe` runs before the start and turns it off |
+| The same, after changing `PRIMUM_PIN` to another GPIO with the LED on | The LED on the old GPIO goes off at the restart all the same: it was declared, and is made safe before the new declaration replaces it |
+| `sudo systemctl kill -s STOP --kill-whom=main primum` (a stuck process) | Within 10 s the watchdog kills it; the LED goes off; the service is back |
 | `sudo systemctl stop primum` | The LED goes off; `primum-safe` logs that nothing is declared |
-| Make it fail to start (a pin the board lacks in `/etc/primum/runtime.env`), with the LED on before | The LED is off after the first failed start, and stays off when systemd gives up restarting |
+| A pin the board lacks in `/etc/primum/runtime.env`, with the LED on before | The LED goes off with the stop; the service fails to start and systemd restarts it every 6 s or so, for as long as it takes (it does not give up: with `RestartSec=2` and a start of some 3 s the limit of restarts is never reached); `primum-safe` logs that nothing is declared each time |
+
+Seen on `primum-dev` (Raspberry Pi 4, kernel 6.18) with the first version of this block:
+`READY=1` reaches systemd from uvicorn's lifespan, `ExecStopPost=` runs after the watchdog
+kills the service, and `primum-safe` takes about 0.34 s. The same session found what rows 2,
+3 and 6 now say, and the fixes for them (`ExecStartPre=`, nothing declared after a failed
+claim) are still to be run on the board.
 
 ## Not covered
 
 - Power loss and reboot: the lines go to their state at power on (their `defaultPull` in the
   board profile), not to a state Primum chose. Safe levels at boot are the hardware manager's
   (phase 6, `config.txt`).
-- The moment between the process dying and `primum-safe` finishing: tens of milliseconds to a
-  second or two (it starts Python). An output that must never stay on that long needs
+- The moment between the process dying and `primum-safe` finishing: about a third of a
+  second on a Raspberry Pi 4 (it starts Python); the seconds until the restart when
+  `primum-safe` is killed together with the service. An output that must never stay on that long needs
   hardware that fails safe on its own.
 - A broken installation: `primum-safe` runs from the same environment as the service.
+- A service started by hand, without systemd: nothing runs `primum-safe` for it.
 - Until block 3.4 is whole, the service does not offer PWM outputs.
