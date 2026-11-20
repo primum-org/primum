@@ -106,8 +106,10 @@ no sequences yet (phase 4) there is nothing under it to return to but rest.
   of command replaces a test of that output still under way, with its own time or with none.
 - When it expires the output is sent to rest and read back, as by any command. If that
   fails, whatever the hardware raises, the other outputs still expire; the failure is
-  logged, the state of the output says so (`restFailed`, shown on the page) and it is tried
-  again every 5 s until it rests, is commanded again, or panic takes over.
+  logged (once, and again when it rests), the state of the output says so (`restFailed`,
+  shown on the page) and it is tried again every 5 s until it rests, is commanded again, or
+  panic takes over. `restFailed` does not say the output is on: the write may have worked
+  and only the read-back failed. It says that it could not be confirmed off.
 - Panic ends every test at once; releasing it brings nothing back.
 - What can be refused of a command is refused before anything is written (an action the
   output does not have, its arguments, the duration), and then nothing changes. Once the
@@ -123,7 +125,8 @@ for the next one: no thread and no polling. The state says how long each test ha
 
 On the page each output has a *Test* button: on for 10 s, then off. It is not offered for an
 output that was left on on purpose: the test would turn it off. A level set with the slider
-during a test is part of the test: it keeps the time the test had left.
+during a test is part of the test: it keeps the time the test had left, whether the output
+is on at that moment or not.
 
 Seen on `primum-dev` by its owner, with an LED on GPIO 17 and a PWM output on GPIO 18: a test
 of 2 s goes off at 2021 ms and five of 1 s between 1018 and 1032 ms; a level of 40 % for 2 s

@@ -10,7 +10,7 @@
     "output.test": "Probar",
     "output.test_of": "Encender {name} {seconds} s y apagar",
     "output.testing": "Prueba: se apaga en {seconds} s",
-    "output.test_stuck": "La prueba ha terminado, pero no se ha podido apagar. Se sigue intentando.",
+    "output.test_stuck": "La prueba ha terminado, pero no se ha podido comprobar que esté apagada. Se sigue intentando.",
     "inputs.heading": "Entradas",
     "input.active": "Activa",
     "input.inactive": "Inactiva",

@@ -21,7 +21,6 @@ driver and stays.
   next deadline, on the monotonic clock, injected so that tests move it by hand.
 - **On the page, a *Test* button per output**: on for 10 s, then off. The switch and the
   slider go on doing what they did.
-
 - **An output that cannot be sent to rest when its test expires is tried again** and says so
   in its state: it is the one thing test mode promises not to leave on. A log line alone
   would be read by nobody.

@@ -10,7 +10,7 @@
     "output.test": "Test",
     "output.test_of": "Turn {name} on for {seconds} s, then off",
     "output.testing": "Test: off in {seconds} s",
-    "output.test_stuck": "The test is over, but it could not be turned off. Trying again.",
+    "output.test_stuck": "The test is over, but it could not be confirmed that it is off. Trying again.",
     "inputs.heading": "Inputs",
     "input.active": "Active",
     "input.inactive": "Inactive",

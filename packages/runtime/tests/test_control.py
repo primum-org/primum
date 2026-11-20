@@ -1,5 +1,7 @@
 """The controller: elements through their drivers, commands, inputs and panic."""
 
+import logging
+
 import pytest
 
 from primum_runtime.board import load_board, load_profile, option_limits
@@ -666,3 +668,41 @@ def test_a_command_refused_before_writing_leaves_a_test_under_way_as_it_was(
 
     assert controller.next_expiry_s() == 1.5
     assert hal.lines[17].history == (True,)
+
+
+def test_panic_ends_the_trying_too(hal: SimulatedHal) -> None:
+    """After panic nothing is tried again, so nothing may go on saying that it is."""
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_reads(OSError(5, "I/O error"))  # written off, never confirmed
+    clock.now += 2
+    controller.expire()
+    assert controller.state().outputs[0].rest_failed
+    hal.lines[17].fail_reads(None)
+
+    controller.panic()
+
+    assert not controller.state().outputs[0].rest_failed
+    assert controller.next_expiry_s() is None
+
+
+def test_an_output_that_goes_on_failing_is_logged_once_and_again_when_it_rests(
+    hal: SimulatedHal, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    controller, clock = _timed(hal)
+    controller.command("led", "on", duration_ms=2_000)
+    hal.lines[17].fail_writes(OSError(5, "I/O error"))
+    for wait in (2, 5, 5, 5):
+        clock.now += wait
+        controller.expire()
+    failures = [
+        record for record in caplog.records if "could not be sent to rest" in record.message
+    ]
+
+    hal.lines[17].fail_writes(None)
+    clock.now += 5
+    controller.expire()
+
+    assert len(failures) == 1
+    assert "led is at rest after all" in caplog.text

@@ -80,8 +80,10 @@ function renderTest(output) {
   const testing = online && output.remainingMs !== null;
   row.querySelector(".test").disabled = !online || state.panic || (output.on && !testing);
   // Counted from when the state arrived, not from now: rendering the same state again must
-  // not start the countdown again. A test of something that is off has nothing to count.
-  row.dataset.testUntil = testing && output.on ? String(stateAt + output.remainingMs) : "";
+  // not start the countdown again.
+  row.dataset.testUntil = testing ? String(stateAt + output.remainingMs) : "";
+  // A test of something that is off has nothing to count down to.
+  row.dataset.countdown = String(testing && output.on);
   row.dataset.restFailed = String(online && output.restFailed);
   countDown(row);
 }
@@ -89,15 +91,21 @@ function renderTest(output) {
 function countDown(row) {
   const shown = row.querySelector(".testing");
   const failed = row.dataset.restFailed === "true";
-  shown.hidden = row.dataset.testUntil === "" && !failed;
+  shown.hidden = row.dataset.countdown !== "true" && !failed;
   if (shown.hidden) return;
+  // A countdown is a timer: a screen reader does not announce each second of it. That an
+  // output could not be confirmed off is a status, said once when it appears.
+  shown.setAttribute("role", failed ? "status" : "timer");
   if (failed) {
     shown.textContent = catalog.t("output.test_stuck");
     return;
   }
-  const left = Math.max(0, Number(row.dataset.testUntil) - performance.now());
-  shown.textContent = catalog.t("output.testing", { seconds: Math.ceil(left / 1000) });
+  shown.textContent = catalog.t("output.testing", { seconds: Math.ceil(testLeftMs(row) / 1000) });
 }
+
+// How long the test of a row has left, by the page's clock; 0 with no test under way.
+const testLeftMs = (row) =>
+  row.dataset.testUntil ? Math.max(0, Number(row.dataset.testUntil) - performance.now()) : 0;
 
 setInterval(() => page.outputs.querySelectorAll("[data-output]").forEach(countDown), COUNTDOWN_STEP_MS);
 
@@ -164,8 +172,9 @@ function rowFor(name) {
       slider.dataset.asked = String(wanted);
       // During a test, the new level is part of the test: it keeps the time it had left
       // (a second at least, the shortest a test lasts), instead of staying on for good.
-      const until = Number(row.dataset.testUntil);
-      const left = until ? Math.max(MIN_TEST_MS, Math.round(until - performance.now())) : null;
+      // Whether a test is under way is the service's word, shown as a countdown or not.
+      const testing = row.dataset.testUntil !== "";
+      const left = testing ? Math.max(MIN_TEST_MS, Math.round(testLeftMs(row))) : null;
       await ask(name, "set", { level: wanted }, left);
     }
     render(); // whatever came of it, the slider shows the level the service reports

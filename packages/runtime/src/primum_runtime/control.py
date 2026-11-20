@@ -191,8 +191,10 @@ class Controller:
 
         An output that fails to rest does not stop the others, whatever it raises (the real
         HAL lets an ``OSError`` of a line through): nobody is waiting for an answer here. It
-        is logged, its state says so (``rest_failed``), and it is tried again every
-        ``RETRY_REST_S`` until it rests, is commanded, or panic takes over. Listeners are
+        is logged (once, and again when it rests), its state says so (``rest_failed``), and
+        it is tried again every ``RETRY_REST_S`` until it rests, is commanded, or panic takes
+        over. That it failed to rest does not say it is on: the write may have worked and
+        the read-back failed. Listeners are
         told once, if any test expired.
         """
         now = self._clock()
@@ -202,12 +204,20 @@ class Controller:
             try:
                 self._outputs[name].rest()
             except Exception as error:  # the others must still be sent to rest
-                log.error(
-                    "the test of %s expired and it could not be sent to rest: %s", name, error
-                )
+                # Said once, not at every retry: its state goes on saying it meanwhile.
+                if name not in self._rest_failed:
+                    log.error(
+                        "the test of %s expired and it could not be sent to rest "
+                        "(trying again every %g s): %s",
+                        name,
+                        RETRY_REST_S,
+                        error,
+                    )
                 self._rest_failed.add(name)
                 self._deadlines[name] = now + RETRY_REST_S
             else:
+                if name in self._rest_failed:
+                    log.info("%s is at rest after all", name)
                 self._rest_failed.discard(name)
         if expired:
             self._notify()
