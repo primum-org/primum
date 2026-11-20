@@ -29,6 +29,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0019](0019-drivers-on-the-hal.md) | Drivers implement manifests on the HAL; commands are instant and read back | Accepted |
 | [0020](0020-safe-state-after-the-process-dies.md) | The runtime declares what it claims; `primum-safe` makes it safe after every stop | Accepted |
 | [0021](0021-the-api-asks-outputs-for-actions.md) | The API asks an output for an action of its driver | Accepted |
+| [0022](0022-a-test-is-a-command-that-expires.md) | A test is a command that expires; the arbiter waits for the engine | Accepted |
 
 ## Template
 

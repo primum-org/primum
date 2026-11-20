@@ -2,13 +2,19 @@
 
 The API and, later, the engine reach the elements through a ``Controller``, never through the
 HAL. It makes a driver for each element, claims them all at once and keeps them by name. There
-are no sequences or manual layer yet: a command goes straight to the driver of its output,
-unless panic is active. Panic puts every output in its safe state and refuses commands until
-it is released. Inputs are listened to: ``read_inputs`` takes their changes from the HAL.
+are no sequences yet: a command goes straight to the driver of its output, unless panic is
+active. Panic puts every output in its safe state and refuses commands until it is released.
+Inputs are listened to: ``read_inputs`` takes their changes from the HAL.
+
+A command may be a test (test mode, decision 0006): given a duration, it expires on its own,
+and its output goes to rest. The controller keeps the deadlines on a monotonic clock it is
+given; whoever owns the event loop calls ``expire`` when the next one is due.
 
 Listeners are told the new ``State`` after every change; they must not block.
 """
 
+import logging
+import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
@@ -24,7 +30,15 @@ from primum_runtime.drivers import (
 from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.hal import Claim, Hal, InputSpec, OutputSpec, PwmSpec
 
+log = logging.getLogger(__name__)
+
 type Listener = Callable[[State], None]
+type Clock = Callable[[], float]  # seconds of a monotonic clock
+
+MS_PER_S = 1000
+# How long a test may last: long enough to look at a wire, never long enough to forget it.
+MIN_TEST_MS = 1_000
+MAX_TEST_MS = 300_000
 
 
 @dataclass(frozen=True)
@@ -36,6 +50,7 @@ class OutputState:
     on: bool
     level: float
     actions: tuple[str, ...]
+    remaining_ms: int | None = None  # of a test: until it expires and the output rests
 
 
 @dataclass(frozen=True)
@@ -64,6 +79,7 @@ class Controller:
         manifests: Mapping[str, Driver],
         limits: OptionLimits,
         before_claim: Callable[[Claim], None] | None = None,
+        clock: Clock = time.monotonic,
     ) -> None:
         """Make the driver of every element and claim them all at once. Outputs start in
         their safe state.
@@ -96,37 +112,83 @@ class Controller:
         self._inputs = {d.pin: d for d in drivers if isinstance(d, DigitalInputDriver)}
         self._panic = False
         self._listeners: list[Listener] = []
+        self._clock = clock
+        self._deadlines: dict[str, float] = {}  # when the test of each output expires
 
     def state(self) -> State:
         # One reading per output: its level may come from the hardware, and change.
         levels = {name: driver.level for name, driver in self._outputs.items()}
+        now = self._clock()
         outputs = tuple(
-            OutputState(name, levels[name] > 0, levels[name], driver.actions)
+            OutputState(
+                name, levels[name] > 0, levels[name], driver.actions, self._remaining_ms(name, now)
+            )
             for name, driver in self._outputs.items()
         )
         inputs = tuple(InputState(driver.name, driver.active) for driver in self._inputs.values())
         return State(outputs, inputs, self._panic)
 
-    def command(self, name: str, action: str, arguments: Mapping[str, Value] | None = None) -> None:
+    def command(
+        self,
+        name: str,
+        action: str,
+        arguments: Mapping[str, Value] | None = None,
+        duration_ms: int | None = None,
+    ) -> None:
         """Ask output ``name`` for one of the actions of its driver, as an instant command.
 
-        Fails with ``output.unknown`` (param ``name``), ``panic.active`` while panic is on, or
-        what the driver reports for the action and its arguments. Listeners are told when the
-        command was carried out, and also when the output did not follow it
-        (``element.level_not_reached``): its state is then the level it read back.
+        With ``duration_ms`` the command is a test: when that time has passed the output goes
+        to rest on its own (``expire``). Without it the output stays as the command leaves
+        it. Either way the command replaces a test of that output still under way.
+
+        Fails with ``output.unknown`` (param ``name``), ``panic.active`` while panic is on,
+        ``test.duration_out_of_range`` (``duration_ms``, ``min_ms``, ``max_ms``), or what the
+        driver reports for the action and its arguments. Listeners are told when the command
+        was carried out, and also when the output did not follow it
+        (``element.level_not_reached``): its state is then the level it read back, and a
+        test still expires, since the output was written.
         """
         output = self._outputs.get(name)
         if output is None:
             raise PrimumError(ErrorCode.OUTPUT_UNKNOWN, {"name": name})
         if self._panic:
             raise PrimumError(ErrorCode.PANIC_ACTIVE)
+        if duration_ms is not None and not MIN_TEST_MS <= duration_ms <= MAX_TEST_MS:
+            params = {"duration_ms": duration_ms, "min_ms": MIN_TEST_MS, "max_ms": MAX_TEST_MS}
+            raise PrimumError(ErrorCode.TEST_DURATION_OUT_OF_RANGE, params)
         try:
             output.command(action, arguments)
         except PrimumError as error:
             if error.code is ErrorCode.ELEMENT_LEVEL_NOT_REACHED:
+                self._set_deadline(name, duration_ms)
                 self._notify()
             raise
+        self._set_deadline(name, duration_ms)
         self._notify()
+
+    def next_expiry_s(self) -> float | None:
+        """In how many seconds ``expire`` next has something to do (0 if it already has);
+        ``None`` while no test is under way."""
+        if not self._deadlines:
+            return None
+        return max(0.0, min(self._deadlines.values()) - self._clock())
+
+    def expire(self) -> None:
+        """Send to rest every output whose test has run out; never blocks. An output that
+        fails to rest is logged, not raised: nobody is waiting for an answer, and the others
+        must still be sent. Listeners are told once, if any test expired."""
+        now = self._clock()
+        expired = [name for name, deadline in self._deadlines.items() if deadline <= now]
+        for name in expired:
+            del self._deadlines[name]
+            try:
+                self._outputs[name].rest()
+            except PrimumError as error:
+                log.error(
+                    "the test of %s expired and it could not be sent to rest: %s", name, error
+                )
+        if expired:
+            self._notify()
 
     def events_fd(self) -> int | None:
         """What to watch to know when ``read_inputs`` has something to read; ``None`` when
@@ -149,6 +211,7 @@ class Controller:
         some output fails; that failure is raised (``hal.safe_state_incomplete``).
         """
         self._panic = True
+        self._deadlines.clear()  # nothing is left to expire: everything rests now
         try:
             self._hal.apply_safe_state()
         finally:
@@ -165,6 +228,16 @@ class Controller:
         """Call ``listener`` with the new state after every change; returns an unsubscribe."""
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
+
+    def _set_deadline(self, name: str, duration_ms: int | None) -> None:
+        if duration_ms is None:
+            self._deadlines.pop(name, None)
+        else:
+            self._deadlines[name] = self._clock() + duration_ms / MS_PER_S
+
+    def _remaining_ms(self, name: str, now: float) -> int | None:
+        deadline = self._deadlines.get(name)
+        return None if deadline is None else max(0, round((deadline - now) * MS_PER_S))
 
     def _notify(self) -> None:
         state = self.state()

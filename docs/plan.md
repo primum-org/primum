@@ -605,8 +605,20 @@ tried on `primum-dev`** (decision 0021)
 - Tried here against the simulated service only, the page included. On the board, with an
   LED on the PWM pin: the slider, panic, and `kill -9` with the LED lit.
 
-**3.4c · Test mode**
-- Manual commands that expire on their own, above sequences and below panic (decision 0006).
+**3.4c · Test mode** · **done** (decision 0022, `specs/safety.md`)
+- A command with a duration is a test: it expires on its own and its output goes to rest.
+  From 1 s to 5 min (`test.duration_out_of_range`); a command without a duration stays, as
+  before. Panic ends every test.
+- The `Controller` keeps the deadlines on a monotonic clock it is given; the API arms one
+  timer of the event loop for the next one (`api/expiry.py`). The state says how long each
+  test has left, and the page has a *Test* button per output (on for 10 s) with a countdown.
+- Tried against the simulated service in a browser: the button, the countdown, a test of one
+  second expiring by the service's own timer, the switch ending a test, panic.
+- No arbiter: with no sequences, "returns to the layer below" (decision 0006) is "goes to
+  rest". For the engine (phase 4): expiry returns the output to what the sequences say, and
+  a command without a duration becomes manual control, a layer the arbiter must place too.
+- Found while trying it: the page showed the heading of the inputs with no inputs, since
+  3.3b (a `display` that overrode `hidden`). Fixed here.
 
 **Done when:** after `kill -9` of the service every output, PWM included, is in its safe state.
 

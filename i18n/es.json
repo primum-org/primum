@@ -7,6 +7,9 @@
     "output.toggle": "Encender o apagar {name}",
     "output.level": "{level} %",
     "output.level_of": "Nivel de {name}",
+    "output.test": "Probar",
+    "output.test_of": "Encender {name} {seconds} s y apagar",
+    "output.testing": "Prueba: se apaga en {seconds} s",
     "inputs.heading": "Entradas",
     "input.active": "Activa",
     "input.inactive": "Inactiva",
@@ -155,6 +158,10 @@
     "safe.declaration_invalid": {
       "message": "La nota de las salidas que Primum estaba usando no se puede leer, así que no se han llevado a su estado seguro.",
       "hint": "Revisa las salidas a mano, luego borra ese fichero y reinicia el servicio."
+    },
+    "test.duration_out_of_range": {
+      "message": "Una orden no puede caducar a los {duration_ms} ms.",
+      "hint": "Una prueba dura de {min_ms} a {max_ms} ms: de un segundo a cinco minutos."
     },
     "output.unknown": {
       "message": "No hay ninguna salida llamada {name}.",

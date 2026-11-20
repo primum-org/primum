@@ -2,7 +2,7 @@
 
 What Primum guarantees about its outputs when things go wrong, and how. Why: decisions 0006
 (panic above everything), 0010 and 0015 (the HAL's safe state) and 0020 (after a crash). This
-spec grows with block 3.4: test mode is not here yet.
+last section is test mode.
 
 ## The safe state
 
@@ -91,6 +91,32 @@ Seen on `primum-dev` (Raspberry Pi 4, kernel 6.18): `READY=1` reaches systemd fr
 lifespan, `ExecStopPost=` runs after the watchdog kills the service, and `primum-safe` takes
 about 0.34 s. The first run of this procedure found what rows 2, 3 and 6 say; with the fixes
 for them, the whole procedure and the `hw` tests pass, as the owner of the board reports.
+
+## Test mode
+
+A command may be a test: given a duration, it expires on its own and its output goes to rest
+(the safe-state action of its driver), so that an output switched on to check a wire is not
+left on by forgetting it. It is the layer between panic and sequences of decision 0006; with
+no sequences yet (phase 4) there is nothing under it to return to but rest.
+
+- A test lasts from 1 s to 5 min (`durationMs`, 1000 to 300000); outside that it is
+  `test.duration_out_of_range` (`duration_ms`, `min_ms`, `max_ms`), and nothing is commanded.
+- Any action can be a test: `on` for ten seconds, a level for five.
+- A command without a duration is not a test: the output stays as it leaves it. Either kind
+  of command replaces a test of that output still under way, with its own time or with none.
+- When it expires the output is sent to rest and read back, as by any command. If that fails
+  it is logged; the other outputs still expire.
+- Panic ends every test at once; releasing it brings nothing back.
+- If the output did not follow the command (`element.level_not_reached`) the test still
+  expires: the output was written.
+- If the service dies with a test under way, `primum-safe` puts the output in its safe state,
+  as any other.
+
+Time is the monotonic clock's. The controller keeps the deadlines and the event loop wakes it
+for the next one: no thread and no polling. The state says how long each test has left
+(`remainingMs`); the page counts down from there on its own clock.
+
+On the page each output has a *Test* button: on for 10 s, then off.
 
 ## Not covered
 

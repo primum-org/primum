@@ -26,12 +26,12 @@ WITH_BUTTON = parse_config(
 )
 SWITCH = ["on", "off"]
 OFF = {
-    "outputs": [{"name": LED, "on": False, "level": 0, "actions": SWITCH}],
+    "outputs": [{"name": LED, "on": False, "level": 0, "actions": SWITCH, "remainingMs": None}],
     "inputs": [],
     "panic": False,
 }
 ON = {
-    "outputs": [{"name": LED, "on": True, "level": 100, "actions": SWITCH}],
+    "outputs": [{"name": LED, "on": True, "level": 100, "actions": SWITCH, "remainingMs": None}],
     "inputs": [],
     "panic": False,
 }
@@ -380,6 +380,7 @@ def test_a_pwm_output_is_reported_with_its_level_and_what_it_can_be_asked(
         "on": False,
         "level": 0,
         "actions": LEVEL,
+        "remainingMs": None,
     }
 
 
@@ -391,7 +392,13 @@ def test_setting_a_level_drives_the_channel_and_returns_the_new_state(
     response = dimmer_client.put(f"/api/outputs/{DIMMER}", json=body)
 
     assert response.status_code == 200
-    assert _dimmer(response.json()) == {"name": DIMMER, "on": True, "level": 40, "actions": LEVEL}
+    assert _dimmer(response.json()) == {
+        "name": DIMMER,
+        "on": True,
+        "level": 40,
+        "actions": LEVEL,
+        "remainingMs": None,
+    }
     assert hal.pwm_lines[DIMMER_PIN].duty == 0.4
 
 
@@ -477,3 +484,48 @@ def test_a_real_service_declares_its_pwm_output_with_its_frequency(
         (OutputSpec(pin=PIN, active_low=False),),
         (PwmSpec(pin=DIMMER_PIN, frequency_hz=25_000),),
     )
+
+
+# --- test mode: a command that expires on its own -------------------------------------------
+
+
+def test_a_command_with_a_duration_is_a_test_and_says_how_long_is_left(
+    client: TestClient, hal: SimulatedHal
+) -> None:
+    response = client.put(f"/api/outputs/{LED}", json={"action": "on", "durationMs": 10_000})
+
+    (led,) = response.json()["outputs"]
+    assert response.status_code == 200
+    assert hal.lines[PIN].active
+    assert 9_000 < led["remainingMs"] <= 10_000
+
+
+def test_a_command_without_a_duration_ends_a_test_and_stays(client: TestClient) -> None:
+    client.put(f"/api/outputs/{LED}", json={"action": "on", "durationMs": 10_000})
+
+    response = client.put(f"/api/outputs/{LED}", json={"action": "on"})
+
+    assert response.json() == ON
+
+
+@pytest.mark.parametrize("duration_ms", [0, 999, 300_001])
+def test_a_duration_outside_what_a_test_may_last_is_the_caller_s_mistake(
+    client: TestClient, hal: SimulatedHal, duration_ms: int
+) -> None:
+    body = {"action": "on", "durationMs": duration_ms}
+
+    response = client.put(f"/api/outputs/{LED}", json=body)
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "code": "test.duration_out_of_range",
+        "params": {"duration_ms": duration_ms, "min_ms": 1_000, "max_ms": 300_000},
+    }
+    assert not hal.lines[PIN].active
+
+
+def test_a_duration_that_is_not_a_whole_number_is_an_invalid_request(client: TestClient) -> None:
+    response = client.put(f"/api/outputs/{LED}", json={"action": "on", "durationMs": "10 s"})
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "request.invalid"

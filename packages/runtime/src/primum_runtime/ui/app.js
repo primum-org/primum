@@ -7,6 +7,9 @@ import { loadIcons } from "./icons.js";
 
 const RECONNECT_MIN_MS = 1000;
 const RECONNECT_MAX_MS = 10000;
+// A test from the page: the output goes on, and off on its own after this long.
+const TEST_MS = 10000;
+const COUNTDOWN_STEP_MS = 250;
 
 const page = {
   connection: document.getElementById("connection"),
@@ -47,6 +50,7 @@ function render() {
     const word = output.on ? catalog.t("output.on") : catalog.t("output.off");
     button.querySelector(".switch-state").textContent = online ? word : "";
     button.disabled = !online || state.panic;
+    renderTest(output);
     renderLevel(output);
   }
   const inputs = state?.inputs ?? [];
@@ -59,6 +63,26 @@ function render() {
     shown.dataset.active = String(online && input.active);
   }
 }
+
+// A test under way shows how long is left. The service says it once, with the state; the
+// page counts down from there on its own clock, and never past zero.
+function renderTest(output) {
+  const row = rowFor(output.name);
+  row.querySelector(".test").disabled = !online || state.panic;
+  const testing = online && output.remainingMs !== null;
+  row.dataset.testUntil = testing ? String(performance.now() + output.remainingMs) : "";
+  countDown(row);
+}
+
+function countDown(row) {
+  const shown = row.querySelector(".testing");
+  shown.hidden = row.dataset.testUntil === "";
+  if (shown.hidden) return;
+  const left = Math.max(0, Number(row.dataset.testUntil) - performance.now());
+  shown.textContent = catalog.t("output.testing", { seconds: Math.ceil(left / 1000) });
+}
+
+setInterval(() => page.outputs.querySelectorAll("[data-output]").forEach(countDown), COUNTDOWN_STEP_MS);
 
 // An output that can be set to a level (its driver has the action "set") gets a slider. While
 // a finger is on it, the slider is the person's: a state that arrives does not move it.
@@ -105,6 +129,10 @@ function rowFor(name) {
   const button = row.querySelector(".switch");
   button.setAttribute("aria-label", catalog.t("output.toggle", { name }));
   button.addEventListener("click", () => ask(name, button.getAttribute("aria-pressed") === "true" ? "off" : "on"));
+  const test = row.querySelector(".test");
+  test.textContent = catalog.t("output.test");
+  test.setAttribute("aria-label", catalog.t("output.test_of", { name, seconds: TEST_MS / 1000 }));
+  test.addEventListener("click", () => ask(name, "on", {}, TEST_MS));
   const slider = row.querySelector(".level-slider");
   slider.setAttribute("aria-label", catalog.t("output.level_of", { name }));
   // Moving the slider only shows the number; the level is asked for once, on letting go: of
@@ -177,8 +205,9 @@ async function command(method, path, body) {
 }
 
 // Ask an output for one of the actions of its driver, with the arguments it takes by name.
-const ask = (name, action, args = {}) =>
-  command("PUT", `outputs/${encodeURIComponent(name)}`, { action, arguments: args });
+// With a duration it is a test: the output goes to rest on its own when it has passed.
+const ask = (name, action, args = {}, durationMs = null) =>
+  command("PUT", `outputs/${encodeURIComponent(name)}`, { action, arguments: args, durationMs });
 
 page.panic.addEventListener("click", () => command("POST", "panic"));
 page.releasePanic.addEventListener("click", () => command("DELETE", "panic"));

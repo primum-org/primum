@@ -194,7 +194,8 @@ logs. The state is still right.
 
 Over the API (decision 0021) an output is asked for an action the same way: `PUT
 /api/outputs/{name}` with `{"action": "set", "arguments": {"level": 40}}`. The state gives
-each output's `level` and the `actions` it has. The codes above for what an output cannot do
+each output's `level` and the `actions` it has. With `durationMs` the command is a test and
+expires on its own ([safety](safety.md)). The codes above for what an output cannot do
 or take are answered with a 422; `element.level_not_reached` with a 500.
 
 The HAL also refuses a PWM frequency outside what the board takes
