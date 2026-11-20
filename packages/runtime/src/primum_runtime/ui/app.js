@@ -67,7 +67,12 @@ function renderLevel(output) {
   level.hidden = !output.actions.includes("set");
   if (level.hidden) return;
   const slider = level.querySelector(".level-slider");
-  slider.disabled = !online || state.panic;
+  const refused = !online || state.panic;
+  // A slider taken from the person's hand (panic, or the connection lost) lets go without
+  // asking for anything: before it is disabled, since disabling it blurs it, and a blur is
+  // a way of letting go.
+  if (refused) slider.dataset.held = "false";
+  slider.disabled = refused;
   if (slider.dataset.held === "true") return;
   slider.dataset.asked = ""; // answered: the service's level is what counts from here on
   slider.value = String(Math.round(output.level));
@@ -107,7 +112,7 @@ function rowFor(name) {
   // one per step of a held key, and none when the slider comes back to where it was.
   const hold = () => { slider.dataset.held = "true"; };
   const letGo = async () => {
-    if (slider.dataset.held !== "true") return;
+    if (slider.dataset.held !== "true" || slider.disabled) return;
     slider.dataset.held = "false";
     const wanted = Number(slider.value);
     if (wanted !== shownLevel(name)) {
@@ -126,6 +131,8 @@ function rowFor(name) {
   // unless letting go has just asked for that very level (a browser sends "change" then too).
   slider.addEventListener("change", () => {
     if (slider.dataset.held === "true" || slider.dataset.asked === slider.value) return;
+    // Disabled in the middle of a drag, a browser sends "change" as well: nobody asked.
+    if (slider.disabled) return;
     ask(name, "set", { level: Number(slider.value) });
   });
   page.outputs.append(row);

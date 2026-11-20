@@ -22,7 +22,8 @@ outputs with the actions of their drivers' manifests (decision 0019).
 - **The page asks for a level once, on letting go of the slider**, not while it moves:
   of the pointer, of a key held down, or of the slider itself. Not on the browser's
   `change`, which comes once per step of a held key and not at all when the slider is
-  brought back to where it was.
+  brought back to where it was. A slider taken from the person's hand (panic, the
+  connection lost) lets go without asking for anything.
 
 ## Alternatives considered
 - **Widening the old body** (`{"on": true}` or `{"level": 40}`): enough for the page today,
