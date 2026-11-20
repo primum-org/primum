@@ -33,6 +33,7 @@ fi
 
 proc=${PROC:-/proc}
 found=()
+exported=()
 
 for fd in "$proc"/[0-9]*/fd/*; do
   [[ -L $fd ]] || continue
@@ -55,6 +56,7 @@ if $check_pwm; then
     [[ -d $channel ]] || continue
     chip=${channel%/*}
     found+=("PWM channel ${channel##*/pwm} of ${chip##*/} is in use (exported)")
+    exported+=("echo ${channel##*/pwm} | sudo tee $chip/unexport")
   done
 fi
 
@@ -62,5 +64,11 @@ if ((${#found[@]})); then
   echo "Other software drives GPIO on this board, so Primum must not run here:" >&2
   printf '  - %s\n' "${found[@]}" | sort -u >&2
   echo "Use a Pi (or an SD card) for Primum only. See docs/decisions/0010." >&2
+  if ((${#exported[@]})); then
+    # Primum's own runtime leaves a channel like this when it is started by hand and killed:
+    # nothing ran primum-safe for it.
+    echo "If no other program uses PWM here, free each channel and start again (or reboot):" >&2
+    printf '  %s\n' "${exported[@]}" >&2
+  fi
   exit 1
 fi

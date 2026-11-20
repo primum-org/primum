@@ -586,7 +586,11 @@ tried on `primum-dev`** (decision 0021)
 - What an output cannot do or take is the caller's mistake: `element.action_unknown` and
   `element.value_unknown`, `_missing`, `_invalid` and `_out_of_range` are 422.
 - The page shows a slider for an output that can be `set`; the level is asked for once, on
-  letting go, and a state that arrives does not move a slider that is held.
+  letting go (of the pointer, of a held key, of the slider), and a state that arrives does
+  not move a slider that is held. Tried in a browser, by hand of a script, not by a test of
+  the repository: the page's script has none but its catalogs'.
+- A PWM output reports the level its controller holds, in whole nanoseconds of the period:
+  a level under one step is 0, not "on".
 - `check-gpio-users.sh --pwm` refuses a board where a PWM channel is already exported; the
   unit runs it after `primum-safe`, which unexports what a crash of Primum left, so one still
   exported is someone else's. Provisioning runs it without `--pwm`: the running service

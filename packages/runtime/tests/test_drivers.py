@@ -218,6 +218,16 @@ def test_at_the_highest_frequency_a_level_under_one_step_does_not_pass_for_anoth
     assert raised.value.code == "element.level_not_reached"
 
 
+def test_a_level_under_one_step_is_reported_as_the_0_the_pin_gets() -> None:
+    """At 1 kHz a step is a millionth: a hundred-millionth of a level rounds to 0 ns."""
+    driver, hal = _output(DIMMER)
+
+    driver.command("set", {"level": 1e-8})
+
+    assert hal.pwm_lines[18].read() == 0.0
+    assert driver.level == 0.0
+
+
 def test_a_number_that_nothing_limits_is_refused_by_the_driver_too() -> None:
     """As ``core`` does: without the board's limit any frequency would reach the HAL."""
     with pytest.raises(PrimumError) as raised:

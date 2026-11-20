@@ -19,7 +19,10 @@ outputs with the actions of their drivers' manifests (decision 0019).
 - **What the caller got wrong is a 422**, with the code and the params the driver gives: an
   action the output does not have, an argument it does not take, one that is missing, of
   another type or outside its limits. An output that does not follow a command stays a 500.
-- **The page asks for a level once, on letting go of the slider**, not while it moves.
+- **The page asks for a level once, on letting go of the slider**, not while it moves:
+  of the pointer, of a key held down, or of the slider itself. Not on the browser's
+  `change`, which comes once per step of a held key and not at all when the slider is
+  brought back to where it was.
 
 ## Alternatives considered
 - **Widening the old body** (`{"on": true}` or `{"level": 40}`): enough for the page today,

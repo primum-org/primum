@@ -69,12 +69,17 @@ function renderLevel(output) {
   const slider = level.querySelector(".level-slider");
   slider.disabled = !online || state.panic;
   if (slider.dataset.held === "true") return;
+  slider.dataset.asked = ""; // answered: the service's level is what counts from here on
   slider.value = String(Math.round(output.level));
   // Offline the last level may be stale: no number, as a switch has no word.
   level.querySelector(".level-value").textContent = online ? levelText(slider.value) : "";
 }
 
 const levelText = (level) => catalog.t("output.level", { level });
+
+// The level of an output as the slider shows it: whole, as the service last reported it.
+const shownLevel = (name) =>
+  Math.round(state?.outputs.find((output) => output.name === name)?.level ?? 0);
 
 function inputRowFor(name) {
   const existing = page.inputs.querySelector(`[data-input="${CSS.escape(name)}"]`);
@@ -97,15 +102,31 @@ function rowFor(name) {
   button.addEventListener("click", () => ask(name, button.getAttribute("aria-pressed") === "true" ? "off" : "on"));
   const slider = row.querySelector(".level-slider");
   slider.setAttribute("aria-label", catalog.t("output.level_of", { name }));
-  // Moving the slider only shows the number; the level is asked for once, on letting go.
+  // Moving the slider only shows the number; the level is asked for once, on letting go: of
+  // the pointer, of the key, or of the slider altogether. Never on "change": a browser sends
+  // one per step of a held key, and none when the slider comes back to where it was.
+  const hold = () => { slider.dataset.held = "true"; };
+  const letGo = async () => {
+    if (slider.dataset.held !== "true") return;
+    slider.dataset.held = "false";
+    const wanted = Number(slider.value);
+    if (wanted !== shownLevel(name)) {
+      slider.dataset.asked = String(wanted);
+      await ask(name, "set", { level: wanted });
+    }
+    render(); // whatever came of it, the slider shows the level the service reports
+  };
+  slider.addEventListener("pointerdown", hold);
+  slider.addEventListener("keydown", hold);
+  for (const end of ["pointerup", "pointercancel", "keyup", "blur"]) slider.addEventListener(end, letGo);
   slider.addEventListener("input", () => {
-    slider.dataset.held = "true";
     row.querySelector(".level-value").textContent = levelText(slider.value);
   });
-  slider.addEventListener("change", async () => {
-    await ask(name, "set", { level: Number(slider.value) });
-    slider.dataset.held = "false";
-    render(); // whatever came of it, the slider shows the level the service reports
+  // Changed with nothing held (assistive technology sets a value at once): ask for it,
+  // unless letting go has just asked for that very level (a browser sends "change" then too).
+  slider.addEventListener("change", () => {
+    if (slider.dataset.held === "true" || slider.dataset.asked === slider.value) return;
+    ask(name, "set", { level: Number(slider.value) });
   });
   page.outputs.append(row);
   return row;

@@ -99,7 +99,6 @@ class Controller:
 
     def state(self) -> State:
         # One reading per output: its level may come from the hardware, and change.
-        # One reading per output: its level may come from the hardware, and change.
         levels = {name: driver.level for name, driver in self._outputs.items()}
         outputs = tuple(
             OutputState(name, levels[name] > 0, levels[name], driver.actions)

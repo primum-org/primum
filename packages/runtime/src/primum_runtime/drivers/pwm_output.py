@@ -20,7 +20,10 @@ class PwmOutputDriver(OutputDriver):
         self._output = hal.pwms[self.pin]
 
     def _written(self) -> float:
-        return self._output.duty * MAX_LEVEL
+        """The level the controller holds for what was written: in whole nanoseconds of the
+        period, so a level under one step is 0, and is reported as 0, not as on."""
+        period_ns = NS_PER_S // self._frequency_hz()
+        return round(self._output.duty * period_ns) / period_ns * MAX_LEVEL
 
     def _write(self, level: float) -> None:
         self._output.set(level / MAX_LEVEL)

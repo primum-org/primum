@@ -102,4 +102,6 @@ for them, the whole procedure and the `hw` tests pass, as the owner of the board
   `primum-safe` is killed together with the service. An output that must never stay on that long needs
   hardware that fails safe on its own.
 - A broken installation: `primum-safe` runs from the same environment as the service.
-- A service started by hand, without systemd: nothing runs `primum-safe` for it.
+- A service started by hand, without systemd: nothing runs `primum-safe` for it. If it is
+  killed with a PWM output running, the channel stays exported and the unit then refuses to
+  start; `check-gpio-users.sh` says how to free it.

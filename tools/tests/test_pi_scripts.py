@@ -62,6 +62,8 @@ def test_check_gpio_users_names_a_pwm_channel_already_exported_when_asked(tmp_pa
 
     assert result.returncode == 1
     assert "PWM channel 1 of pwmchip0 is in use (exported)" in result.stderr
+    # And the way out, for a channel Primum's own runtime left when started by hand.
+    assert f"echo 1 | sudo tee {sysfs}/pwmchip0/unexport" in result.stderr
 
 
 def test_check_gpio_users_takes_a_controller_with_no_channel_exported(tmp_path: Path) -> None:
@@ -225,6 +227,9 @@ def test_the_unit_runs_primum_safe_after_every_stop_and_has_a_watchdog() -> None
     # channel still exported someone else's.
     safe = unit.index("ExecStartPre=/opt/primum/venv/bin/primum-safe\n")
     assert safe < unit.index("ExecStartPre=+/opt/primum/app/image/check-gpio-users.sh --pwm\n")
+    # And other GPIO software is looked for before primum-safe: a line someone else holds is
+    # then reported as that, not as primum-safe failing on it.
+    assert unit.index("ExecStartPre=+/opt/primum/app/image/check-gpio-users.sh\n") < safe
     assert "Type=notify\n" in unit
     assert "WatchdogSec=10\n" in unit
     assert 'primum-safe = "primum_runtime.safe:main"' in scripts
