@@ -115,12 +115,25 @@ main {
 
 .output {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
   min-height: var(--size-row-touch);
   border-bottom: var(--size-rule-md) solid var(--rule);
 }
 .output-name { flex: 1; font-family: var(--font-family-mono); }
+/* The level of an output that takes one: a row of its own under the switch. */
+.level {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-touch-target);
+}
+.level[hidden] { display: none; }
+.level-slider { flex: 1; min-height: var(--size-touch-target); accent-color: var(--color-brand-primary); }
+.level-slider:disabled { cursor: not-allowed; opacity: 0.45; }
+.level-value { min-width: 4em; text-align: end; font-family: var(--font-family-mono); }
 .input-state { padding: 0 var(--space-2); }
 .input-state[data-active="true"] { font-weight: 600; }
 

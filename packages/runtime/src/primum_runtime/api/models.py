@@ -1,6 +1,6 @@
 """Request and response bodies of the HTTP API (pydantic at this edge only, decision 0008)."""
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from primum_runtime.control import State
 from primum_runtime.errors import ErrorParam
@@ -12,12 +12,18 @@ class _Body(BaseModel):
 
 
 class OutputCommand(_Body):
-    on: bool
+    """One of the actions of the output's driver, with the arguments it takes by name:
+    ``{"action": "on"}``, ``{"action": "set", "arguments": {"level": 40}}``."""
+
+    action: str
+    arguments: dict[str, int | float | bool | str] = Field(default_factory=dict)
 
 
 class OutputStateBody(_Body):
     name: str
     on: bool
+    level: float
+    actions: list[str]
 
 
 class InputStateBody(_Body):
@@ -32,7 +38,12 @@ class StateBody(_Body):
 
     @classmethod
     def of(cls, state: State) -> "StateBody":
-        outputs = [OutputStateBody(name=output.name, on=output.on) for output in state.outputs]
+        outputs = [
+            OutputStateBody(
+                name=output.name, on=output.on, level=output.level, actions=list(output.actions)
+            )
+            for output in state.outputs
+        ]
         inputs = [InputStateBody(name=item.name, active=item.active) for item in state.inputs]
         return cls(outputs=outputs, inputs=inputs, panic=state.panic)
 

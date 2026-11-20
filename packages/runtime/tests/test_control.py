@@ -17,6 +17,8 @@ LAMP = ElementConfig("lamp", "digital_output", 27, active_low=False)
 DIMMER = ElementConfig("dimmer", "pwm_output", 18, active_low=False)
 BUTTON = ElementConfig("button", "digital_input", 22, active_low=True, options={"pull": "up"})
 SPECS = (LED, LAMP)
+SWITCH = ("on", "off")  # what a digital output can be asked for
+LEVEL = ("on", "off", "set", "fade")  # and a PWM output
 
 
 @pytest.fixture
@@ -32,7 +34,10 @@ def test_outputs_start_off_in_configuration_order(hal: SimulatedHal) -> None:
     controller = _controller(hal)
 
     assert controller.state() == State(
-        (OutputState("led", on=False, level=0), OutputState("lamp", on=False, level=0)),
+        (
+            OutputState("led", on=False, level=0, actions=SWITCH),
+            OutputState("lamp", on=False, level=0, actions=SWITCH),
+        ),
         inputs=(),
         panic=False,
     )
@@ -43,18 +48,18 @@ def test_set_output_drives_the_line_and_notifies_the_new_state(hal: SimulatedHal
     states: list[State] = []
     controller.subscribe(states.append)
 
-    controller.set_output("led", True)
+    controller.command("led", "on")
 
     assert hal.lines[17].active
     assert states == [controller.state()]
-    assert states[0].outputs[0] == OutputState("led", on=True, level=100)
+    assert states[0].outputs[0] == OutputState("led", on=True, level=100, actions=SWITCH)
 
 
 def test_unknown_output_raises_output_unknown(hal: SimulatedHal) -> None:
     controller = _controller(hal)
 
     with pytest.raises(PrimumError) as raised:
-        controller.set_output("fan", True)
+        controller.command("fan", "on")
 
     assert raised.value.code == "output.unknown"
     assert raised.value.params == {"name": "fan"}
@@ -62,14 +67,14 @@ def test_unknown_output_raises_output_unknown(hal: SimulatedHal) -> None:
 
 def test_panic_turns_every_output_off_and_refuses_commands(hal: SimulatedHal) -> None:
     controller = _controller(hal)
-    controller.set_output("led", True)
+    controller.command("led", "on")
 
     controller.panic()
 
     assert not hal.lines[17].active
     assert controller.state().panic
     with pytest.raises(PrimumError) as raised:
-        controller.set_output("led", True)
+        controller.command("led", "on")
     assert raised.value.code == "panic.active"
     assert not hal.lines[17].active
 
@@ -80,7 +85,7 @@ def test_release_panic_accepts_commands_again_with_outputs_still_off(hal: Simula
 
     controller.release_panic()
     state_after_release = controller.state()
-    controller.set_output("led", True)
+    controller.command("led", "on")
 
     assert not state_after_release.panic
     assert not any(output.on for output in state_after_release.outputs)
@@ -89,7 +94,7 @@ def test_release_panic_accepts_commands_again_with_outputs_still_off(hal: Simula
 
 def test_panic_stays_latched_and_notified_when_the_safe_state_fails(hal: SimulatedHal) -> None:
     controller = _controller(hal)
-    controller.set_output("led", True)
+    controller.command("led", "on")
     hal.lines[17].fail_writes(OSError(5, "I/O error"))
     states: list[State] = []
     controller.subscribe(states.append)
@@ -108,7 +113,7 @@ def test_unsubscribed_listener_is_not_called(hal: SimulatedHal) -> None:
     unsubscribe = controller.subscribe(states.append)
 
     unsubscribe()
-    controller.set_output("led", True)
+    controller.command("led", "on")
 
     assert states == []
 
@@ -120,7 +125,10 @@ def test_every_kind_of_element_is_claimed_at_once_through_its_driver(hal: Simula
     assert set(hal.pwm_lines) == {18}
     assert set(hal.input_lines) == {22}
     assert controller.state() == State(
-        (OutputState("led", on=False, level=0), OutputState("dimmer", on=False, level=0)),
+        (
+            OutputState("led", on=False, level=0, actions=SWITCH),
+            OutputState("dimmer", on=False, level=0, actions=LEVEL),
+        ),
         (InputState("button", active=False),),
         panic=False,
     )
@@ -132,7 +140,7 @@ def test_a_command_is_an_action_of_the_driver_with_its_arguments(hal: SimulatedH
     controller.command("dimmer", "set", {"level": 25})
 
     assert hal.pwm_lines[18].duty == 0.25
-    assert controller.state().outputs == (OutputState("dimmer", on=True, level=25),)
+    assert controller.state().outputs == (OutputState("dimmer", on=True, level=25, actions=LEVEL),)
 
 
 def test_an_action_the_output_does_not_have_changes_nothing(hal: SimulatedHal) -> None:
@@ -164,7 +172,7 @@ def test_panic_takes_a_pwm_output_to_0_too(hal: SimulatedHal) -> None:
     controller.panic()
 
     assert hal.pwm_lines[18].duty == 0.0
-    assert controller.state().outputs[1] == OutputState("dimmer", on=False, level=0)
+    assert controller.state().outputs[1] == OutputState("dimmer", on=False, level=0, actions=LEVEL)
 
 
 def test_reading_the_inputs_takes_their_changes_and_notifies_once(hal: SimulatedHal) -> None:
@@ -228,10 +236,10 @@ def test_an_output_that_does_not_follow_is_reported_as_it_reads_and_listeners_ar
     controller.subscribe(states.append)
 
     with pytest.raises(PrimumError) as raised:
-        controller.set_output("led", True)
+        controller.command("led", "on")
 
     assert raised.value.code == "element.level_not_reached"
-    assert controller.state().outputs[0] == OutputState("led", on=False, level=0)
+    assert controller.state().outputs[0] == OutputState("led", on=False, level=0, actions=SWITCH)
     assert states == [controller.state()]
 
 
@@ -242,19 +250,19 @@ def test_a_pwm_output_that_does_not_follow_reports_the_level_it_reads(hal: Simul
     with pytest.raises(PrimumError):
         controller.command("dimmer", "set", {"level": 80})
 
-    assert controller.state().outputs == (OutputState("dimmer", on=True, level=20),)
+    assert controller.state().outputs == (OutputState("dimmer", on=True, level=20, actions=LEVEL),)
 
 
 def test_the_next_command_that_is_followed_says_what_it_did(hal: SimulatedHal) -> None:
     controller = _controller(hal)
     hal.lines[17].stick(False)
     with pytest.raises(PrimumError):
-        controller.set_output("led", True)
+        controller.command("led", "on")
     hal.lines[17].stick(None)
 
-    controller.set_output("led", True)
+    controller.command("led", "on")
 
-    assert controller.state().outputs[0] == OutputState("led", on=True, level=100)
+    assert controller.state().outputs[0] == OutputState("led", on=True, level=100, actions=SWITCH)
 
 
 def test_panic_after_an_output_did_not_follow_reports_its_safe_state(hal: SimulatedHal) -> None:
@@ -266,17 +274,17 @@ def test_panic_after_an_output_did_not_follow_reports_its_safe_state(hal: Simula
 
     controller.panic()
 
-    assert controller.state().outputs == (OutputState("dimmer", on=False, level=0),)
+    assert controller.state().outputs == (OutputState("dimmer", on=False, level=0, actions=LEVEL),)
 
 
 def test_a_reading_from_before_panic_does_not_outlive_it(hal: SimulatedHal) -> None:
     """Off is asked and the line stays on; it recovers, and panic turns it off. Panic writes
     the same level the failed command did, and the state must still say what the line reads."""
     controller = _controller(hal)
-    controller.set_output("led", True)
+    controller.command("led", "on")
     hal.lines[17].stick(True)
     with pytest.raises(PrimumError):
-        controller.set_output("led", False)
+        controller.command("led", "off")
     assert controller.state().outputs[0].on
     hal.lines[17].stick(None)
 
@@ -293,24 +301,24 @@ def test_an_output_that_recovers_on_its_own_is_reported_as_it_now_reads(hal: Sim
     controller = _controller(hal)
     hal.lines[17].stick(False)
     with pytest.raises(PrimumError):
-        controller.set_output("led", True)
+        controller.command("led", "on")
     assert not controller.state().outputs[0].on
 
     hal.lines[17].stick(None)
 
-    assert controller.state().outputs[0] == OutputState("led", on=True, level=100)
+    assert controller.state().outputs[0] == OutputState("led", on=True, level=100, actions=SWITCH)
 
 
 def test_the_state_can_still_be_told_after_the_hal_is_closed(hal: SimulatedHal) -> None:
     controller = _controller(hal)
     hal.lines[17].stick(False)
     with pytest.raises(PrimumError):
-        controller.set_output("led", True)
+        controller.command("led", "on")
     hal.lines[17].stick(None)
 
     hal.close()
 
-    assert controller.state().outputs[0] == OutputState("led", on=False, level=0)
+    assert controller.state().outputs[0] == OutputState("led", on=False, level=0, actions=SWITCH)
 
 
 def _unsure_led_whose_reads_fail(hal: SimulatedHal) -> Controller:
@@ -318,7 +326,7 @@ def _unsure_led_whose_reads_fail(hal: SimulatedHal) -> Controller:
     controller = _controller(hal)
     hal.lines[17].stick(False)
     with pytest.raises(PrimumError):
-        controller.set_output("led", True)
+        controller.command("led", "on")
     hal.lines[17].fail_reads(OSError(5, "I/O error"))
     return controller
 
@@ -330,7 +338,9 @@ def test_a_level_that_cannot_be_read_does_not_break_the_state(
 
     state = controller.state()
 
-    assert state.outputs[0] == OutputState("led", on=True, level=100)  # what was written
+    assert state.outputs[0] == OutputState(
+        "led", on=True, level=100, actions=SWITCH
+    )  # what was written
     assert "led" in caplog.text
     assert "I/O error" in caplog.text
 
@@ -351,8 +361,8 @@ def test_on_and_level_come_from_one_reading(hal: SimulatedHal) -> None:
     controller = _controller(hal)
     hal.lines[17].stick(False)
     with pytest.raises(PrimumError):
-        controller.set_output("led", True)
+        controller.command("led", "on")
     readings = iter([True, False])
     hal.lines[17].read = lambda: next(readings)  # type: ignore[method-assign]  # a line that flickers
 
-    assert controller.state().outputs[0] == OutputState("led", on=True, level=100)
+    assert controller.state().outputs[0] == OutputState("led", on=True, level=100, actions=SWITCH)

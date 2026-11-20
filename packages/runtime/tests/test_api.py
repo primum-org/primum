@@ -10,10 +10,10 @@ from fastapi.testclient import TestClient
 from primum_runtime import declared
 from primum_runtime.api import create_app
 from primum_runtime.board import load_board
-from primum_runtime.config import BUTTON, LED, RuntimeConfig, parse_config
+from primum_runtime.config import BUTTON, DIMMER, LED, RuntimeConfig, parse_config
 from primum_runtime.declared import Declaration
 from primum_runtime.errors import PrimumError
-from primum_runtime.hal import Claim, OutputSpec, SimulatedHal
+from primum_runtime.hal import Claim, OutputSpec, PwmSpec, SimulatedHal
 
 BOARD = load_board("rpi4b")
 
@@ -24,8 +24,17 @@ WITH_BUTTON = parse_config(
     [*("--simulate", "--pin", str(PIN)), *("--input-pin", str(BUTTON_PIN), "--input-pull", "up")],
     {},
 )
-OFF = {"outputs": [{"name": LED, "on": False}], "inputs": [], "panic": False}
-ON = {"outputs": [{"name": LED, "on": True}], "inputs": [], "panic": False}
+SWITCH = ["on", "off"]
+OFF = {
+    "outputs": [{"name": LED, "on": False, "level": 0, "actions": SWITCH}],
+    "inputs": [],
+    "panic": False,
+}
+ON = {
+    "outputs": [{"name": LED, "on": True, "level": 100, "actions": SWITCH}],
+    "inputs": [],
+    "panic": False,
+}
 
 
 @pytest.fixture
@@ -49,20 +58,30 @@ def test_status_reports_every_output_off_after_start(client: TestClient) -> None
 def test_put_output_turns_the_line_on_and_returns_the_new_state(
     client: TestClient, hal: SimulatedHal
 ) -> None:
-    response = client.put(f"/api/outputs/{LED}", json={"on": True})
+    response = client.put(f"/api/outputs/{LED}", json={"action": "on"})
 
     assert response.json() == ON
     assert hal.lines[PIN].active
 
 
 def test_unknown_output_is_404_with_its_code(client: TestClient) -> None:
-    response = client.put("/api/outputs/fan", json={"on": True})
+    response = client.put("/api/outputs/fan", json={"action": "on"})
 
     assert response.status_code == 404
     assert response.json() == {"code": "output.unknown", "params": {"name": "fan"}}
 
 
-@pytest.mark.parametrize("body", [{"on": "yes"}, {"on": 1}, {}, {"on": True, "blink": True}])
+@pytest.mark.parametrize(
+    "body",
+    [
+        {},
+        {"on": True},
+        {"action": 1},
+        {"action": "on", "blink": True},
+        {"action": "on", "arguments": [40]},
+        {"action": "on", "arguments": {"level": [40]}},
+    ],
+)
 def test_invalid_body_is_422_request_invalid(client: TestClient, body: dict[str, object]) -> None:
     response = client.put(f"/api/outputs/{LED}", json=body)
 
@@ -71,11 +90,11 @@ def test_invalid_body_is_422_request_invalid(client: TestClient, body: dict[str,
 
 
 def test_invalid_body_names_the_field_and_never_a_source_file(client: TestClient) -> None:
-    response = client.put(f"/api/outputs/{LED}", json={"on": "yes"})
+    response = client.put(f"/api/outputs/{LED}", json={"action": 1})
 
     params = response.json()["params"]
-    assert params["fields"] == ["body.on"]
-    assert params["detail"].startswith("body.on: ")
+    assert params["fields"] == ["body.action"]
+    assert params["detail"].startswith("body.action: ")
     assert ".py" not in params["detail"]
 
 
@@ -96,10 +115,10 @@ def test_wrong_method_is_405_request_method_not_allowed(client: TestClient) -> N
 def test_panic_turns_off_and_refuses_commands_until_released(
     client: TestClient, hal: SimulatedHal
 ) -> None:
-    client.put(f"/api/outputs/{LED}", json={"on": True})
+    client.put(f"/api/outputs/{LED}", json={"action": "on"})
 
     panicked = client.post("/api/panic")
-    refused = client.put(f"/api/outputs/{LED}", json={"on": True})
+    refused = client.put(f"/api/outputs/{LED}", json={"action": "on"})
     released = client.delete("/api/panic")
 
     assert panicked.json() == {**OFF, "panic": True}
@@ -112,7 +131,7 @@ def test_panic_turns_off_and_refuses_commands_until_released(
 def test_websocket_sends_the_current_state_then_every_change(client: TestClient) -> None:
     with client.websocket_connect("/api/ws") as websocket:
         first = websocket.receive_json()
-        client.put(f"/api/outputs/{LED}", json={"on": True})
+        client.put(f"/api/outputs/{LED}", json={"action": "on"})
         second = websocket.receive_json()
         client.post("/api/panic")
         third = websocket.receive_json()
@@ -179,7 +198,7 @@ def test_a_line_that_does_not_follow_is_an_error_with_its_code(
 ) -> None:
     hal.lines[PIN].stick(False)
 
-    response = client.put(f"/api/outputs/{LED}", json={"on": True})
+    response = client.put(f"/api/outputs/{LED}", json={"action": "on"})
 
     assert response.status_code == 500
     assert response.json() == {
@@ -194,7 +213,7 @@ def test_stopping_the_service_applies_the_safe_state_and_releases_the_line(
 ) -> None:
     app = create_app(CONFIG, open_hal=lambda: hal)
     with TestClient(app) as client:
-        client.put(f"/api/outputs/{LED}", json={"on": True})
+        client.put(f"/api/outputs/{LED}", json={"action": "on"})
         line = hal.lines[PIN]
 
     assert not line.active
@@ -334,3 +353,127 @@ def test_systemd_is_told_when_the_service_is_ready_and_when_it_stops(
     # Ready, and the first beat of the watchdog at once: the next comes five seconds later.
     assert sorted(started) == [b"READY=1", b"WATCHDOG=1"]
     assert stopped == b"STOPPING=1"
+
+
+# --- a PWM output: its level, and the actions of its driver ---------------------------------
+
+DIMMER_PIN = 18
+LEVEL = ["on", "off", "set", "fade"]
+WITH_DIMMER = parse_config(["--simulate", "--pin", str(PIN), "--pwm-pin", str(DIMMER_PIN)], {})
+
+
+@pytest.fixture
+def dimmer_client(hal: SimulatedHal) -> Iterator[TestClient]:
+    with TestClient(create_app(WITH_DIMMER, open_hal=lambda: hal)) as client:
+        yield client
+
+
+def _dimmer(response_json: dict[str, list[dict[str, object]]]) -> dict[str, object]:
+    return response_json["outputs"][1]
+
+
+def test_a_pwm_output_is_reported_with_its_level_and_what_it_can_be_asked(
+    dimmer_client: TestClient,
+) -> None:
+    assert _dimmer(dimmer_client.get("/api/status").json()) == {
+        "name": DIMMER,
+        "on": False,
+        "level": 0,
+        "actions": LEVEL,
+    }
+
+
+def test_setting_a_level_drives_the_channel_and_returns_the_new_state(
+    dimmer_client: TestClient, hal: SimulatedHal
+) -> None:
+    body = {"action": "set", "arguments": {"level": 40}}
+
+    response = dimmer_client.put(f"/api/outputs/{DIMMER}", json=body)
+
+    assert response.status_code == 200
+    assert _dimmer(response.json()) == {"name": DIMMER, "on": True, "level": 40, "actions": LEVEL}
+    assert hal.pwm_lines[DIMMER_PIN].duty == 0.4
+
+
+def test_a_level_with_decimals_is_a_level(dimmer_client: TestClient, hal: SimulatedHal) -> None:
+    body = {"action": "set", "arguments": {"level": 12.5}}
+
+    assert dimmer_client.put(f"/api/outputs/{DIMMER}", json=body).status_code == 200
+    assert hal.pwm_lines[DIMMER_PIN].duty == 0.125
+
+
+@pytest.mark.parametrize(
+    ("body", "code", "params"),
+    [
+        (
+            {"action": "set", "arguments": {"level": 101}},
+            "element.value_out_of_range",
+            {"name": "level", "min": 0, "max": 100},
+        ),
+        ({"action": "set"}, "element.value_missing", {"name": "level"}),
+        (
+            {"action": "set", "arguments": {"level": "high"}},
+            "element.value_invalid",
+            {"name": "level"},
+        ),
+        (
+            {"action": "set", "arguments": {"level": 5, "speed": 2}},
+            "element.value_unknown",
+            {"name": "speed"},
+        ),
+        (
+            {"action": "blink"},
+            "element.action_unknown",
+            {"action": "blink", "available": LEVEL},
+        ),
+    ],
+)
+def test_what_an_output_cannot_do_or_take_is_the_caller_s_mistake(
+    dimmer_client: TestClient,
+    hal: SimulatedHal,
+    body: dict[str, object],
+    code: str,
+    params: dict[str, object],
+) -> None:
+    response = dimmer_client.put(f"/api/outputs/{DIMMER}", json=body)
+
+    assert response.status_code == 422
+    assert response.json() == {"code": code, "params": {"element": DIMMER, **params}}
+    assert hal.pwm_lines[DIMMER_PIN].history == ()
+
+
+def test_a_digital_output_refuses_a_level(client: TestClient, hal: SimulatedHal) -> None:
+    response = client.put(f"/api/outputs/{LED}", json={"action": "set", "arguments": {"level": 5}})
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "element.action_unknown"
+    assert not hal.lines[PIN].active
+
+
+def test_panic_takes_the_pwm_output_to_0_and_refuses_levels(
+    dimmer_client: TestClient, hal: SimulatedHal
+) -> None:
+    dimmer_client.put(f"/api/outputs/{DIMMER}", json={"action": "on"})
+
+    panicked = dimmer_client.post("/api/panic")
+    refused = dimmer_client.put(f"/api/outputs/{DIMMER}", json={"action": "on"})
+
+    assert _dimmer(panicked.json())["level"] == 0
+    assert hal.pwm_lines[DIMMER_PIN].duty == 0.0
+    assert refused.status_code == 409
+
+
+def test_a_real_service_declares_its_pwm_output_with_its_frequency(
+    hal: SimulatedHal, tmp_path: Path
+) -> None:
+    argv = ["--pin", str(PIN), "--pwm-pin", str(DIMMER_PIN), "--pwm-frequency-hz", "25000"]
+    config = parse_config([*argv, "--data-dir", str(tmp_path)], {})
+
+    with TestClient(create_app(config, open_hal=lambda: hal, env={})):
+        running = declared.read(tmp_path)
+
+    assert running == Declaration(
+        "rpi4b",
+        (OutputSpec(pin=PIN, active_low=False),),
+        (PwmSpec(pin=DIMMER_PIN, frequency_hz=25_000),),
+    )

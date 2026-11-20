@@ -52,6 +52,10 @@ a line stays at its last level, a PWM channel keeps running. So:
 
 A simulated service (`--simulate`) has no real outputs: it declares nothing.
 
+Before a start, after `primum-safe`, the unit also refuses a board where a PWM channel is
+still exported (`check-gpio-users.sh --pwm`): a channel has no owner, so the HAL would adopt
+one that another program is using, or one `primum-safe` could not make safe.
+
 The declaration is the runtime's own note to `primum-safe`, of the same version of Primum: it
 is not a file format of a project, has no schema in `schemas/` and may change with the code
 that writes and reads it.
@@ -83,11 +87,10 @@ With the service itself, the LED on, as witness (`ssh primum-dev`):
 | `sudo systemctl stop primum` | The LED goes off; `primum-safe` logs that nothing is declared |
 | A pin the board lacks in `/etc/primum/runtime.env`, with the LED on before | The LED goes off with the stop; the service fails to start and systemd restarts it every 6 s or so, for as long as it takes (it does not give up: with `RestartSec=2` and a start of some 3 s the limit of restarts is never reached); `primum-safe` logs that nothing is declared each time |
 
-Seen on `primum-dev` (Raspberry Pi 4, kernel 6.18) with the first version of this block:
-`READY=1` reaches systemd from uvicorn's lifespan, `ExecStopPost=` runs after the watchdog
-kills the service, and `primum-safe` takes about 0.34 s. The same session found what rows 2,
-3 and 6 now say, and the fixes for them (`ExecStartPre=`, nothing declared after a failed
-claim) are still to be run on the board.
+Seen on `primum-dev` (Raspberry Pi 4, kernel 6.18): `READY=1` reaches systemd from uvicorn's
+lifespan, `ExecStopPost=` runs after the watchdog kills the service, and `primum-safe` takes
+about 0.34 s. The first run of this procedure found what rows 2, 3 and 6 say; with the fixes
+for them, the whole procedure and the `hw` tests pass, as the owner of the board reports.
 
 ## Not covered
 
@@ -99,5 +102,6 @@ claim) are still to be run on the board.
   `primum-safe` is killed together with the service. An output that must never stay on that long needs
   hardware that fails safe on its own.
 - A broken installation: `primum-safe` runs from the same environment as the service.
-- A service started by hand, without systemd: nothing runs `primum-safe` for it.
-- Until block 3.4 is whole, the service does not offer PWM outputs.
+- A service started by hand, without systemd: nothing runs `primum-safe` for it. If it is
+  killed with a PWM output running, the channel stays exported and the unit then refuses to
+  start; `check-gpio-users.sh` says how to free it.

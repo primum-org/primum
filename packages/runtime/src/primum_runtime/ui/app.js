@@ -1,4 +1,5 @@
-// The runtime's page: one switch per output, the state of each input and the panic button. The service is the only
+// The runtime's page: one switch per output (and a level for those that take one), the state
+// of each input and the panic button. The service is the only
 // source of truth: the page shows the states it receives and never guesses one.
 
 import { loadCatalog, pickLanguage } from "./i18n.js";
@@ -46,6 +47,7 @@ function render() {
     const word = output.on ? catalog.t("output.on") : catalog.t("output.off");
     button.querySelector(".switch-state").textContent = online ? word : "";
     button.disabled = !online || state.panic;
+    renderLevel(output);
   }
   const inputs = state?.inputs ?? [];
   page.inputsSection.hidden = inputs.length === 0;
@@ -57,6 +59,32 @@ function render() {
     shown.dataset.active = String(online && input.active);
   }
 }
+
+// An output that can be set to a level (its driver has the action "set") gets a slider. While
+// a finger is on it, the slider is the person's: a state that arrives does not move it.
+function renderLevel(output) {
+  const level = rowFor(output.name).querySelector(".level");
+  level.hidden = !output.actions.includes("set");
+  if (level.hidden) return;
+  const slider = level.querySelector(".level-slider");
+  const refused = !online || state.panic;
+  // A slider taken from the person's hand (panic, or the connection lost) lets go without
+  // asking for anything: before it is disabled, since disabling it blurs it, and a blur is
+  // a way of letting go.
+  if (refused) slider.dataset.held = "false";
+  slider.disabled = refused;
+  if (slider.dataset.held === "true") return;
+  slider.dataset.asked = ""; // answered: the service's level is what counts from here on
+  slider.value = String(Math.round(output.level));
+  // Offline the last level may be stale: no number, as a switch has no word.
+  level.querySelector(".level-value").textContent = online ? levelText(slider.value) : "";
+}
+
+const levelText = (level) => catalog.t("output.level", { level });
+
+// The level of an output as the slider shows it: whole, as the service last reported it.
+const shownLevel = (name) =>
+  Math.round(state?.outputs.find((output) => output.name === name)?.level ?? 0);
 
 function inputRowFor(name) {
   const existing = page.inputs.querySelector(`[data-input="${CSS.escape(name)}"]`);
@@ -76,7 +104,37 @@ function rowFor(name) {
   row.querySelector(".output-name").textContent = name;
   const button = row.querySelector(".switch");
   button.setAttribute("aria-label", catalog.t("output.toggle", { name }));
-  button.addEventListener("click", () => setOutput(name, button.getAttribute("aria-pressed") !== "true"));
+  button.addEventListener("click", () => ask(name, button.getAttribute("aria-pressed") === "true" ? "off" : "on"));
+  const slider = row.querySelector(".level-slider");
+  slider.setAttribute("aria-label", catalog.t("output.level_of", { name }));
+  // Moving the slider only shows the number; the level is asked for once, on letting go: of
+  // the pointer, of the key, or of the slider altogether. Never on "change": a browser sends
+  // one per step of a held key, and none when the slider comes back to where it was.
+  const hold = () => { slider.dataset.held = "true"; };
+  const letGo = async () => {
+    if (slider.dataset.held !== "true" || slider.disabled) return;
+    slider.dataset.held = "false";
+    const wanted = Number(slider.value);
+    if (wanted !== shownLevel(name)) {
+      slider.dataset.asked = String(wanted);
+      await ask(name, "set", { level: wanted });
+    }
+    render(); // whatever came of it, the slider shows the level the service reports
+  };
+  slider.addEventListener("pointerdown", hold);
+  slider.addEventListener("keydown", hold);
+  for (const end of ["pointerup", "pointercancel", "keyup", "blur"]) slider.addEventListener(end, letGo);
+  slider.addEventListener("input", () => {
+    row.querySelector(".level-value").textContent = levelText(slider.value);
+  });
+  // Changed with nothing held (assistive technology sets a value at once): ask for it,
+  // unless letting go has just asked for that very level (a browser sends "change" then too).
+  slider.addEventListener("change", () => {
+    if (slider.dataset.held === "true" || slider.dataset.asked === slider.value) return;
+    // Disabled in the middle of a drag, a browser sends "change" as well: nobody asked.
+    if (slider.disabled) return;
+    ask(name, "set", { level: Number(slider.value) });
+  });
   page.outputs.append(row);
   return row;
 }
@@ -118,7 +176,9 @@ async function command(method, path, body) {
   render();
 }
 
-const setOutput = (name, on) => command("PUT", `outputs/${encodeURIComponent(name)}`, { on });
+// Ask an output for one of the actions of its driver, with the arguments it takes by name.
+const ask = (name, action, args = {}) =>
+  command("PUT", `outputs/${encodeURIComponent(name)}`, { action, arguments: args });
 
 page.panic.addEventListener("click", () => command("POST", "panic"));
 page.releasePanic.addEventListener("click", () => command("DELETE", "panic"));

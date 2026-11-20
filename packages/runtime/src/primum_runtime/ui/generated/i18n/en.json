@@ -5,6 +5,8 @@
     "output.on": "On",
     "output.off": "Off",
     "output.toggle": "Turn {name} on or off",
+    "output.level": "{level} %",
+    "output.level_of": "Level of {name}",
     "inputs.heading": "Inputs",
     "input.active": "Active",
     "input.inactive": "Inactive",

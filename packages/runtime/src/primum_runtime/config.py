@@ -2,10 +2,10 @@
 
 An option given on the command line wins over the environment. Until elements come from a
 deployment package (phase 4) the service drives one digital output, named ``led``, and may
-listen to one digital input, named ``button``. PWM outputs are not offered here until the
-safe-state unit covers their channels (block 3.4): after a ``kill -9`` one would stay at its
-last level. The board (``rpi4b`` by default, the only one so far) says which pins exist, on
-which GPIO chip, and what it takes for the options of its elements.
+listen to one digital input, named ``button``, and drive one PWM output, named ``dimmer``
+(since ``primum-safe`` covers PWM channels after a crash, decision 0020). The board
+(``rpi4b`` by default, the only one so far) says which pins exist, on which GPIO chip, and
+what it takes for the options of its elements.
 
 The pins have no default on purpose: a default pin is a pin someone may have wired to a relay.
 Neither has the pull of the input: every default is wrong for some wiring.
@@ -33,6 +33,7 @@ from primum_runtime.hal import BoardGpio, Pull
 
 LED = "led"
 BUTTON = "button"
+DIMMER = "dimmer"
 PULLS = tuple(pull.value for pull in Pull)
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
@@ -88,6 +89,16 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
         elements.append(
             ElementConfig(BUTTON, "digital_input", input_pin, input_active_low, options)
         )
+    pwm_pin: int | None = args.pwm_pin
+    pwm_frequency_hz: int | None = args.pwm_frequency_hz
+    if pwm_pin is None and pwm_frequency_hz is not None:
+        parser.error("a frequency without a PWM output: give --pwm-pin (PRIMUM_PWM_PIN) too")
+    if pwm_pin is not None:
+        # Without a frequency, its driver's default; whatever it is, its board must take it.
+        frequency: dict[str, Value] = {}
+        if pwm_frequency_hz is not None:
+            frequency["frequencyHz"] = pwm_frequency_hz
+        elements.append(ElementConfig(DIMMER, "pwm_output", pwm_pin, False, frequency))
     host: str = args.host
     port: int = args.port
     return RuntimeConfig(
@@ -155,6 +166,20 @@ def _parser(env: Mapping[str, str]) -> argparse.ArgumentParser:
         default=_int(env, "PRIMUM_INPUT_DEBOUNCE_MS"),
         help="ignore bounces of the input shorter than this; its driver's default if not given "
         "(PRIMUM_INPUT_DEBOUNCE_MS)",
+    )
+    parser.add_argument(
+        "--pwm-pin",
+        type=int,
+        default=_int(env, "PRIMUM_PWM_PIN"),
+        help="GPIO number of a PWM output (a dimmed LED), one with hardware PWM; none by "
+        "default (PRIMUM_PWM_PIN)",
+    )
+    parser.add_argument(
+        "--pwm-frequency-hz",
+        type=int,
+        default=_int(env, "PRIMUM_PWM_FREQUENCY_HZ"),
+        help="frequency of the PWM output; its driver's default if not given "
+        "(PRIMUM_PWM_FREQUENCY_HZ)",
     )
     parser.add_argument(
         "--data-dir",

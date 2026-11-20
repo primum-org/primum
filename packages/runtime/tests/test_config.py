@@ -3,7 +3,14 @@ from pathlib import Path
 import pytest
 
 from primum_runtime.board import load_board
-from primum_runtime.config import BUTTON, DEFAULT_HOST, DEFAULT_PORT, LED, parse_config
+from primum_runtime.config import (
+    BUTTON,
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    DIMMER,
+    LED,
+    parse_config,
+)
 from primum_runtime.drivers import ElementConfig
 
 
@@ -132,3 +139,22 @@ def test_the_service_writes_in_data_unless_told_otherwise() -> None:
     assert parse_config(["--pin", "17"], {}).data_dir == Path("/data")
     assert parse_config(["--pin", "17"], {"PRIMUM_DATA_DIR": "/srv/p"}).data_dir == Path("/srv/p")
     assert parse_config(["--pin", "17", "--data-dir", "/tmp/p"], {}).data_dir == Path("/tmp/p")  # noqa: S108 (a value under test)
+
+
+def test_a_pwm_output_is_driven_when_its_pin_is_given() -> None:
+    config = parse_config(["--pin", "17", "--pwm-pin", "18"], {})
+
+    assert config.elements[1] == ElementConfig(DIMMER, "pwm_output", 18, active_low=False)
+
+
+def test_the_pwm_output_comes_from_the_environment_too_with_its_frequency() -> None:
+    env = {"PRIMUM_PWM_PIN": "18", "PRIMUM_PWM_FREQUENCY_HZ": "25000"}
+
+    config = parse_config(["--pin", "17"], env)
+
+    assert config.elements[1].options == {"frequencyHz": 25_000}
+
+
+def test_a_frequency_without_a_pwm_output_exits_instead_of_being_ignored() -> None:
+    with pytest.raises(SystemExit):
+        parse_config(["--pin", "17", "--pwm-frequency-hz", "1000"], {})

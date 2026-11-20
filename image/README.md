@@ -8,7 +8,8 @@ development; in phase 7 rpi-image-gen runs the same script to build the Primum O
 - `provision.sh`: prepares a Pi for Primum or updates its runtime; idempotent. From the laptop:
   `uv run just pi-provision 17` the first time (the LED on GPIO 17), then `uv run just pi-sync`.
   Layout and choices: decision 0012.
-- `check-gpio-users.sh`: refuses a board where other software drives GPIO (decision 0010).
+- `check-gpio-users.sh`: refuses a board where other software drives GPIO (decision 0010);
+  with `--pwm`, as the unit runs it, also one where a PWM channel is already in use.
 - `primum.service`: the systemd unit, configured by `/etc/primum/runtime.env`. systemd
   restarts the runtime if it stops telling it is alive, and after every stop runs
   `primum-safe`, which puts the outputs the runtime had claimed in their safe state

@@ -5,6 +5,8 @@
     "output.on": "Encendida",
     "output.off": "Apagada",
     "output.toggle": "Encender o apagar {name}",
+    "output.level": "{level} %",
+    "output.level_of": "Nivel de {name}",
     "inputs.heading": "Entradas",
     "input.active": "Activa",
     "input.inactive": "Inactiva",
