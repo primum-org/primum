@@ -1,5 +1,6 @@
 """The FastAPI application. The HAL lives in its lifespan, and so does the watch on its
 input events: the event loop reads them when the HAL's descriptor says there are some.
+Under systemd it also says when it is ready and, while it runs, that it is alive.
 
 Opening the HAL and claiming the outputs happen at startup; at shutdown (Ctrl+C, or `SIGTERM`
 from systemd, both handled by uvicorn) the HAL is closed, which applies the safe state.
@@ -7,21 +8,22 @@ from systemd, both handled by uvicorn) the HAL is closed, which applies the safe
 
 import asyncio
 import logging
-from collections.abc import AsyncGenerator, Callable
+import os
+from collections.abc import AsyncGenerator, Callable, Mapping
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from primum_runtime import __version__
+from primum_runtime import __version__, declared, systemd
 from primum_runtime.api.broadcast import StateBroadcaster
 from primum_runtime.api.errors import install_error_handlers
 from primum_runtime.api.routes import router
 from primum_runtime.config import RuntimeConfig
 from primum_runtime.control import Controller
 from primum_runtime.drivers import load_manifests
-from primum_runtime.hal import Hal, create_hal
+from primum_runtime.hal import Claim, Hal, create_hal
 
 log = logging.getLogger(__name__)
 
@@ -31,19 +33,45 @@ UI_DIR = Path(__file__).resolve().parent.parent / "ui"
 type HalFactory = Callable[[], Hal]
 
 
-def create_app(config: RuntimeConfig, open_hal: HalFactory | None = None) -> FastAPI:
-    """The API for ``config``. ``open_hal`` replaces the HAL ``config`` asks for (tests).
+def create_app(
+    config: RuntimeConfig,
+    open_hal: HalFactory | None = None,
+    env: Mapping[str, str] | None = None,
+) -> FastAPI:
+    """The API for ``config``. ``open_hal`` replaces the HAL ``config`` asks for (tests);
+    ``env`` is where systemd says how to reach it (the process's environment unless given).
 
     ``app.state.stopped_safely`` becomes true once the HAL has closed without errors.
     """
+    notify = systemd.notifier(os.environ if env is None else env)
+    watchdog_interval_s = systemd.watchdog_interval_s(os.environ if env is None else env)
 
     def default_hal() -> Hal:
         return create_hal(simulate=config.simulate, board=config.board)
 
+    declarations: list[Claim] = []  # what this service declared: one claim, or none yet
+
+    def declare(claim: Claim) -> None:
+        declared.write(config.data_dir, declared.Declaration.of(config.board.model, claim))
+        declarations.append(claim)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         with (open_hal or default_hal)() as hal:
-            controller = Controller(hal, config.elements, load_manifests(), config.limits)
+            # A real service declares what it claims before it claims it, so that primum-safe
+            # can make it safe if this process dies. A simulated one has nothing to make safe.
+            before_claim = None if config.simulate else declare
+            try:
+                controller = Controller(
+                    hal, config.elements, load_manifests(), config.limits, before_claim
+                )
+            except Exception:
+                # A claim that fails leaves nothing claimed: what was declared for it names
+                # outputs nobody holds (a pin the board lacks, say), and primum-safe would
+                # fail on it at every stop.
+                if declarations:
+                    declared.remove(config.data_dir)
+                raise
             broadcaster = StateBroadcaster()
             unsubscribe = controller.subscribe(broadcaster.publish)
             app.state.controller = controller
@@ -54,15 +82,27 @@ def create_app(config: RuntimeConfig, open_hal: HalFactory | None = None) -> Fas
             events_fd = controller.events_fd()
             if events_fd is not None:
                 loop.add_reader(events_fd, _read_inputs, loop, events_fd, controller)
+            # The beats come from this loop: if it is stuck, systemd stops hearing them.
+            watchdog = None
+            if watchdog_interval_s is not None:
+                beats = systemd.feed_watchdog(notify, watchdog_interval_s, asyncio.sleep)
+                watchdog = asyncio.create_task(beats)
             log.info("started outputs=%s simulate=%s", _describe(controller), config.simulate)
+            notify(systemd.READY)
             try:
                 yield
             finally:
+                notify(systemd.STOPPING)
+                if watchdog is not None:
+                    watchdog.cancel()
                 if events_fd is not None:
                     loop.remove_reader(events_fd)
                 unsubscribe()
                 broadcaster.close()
-        # Only reached when closing the HAL raised nothing: every output is in its safe state.
+        # Only reached when closing the HAL raised nothing: every output is in its safe state
+        # and released, so there is nothing left for primum-safe to do.
+        if not config.simulate:
+            declared.remove(config.data_dir)
         app.state.stopped_safely = True
         log.info("stopped outputs=%s", _describe(controller))
 

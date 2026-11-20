@@ -146,6 +146,14 @@
       "message": "{element} se puso a {level} pero se lee {read}.",
       "hint": "Revisa su cableado y si otra cosa lo está manejando. Usa el botón de pánico si no es seguro."
     },
+    "safe.declaration_unwritable": {
+      "message": "Primum no puede dejar anotadas las salidas que va a usar, así que no las usará.",
+      "hint": "Comprueba que su directorio de datos existe y que Primum puede escribir en él."
+    },
+    "safe.declaration_invalid": {
+      "message": "La nota de las salidas que Primum estaba usando no se puede leer, así que no se han llevado a su estado seguro.",
+      "hint": "Revisa las salidas a mano, luego borra ese fichero y reinicia el servicio."
+    },
     "output.unknown": {
       "message": "No hay ninguna salida llamada {name}.",
       "hint": "Recarga la página para ver las salidas actuales."

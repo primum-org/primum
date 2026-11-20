@@ -14,7 +14,8 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   element type, made from the element, its manifest (`drivers/`) and the limits of its board.
   The HAL's specs have no defaults: a driver gives every option. A new driver comes with its
   manifest and its tests against the simulated HAL.
-- Layers: `cli` → `api` → `config` → `board` → `control` → `drivers` → `hal` → `errors`; each imports only
+- Layers: `cli` and `safe` → `api` → `config` → `board` → `control` → `drivers` → `declared` →
+  `hal` → `systemd` → `errors`; each imports only
   the ones below it, and FastAPI, uvicorn and pydantic stay in `api` and `cli` (`just arch`,
   decision 0011).
   The API commands outputs through `control.Controller`, never through the HAL or a driver.
@@ -29,7 +30,11 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   driver manifests, made by `just gen`: never edit
   them, edit the source and regenerate. UI keys are written literally (`t("panic.button")`,
   `data-i18n="panic.button"`) so the catalog test finds them.
-- Safety first: every output has a safe state applied on start, stop, crash and panic.
+- Safety first: every output has a safe state applied on start, stop, crash and panic. A
+  crash is covered from outside the process (decision 0020, `docs/specs/safety.md`): the
+  service declares what it claims in its data directory before claiming it
+  (`primum_runtime.declared`), and systemd runs `primum-safe` (`primum_runtime.safe`) after
+  every stop. Anything new that the service claims must be declared.
 - Measure durations with a monotonic clock. Wall-clock time only for schedules, and only
   when it is known to be reliable (the Pi 4 has no RTC).
 - Writable paths are configurable and default to `/data` (the root filesystem becomes

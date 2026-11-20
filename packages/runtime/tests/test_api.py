@@ -1,14 +1,19 @@
 """The HTTP API and the WebSocket, through FastAPI's test client and the simulated HAL."""
 
+import socket
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+from primum_runtime import declared
 from primum_runtime.api import create_app
 from primum_runtime.board import load_board
-from primum_runtime.config import BUTTON, LED, parse_config
-from primum_runtime.hal import SimulatedHal
+from primum_runtime.config import BUTTON, LED, RuntimeConfig, parse_config
+from primum_runtime.declared import Declaration
+from primum_runtime.errors import PrimumError
+from primum_runtime.hal import Claim, OutputSpec, SimulatedHal
 
 BOARD = load_board("rpi4b")
 
@@ -219,3 +224,113 @@ def test_root_serves_the_page(client: TestClient) -> None:
 )
 def test_the_page_assets_are_served(client: TestClient, path: str) -> None:
     assert client.get(f"/{path}").status_code == 200
+
+
+# --- what a real service declares, and what it tells systemd -------------------------------
+
+
+def _real(tmp_path: Path) -> RuntimeConfig:
+    """The configuration of a service on a board, not simulated; the tests give it a HAL."""
+    return parse_config(["--pin", str(PIN), "--data-dir", str(tmp_path)], {})
+
+
+def test_a_service_declares_its_outputs_while_it_runs_and_forgets_them_once_stopped(
+    hal: SimulatedHal, tmp_path: Path
+) -> None:
+    with TestClient(create_app(_real(tmp_path), open_hal=lambda: hal, env={})):
+        running = declared.read(tmp_path)
+
+    assert running == Declaration("rpi4b", (OutputSpec(pin=PIN, active_low=False),))
+    assert declared.read(tmp_path) is None
+
+
+def test_the_outputs_are_declared_before_they_are_claimed(tmp_path: Path) -> None:
+    seen: list[Declaration | None] = []
+
+    class Watching(SimulatedHal):
+        def claim(self, claim: Claim) -> None:
+            seen.append(declared.read(tmp_path))
+            super().claim(claim)
+
+    with TestClient(create_app(_real(tmp_path), open_hal=lambda: Watching(BOARD), env={})):
+        pass
+
+    assert seen == [Declaration("rpi4b", (OutputSpec(pin=PIN, active_low=False),))]
+
+
+def test_a_service_that_cannot_declare_its_outputs_does_not_claim_them(
+    hal: SimulatedHal, tmp_path: Path
+) -> None:
+    config = _real(tmp_path / "nowhere")
+
+    with pytest.raises(PrimumError) as raised, TestClient(create_app(config, lambda: hal, {})):
+        pass
+
+    assert raised.value.code == "safe.declaration_unwritable"
+    assert hal.lines == {}
+
+
+def test_a_claim_that_fails_leaves_nothing_declared(tmp_path: Path) -> None:
+    """Nothing was claimed, so there is nothing for primum-safe to make safe: a declaration
+    left behind would name a pin the board may not even have."""
+    config = parse_config(["--pin", "99", "--data-dir", str(tmp_path)], {})
+    hal = SimulatedHal(BOARD)
+
+    with pytest.raises(PrimumError) as raised, TestClient(create_app(config, lambda: hal, {})):
+        pass
+
+    assert raised.value.code == "hal.pin_invalid"
+    assert declared.read(tmp_path) is None
+
+
+def test_a_start_that_fails_before_declaring_leaves_what_was_declared(tmp_path: Path) -> None:
+    """An element its driver refuses fails before anything is declared: what an earlier
+    service left declared is not this one's to forget."""
+    earlier = Declaration("rpi4b", (OutputSpec(pin=27, active_low=False),))
+    declared.write(tmp_path, earlier)
+    argv = ["--pin", str(PIN), "--input-pin", "22", "--input-pull", "up"]
+    config = parse_config([*argv, "--input-debounce-ms", "99999", "--data-dir", str(tmp_path)], {})
+    hal = SimulatedHal(BOARD)
+
+    with pytest.raises(PrimumError) as raised, TestClient(create_app(config, lambda: hal, {})):
+        pass
+
+    assert raised.value.code == "element.value_out_of_range"
+    assert declared.read(tmp_path) == earlier
+
+
+def test_a_stop_that_leaves_an_output_unsafe_keeps_it_declared(
+    hal: SimulatedHal, tmp_path: Path
+) -> None:
+    app = create_app(_real(tmp_path), open_hal=lambda: hal, env={})
+
+    with pytest.raises(PrimumError), TestClient(app):
+        hal.lines[PIN].stick(True)
+
+    assert declared.read(tmp_path) is not None
+    assert not app.state.stopped_safely
+
+
+def test_a_simulated_service_declares_nothing(hal: SimulatedHal, tmp_path: Path) -> None:
+    config = parse_config(["--simulate", "--pin", str(PIN), "--data-dir", str(tmp_path)], {})
+
+    with TestClient(create_app(config, open_hal=lambda: hal, env={})):
+        assert list(tmp_path.iterdir()) == []
+
+
+def test_systemd_is_told_when_the_service_is_ready_and_when_it_stops(
+    hal: SimulatedHal, tmp_path: Path
+) -> None:
+    address = tmp_path / "notify"
+    with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as listener:
+        listener.bind(str(address))
+        listener.setblocking(False)
+        env = {"NOTIFY_SOCKET": str(address), "WATCHDOG_USEC": "10000000"}
+
+        with TestClient(create_app(CONFIG, open_hal=lambda: hal, env=env)):
+            started = [listener.recv(64), listener.recv(64)]
+        stopped = listener.recv(64)
+
+    # Ready, and the first beat of the watchdog at once: the next comes five seconds later.
+    assert sorted(started) == [b"READY=1", b"WATCHDOG=1"]
+    assert stopped == b"STOPPING=1"

@@ -165,3 +165,18 @@ def test_pi_provision_needs_the_pin_before_touching_the_pi() -> None:
 
     assert result.returncode == 1
     assert "provision PIN" in result.stderr
+
+
+def test_the_unit_runs_primum_safe_after_every_stop_and_has_a_watchdog() -> None:
+    """What cannot be run off the board, at least said: the unit asks systemd for both, and
+    the command it names is one the runtime installs."""
+    unit = (ROOT / "image" / "primum.service").read_text()
+    scripts = (ROOT / "packages" / "runtime" / "pyproject.toml").read_text()
+
+    assert "ExecStopPost=/opt/primum/venv/bin/primum-safe\n" in unit
+    # Before a start too: the runtime replaces the declaration it finds, so what an earlier
+    # one left declared and unsafe must be made safe first.
+    assert "ExecStartPre=/opt/primum/venv/bin/primum-safe\n" in unit
+    assert "Type=notify\n" in unit
+    assert "WatchdogSec=10\n" in unit
+    assert 'primum-safe = "primum_runtime.safe:main"' in scripts

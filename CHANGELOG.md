@@ -60,6 +60,9 @@ All notable changes to this project are documented here. The format follows
   its driver or of its board is refused. The service can listen to an input (`--input-pin`
   and `--input-pull`, or `PRIMUM_INPUT_PIN` and `PRIMUM_INPUT_PULL`): the page shows whether
   it is active, as it changes. `primum validate` refuses a number that nothing limits.
+- If the service is killed or hangs, its outputs no longer stay as they were: systemd runs
+  `primum-safe` after every stop, which puts the outputs the service had claimed in their
+  safe state, and a watchdog restarts a service that stops answering.
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.
