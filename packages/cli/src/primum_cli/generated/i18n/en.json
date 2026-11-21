@@ -170,6 +170,10 @@
       "message": "The package is for a board {board}, and this version of Primum has no profile for it.",
       "hint": "Boards with a profile: {available}."
     },
+    "package.pin_shared": {
+      "message": "{elements} are both on GPIO {pin}.",
+      "hint": "Each element needs a pin of its own: change one in the project and build the package again."
+    },
     "safe.declaration_unwritable": {
       "message": "Primum cannot write down which outputs it is about to use, so it will not use them.",
       "hint": "Check that its data directory exists and that Primum may write in it."

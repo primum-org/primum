@@ -48,6 +48,7 @@ class ErrorCode(StrEnum):
     PACKAGE_UNREADABLE = "package.unreadable"
     PACKAGE_INVALID = "package.invalid"
     PACKAGE_BOARD_UNSUPPORTED = "package.board_unsupported"
+    PACKAGE_PIN_SHARED = "package.pin_shared"
     SAFE_DECLARATION_UNWRITABLE = "safe.declaration_unwritable"
     SAFE_DECLARATION_INVALID = "safe.declaration_invalid"
     TEST_DURATION_OUT_OF_RANGE = "test.duration_out_of_range"

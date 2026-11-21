@@ -142,7 +142,9 @@ def _from_package(
 ) -> RuntimeConfig:
     """The configuration of a service that runs a package: its board and its elements are
     the package's. Raises what ``load_package`` does for one it cannot run."""
-    given = [name for name in _ELEMENT_OPTIONS if getattr(args, name) not in (None, False)]
+    # By identity: 0 is a pin and a debounce like any other, and in Python it equals False.
+    values = {name: getattr(args, name) for name in _ELEMENT_OPTIONS}
+    given = [name for name, value in values.items() if value is not None and value is not False]
     if given:
         options = ", ".join("--" + name.replace("_", "-") for name in given)
         parser.error(f"a package says what elements there are: remove {options} (or PRIMUM_*)")

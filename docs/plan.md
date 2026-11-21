@@ -719,8 +719,18 @@ per element, from a deployment package that can be rolled back. One pull request
 - Tried here against the simulated HAL, the page in a browser by a script and not by a test
   of the repository. On the board, with a package: nothing was run. `image/README.md` says
   how to try it.
+- From review: `--pin 0` next to a package passed for "not given" (0 equals `False` in
+  Python); two elements on one pin are refused here, naming both, instead of by the HAL with
+  the pin alone; a variable read for a number that nothing limits is refused as a written
+  value is; the page shows the new name of an element that keeps its id.
 - Not checked: that an event's element is an input (4.4). A service that refuses its package
   says why only in the journal.
+- For 4.5, seen by the reviewer on a running unit: a package that is refused leaves systemd
+  restarting the service for ever (`Restart=on-failure`, `RestartSec=2`), the same error at
+  every turn; a bad configuration already did. An exit status of its own for "cannot run
+  this" and `RestartPreventExitStatus=` in the unit would stop it; with activation, a
+  refused package should never become the one that runs. And what the HAL refuses at the
+  claim reaches the journal as a traceback of uvicorn's, some 25 lines for one fact.
 
 **4.3b · Engine and arbiter**
 - The runtime runs the sequences of a package on a monotonic clock, through the drivers, and

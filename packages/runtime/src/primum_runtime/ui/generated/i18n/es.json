@@ -170,6 +170,10 @@
       "message": "El paquete es para una placa {board}, y esta versión de Primum no tiene perfil para ella.",
       "hint": "Placas con perfil: {available}."
     },
+    "package.pin_shared": {
+      "message": "{elements} están los dos en el GPIO {pin}.",
+      "hint": "Cada elemento necesita su propio pin: cambia uno en el proyecto y vuelve a construir el paquete."
+    },
     "safe.declaration_unwritable": {
       "message": "Primum no puede dejar anotadas las salidas que va a usar, así que no las usará.",
       "hint": "Comprueba que su directorio de datos existe y que Primum puede escribir en él."

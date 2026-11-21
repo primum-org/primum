@@ -149,29 +149,42 @@ function dropRowsNotIn(list, kind, elements) {
 
 function inputRowFor({ id, name }) {
   const existing = page.inputs.querySelector(`[data-input="${CSS.escape(id)}"]`);
-  if (existing) return existing;
-  const row = page.inputRow.content.firstElementChild.cloneNode(true);
-  row.dataset.input = id;
+  const row = existing ?? page.inputRow.content.firstElementChild.cloneNode(true);
+  // The name is set every time: the same element may come back with another (a new package).
   row.querySelector(".output-name").textContent = name;
+  if (existing) return existing;
+  row.dataset.input = id;
   page.inputs.append(row);
   return row;
 }
 
+// What a row says of its element's name, set every time it is rendered: an element keeps its
+// id and may change its name (a new package, the page still open).
+function nameRow(row, name) {
+  if (row.dataset.name === name) return;
+  row.dataset.name = name;
+  row.querySelector(".output-name").textContent = name;
+  row.querySelector(".switch").setAttribute("aria-label", catalog.t("output.toggle", { name }));
+  const seconds = TEST_MS / 1000;
+  row.querySelector(".test").setAttribute("aria-label", catalog.t("output.test_of", { name, seconds }));
+  row.querySelector(".level-slider").setAttribute("aria-label", catalog.t("output.level_of", { name }));
+}
+
 function rowFor({ id, name }) {
   const existing = page.outputs.querySelector(`[data-output="${CSS.escape(id)}"]`);
-  if (existing) return existing;
+  if (existing) {
+    nameRow(existing, name);
+    return existing;
+  }
   const row = page.outputRow.content.firstElementChild.cloneNode(true);
   row.dataset.output = id;
-  row.querySelector(".output-name").textContent = name;
+  nameRow(row, name);
   const button = row.querySelector(".switch");
-  button.setAttribute("aria-label", catalog.t("output.toggle", { name }));
   button.addEventListener("click", () => ask(id, button.getAttribute("aria-pressed") === "true" ? "off" : "on"));
   const test = row.querySelector(".test");
   test.textContent = catalog.t("output.test");
-  test.setAttribute("aria-label", catalog.t("output.test_of", { name, seconds: TEST_MS / 1000 }));
   test.addEventListener("click", () => ask(id, "on", {}, TEST_MS));
   const slider = row.querySelector(".level-slider");
-  slider.setAttribute("aria-label", catalog.t("output.level_of", { name }));
   // Moving the slider only shows the number; the level is asked for once, on letting go: of
   // the pointer, of the key, or of the slider altogether. Never on "change": a browser sends
   // one per step of a held key, and none when the slider comes back to where it was.

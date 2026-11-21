@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from primum_core.compiler import compile_package
+from primum_core.formats import read_driver
 from primum_core.package import package_hash
 from primum_core.workspace import load_workspace
 from primum_runtime.api import create_app
@@ -309,13 +310,83 @@ def test_an_output_of_a_package_is_commanded_by_its_id_on_its_pin(tmp_path: Path
         assert (by_name.status_code, by_name.json()["code"]) == (404, "output.unknown")
 
 
-def test_a_package_with_two_elements_on_one_pin_does_not_start(tmp_path: Path) -> None:
+def test_the_hal_still_refuses_what_only_it_can_tell_and_nothing_is_claimed(
+    tmp_path: Path,
+) -> None:
+    """GPIO 12 and 18 are two pins of one PWM channel: no two elements share a pin, and the
+    board cannot drive both."""
+
+    def same_channel(document: Document) -> None:
+        _inside(document, "elements", 0).update(type="pwm_output", pin=12, activeLow=False)
+        _inside(document, "elements", 0)["config"] = [{"name": "frequencyHz", "value": 500}]
+        commands = cast("list[Document]", document["sequences"])
+        for sequence in commands:
+            sequence["commands"] = []
+
+    hal = SimulatedHal(load_board("rpi4b"))
+    with pytest.raises(PrimumError) as refused, _client(tmp_path, hal, same_channel):
+        pass
+
+    assert refused.value.code is ErrorCode.HAL_PWM_CHANNEL_IN_USE
+    assert not hal.lines
+    assert not hal.pwm_lines
+
+
+@pytest.mark.parametrize(
+    "also",
+    [["--pin", "0"], ["--input-debounce-ms", "0"], ["--pwm-frequency-hz", "0"]],
+)
+def test_an_option_of_elements_given_as_zero_is_given_all_the_same(
+    tmp_path: Path, also: list[str]
+) -> None:
+    """Zero is a pin and a debounce like any other: it is not "not given"."""
+    with pytest.raises(SystemExit):
+        parse_config(["--simulate", "--package", str(_written(tmp_path)), *also], {})
+
+
+def test_two_elements_on_one_pin_are_refused_by_name_before_the_hal_is_asked(
+    tmp_path: Path,
+) -> None:
     def same_pin(document: Document) -> None:
         _inside(document, "elements", 2)["pin"] = 27
 
-    hal = SimulatedHal(load_board("rpi4b"))
-    with pytest.raises(PrimumError) as refused, _client(tmp_path, hal, same_pin):
-        pass
+    error = _refused(tmp_path, same_pin)
 
-    assert refused.value.code is ErrorCode.HAL_PIN_IN_USE
-    assert not hal.lines
+    assert (error.code, dict(error.params)) == (
+        ErrorCode.PACKAGE_PIN_SHARED,
+        {"pin": 27, "elements": ("Sign relay", "Presence sensor")},
+    )
+
+
+def test_a_variable_for_a_number_that_nothing_limits_is_refused_as_a_written_one_is(
+    tmp_path: Path,
+) -> None:
+    """No shipped manifest has such a parameter; a written value for one is already refused
+    (``element.value_unlimited``), and a variable must not be a way around it."""
+    unlimited = json.loads((ROOT / "drivers" / "pwm_output.json").read_text())
+    fade = next(action for action in unlimited["actions"] if action["name"] == "fade")
+    fade["parameters"].append({"name": "speed", "type": "number", "optional": True})
+    manifest = read_driver(PurePosixPath("pwm_output.json"), json.dumps(unlimited).encode()).value
+    assert manifest is not None
+    manifests = {**MANIFESTS, "pwm_output": manifest}
+
+    def reading_it(document: Document, **argument: object) -> None:
+        arguments = cast("list[Document]", _welcome_fade(document)["arguments"])
+        arguments.append({"name": "speed", **argument})
+
+    def from_a_variable(document: Document) -> None:
+        reading_it(document, variable=_brightness(document)["id"])
+
+    def written(document: Document) -> None:
+        reading_it(document, value=3)
+
+    refused: list[PrimumError] = []
+    for change in (from_a_variable, written):
+        with pytest.raises(PrimumError) as error:
+            load_package(_written(tmp_path, change), manifests)
+        refused.append(error.value)
+
+    assert [(error.code, error.params["name"]) for error in refused] == [
+        (ErrorCode.ELEMENT_VALUE_UNLIMITED, "speed"),
+        (ErrorCode.ELEMENT_VALUE_UNLIMITED, "speed"),
+    ]

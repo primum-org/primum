@@ -6,17 +6,18 @@ anything is claimed, and a package that fails any of it is refused whole:
 
 - its board is one this runtime has a profile for;
 - every element is of a type with a driver here, and its options are ones its driver and its
-  board take (what making its driver checks);
+  board take (what making its driver checks); no two elements are on one pin;
 - every command asks its element for an action of its driver, with arguments the action
   takes: a value of the parameter's type and within its limits, or a variable that can only
   ever hold such a value.
 
-Nothing trusts a package for having a right hash. That the pins are free on the board is the
-HAL's to say, when it claims them.
+Nothing trusts a package for having a right hash. The HAL is the last word on the pins, when
+it claims them (a pin the board lacks or reserves, a PWM channel two pins share): what can be
+told here is told here, where the elements have names.
 """
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from uuid import UUID
@@ -31,7 +32,7 @@ from primum_core.generated.model import (
 )
 from primum_core.given import limits_within, type_fits
 from primum_core.package import read_package
-from primum_core.values import Value
+from primum_core.values import NUMERIC, Value
 from primum_runtime.board import available_boards, load_profile, option_limits
 from primum_runtime.drivers import ElementConfig, OptionLimits, create_driver
 from primum_runtime.drivers.values import resolve
@@ -58,7 +59,8 @@ def load_package(path: Path, manifests: Mapping[str, Driver]) -> LoadedPackage:
     Fails with ``package.unreadable`` (``path``, ``detail``), ``package.invalid`` (``path``
     and ``problems``: what ``core`` found, each a code and where), ``package.board_unsupported``
     (``board``, ``available``), ``element.type_unsupported``, what making a driver reports
-    for an element's options, ``element.action_unknown``, what ``resolve`` reports for the
+    for an element's options, ``package.pin_shared`` (``pin``, ``elements``: the names of the
+    two), ``element.action_unknown``, what ``resolve`` reports for the
     arguments of a command, and ``element.variable_unfit`` (``element``, ``action``, ``name``,
     ``variable``) for an argument read from a variable that may not fit.
     """
@@ -92,6 +94,7 @@ def check_against_board(
         raise PrimumError(ErrorCode.PACKAGE_BOARD_UNSUPPORTED, params)
     limits = option_limits(load_profile(model))
     elements = {element.id: _element(element, manifests, limits) for element in package.elements}
+    _check_pins(elements.values())
     variables = {variable.id: variable for variable in package.variables}
     for sequence in package.sequences:
         for command in sequence.commands:
@@ -113,6 +116,16 @@ def _element(
     )
     create_driver(config, manifests, limits)
     return config
+
+
+def _check_pins(elements: Iterable[ElementConfig]) -> None:
+    """No two elements on one pin. The HAL would refuse the claim, but by the pin alone."""
+    on_pin: dict[int, ElementConfig] = {}
+    for element in elements:
+        other = on_pin.setdefault(element.pin, element)
+        if other is not element:
+            params = {"pin": element.pin, "elements": (other.name, element.name)}
+            raise PrimumError(ErrorCode.PACKAGE_PIN_SHARED, params)
 
 
 def _check_command(
@@ -144,11 +157,15 @@ def _check_variable(
     name: str, variable: PackageVariable, action: DriverAction, element: ElementConfig
 ) -> None:
     """A variable read for a parameter can only hold what the parameter takes: of its type,
-    limited within its limits, and never for a parameter that takes only some texts."""
+    limited within its limits, and never for a parameter that takes only some texts. A number
+    that nothing limits is refused as a written one is (``element.value_unlimited``)."""
     parameter = next((p for p in action.parameters if p.name == name), None)
     if parameter is None:
         params = {"element": element.name, "name": name}
         raise PrimumError(ErrorCode.ELEMENT_VALUE_UNKNOWN, params)
+    if parameter.type in NUMERIC and (parameter.min is None or parameter.max is None):
+        params = {"element": element.name, "name": name}
+        raise PrimumError(ErrorCode.ELEMENT_VALUE_UNLIMITED, params)
     fits = (
         type_fits(variable.type, parameter.type)
         and limits_within(variable.min, variable.max, parameter)

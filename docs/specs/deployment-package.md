@@ -139,10 +139,12 @@ package and checks it before anything is claimed; any of these and the service d
 | No profile for its board | `package.board_unsupported` | `board`, `available` |
 | An element of a type without a driver here | `element.type_unsupported` | `element`, `type` |
 | An option its driver or its board does not take | `element.value_*` ([drivers](drivers.md)) | `element`, `name` |
+| Two elements on one pin | `package.pin_shared` | `pin`, `elements`: the names of the two |
 | A command with an action its element's driver does not have (an input has none) | `element.action_unknown` | `element`, `action`, `available` |
 | An argument the action does not take as written | `element.value_*` | `element`, `name` |
 | An argument read from a variable of another type, not limited within the parameter's limits, or for a parameter with choices | `element.variable_unfit` | `element`, `action`, `name`, `variable` |
-| Pins the board lacks, reserves, or that two elements share | the HAL's, at the claim (`hal.pin_*`, `hal.pwm_*`) | |
+| An argument read from a variable for a number that nothing limits, as a written one | `element.value_unlimited` | `element`, `name` |
+| A pin the board lacks or reserves, a PWM channel two pins share | the HAL's, at the claim (`hal.pin_*`, `hal.pwm_*`): the last word, by the pin alone | |
 
 Elements are then asked for by their id: the state gives each output and input its `id` and
 its `name`, and a command goes to `PUT /api/outputs/{id}`. The service drives them as it

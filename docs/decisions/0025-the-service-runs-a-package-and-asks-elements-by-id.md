@@ -19,8 +19,9 @@ runtime has the drivers and the profile of its board.
   then, with the runtime's own manifests and profile, that its board has a profile, every
   element a driver that takes its options, and every command an action its driver has with
   arguments it takes. An argument read from a variable is checked by the variable's type and
-  limits, as `core` checks a project's. Free pins are the HAL's to say, at the claim, which
-  takes all or nothing.
+  limits, as `core` checks a project's. Two elements on one pin are refused here, where they
+  have names; the rest about pins is the HAL's to say, at the claim, which takes all or
+  nothing.
 - **An element is asked for by its id**, not its name: `PUT /api/outputs/{id}`, and the state
   gives each output and input its `id` and its `name`. A name is for people: it may change,
   be shared, or have spaces. An element told of by an option has no id and goes by its name
@@ -40,6 +41,8 @@ runtime has the drivers and the profile of its board.
 - A package for another board, or built by a version with other drivers, is refused at the
   start with what is wrong, not half way through a show.
 - A service that cannot run its package does not start, so the page cannot say why: only the
-  journal does. Activation (4.5) checks a package before it replaces the one that runs.
+  journal does, and systemd goes on restarting it. Activation (4.5) checks a package before
+  it replaces the one that runs, and gives "cannot run this" an exit status that is not
+  restarted.
 - The API's errors still name an element by its name, for people; only the path uses the id.
 - Not checked yet: that an event's element is an input. Events come with 4.4.
