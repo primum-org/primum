@@ -12,11 +12,24 @@ from dataclasses import dataclass, replace
 from uuid import UUID
 
 from primum_core.errors import Location
-from primum_core.generated.model import Clip, Sequence
+from primum_core.generated.model import Block, Clip, Sequence
 from primum_core.pointers import Step, pointer
 from primum_core.references import LocatedContent
+from primum_core.values import Value
 
 type Sequences = Mapping[UUID, tuple[Sequence, Location]]
+
+
+@dataclass(frozen=True)
+class NameRef:
+    """A value taken from a name (``valueOf``) and the sequence it is written in, which says
+    what the name stands for: a parameter of that sequence, or a name its folder sees."""
+
+    name: str
+    sequence: UUID
+
+
+type Binding = Value | NameRef  # what a value parameter is given: a value, or a name
 type Flattened = Mapping[UUID, list["FlatClip"]]
 type Bindings = Mapping[UUID, UUID]  # a parameter → the element given for it
 
@@ -35,6 +48,11 @@ class FlatClip:
     within its scope, which ends at ``scope_end``: when its own sequence ends, in this time.
     ``inner`` is the element as the included sequence saw it, before the block bound its
     parameters.
+
+    ``origin`` is that sequence, the one the clip is written in, and ``values`` what its value
+    parameters were given by the block that includes it, by name: a value, or a name of the
+    including sequence, replaced in turn when that one is included. ``values_here`` are the
+    ones given by a block of the sequence being flattened: what is new here.
     """
 
     element: UUID
@@ -45,6 +63,9 @@ class FlatClip:
     scope_end: int
     scope: tuple[UUID, ...] = ()
     inner: UUID | None = None
+    origin: UUID | None = None
+    values: tuple[tuple[str, Binding], ...] = ()
+    values_here: frozenset[str] = frozenset()
 
     @property
     def via(self) -> UUID | None:
@@ -127,19 +148,24 @@ def _compose(sequence_id: UUID, sequences: Sequences, flattened: Flattened) -> l
             if argument.element is not None
         }
         place = at(location, "blocks", index)
-        included += [
-            FlatClip(
-                bindings.get(clip.element, clip.element),
-                clip.start + block.at_ms,
-                clip.end + block.at_ms,
-                place,
-                clip.clip,
-                clip.scope_end + block.at_ms,
-                (block.id, *clip.scope),
-                clip.element,
+        given = _given(block, sequences[block.sequence][0], sequence_id)
+        for clip in inner_clips:
+            values, here = _bind(clip, block.sequence, given)
+            included.append(
+                FlatClip(
+                    bindings.get(clip.element, clip.element),
+                    clip.start + block.at_ms,
+                    clip.end + block.at_ms,
+                    place,
+                    clip.clip,
+                    clip.scope_end + block.at_ms,
+                    (block.id, *clip.scope),
+                    clip.element,
+                    clip.origin,
+                    values,
+                    here,
+                )
             )
-            for clip in inner_clips
-        ]
     own = [
         (track.element, clip, at(location, "tracks", track_index, "clips", index))
         for track_index, track in enumerate(sequence.tracks)
@@ -149,9 +175,46 @@ def _compose(sequence_id: UUID, sequences: Sequences, flattened: Flattened) -> l
     ends = [clip.at_ms + clip.duration_ms for _, clip, _ in own] + [c.end for c in included]
     end = max(ends, default=0)
     return [
-        FlatClip(element, clip.at_ms, clip.at_ms + clip.duration_ms, place, clip, end)
+        FlatClip(
+            element, clip.at_ms, clip.at_ms + clip.duration_ms, place, clip, end, origin=sequence_id
+        )
         for element, clip, place in own
     ] + included
+
+
+def _given(block: Block, included: Sequence, including: UUID) -> dict[str, Binding]:
+    """What the block gives each value parameter of the sequence it includes, by name."""
+    names = {parameter.id: parameter.name for parameter in included.parameters}
+    given: dict[str, Binding] = {}
+    for argument in block.arguments:
+        name = names.get(argument.parameter)
+        if name is None:
+            continue
+        if argument.value is not None:
+            given[name] = argument.value
+        elif argument.value_of is not None:
+            given[name] = NameRef(argument.value_of, including)
+    return given
+
+
+def _bind(
+    clip: FlatClip, included: UUID, given: Mapping[str, Binding]
+) -> tuple[tuple[tuple[str, Binding], ...], frozenset[str]]:
+    """The values of a clip that comes through a block, and which of them the block gave: the
+    parameters of the clip's own sequence, when the block includes it, or the names of the
+    included sequence that those were given further in."""
+    if not clip.scope:
+        return tuple(given.items()), frozenset(given)
+    values: list[tuple[str, Binding]] = []
+    here: set[str] = set()
+    for name, binding in clip.values:
+        replaced = binding
+        if isinstance(binding, NameRef) and binding.sequence == included:
+            replaced = given.get(binding.name, binding)
+        if replaced is not binding:
+            here.add(name)
+        values.append((name, replaced))
+    return tuple(values), frozenset(here)
 
 
 def holds(sequence: Sequence) -> bool:

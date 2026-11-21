@@ -236,6 +236,10 @@
       "message": "{name} is a constant, so it cannot be changed.",
       "hint": "Change a variable instead, or make {name} a variable."
     },
+    "name.not_a_value": {
+      "message": "{name} is an element, and a value goes here.",
+      "hint": "Use a parameter that is not an element, a constant or a variable."
+    },
     "name.unused": {
       "message": "Nothing uses {name}.",
       "hint": "Use it in an automation, export it, make it a setting, or remove it."
@@ -351,6 +355,18 @@
     "action.param_not_allowed": {
       "message": "The {parameter} of the action {action} of {element} is not one of the values it allows.",
       "hint": "Allowed values: {allowed}."
+    },
+    "action.param_variable_unlimited": {
+      "message": "{name} can hold values that the {parameter} of the action {action} of {element} does not take.",
+      "hint": "Give the variable {name} a minimum and a maximum between {min} and {max}."
+    },
+    "action.param_variable_choices": {
+      "message": "The {parameter} of the action {action} of {element} takes only some texts, and the variable {name} could hold any.",
+      "hint": "Write the value, or use a constant: one of {allowed}."
+    },
+    "automation.starts_component": {
+      "message": "{sequence} has parameters, so an automation cannot start or stop it.",
+      "hint": "Include it in another sequence, which gives it its arguments, and start that one."
     },
     "config.unknown": {
       "message": "{element} has no option {option}.",
@@ -551,6 +567,10 @@
     "driver.default_not_allowed": {
       "message": "The default value of {parameter} is not one it allows.",
       "hint": "Keep it within its limits, or among its choices."
+    },
+    "driver.optional_with_default": {
+      "message": "The parameter {parameter} is optional and has a default value.",
+      "hint": "Remove one of the two: an optional parameter is left without a value when it is not given."
     },
     "driver.unknown_safe_state": {
       "message": "The safe state {action} is not an action the driver can run without arguments.",

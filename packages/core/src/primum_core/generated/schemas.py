@@ -590,7 +590,7 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
     "driverParameter": {
       "type": "object",
       "additionalProperties": false,
-      "description": "A parameter of an action or an option of an element's configuration: its type, its limits and the value it takes when not given. Without a default it must be given.",
+      "description": "A parameter of an action or an option of an element's configuration: its type, its limits and the value it takes when not given. Without a default it must be given, unless it is optional.",
       "required": [
         "name",
         "type"
@@ -623,6 +623,11 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
         },
         "default": {
           "$ref": "common.schema.json#/$defs/value"
+        },
+        "optional": {
+          "description": "May be left out with nothing in its place: the driver then decides (a fade without a from starts where the element is). Never with a default.",
+          "type": "boolean",
+          "default": false
         }
       }
     },
@@ -1091,10 +1096,33 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
           "description": "The values of the action's parameters, by name.",
           "type": "array",
           "items": {
-            "$ref": "common.schema.json#/$defs/namedValue"
+            "$ref": "#/$defs/clipArgument"
           }
         }
       }
+    },
+    "clipArgument": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The value of one parameter of the clip's action: written here, or taken from a name (valueOf). One of the two.",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/$defs/parameterName"
+        },
+        "value": {
+          "$ref": "common.schema.json#/$defs/value"
+        },
+        "valueOf": {
+          "$ref": "#/$defs/valueOf"
+        }
+      }
+    },
+    "valueOf": {
+      "description": "A value taken from a name instead of written: a parameter of this sequence (not an element one), or a constant or a variable its folder sees. A constant and a parameter are put in place when the project is compiled; a variable is read while running (decision 0024).",
+      "$ref": "common.schema.json#/$defs/variableName"
     },
     "block": {
       "type": "object",
@@ -1126,7 +1154,7 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
     "argument": {
       "type": "object",
       "additionalProperties": false,
-      "description": "The value of one parameter of the included sequence: an element, or a value.",
+      "description": "The value of one parameter of the included sequence: an element for an element parameter; for the others a value, written (value) or taken from a name (valueOf).",
       "required": [
         "parameter"
       ],
@@ -1139,6 +1167,9 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
         },
         "value": {
           "$ref": "common.schema.json#/$defs/value"
+        },
+        "valueOf": {
+          "$ref": "#/$defs/valueOf"
         }
       }
     }

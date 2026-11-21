@@ -99,6 +99,13 @@ def _project(**changes: Mapping[str, object]) -> Files:
     return files
 
 
+def _with_blink_as_a_component(blink: dict[str, object]) -> Files:
+    """The project with *Blink* given parameters, and so no longer started by *Greet*: an
+    automation cannot start a component."""
+    counting = {"do": [{"action": "increment_variable", "variable": "visits"}]}
+    return _project(**{"scenes/blink.sec": blink, "greet.auto": counting})
+
+
 def _found(files: Files) -> Found:
     return [
         (
@@ -231,17 +238,13 @@ def test_a_component_plays_its_own_element_parameter() -> None:
         "tracks": [{"element": parameter, "clips": []}],
     }
 
-    assert _found(_project(**{"scenes/blink.sec": blink})) == []
+    assert _found(_with_blink_as_a_component(blink)) == []
 
 
 def test_a_track_cannot_play_a_parameter_of_another_sequence() -> None:
     parameter = _id(50)
-    files = _project(
-        **{
-            "scenes/blink.sec": {
-                "parameters": [{"id": parameter, "name": "target", "type": "element"}]
-            }
-        }
+    files = _with_blink_as_a_component(
+        {"parameters": [{"id": parameter, "name": "target", "type": "element"}]}
     )
     track: dict[str, object] = {"element": parameter, "clips": []}
     files[PurePosixPath("other.sec")] = _file("sequence", _id(51), name="Other", tracks=[track])
@@ -256,8 +259,10 @@ def test_a_track_cannot_play_a_parameter_of_another_sequence() -> None:
 
 def test_a_block_gives_arguments_only_to_parameters_of_the_sequence_it_includes() -> None:
     own_parameter = _id(50)
-    blink = {"parameters": [{"id": own_parameter, "name": "target", "type": "element"}]}
-    files = _project(**{"scenes/blink.sec": blink})
+    blink: dict[str, object] = {
+        "parameters": [{"id": own_parameter, "name": "target", "type": "element"}]
+    }
+    files = _with_blink_as_a_component(blink)
     files[PurePosixPath("show.sec")] = _file(
         "sequence",
         _id(51),
@@ -340,7 +345,7 @@ def test_a_track_plays_an_element_parameter_never_a_parameter_of_another_type() 
         "tracks": [{"element": parameter, "clips": []}],
     }
 
-    [(code, params, _, pointer)] = _found(_project(**{"scenes/blink.sec": blink}))
+    [(code, params, _, pointer)] = _found(_with_blink_as_a_component(blink))
     assert (code, params["field"], pointer) == (
         CoreErrorCode.REF_WRONG_KIND,
         "tracks[0].element",

@@ -231,6 +231,21 @@ def test_two_actions_may_each_have_a_parameter_of_the_same_name() -> None:
             ),
         ),
         (
+            {
+                "name": "level",
+                "type": "number",
+                "min": 0,
+                "max": 100,
+                "default": 50,
+                "optional": True,
+            },
+            (
+                CoreErrorCode.DRIVER_OPTIONAL_WITH_DEFAULT,
+                {"parameter": "level"},
+                "/config/0/default",
+            ),
+        ),
+        (
             {"name": "pull", "type": "text", "choices": ["up", "down"], "default": "sideways"},
             (
                 CoreErrorCode.DRIVER_DEFAULT_NOT_ALLOWED,

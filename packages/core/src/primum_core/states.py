@@ -17,7 +17,7 @@ from uuid import UUID
 from primum_core.commands import Running, command_at, timeline_of
 from primum_core.drivers import Drivers
 from primum_core.errors import CoreErrorCode, Issue, Severity
-from primum_core.generated.model import Clip, Driver, DriverAction, Hardware, NamedValue
+from primum_core.generated.model import Clip, ClipArgument, Driver, DriverAction, Hardware
 from primum_core.references import LocatedContent
 from primum_core.timeline import FlatClip, flatten_all, sequences_of
 
@@ -93,18 +93,31 @@ def _moves_to_rest(clip: FlatClip, elements: _Elements) -> bool:
         return False
     starts = _level(action.start_state, action, clip.clip.arguments)
     ends = end_level(clip.clip, driver)
-    # A start or an end that cannot be told is the actions check's.
-    if starts is None or ends is None:
+    # An end that cannot be told is the actions check's, and so is a start, unless it was
+    # left out as it may be: then the clip starts where its element is, which is what the
+    # command under it says, and that is compared with the rest state by the caller.
+    if ends is None or ends != rest_level(driver):
         return False
-    return ends == rest_level(driver) and starts != ends
+    if starts is None:
+        return _left_out(action.start_state, action, clip.clip.arguments)
+    return starts != ends
 
 
 def _action(driver: Driver, name: str | None) -> DriverAction | None:
     return next((action for action in driver.actions if action.name == name), None)
 
 
+def _left_out(
+    state: float | str, action: DriverAction, arguments: tuple[ClipArgument, ...]
+) -> bool:
+    """Whether the state is given by an optional parameter that the clip does not give."""
+    parameter = next((p for p in action.parameters if p.name == state), None)
+    given = any(argument.name == state for argument in arguments)
+    return parameter is not None and parameter.optional and not given
+
+
 def _level(
-    state: float | str, action: DriverAction, arguments: tuple[NamedValue, ...]
+    state: float | str, action: DriverAction, arguments: tuple[ClipArgument, ...]
 ) -> float | None:
     if not isinstance(state, str):
         return state

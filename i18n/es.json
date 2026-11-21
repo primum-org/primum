@@ -236,6 +236,10 @@
       "message": "{name} es una constante, así que no se puede cambiar.",
       "hint": "Cambia una variable, o convierte {name} en variable."
     },
+    "name.not_a_value": {
+      "message": "{name} es un elemento, y aquí va un valor.",
+      "hint": "Usa un parámetro que no sea un elemento, una constante o una variable."
+    },
     "name.unused": {
       "message": "Nada usa {name}.",
       "hint": "Úsala en una automatización, expórtala, conviértela en ajuste o quítala."
@@ -351,6 +355,18 @@
     "action.param_not_allowed": {
       "message": "El valor de {parameter} en la acción {action} de {element} no es uno de los que admite.",
       "hint": "Valores admitidos: {allowed}."
+    },
+    "action.param_variable_unlimited": {
+      "message": "{name} puede tener valores que el parámetro {parameter} de la acción {action} de {element} no admite.",
+      "hint": "Da a la variable {name} un mínimo y un máximo entre {min} y {max}."
+    },
+    "action.param_variable_choices": {
+      "message": "El parámetro {parameter} de la acción {action} de {element} solo admite algunos textos, y la variable {name} podría tener cualquiera.",
+      "hint": "Escribe el valor, o usa una constante: uno de {allowed}."
+    },
+    "automation.starts_component": {
+      "message": "{sequence} tiene parámetros, así que una automatización no puede arrancarla ni pararla.",
+      "hint": "Inclúyela en otra secuencia, que le da sus argumentos, y arranca esa."
     },
     "config.unknown": {
       "message": "{element} no tiene la opción {option}.",
@@ -551,6 +567,10 @@
     "driver.default_not_allowed": {
       "message": "El valor por defecto de {parameter} no es uno de los que admite.",
       "hint": "Mantenlo dentro de sus límites o entre sus opciones."
+    },
+    "driver.optional_with_default": {
+      "message": "El parámetro {parameter} es opcional y tiene un valor por defecto.",
+      "hint": "Quita uno de los dos: un parámetro opcional se queda sin valor cuando no se da."
     },
     "driver.unknown_safe_state": {
       "message": "El estado seguro {action} no es una acción que el driver pueda ejecutar sin argumentos.",

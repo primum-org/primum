@@ -167,7 +167,7 @@ class DriverAction:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class DriverParameter:
-    """A parameter of an action or an option of an element's configuration: its type, its limits and the value it takes when not given. Without a default it must be given."""
+    """A parameter of an action or an option of an element's configuration: its type, its limits and the value it takes when not given. Without a default it must be given, unless it is optional."""
 
     name: str
     type: Literal["number", "integer", "boolean", "text"]
@@ -175,6 +175,7 @@ class DriverParameter:
     max: float | None = None
     choices: tuple[str, ...] = ()
     default: float | bool | str | None = None
+    optional: bool = False
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -309,7 +310,16 @@ class Clip:
     at_ms: int
     duration_ms: int
     action: str
-    arguments: tuple[NamedValue, ...] = ()
+    arguments: tuple[ClipArgument, ...] = ()
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class ClipArgument:
+    """The value of one parameter of the clip's action: written here, or taken from a name (valueOf). One of the two."""
+
+    name: str
+    value: float | bool | str | None = None
+    value_of: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -324,11 +334,12 @@ class Block:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class Argument:
-    """The value of one parameter of the included sequence: an element, or a value."""
+    """The value of one parameter of the included sequence: an element for an element parameter; for the others a value, written (value) or taken from a name (valueOf)."""
 
     parameter: UUID
     element: UUID | None = None
     value: float | bool | str | None = None
+    value_of: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -524,6 +535,7 @@ def parse_driver_parameter(data: JsonObject) -> DriverParameter:
         max=as_float(data["max"]) if "max" in data else None,
         choices=tuple(as_str(item) for item in as_list(data["choices"])) if "choices" in data else (),
         default=as_scalar(data["default"]) if "default" in data else None,
+        optional=as_bool(data["optional"]) if "optional" in data else False,
     )
 
 
@@ -648,7 +660,16 @@ def parse_clip(data: JsonObject) -> Clip:
         at_ms=as_int(data["atMs"]),
         duration_ms=as_int(data["durationMs"]),
         action=as_str(data["action"]),
-        arguments=tuple(parse_named_value(as_object(item)) for item in as_list(data["arguments"])) if "arguments" in data else (),
+        arguments=tuple(parse_clip_argument(as_object(item)) for item in as_list(data["arguments"])) if "arguments" in data else (),
+    )
+
+
+def parse_clip_argument(data: JsonObject) -> ClipArgument:
+    """Build a ``ClipArgument`` from a document that passed its schema."""
+    return ClipArgument(
+        name=as_str(data["name"]),
+        value=as_scalar(data["value"]) if "value" in data else None,
+        value_of=as_str(data["valueOf"]) if "valueOf" in data else None,
     )
 
 
@@ -668,6 +689,7 @@ def parse_argument(data: JsonObject) -> Argument:
         parameter=as_uuid(data["parameter"]),
         element=as_uuid(data["element"]) if "element" in data else None,
         value=as_scalar(data["value"]) if "value" in data else None,
+        value_of=as_str(data["valueOf"]) if "valueOf" in data else None,
     )
 
 

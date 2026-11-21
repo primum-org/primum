@@ -3,7 +3,8 @@
 Some objects take different fields depending on one of them: an element on a GPIO needs a
 ``pin`` while an I2C device needs a ``bus`` and an ``address``; an event from an element needs
 the element; an automation action that starts a sequence names it; only a numeric variable has
-limits. A missing field is ``schema.missing_field`` and a field that does not apply to the case
+limits; an argument of a clip is a value or the name of one. A missing field is
+``schema.missing_field`` and a field that does not apply to the case
 is ``schema.unexpected_field``, both pointing at it.
 
 Constants and variables also carry a value of their declared type, and a variable's initial
@@ -20,6 +21,7 @@ from primum_core.generated.model import (
     Element,
     Event,
     Hardware,
+    Sequence,
     Variable,
     Variables,
 )
@@ -93,8 +95,28 @@ def check_variants(file: LocatedContent) -> tuple[Issue, ...]:
             )
         case Variables():
             return tuple(_variables_issues(content, file.location))
+        case Sequence():
+            return tuple(_clip_argument_issues(content, file.location))
         case _:
             return ()
+
+
+def _clip_argument_issues(content: Sequence, location: Location) -> Iterator[Issue]:
+    """An argument of a clip is a value or the name of one (``valueOf``): one of the two."""
+    for track_index, track in enumerate(content.tracks):
+        for clip_index, clip in enumerate(track.clips):
+            for index, argument in enumerate(clip.arguments):
+                steps = ("tracks", track_index, "clips", clip_index, "arguments", index)
+                yield from _one_value(argument.value, argument.value_of, steps, location)
+
+
+def _one_value(
+    value: object, value_of: str | None, steps: tuple[Step, ...], location: Location
+) -> Iterator[Issue]:
+    if value is None and value_of is None:
+        yield from _check(_case(required="value"), {"value": False}, steps, location)
+    elif value is not None and value_of is not None:
+        yield from _check(_case(unexpected="valueOf"), {"valueOf": True}, steps, location)
 
 
 def _variables_issues(content: Variables, location: Location) -> Iterator[Issue]:

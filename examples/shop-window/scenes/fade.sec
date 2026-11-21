@@ -3,7 +3,7 @@
   "kind": "sequence",
   "schemaVersion": 1,
   "name": "Fade",
-  "description": "A component: fades an element up, then down. Used by Welcome on the LED.",
+  "description": "A component: fades an element up to a peak, then down. Used by Welcome on the LED.",
   "parameters": [
     {
       "id": "f4cafd83-8b33-4871-bab6-dc2602f84758",
@@ -12,8 +12,8 @@
     },
     {
       "id": "630288c8-8003-49c1-a223-918ae491192f",
-      "name": "times",
-      "type": "integer"
+      "name": "peak",
+      "type": "number"
     }
   ],
   "tracks": [
@@ -32,7 +32,7 @@
             },
             {
               "name": "to",
-              "value": 100
+              "valueOf": "peak"
             }
           ]
         },
@@ -42,10 +42,6 @@
           "durationMs": 1500,
           "action": "fade",
           "arguments": [
-            {
-              "name": "from",
-              "value": 100
-            },
             {
               "name": "to",
               "value": 0

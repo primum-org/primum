@@ -92,7 +92,7 @@
     "driverParameter": {
       "type": "object",
       "additionalProperties": false,
-      "description": "A parameter of an action or an option of an element's configuration: its type, its limits and the value it takes when not given. Without a default it must be given.",
+      "description": "A parameter of an action or an option of an element's configuration: its type, its limits and the value it takes when not given. Without a default it must be given, unless it is optional.",
       "required": [
         "name",
         "type"
@@ -125,6 +125,11 @@
         },
         "default": {
           "$ref": "common.schema.json#/$defs/value"
+        },
+        "optional": {
+          "description": "May be left out with nothing in its place: the driver then decides (a fade without a from starts where the element is). Never with a default.",
+          "type": "boolean",
+          "default": false
         }
       }
     },

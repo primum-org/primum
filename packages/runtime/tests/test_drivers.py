@@ -130,6 +130,7 @@ def test_a_pwm_output_asks_for_its_frequency_or_the_default_of_its_manifest() ->
         ("set", {"level": 25}, 0.25),
         ("set", {"level": 12.5}, 0.125),
         ("fade", {"from": 100, "to": 40}, 0.4),  # as an instant command it jumps to its end
+        ("fade", {"to": 40}, 0.4),  # its ``from`` may be left out: from where it is
     ],
 )
 def test_a_pwm_output_goes_to_the_level_each_action_ends_in(
