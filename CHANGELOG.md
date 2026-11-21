@@ -50,6 +50,11 @@ All notable changes to this project are documented here. The format follows
   one automation and stopped by another (`examples/evening-lights/`). It only holds when it
   is started on its own: including it in another sequence gets a warning. A sequence that ends
   with an instant command and does not hold gets a warning: it would not be seen.
+- A sequence can say what starting it does while it is already running
+  (`whenStartedAgain`): `restart`, the default, or `ignore`. Starting a sequence stops the
+  others of its exclusive group. Decided for the engine to come: a schedule's window starts
+  its automations when it opens and when the board comes back inside it, so
+  `examples/evening-lights/` lights its lamp again after a power cut.
 - `primum validate` checks each element against what its board takes: a PWM output on a
   Raspberry Pi 4 runs from 1 Hz to 100 kHz, a limit that now lives in the board's profile with
   the documentation it comes from. It also warns when a fade to 0 would end with the light

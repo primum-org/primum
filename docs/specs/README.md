@@ -9,7 +9,7 @@ the spec in the same pull request. They are written from phase 2 on.
 | [`variables-and-scopes.md`](variables-and-scopes.md) | Constants, variables, scopes, export/import, settings, components | 2 |
 | `expressions.md` | The small, safe expression language used in conditions | 4 |
 | `events.md` | Event sources, debounce, schedules and time windows | 4 |
-| `engine-semantics.md` | Sequences in time, automations, arbitration, re-trigger, exclusive groups | 4 |
+| [`engine-semantics.md`](engine-semantics.md) | Which sequences are running: starting, stopping, re-trigger, exclusive groups, restarts; later automations and arbitration | 4 |
 | [`safety.md`](safety.md) | Safe state, panic, the watchdog and `primum-safe` after a crash, test mode | 3 |
 | `deployment-package.md` | Package format, hash, minimum runtime version, activation, rollback | 4 |
 | [`board-profiles.md`](board-profiles.md) | Board profile format, rules and use | 2 |

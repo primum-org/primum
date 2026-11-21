@@ -22,6 +22,7 @@ _ELEMENT_TYPE: Final[tuple[Literal["digital_output", "digital_input", "pwm_outpu
 _SCHEDULE_TIME_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 _SCHEDULE_WINDOW_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 _SEQUENCE_WHEN_DONE: Final[tuple[Literal["end", "hold"], ...]] = ("end", "hold")
+_SEQUENCE_WHEN_STARTED_AGAIN: Final[tuple[Literal["restart", "ignore"], ...]] = ("restart", "ignore")
 _PARAMETER_TYPE: Final[tuple[Literal["element", "number", "integer", "boolean", "text"], ...]] = ("element", "number", "integer", "boolean", "text")
 _CONSTANT_TYPE: Final[tuple[Literal["number", "integer", "boolean", "text"], ...]] = ("number", "integer", "boolean", "text")
 _VARIABLE_TYPE: Final[tuple[Literal["number", "integer", "boolean", "text"], ...]] = ("number", "integer", "boolean", "text")
@@ -238,7 +239,7 @@ class Project:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class Schedule:
-    """A .sched file: times of day that start automations, and windows of time that automations use as conditions."""
+    """A .sched file: times of day and windows of time that start automations. A time fires at its instant, and is lost if the board was off then; a window fires when it opens, or when the engine starts inside it (decision 0023). Windows are also conditions of automations."""
 
     id: UUID
     kind: Literal["schedule"] = "schedule"
@@ -277,6 +278,7 @@ class Sequence:
     priority: int = 0
     exclusive_group: str | None = None
     when_done: Literal["end", "hold"] = "end"
+    when_started_again: Literal["restart", "ignore"] = "restart"
     parameters: tuple[Parameter, ...] = ()
     tracks: tuple[Track, ...]
     blocks: tuple[Block, ...] = ()
@@ -615,6 +617,7 @@ def parse_sequence(data: JsonObject) -> Sequence:
         priority=as_int(data["priority"]) if "priority" in data else 0,
         exclusive_group=as_str(data["exclusiveGroup"]) if "exclusiveGroup" in data else None,
         when_done=as_choice(data["whenDone"], _SEQUENCE_WHEN_DONE) if "whenDone" in data else "end",
+        when_started_again=as_choice(data["whenStartedAgain"], _SEQUENCE_WHEN_STARTED_AGAIN) if "whenStartedAgain" in data else "restart",
         parameters=tuple(parse_parameter(as_object(item)) for item in as_list(data["parameters"])) if "parameters" in data else (),
         tracks=tuple(parse_track(as_object(item)) for item in as_list(data["tracks"])),
         blocks=tuple(parse_block(as_object(item)) for item in as_list(data["blocks"])) if "blocks" in data else (),

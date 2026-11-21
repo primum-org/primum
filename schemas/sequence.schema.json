@@ -36,7 +36,7 @@
       "default": 0
     },
     "exclusiveGroup": {
-      "description": "Sequences in the same exclusive group cancel each other: starting one stops the others, so they never run at once.",
+      "description": "Sequences in the same exclusive group cancel each other: starting one stops the others, so they never run at once (decision 0023).",
       "type": "string",
       "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
       "maxLength": 40
@@ -48,6 +48,14 @@
         "hold"
       ],
       "default": "end"
+    },
+    "whenStartedAgain": {
+      "description": "What starting the sequence does while it is already running (decision 0023): restart, it begins again and counts as started last; or ignore, the start does nothing.",
+      "enum": [
+        "restart",
+        "ignore"
+      ],
+      "default": "restart"
     },
     "parameters": {
       "type": "array",

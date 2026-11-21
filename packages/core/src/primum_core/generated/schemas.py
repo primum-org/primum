@@ -846,7 +846,7 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "schedule.schema.json",
   "title": "Schedule",
-  "description": "A .sched file: times of day that start automations, and windows of time that automations use as conditions.",
+  "description": "A .sched file: times of day and windows of time that start automations. A time fires at its instant, and is lost if the board was off then; a window fires when it opens, or when the engine starts inside it (decision 0023). Windows are also conditions of automations.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -974,7 +974,7 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
       "default": 0
     },
     "exclusiveGroup": {
-      "description": "Sequences in the same exclusive group cancel each other: starting one stops the others, so they never run at once.",
+      "description": "Sequences in the same exclusive group cancel each other: starting one stops the others, so they never run at once (decision 0023).",
       "type": "string",
       "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
       "maxLength": 40
@@ -986,6 +986,14 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
         "hold"
       ],
       "default": "end"
+    },
+    "whenStartedAgain": {
+      "description": "What starting the sequence does while it is already running (decision 0023): restart, it begins again and counts as started last; or ignore, the start does nothing.",
+      "enum": [
+        "restart",
+        "ignore"
+      ],
+      "default": "restart"
     },
     "parameters": {
       "type": "array",

@@ -71,10 +71,18 @@ class Span:
 
 @dataclass(frozen=True)
 class Timeline:
-    """A sequence ready to be asked: its priority and the commands of each element."""
+    """A sequence ready to be asked: its priority and the commands of each element.
+
+    And what starting it needs to know (``primum_core.runs``): when it ends in its own time
+    (``None``: it holds, until it is stopped), its exclusive group and whether starting it
+    while it runs restarts it.
+    """
 
     priority: int
     spans: Mapping[UUID, tuple[Span, ...]]
+    end: int | None = None
+    exclusive_group: str | None = None
+    restarts: bool = True
 
 
 type Timelines = Mapping[UUID, Timeline]
@@ -136,7 +144,13 @@ def timeline_of(sequence: Sequence, clips: list[FlatClip]) -> Timeline:
     for clip in clips:
         until = _until(clip, instants.get((clip.element, clip.scope), []), end, held)
         spans.setdefault(clip.element, []).append(Span(clip.clip, clip.start, until))
-    return Timeline(sequence.priority, {element: tuple(of) for element, of in spans.items()})
+    return Timeline(
+        sequence.priority,
+        {element: tuple(of) for element, of in spans.items()},
+        None if held else end,
+        sequence.exclusive_group,
+        sequence.when_started_again == "restart",
+    )
 
 
 def _until(clip: FlatClip, instants: list[int], end: int, held: bool) -> int | None:
