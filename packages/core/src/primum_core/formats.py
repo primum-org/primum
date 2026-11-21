@@ -137,7 +137,7 @@ def _read[T](
     check: Check[T] | None = None,
 ) -> Parsed[T]:
     location = Location(path)
-    document = _decode(content, location)
+    document = decode(content, location)
     if isinstance(document, Issue):
         return Parsed(None, (document,))
     location = Location(path, file_id=_file_id(document))
@@ -149,8 +149,9 @@ def _read[T](
     return Parsed(None, issues) if issues else Parsed(value)
 
 
-def _decode(content: bytes, location: Location) -> object:
-    """The JSON document in ``content``, or the ``Issue`` that prevents reading it."""
+def decode(content: bytes, location: Location) -> object:
+    """The JSON document in ``content``, or the ``Issue`` that prevents reading it: UTF-8, no
+    repeated keys, and numbers as JSON means them."""
     try:
         text = content.decode("utf-8-sig")  # editors on Windows may add a byte order mark
     except UnicodeDecodeError:

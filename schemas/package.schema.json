@@ -1,0 +1,502 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "package.schema.json",
+  "title": "Package",
+  "description": "A deployment package: a project compiled for one board, flat and already checked (decision 0024). It is all the runtime sees: no folders, no scopes, no components, no constants. Built by primum-core, never written by hand.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schemaVersion",
+    "hash",
+    "project",
+    "board",
+    "elements",
+    "variables",
+    "sequences",
+    "events",
+    "schedules",
+    "automations"
+  ],
+  "properties": {
+    "kind": {
+      "const": "package"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "hash": {
+      "description": "sha256 of the package without this field, in its canonical form: keys sorted, no spaces, UTF-8.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "project": {
+      "$ref": "#/$defs/packageProject"
+    },
+    "board": {
+      "$ref": "#/$defs/packageBoard"
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/packageElement"
+      }
+    },
+    "variables": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/packageVariable"
+      }
+    },
+    "sequences": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/packageSequence"
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/packageEvent"
+      }
+    },
+    "schedules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/packageSchedule"
+      }
+    },
+    "automations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/packageAutomation"
+      }
+    }
+  },
+  "$defs": {
+    "packageProject": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The project the package was compiled from.",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        }
+      }
+    },
+    "packageBoard": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The board the package is for.",
+      "required": [
+        "id",
+        "name",
+        "model"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "model": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "maxLength": 40
+        }
+      }
+    },
+    "packageElement": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "An element of the board, with every option of its driver: the ones its .hw file gives and the defaults of the others.",
+      "required": [
+        "id",
+        "name",
+        "type",
+        "config"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 40
+        },
+        "pin": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "activeLow": {
+          "type": "boolean",
+          "default": false
+        },
+        "bus": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*$"
+        },
+        "address": {
+          "type": "integer",
+          "minimum": 8,
+          "maximum": 119
+        },
+        "config": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/namedValue"
+          }
+        }
+      }
+    },
+    "packageVariable": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A variable: a value that changes while running.",
+      "required": [
+        "id",
+        "name",
+        "type",
+        "initial",
+        "persistent",
+        "setting"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/variableName"
+        },
+        "type": {
+          "$ref": "common.schema.json#/$defs/valueType"
+        },
+        "initial": {
+          "$ref": "common.schema.json#/$defs/value"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "persistent": {
+          "type": "boolean"
+        },
+        "setting": {
+          "type": "boolean"
+        }
+      }
+    },
+    "packageSequence": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "A sequence that can be started: its components expanded, its clips turned into commands by the rule of decision 0017.",
+      "required": [
+        "id",
+        "name",
+        "priority",
+        "whenDone",
+        "whenStartedAgain",
+        "durationMs",
+        "commands"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "exclusiveGroup": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "maxLength": 40
+        },
+        "whenDone": {
+          "enum": [
+            "end",
+            "hold"
+          ]
+        },
+        "whenStartedAgain": {
+          "enum": [
+            "restart",
+            "ignore"
+          ]
+        },
+        "durationMs": {
+          "description": "When its last clip ends.",
+          "$ref": "common.schema.json#/$defs/durationMs"
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/command"
+          }
+        }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What an element is asked from atMs, in the time of its sequence. In force until untilMs; without it, until the sequence is stopped (what a sequence that holds keeps). The action lasts durationMs, 0 for an instant command; after that the element stays in the state the action ends in.",
+      "required": [
+        "clip",
+        "element",
+        "atMs",
+        "durationMs",
+        "action",
+        "arguments"
+      ],
+      "properties": {
+        "clip": {
+          "description": "The clip of the project it comes from, for the trace.",
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "element": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "atMs": {
+          "$ref": "common.schema.json#/$defs/durationMs"
+        },
+        "durationMs": {
+          "$ref": "common.schema.json#/$defs/durationMs"
+        },
+        "untilMs": {
+          "$ref": "common.schema.json#/$defs/durationMs"
+        },
+        "action": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 40
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/commandArgument"
+          }
+        }
+      }
+    },
+    "commandArgument": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The value of one parameter of the action: the value itself, or the variable to read it from when the command starts. Every parameter is here, the driver's default included, except an optional one that was left out.",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/$defs/parameterName"
+        },
+        "value": {
+          "$ref": "common.schema.json#/$defs/value"
+        },
+        "variable": {
+          "$ref": "common.schema.json#/$defs/reference"
+        }
+      }
+    },
+    "packageEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Something that happens outside and starts automations.",
+      "required": [
+        "id",
+        "name",
+        "source"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "source": {
+          "enum": [
+            "element",
+            "ui",
+            "api"
+          ]
+        },
+        "element": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "trigger": {
+          "enum": [
+            "on",
+            "off"
+          ]
+        }
+      }
+    },
+    "packageSchedule": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Times of day and windows of time that start automations.",
+      "required": [
+        "id",
+        "name",
+        "times",
+        "windows"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "times": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/packageTime"
+          }
+        },
+        "windows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/packageWindow"
+          }
+        }
+      }
+    },
+    "packageTime": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Every listed day at a time.",
+      "required": [
+        "days",
+        "at"
+      ],
+      "properties": {
+        "days": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/weekday"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "at": {
+          "$ref": "common.schema.json#/$defs/timeOfDay"
+        }
+      }
+    },
+    "packageWindow": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Every listed day from one time to another.",
+      "required": [
+        "days",
+        "from",
+        "to"
+      ],
+      "properties": {
+        "days": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/weekday"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "from": {
+          "$ref": "common.schema.json#/$defs/timeOfDay"
+        },
+        "to": {
+          "$ref": "common.schema.json#/$defs/timeOfDay"
+        }
+      }
+    },
+    "packageAutomation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "When an event or a schedule fires, if the condition holds, do the actions.",
+      "required": [
+        "id",
+        "name",
+        "enabled",
+        "when",
+        "do"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "name": {
+          "$ref": "common.schema.json#/$defs/name"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "when": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/reference"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "if": {
+          "description": "The condition as the project writes it: its names are not resolved until the expression language exists.",
+          "type": "string",
+          "maxLength": 500
+        },
+        "do": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/packageAction"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "packageAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Start or stop a sequence, or set or increment a variable, each by its id.",
+      "required": [
+        "action"
+      ],
+      "properties": {
+        "action": {
+          "enum": [
+            "start_sequence",
+            "stop_sequence",
+            "set_variable",
+            "increment_variable"
+          ]
+        },
+        "sequence": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "variable": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "value": {
+          "$ref": "common.schema.json#/$defs/value"
+        }
+      }
+    }
+  }
+}

@@ -50,6 +50,15 @@ All notable changes to this project are documented here. The format follows
   one automation and stopped by another (`examples/evening-lights/`). It only holds when it
   is started on its own: including it in another sequence gets a warning. A sequence that ends
   with an instant command and does not hold gets a warning: it would not be seen.
+- `primum build <folder>` compiles a project into its deployment package, one JSON file with
+  its own hash: what a board will run. A project with errors is not built.
+- A clip can take a value from a name instead of writing it (`valueOf`): a constant, a
+  variable (read while running; it needs limits within the parameter's) or a parameter of its
+  component, which the including sequence gives, also by name. `examples/shop-window/` fades
+  its LED up to the `brightness` setting.
+- `fade` may leave its `from` out, to start from where the light is.
+- `primum validate` refuses an automation that starts or stops a component (a sequence with
+  parameters).
 - A sequence can say what starting it does while it is already running
   (`whenStartedAgain`): `restart`, the default, or `ignore`. Starting a sequence stops the
   others of its exclusive group. Decided for the engine to come: a schedule's window starts

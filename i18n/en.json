@@ -33,7 +33,9 @@
     "list.and": "and",
     "issue.unknown": "A problem this version of the messages does not know ({code}).",
     "folder.not_a_folder": "{path} is not a folder.",
-    "folder.unreadable": "Cannot read {path}: {detail}"
+    "folder.unreadable": "Cannot read {path}: {detail}",
+    "build.written": "Package written to {path} ({hash}).",
+    "build.unwritable": "Cannot write the package to {path}: {detail}"
   },
   "errors": {
     "hal.pin_in_use": {
@@ -587,6 +589,18 @@
     "driver.duplicate_type": {
       "message": "More than one driver serves the element type {type}.",
       "hint": "Keep one manifest per element type."
+    },
+    "package.no_board": {
+      "message": "The project has no board, so there is nothing to build a package for.",
+      "hint": "Add a board to a hardware file (.hw)."
+    },
+    "package.several_boards": {
+      "message": "The project has several boards ({boards}), and a package is built for one.",
+      "hint": "Projects on several boards are not supported yet: keep one board."
+    },
+    "package.hash_mismatch": {
+      "message": "The package does not match its hash: it is incomplete or was changed after it was built.",
+      "hint": "Build it again with primum build."
     }
   }
 }

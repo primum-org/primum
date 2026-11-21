@@ -136,6 +136,10 @@ class CoreErrorCode(StrEnum):
     DRIVER_UNKNOWN_STATE_PARAMETER = "driver.unknown_state_parameter"  # action, parameter
     DRIVER_STATE_NOT_A_LEVEL = "driver.state_not_a_level"  # action, parameter
     DRIVER_DUPLICATE_TYPE = "driver.duplicate_type"  # type
+    # Compiling a project into a deployment package, and reading one (decision 0024).
+    PACKAGE_NO_BOARD = "package.no_board"
+    PACKAGE_SEVERAL_BOARDS = "package.several_boards"  # boards
+    PACKAGE_HASH_MISMATCH = "package.hash_mismatch"
 
 
 class Severity(StrEnum):

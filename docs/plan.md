@@ -657,11 +657,33 @@ per element, from a deployment package that can be rolled back. One pull request
   windows across midnight, once per window). Not warned about: a sequence that ignores being
   started again, holds and shares an element with another on its priority.
 
-**4.2 · Deployment package and compiler**
-- The package format (`specs/deployment-package.md`): flat, validated, with its hash and the
-  minimum runtime version; the compiler in `core` flattens components once (today sequences
-  are flattened three times) and binds what a clip takes from a parameter or a variable.
-  `fade` "from where it is" needs a parameter that may be left out.
+**4.2 · Deployment package and compiler** · **done** (decision 0024,
+`specs/deployment-package.md`)
+- `schemas/package.schema.json`: one JSON file for one board, with its own hash (sha256 of
+  the rest in canonical form). Elements with every option of their driver, variables,
+  sequences as commands (a clip after the rule of decision 0017: when it starts, how long
+  its action lasts, until when it is in force), events, schedules and automations by id.
+- `primum_core.compiler.compile_package` builds it from a valid project; `primum build
+  <folder>` writes it; `primum_core.package.read_package` reads one and checks its hash. A
+  project with no board or with several does not compile (`package.no_board`,
+  `package.several_boards`).
+- A randomized test holds a reader of the package to `command_at`, with two sequences
+  running and priorities: the engine needs nothing but the package.
+- An argument of a clip or of a block is a value or a name (`valueOf`): a constant is put in
+  place, a component's parameter is what its block gives (passed on through components), a
+  variable stays a reference and must be limited within the parameter's limits.
+  `examples/shop-window` fades its LED up to `brightness`.
+- A driver's parameter may be `optional`; `fade` leaves its `from` out to start where the
+  element is. An automation cannot start a component (`automation.starts_component`).
+- Found by its own tests: a whole number written `80.0` hashed differently from `80`, so a
+  package with a limited variable did not read back.
+- Left for 4.3: when the engine reads the variable of an argument (once when the command
+  starts, or following it); where the element "is" for a `fade` without `from`. For 4.4: an
+  automation's `if` travels as text with its names unresolved, and the constants it names are
+  not in the package. Sequences are still flattened once per check that needs them (three
+  of them, and the compiler): fine at today's sizes. `end_level` does not look through a
+  `valueOf`, so `clip.returns_to_instant` does not see a constant or a parameter that is 0.
+  No example in `examples/invalid/` for the new codes.
 
 **4.3 · Engine and arbiter**
 - The runtime runs the sequences of a package on a monotonic clock, through the drivers, and

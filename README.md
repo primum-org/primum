@@ -30,6 +30,7 @@ uv sync              # install the environment (Python 3.13 and dev tools)
 uv run just check    # lint, types, architecture rules, generated files and tests (what CI runs)
 uv run just watch    # re-run tests on every save
 uv run primum validate examples/minimal   # check a project folder, without hardware
+uv run primum build examples/minimal      # compile it into its deployment package
 uv run just pi-sync  # install this working tree on the development Pi (see image/README.md)
 ```
 

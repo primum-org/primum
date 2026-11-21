@@ -1,12 +1,17 @@
 """Who commands an element at an instant (decision 0017): ``command_at``."""
 
+import json
+from pathlib import PurePosixPath
 from random import Random
 from uuid import UUID
 
 import pytest
 
 from primum_core.commands import Command, Running, command_at, timelines_of
+from primum_core.compiler import compile_package
 from primum_core.errors import CoreErrorCode
+from primum_core.generated.model import Package
+from primum_core.package import read_package
 from project_builder import Ids, Project
 
 LED, LAMP = 4, 9
@@ -438,3 +443,57 @@ def test_a_clip_reported_as_never_seen_never_commands_however_its_sequence_runs(
     }
 
     assert reported.isdisjoint(seen)
+
+
+def _asked_of_the_package(
+    package: Package, element: UUID, at_ms: int, running: list[Running]
+) -> tuple[UUID, bool] | None:
+    """What an engine would read from a deployment package: of the commands in force, the
+    highest priority, then the one that started last, a clip with a length before an instant
+    command, then the sequence started last. Its clip, and whether its action is over."""
+    sequences = {sequence.id: sequence for sequence in package.sequences}
+    winner: tuple[tuple[int, int, bool, int], tuple[UUID, bool]] | None = None
+    for order, run in enumerate(running):
+        sequence = sequences[run.sequence]
+        local = at_ms - run.started_ms
+        for command in sequence.commands:
+            ended = command.until_ms is not None and local >= command.until_ms
+            if command.element != element or local < command.at_ms or ended:
+                continue
+            since = run.started_ms + command.at_ms
+            rank = (sequence.priority, since, command.duration_ms > 0, order)
+            if winner is None or rank > winner[0]:
+                settled = local >= command.at_ms + command.duration_ms
+                winner = (rank, (command.clip, settled))
+    return winner[1] if winner else None
+
+
+@pytest.mark.parametrize("seed", range(300))
+def test_a_deployment_package_says_what_command_at_says(
+    project: Project, ids: Ids, seed: int
+) -> None:
+    """The commands of a compiled package against the oracle, on random projects, with two
+    sequences running, started at different times: an engine needs nothing but the package."""
+    random = Random(seed)  # noqa: S311 (a fixed seed: the same projects on every run)
+    _random_project(project, ids, random)
+    for number in range(4):  # priorities too, which the projects above leave at 0
+        if random.random() < 0.3:
+            path = PurePosixPath(f"s{number}.sec")
+            document = json.loads(project.files[path])
+            project.files[path] = json.dumps({**document, "priority": 5}).encode()
+    if not project.is_valid():
+        return
+    workspace = project.loaded()
+    timelines = timelines_of(workspace)
+    compiled = compile_package(workspace, project.drivers)
+    assert compiled.value is not None
+    package = read_package(PurePosixPath("p.json"), json.dumps(compiled.value).encode()).value
+    assert package is not None
+    first, second = random.sample(sorted(timelines), 2)
+    running = [Running(first, 0), Running(second, random.choice([0, 250, 1000, 4000]))]
+    led = UUID(ids(LED))
+
+    for at_ms in range(0, 14_000, 250):
+        expected = command_at(led, at_ms, running, timelines)
+        asked = _asked_of_the_package(package, led, at_ms, running)
+        assert asked == (None if expected is None else (expected.clip.id, expected.settled)), at_ms

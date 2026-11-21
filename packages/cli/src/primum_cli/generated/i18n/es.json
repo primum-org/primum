@@ -33,7 +33,9 @@
     "list.and": "y",
     "issue.unknown": "Un problema que esta versión de los mensajes no conoce ({code}).",
     "folder.not_a_folder": "{path} no es una carpeta.",
-    "folder.unreadable": "No se puede leer {path}: {detail}"
+    "folder.unreadable": "No se puede leer {path}: {detail}",
+    "build.written": "Paquete escrito en {path} ({hash}).",
+    "build.unwritable": "No se puede escribir el paquete en {path}: {detail}"
   },
   "errors": {
     "hal.pin_in_use": {
@@ -587,6 +589,18 @@
     "driver.duplicate_type": {
       "message": "Más de un driver atiende el tipo de elemento {type}.",
       "hint": "Deja un solo manifiesto por tipo de elemento."
+    },
+    "package.no_board": {
+      "message": "El proyecto no tiene ninguna placa, así que no hay para qué construir un paquete.",
+      "hint": "Añade una placa a un fichero de hardware (.hw)."
+    },
+    "package.several_boards": {
+      "message": "El proyecto tiene varias placas ({boards}), y un paquete se construye para una.",
+      "hint": "Los proyectos con varias placas aún no están soportados: deja una sola placa."
+    },
+    "package.hash_mismatch": {
+      "message": "El paquete no coincide con su hash: está incompleto o se cambió después de construirlo.",
+      "hint": "Constrúyelo de nuevo con primum build."
     }
   }
 }

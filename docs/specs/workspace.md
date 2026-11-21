@@ -13,7 +13,7 @@ A project is a folder of files (decision 0004). This spec says what the folder h
 |---|---|---|
 | `.hw` | `hardware` | Boards (`model` names a board profile) and the elements wired to them, each with the options of its driver (`config`) |
 | `.vars` | `variables` | Constants and variables of its folder; names exported and imported |
-| `.sec` | `sequence` | Tracks of clips per element, each clip an action of the element's driver with its `arguments`; blocks that include other sequences; parameters (a component); `priority` and `exclusiveGroup` (decision 0006); `whenDone` (`end` or `hold`, decision 0017); `whenStartedAgain` (`restart` or `ignore`, decision 0023) |
+| `.sec` | `sequence` | Tracks of clips per element, each clip an action of the element's driver with its `arguments`, each a `value` or a `valueOf` (a name, decision 0024); blocks that include other sequences; parameters (a component); `priority` and `exclusiveGroup` (decision 0006); `whenDone` (`end` or `hold`, decision 0017); `whenStartedAgain` (`restart` or `ignore`, decision 0023) |
 | `.evt` | `event` | Something from outside: an input element, a button of the phone UI, the local API |
 | `.sched` | `schedule` | Times of day and windows of time: both start automations (a window also when the engine starts inside it, decision 0023), and windows are conditions too |
 | `.auto` | `automation` | When events or schedules fire, if a condition holds, do actions |
