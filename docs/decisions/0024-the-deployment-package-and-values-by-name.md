@@ -17,10 +17,14 @@ required its `from`.
   **one board**. A project without a board, or on several, validates and does not compile
   (`package.no_board`, `package.several_boards`): splitting a project between boards comes
   after version 1.
-- **It carries its own hash**: the sha256 of the rest of it in a canonical form (keys sorted,
-  no spaces, UTF-8, a whole number without a fraction). Whoever reads a package checks it
-  (`package.hash_mismatch`). The same project always gives the same bytes: nothing of when or
+- **It carries its own hash**: the sha256 of the rest of it in the canonical form of RFC 8785
+  (keys sorted, no spaces, UTF-8, numbers as JavaScript writes them), so the UI computes it
+  with `JSON.stringify`. The same project always gives the same bytes: nothing of when or
   where it was built is in it.
+- **A hash is not a check.** It tells a file cut short or edited; a package built wrong has a
+  right one. Reading a package checks its shape, its hash and that it holds together (ids,
+  references, the fields of each case), and the runtime checks the rest when it loads it,
+  with its drivers and its board. Nothing trusts a package for being one.
 - **Sequences travel as commands, not clips.** The compiler expands components and applies
   the rule of decision 0017: each command says its element, when it starts, how long its
   action lasts and until when it is in force (no end: what a sequence that holds keeps). The
@@ -41,6 +45,9 @@ required its `from`.
     reads it. Nothing checks the value again before it reaches the driver, so the project
     must guarantee it: the variable's type fits and its limits lie within the parameter's
     (`action.param_variable_unlimited`). A text parameter with choices takes no variable.
+    That only holds if the variable stays within its limits: an automation that sets a
+    value outside them is refused (`variable.set_out_of_range`), and the engine holds every
+    assignment to them while running.
 - **A driver's parameter may be optional**: left out with nothing in its place, and the
   driver decides. `fade` takes its `from` so: without it, it starts where the element is.
 - **An automation cannot start or stop a component** (`automation.starts_component`): it has
@@ -55,6 +62,9 @@ required its `from`.
   have to produce reproducible zip bytes. How audio travels is decided with audio.
 - **Clamping a variable to the parameter's limits while running**: a mistake of the project
   would pass in silence.
+- **Python's own number format in the canonical form**: it writes `1e-05` where JavaScript
+  writes `0.00001`, so the UI would compute another hash for a package with a small decimal.
+  Cheaper to settle with one implementation than with two.
 - **Arguments in the automation that starts a component**: more format and more checks for
   what a one-block sequence already does.
 - **A parameter referenced by id, like an element parameter in a track**: a value comes from
@@ -69,5 +79,8 @@ required its `from`.
   expression language (4.4) replaces it with something the runtime can evaluate, and brings
   the constants it names.
 - `fade` without `from` needs the engine to know where the element is.
-- A canonical form shared with other languages (the UI, a C++ runtime) must print numbers as
-  Python does; the spec says how, and a test will hold each new implementation to a known hash.
+- The engine must keep a variable within its limits on every assignment (an increment, a
+  value from the phone), by clamping or refusing: decided in 4.3, written here so that it is
+  not forgotten. Until then the guarantee above is only as good as `core`'s checks.
+- Other implementations of the canonical form (a C++ runtime) follow the RFC; a test will
+  hold each to a known hash.

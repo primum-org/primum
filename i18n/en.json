@@ -274,6 +274,10 @@
       "message": "{name} is not a number, so it cannot be incremented.",
       "hint": "Set its value instead, or make {name} a number."
     },
+    "variable.set_out_of_range": {
+      "message": "{value} is outside the limits of {name}.",
+      "hint": "Set a value between its minimum and its maximum, or change them."
+    },
     "argument.missing": {
       "message": "The included sequence needs a value for its parameter {parameter}.",
       "hint": "Add an argument for {parameter} to the block."

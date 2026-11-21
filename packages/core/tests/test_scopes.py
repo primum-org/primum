@@ -1,5 +1,7 @@
 """Names of constants and variables: visible by folder, exported and imported, used."""
 
+import pytest
+
 from primum_core.errors import CoreErrorCode, Severity
 from project_builder import Ids, Project
 
@@ -381,4 +383,40 @@ def test_a_stray_variable_on_an_action_that_takes_none_is_reported_once(
             "count.auto",
             "/do/0/variable",
         )
+    ]
+
+
+@pytest.mark.parametrize(("value", "refused"), [(100, False), (0, False), (101, True), (-1, True)])
+def test_a_value_set_outside_the_limits_of_the_variable_is_refused(
+    project: Project, ids: Ids, value: int, refused: bool
+) -> None:
+    limited = {**_variable(ids, 11, "brightness"), "min": 0, "max": 100}
+    project.add("shop.vars", "variables", ids(10), constants=[], variables=[limited])
+    do = [{"action": "set_variable", "variable": "brightness", "value": value}]
+    _automation(project, ids, "dim.auto", do=do)
+
+    expected = [
+        (
+            CoreErrorCode.VARIABLE_SET_OUT_OF_RANGE,
+            {"name": "brightness", "value": value},
+            "dim.auto",
+            "/do/0/value",
+        )
+    ]
+    assert project.found(severity=Severity.ERROR) == (expected if refused else [])
+
+
+def test_a_value_set_on_a_variable_limited_on_one_side_is_held_to_that_side(
+    project: Project, ids: Ids
+) -> None:
+    limited = {**_variable(ids, 11, "visits"), "min": 0}
+    project.add("shop.vars", "variables", ids(10), constants=[], variables=[limited])
+    do = [
+        {"action": "set_variable", "variable": "visits", "value": 10_000},
+        {"action": "set_variable", "variable": "visits", "value": -1},
+    ]
+    _automation(project, ids, "count.auto", do=do)
+
+    assert [pointer for _, _, _, pointer in project.found(severity=Severity.ERROR)] == [
+        "/do/1/value"
     ]

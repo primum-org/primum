@@ -88,3 +88,20 @@ def test_a_folder_that_is_not_one_fails(tmp_path: Path) -> None:
 
     assert status == EXIT_FAILED
     assert "nothing" in err
+
+
+def test_building_from_inside_the_project_does_not_make_the_package_part_of_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    folder = tmp_path / "project"
+    shutil.copytree(EXAMPLES / "minimal", folder)
+    monkeypatch.chdir(folder)
+    first = _build(".")
+
+    again = _build(".")
+    out = StringIO()
+    validated = main(["validate", ".", "--strict"], out, StringIO())
+
+    assert (folder / "project.package.json").exists()
+    assert (first[0], again[0], validated) == (EXIT_VALID, EXIT_VALID, EXIT_VALID), out.getvalue()
+    assert "warning" not in again[1]

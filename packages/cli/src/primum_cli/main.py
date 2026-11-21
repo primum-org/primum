@@ -18,7 +18,7 @@ from typing import TextIO
 
 from primum_cli.boards import load_profiles
 from primum_cli.drivers import load_drivers
-from primum_cli.folder import read_folder
+from primum_cli.folder import PACKAGE_SUFFIX, read_folder
 from primum_cli.messages import DEFAULT_LANGUAGE, LANGUAGES, Catalog
 from primum_core.compiler import compile_package
 from primum_core.errors import Issue, Severity
@@ -38,7 +38,7 @@ def main(
     catalog = Catalog.load(args.lang)
     to, errors = out or sys.stdout, err or sys.stderr
     if args.command == "build":
-        output = args.output or Path(f"{args.folder.resolve().name}.package.json")
+        output = args.output or Path(f"{args.folder.resolve().name}{PACKAGE_SUFFIX}")
         return build(args.folder, output, catalog, out=to, err=errors)
     return validate(args.folder, catalog, as_json=args.json, strict=args.strict, out=to, err=errors)
 

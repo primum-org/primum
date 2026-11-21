@@ -265,10 +265,23 @@ def _action_value_issues(
         params = {"name": variable.name}
         yield Issue(CoreErrorCode.VARIABLE_NOT_NUMERIC, params, _at(location, *steps, "variable"))
         return
-    if value is not None:
-        issue = check_value(value, variable.value_type, (*steps, "value"), location)
-        if issue is not None:
-            yield issue
+    if value is None:
+        return
+    issue = check_value(value, variable.value_type, (*steps, "value"), location)
+    if issue is not None:
+        yield issue
+    elif action == "set_variable" and _outside(value, variable):
+        params = {"name": variable.name, "value": value}
+        at = _at(location, *steps, "value")
+        yield Issue(CoreErrorCode.VARIABLE_SET_OUT_OF_RANGE, params, at)
+
+
+def _outside(value: Value, variable: Definition) -> bool:
+    """Whether a number lies outside the limits the variable has."""
+    if isinstance(value, bool | str):
+        return False
+    below = variable.min is not None and value < variable.min
+    return below or (variable.max is not None and value > variable.max)
 
 
 def _check_parameters(sequence: Sequence, location: Location, scopes: _Scopes) -> None:

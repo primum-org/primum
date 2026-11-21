@@ -237,7 +237,7 @@ class Element:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class Package:
-    """A deployment package: a project compiled for one board, flat and already checked (decision 0024). It is all the runtime sees: no folders, no scopes, no components, no constants. Built by primum-core, never written by hand."""
+    """A deployment package: a project compiled for one board, flat, built from a project that passed every check (decision 0024). Whoever reads one checks it again: its shape, its hash and that it holds together. It is all the runtime sees: no folders, no scopes, no components, no constants. Built by primum-core, never written by hand."""
 
     kind: Literal["package"] = "package"
     schema_version: Literal[1] = 1
@@ -326,7 +326,7 @@ class Command:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class CommandArgument:
-    """The value of one parameter of the action: the value itself, or the variable to read it from when the command starts. Every parameter is here, the driver's default included, except an optional one that was left out."""
+    """The value of one parameter of the action: the value itself, or the variable to read it from while running (when exactly is the engine's). One of the two. Every parameter is here, the driver's default included, except an optional one that was left out."""
 
     name: str
     value: float | bool | str | None = None

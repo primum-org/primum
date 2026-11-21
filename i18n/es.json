@@ -274,6 +274,10 @@
       "message": "{name} no es un número, así que no se puede incrementar.",
       "hint": "Fija su valor en lugar de incrementarlo, o convierte {name} en número."
     },
+    "variable.set_out_of_range": {
+      "message": "{value} está fuera de los límites de {name}.",
+      "hint": "Asigna un valor entre su mínimo y su máximo, o cámbialos."
+    },
     "argument.missing": {
       "message": "La secuencia incluida necesita un valor para su parámetro {parameter}.",
       "hint": "Añade al bloque un argumento para {parameter}."

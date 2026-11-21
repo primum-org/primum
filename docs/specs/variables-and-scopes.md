@@ -23,6 +23,9 @@ A `.vars` file holds constants and variables for the folder it is in.
 - Limits: only a numeric variable has `min` and `max` (`schema.unexpected_field` otherwise);
   `min` is not above `max` (`variable.limits_invalid`); `initial` lies within them, limits
   included (`variable.initial_out_of_range`).
+- A value an automation sets lies within the variable's limits
+  (`variable.set_out_of_range`, with `name` and `value`, at the value). An increment cannot
+  be judged here: the engine holds every assignment to the limits while running (phase 4).
 - Only a numeric variable is incremented (`variable.not_numeric`); the amount, when given, is
   of the variable's type.
 - `setting: true` exposes a variable in the phone UI. `persistent: true` keeps its value across

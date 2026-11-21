@@ -4,10 +4,12 @@ import json
 from pathlib import PurePosixPath
 from typing import cast
 
+import pytest
+
 from primum_core.compiler import compile_package
 from primum_core.errors import CoreErrorCode
 from primum_core.generated.model import Package, PackageSequence
-from primum_core.package import package_hash, read_package
+from primum_core.package import canonical, package_hash, read_package
 from project_builder import Ids, Project
 
 LED, BUTTON, LAMP = 4, 5, 9
@@ -320,3 +322,153 @@ def test_a_whole_number_hashes_the_same_however_it_is_written(project: Project) 
     )
 
     assert package_hash(rewritten) == document["hash"]
+
+
+def _rehashed(document: dict[str, object]) -> bytes:
+    """The bytes of a package changed by hand, its hash made right again."""
+    return json.dumps({**document, "hash": package_hash(document)}).encode()
+
+
+def _full(project: Project, ids: Ids) -> dict[str, object]:
+    """A package with a bit of everything: a command with an argument, an event, an
+    automation that starts the sequence and sets a variable."""
+    _names(_lamp(project, ids), ids)
+    _show(project, ids, _clip(ids, 21, 0, 1000, "set", level={"valueOf": "brightness"}))
+    project.add(
+        "pressed.evt",
+        "event",
+        ids(70),
+        name="Pressed",
+        source="element",
+        element=ids(BUTTON),
+        trigger="on",
+    )
+    do = [
+        {"action": "start_sequence", "sequence": ids(SHOW)},
+        {"action": "set_variable", "variable": "brightness", "value": 30},
+    ]
+    project.add("go.auto", "automation", ids(71), name="Go", when=[ids(70)], do=do)
+    return _document(project)
+
+
+def _first(document: dict[str, object], *path: str | int) -> dict[str, object]:
+    """The object at ``path`` inside the document, to change in place."""
+    found: object = document
+    for step in path:
+        inside = cast("dict[str | int, object]", found)  # a list is indexed the same way
+        found = inside[step]
+    return cast("dict[str, object]", found)
+
+
+COMMAND = ("sequences", 0, "commands", 0)
+ARGUMENT = (*COMMAND, "arguments", 0)
+START, SET = ("automations", 0, "do", 0), ("automations", 0, "do", 1)
+UNKNOWN = "00000000-0000-0000-0000-000000000999"
+
+
+@pytest.mark.parametrize(
+    ("path", "change", "code", "pointer"),
+    [
+        (
+            COMMAND,
+            {"element": UNKNOWN},
+            CoreErrorCode.REF_UNKNOWN,
+            "/sequences/0/commands/0/element",
+        ),
+        (
+            ARGUMENT,
+            {"variable": UNKNOWN},
+            CoreErrorCode.REF_UNKNOWN,
+            "/sequences/0/commands/0/arguments/0/variable",
+        ),
+        (
+            ARGUMENT,
+            {"value": 3},
+            CoreErrorCode.SCHEMA_UNEXPECTED_FIELD,
+            "/sequences/0/commands/0/arguments/0/variable",
+        ),
+        (
+            ARGUMENT,
+            {"variable": None},
+            CoreErrorCode.SCHEMA_MISSING_FIELD,
+            "/sequences/0/commands/0/arguments/0",
+        ),
+        (
+            COMMAND,
+            {"atMs": 500, "untilMs": 400},
+            CoreErrorCode.SCHEMA_INVALID_VALUE,
+            "/sequences/0/commands/0/untilMs",
+        ),
+        (START, {"sequence": None}, CoreErrorCode.SCHEMA_MISSING_FIELD, "/automations/0/do/0"),
+        (START, {"sequence": UNKNOWN}, CoreErrorCode.REF_UNKNOWN, "/automations/0/do/0/sequence"),
+        (START, {"value": 1}, CoreErrorCode.SCHEMA_UNEXPECTED_FIELD, "/automations/0/do/0/value"),
+        (SET, {"variable": UNKNOWN}, CoreErrorCode.REF_UNKNOWN, "/automations/0/do/1/variable"),
+        (SET, {"value": None}, CoreErrorCode.SCHEMA_MISSING_FIELD, "/automations/0/do/1"),
+        (
+            ("automations", 0),
+            {"when": [UNKNOWN]},
+            CoreErrorCode.REF_UNKNOWN,
+            "/automations/0/when/0",
+        ),
+        (("events", 0), {"element": UNKNOWN}, CoreErrorCode.REF_UNKNOWN, "/events/0/element"),
+        (("events", 0), {"element": None}, CoreErrorCode.SCHEMA_MISSING_FIELD, "/events/0"),
+        (
+            ("elements", 1),
+            {"id": "00000000-0000-0000-0000-000000000004"},
+            CoreErrorCode.ID_DUPLICATE,
+            "/elements/1",
+        ),
+    ],
+)
+def test_a_package_that_does_not_hold_together_is_refused_whatever_its_hash(
+    project: Project,
+    ids: Ids,
+    path: tuple[str | int, ...],
+    change: dict[str, object],
+    code: CoreErrorCode,
+    pointer: str,
+) -> None:
+    document = _full(project, ids)
+    target = _first(document, *path)
+    for key, value in change.items():
+        if value is None:
+            del target[key]
+        else:
+            target[key] = value
+
+    read = read_package(PATH, _rehashed(document))
+
+    assert read.value is None
+    found = [(issue.code, issue.location and issue.location.pointer) for issue in read.issues]
+    assert (code, pointer) in found
+
+
+@pytest.mark.parametrize(
+    ("number", "written"),
+    [
+        (1e-05, "0.00001"),
+        (1e-07, "1e-7"),
+        (0.000001, "0.000001"),
+        (1e21, "1e+21"),
+        (1e20, "100000000000000000000"),
+        (333333333.33333329, "333333333.3333333"),
+        (4.5, "4.5"),
+        (0.002, "0.002"),
+        (1e-27, "1e-27"),
+        (-0.0, "0"),
+        (80.0, "80"),
+        (-2.5, "-2.5"),
+        (2**53 + 2, "9007199254740994"),
+    ],
+)
+def test_numbers_are_written_for_the_hash_as_javascript_writes_them(
+    number: float, written: str
+) -> None:
+    """RFC 8785: what ``JSON.stringify`` gives, so that the UI computes the same hash."""
+    assert canonical({"n": number}) == '{"n":' + written + "}"
+
+
+def test_the_canonical_form_sorts_keys_and_keeps_text_as_it_is() -> None:
+    assert canonical({"b": [True, None, "año\n"], "a": {"d": 1, "c": "x"}}) == (
+        '{"a":{"c":"x","d":1},"b":[true,null,"año\\n"]}'
+    )

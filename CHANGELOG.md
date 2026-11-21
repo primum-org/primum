@@ -58,7 +58,7 @@ All notable changes to this project are documented here. The format follows
   its LED up to the `brightness` setting.
 - `fade` may leave its `from` out, to start from where the light is.
 - `primum validate` refuses an automation that starts or stops a component (a sequence with
-  parameters).
+  parameters), and one that sets a variable to a value outside its limits.
 - A sequence can say what starting it does while it is already running
   (`whenStartedAgain`): `restart`, the default, or `ignore`. Starting a sequence stops the
   others of its exclusive group. Decided for the engine to come: a schedule's window starts

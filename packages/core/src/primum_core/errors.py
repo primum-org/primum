@@ -42,6 +42,7 @@ class CoreErrorCode(StrEnum):
     VARIABLE_LIMITS_INVALID = "variable.limits_invalid"  # name, min, max
     VARIABLE_INITIAL_OUT_OF_RANGE = "variable.initial_out_of_range"  # name, initial
     VARIABLE_NOT_NUMERIC = "variable.not_numeric"  # name
+    VARIABLE_SET_OUT_OF_RANGE = "variable.set_out_of_range"  # name, value
     # Components: sequences with parameters, included with arguments.
     ARGUMENT_MISSING = "argument.missing"  # parameter
     ARGUMENT_DUPLICATE = "argument.duplicate"  # parameter

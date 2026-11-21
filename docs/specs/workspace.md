@@ -19,7 +19,8 @@ A project is a folder of files (decision 0004). This spec says what the folder h
 | `.auto` | `automation` | When events or schedules fire, if a condition holds, do actions |
 
 - Any other file is not part of the project: it is ignored with a warning
-  (`file.not_in_format`). Hidden files and folders (`.git`) and links are not read at all.
+  (`file.not_in_format`). Hidden files and folders (`.git`) and links are not read at all, and neither is a
+  deployment package (`*.package.json`), which `primum build` may write there.
 
 Every file has `id` (a UUID that never changes), `kind` and `schemaVersion`. So has everything
 defined inside a file that others refer to: boards, elements, constants, variables, parameters,

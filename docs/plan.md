@@ -677,8 +677,16 @@ per element, from a deployment package that can be rolled back. One pull request
   element is. An automation cannot start a component (`automation.starts_component`).
 - Found by its own tests: a whole number written `80.0` hashed differently from `80`, so a
   package with a limited variable did not read back.
+- From review: an automation that sets a variable outside its limits is refused
+  (`variable.set_out_of_range`); reading a package also checks that it holds together (ids,
+  references, the fields of each case), since a right hash says nothing of a package built
+  wrong; the canonical form is RFC 8785's, where Python's own wrote `1e-05` for JavaScript's
+  `0.00001`; `primum build .` no longer makes its package a file of the project.
 - Left for 4.3: when the engine reads the variable of an argument (once when the command
-  starts, or following it); where the element "is" for a `fade` without `from`. For 4.4: an
+  starts, or following it); where the element "is" for a `fade` without `from`; **holding
+  every assignment of a variable to its limits** (clamp or refuse), which the limits check
+  of a clip's argument counts on; **checking a package against the drivers and the board
+  when loading it** (actions, arguments, options, pins), which `read_package` cannot. For 4.4: an
   automation's `if` travels as text with its names unresolved, and the constants it names are
   not in the package. Sequences are still flattened once per check that needs them (three
   of them, and the compiler): fine at today's sizes. `end_level` does not look through a
