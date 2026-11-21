@@ -19,6 +19,14 @@ _DRIVER_PARAMETER_TYPE: Final[tuple[Literal["number", "integer", "boolean", "tex
 _EVENT_SOURCE: Final[tuple[Literal["element", "ui", "api"], ...]] = ("element", "ui", "api")
 _EVENT_TRIGGER: Final[tuple[Literal["on", "off"], ...]] = ("on", "off")
 _ELEMENT_TYPE: Final[tuple[Literal["digital_output", "digital_input", "pwm_output", "i2c_device"], ...]] = ("digital_output", "digital_input", "pwm_output", "i2c_device")
+_PACKAGE_VARIABLE_TYPE: Final[tuple[Literal["number", "integer", "boolean", "text"], ...]] = ("number", "integer", "boolean", "text")
+_PACKAGE_SEQUENCE_WHEN_DONE: Final[tuple[Literal["end", "hold"], ...]] = ("end", "hold")
+_PACKAGE_SEQUENCE_WHEN_STARTED_AGAIN: Final[tuple[Literal["restart", "ignore"], ...]] = ("restart", "ignore")
+_PACKAGE_EVENT_SOURCE: Final[tuple[Literal["element", "ui", "api"], ...]] = ("element", "ui", "api")
+_PACKAGE_EVENT_TRIGGER: Final[tuple[Literal["on", "off"], ...]] = ("on", "off")
+_PACKAGE_TIME_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+_PACKAGE_WINDOW_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+_PACKAGE_ACTION_ACTION: Final[tuple[Literal["start_sequence", "stop_sequence", "set_variable", "increment_variable"], ...]] = ("start_sequence", "stop_sequence", "set_variable", "increment_variable")
 _SCHEDULE_TIME_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 _SCHEDULE_WINDOW_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 _SEQUENCE_WHEN_DONE: Final[tuple[Literal["end", "hold"], ...]] = ("end", "hold")
@@ -167,7 +175,7 @@ class DriverAction:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class DriverParameter:
-    """A parameter of an action or an option of an element's configuration: its type, its limits and the value it takes when not given. Without a default it must be given."""
+    """A parameter of an action or an option of an element's configuration: its type, its limits and the value it takes when not given. Without a default it must be given, unless it is optional."""
 
     name: str
     type: Literal["number", "integer", "boolean", "text"]
@@ -175,6 +183,7 @@ class DriverParameter:
     max: float | None = None
     choices: tuple[str, ...] = ()
     default: float | bool | str | None = None
+    optional: bool = False
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -224,6 +233,164 @@ class Element:
     bus: str | None = None
     address: int | None = None
     config: tuple[NamedValue, ...] = ()
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class Package:
+    """A deployment package: a project compiled for one board, flat, built from a project that passed every check (decision 0024). Whoever reads one checks it again: its shape, its hash and that it holds together. It is all the runtime sees: no folders, no scopes, no components, no constants. Built by primum-core, never written by hand."""
+
+    kind: Literal["package"] = "package"
+    schema_version: Literal[1] = 1
+    hash: str
+    project: PackageProject
+    board: PackageBoard
+    elements: tuple[PackageElement, ...]
+    variables: tuple[PackageVariable, ...]
+    sequences: tuple[PackageSequence, ...]
+    events: tuple[PackageEvent, ...]
+    schedules: tuple[PackageSchedule, ...]
+    automations: tuple[PackageAutomation, ...]
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PackageProject:
+    """The project the package was compiled from."""
+
+    id: UUID
+    name: str
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PackageBoard:
+    """The board the package is for."""
+
+    id: UUID
+    name: str
+    model: str
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PackageElement:
+    """An element of the board, with every option of its driver: the ones its .hw file gives and the defaults of the others."""
+
+    id: UUID
+    name: str
+    type: str
+    pin: int | None = None
+    active_low: bool = False
+    bus: str | None = None
+    address: int | None = None
+    config: tuple[NamedValue, ...]
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PackageVariable:
+    """A variable: a value that changes while running."""
+
+    id: UUID
+    name: str
+    type: Literal["number", "integer", "boolean", "text"]
+    initial: float | bool | str
+    min: float | None = None
+    max: float | None = None
+    persistent: bool
+    setting: bool
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PackageSequence:
+    """A sequence that can be started: its components expanded, its clips turned into commands by the rule of decision 0017."""
+
+    id: UUID
+    name: str
+    priority: int
+    exclusive_group: str | None = None
+    when_done: Literal["end", "hold"]
+    when_started_again: Literal["restart", "ignore"]
+    duration_ms: int
+    commands: tuple[Command, ...]
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class Command:
+    """What an element is asked from atMs, in the time of its sequence. In force until untilMs; without it, until the sequence is stopped (what a sequence that holds keeps). The action lasts durationMs, 0 for an instant command; after that the element stays in the state the action ends in."""
+
+    clip: UUID
+    element: UUID
+    at_ms: int
+    duration_ms: int
+    until_ms: int | None = None
+    action: str
+    arguments: tuple[CommandArgument, ...]
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class CommandArgument:
+    """The value of one parameter of the action: the value itself, or the variable to read it from while running (when exactly is the engine's). One of the two. Every parameter is here, the driver's default included, except an optional one that was left out."""
+
+    name: str
+    value: float | bool | str | None = None
+    variable: UUID | None = None
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PackageEvent:
+    """Something that happens outside and starts automations."""
+
+    id: UUID
+    name: str
+    source: Literal["element", "ui", "api"]
+    element: UUID | None = None
+    trigger: Literal["on", "off"] | None = None
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PackageSchedule:
+    """Times of day and windows of time that start automations."""
+
+    id: UUID
+    name: str
+    times: tuple[PackageTime, ...]
+    windows: tuple[PackageWindow, ...]
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PackageTime:
+    """Every listed day at a time."""
+
+    days: tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]
+    at: str
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PackageWindow:
+    """Every listed day from one time to another."""
+
+    days: tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]
+    from_: str
+    to: str
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PackageAutomation:
+    """When an event or a schedule fires, if the condition holds, do the actions."""
+
+    id: UUID
+    name: str
+    enabled: bool
+    when: tuple[UUID, ...]
+    if_: str | None = None
+    do: tuple[PackageAction, ...]
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class PackageAction:
+    """Start or stop a sequence, or set or increment a variable, each by its id."""
+
+    action: Literal["start_sequence", "stop_sequence", "set_variable", "increment_variable"]
+    sequence: UUID | None = None
+    variable: UUID | None = None
+    value: float | bool | str | None = None
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -309,7 +476,16 @@ class Clip:
     at_ms: int
     duration_ms: int
     action: str
-    arguments: tuple[NamedValue, ...] = ()
+    arguments: tuple[ClipArgument, ...] = ()
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class ClipArgument:
+    """The value of one parameter of the clip's action: written here, or taken from a name (valueOf). One of the two."""
+
+    name: str
+    value: float | bool | str | None = None
+    value_of: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -324,11 +500,12 @@ class Block:
 
 @dataclass(frozen=True, kw_only=True, slots=True)
 class Argument:
-    """The value of one parameter of the included sequence: an element, or a value."""
+    """The value of one parameter of the included sequence: an element for an element parameter; for the others a value, written (value) or taken from a name (valueOf)."""
 
     parameter: UUID
     element: UUID | None = None
     value: float | bool | str | None = None
+    value_of: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -524,6 +701,7 @@ def parse_driver_parameter(data: JsonObject) -> DriverParameter:
         max=as_float(data["max"]) if "max" in data else None,
         choices=tuple(as_str(item) for item in as_list(data["choices"])) if "choices" in data else (),
         default=as_scalar(data["default"]) if "default" in data else None,
+        optional=as_bool(data["optional"]) if "optional" in data else False,
     )
 
 
@@ -569,6 +747,162 @@ def parse_element(data: JsonObject) -> Element:
         bus=as_str(data["bus"]) if "bus" in data else None,
         address=as_int(data["address"]) if "address" in data else None,
         config=tuple(parse_named_value(as_object(item)) for item in as_list(data["config"])) if "config" in data else (),
+    )
+
+
+def parse_package(data: JsonObject) -> Package:
+    """Build a ``Package`` from a document that passed its schema."""
+    return Package(
+        hash=as_str(data["hash"]),
+        project=parse_package_project(as_object(data["project"])),
+        board=parse_package_board(as_object(data["board"])),
+        elements=tuple(parse_package_element(as_object(item)) for item in as_list(data["elements"])),
+        variables=tuple(parse_package_variable(as_object(item)) for item in as_list(data["variables"])),
+        sequences=tuple(parse_package_sequence(as_object(item)) for item in as_list(data["sequences"])),
+        events=tuple(parse_package_event(as_object(item)) for item in as_list(data["events"])),
+        schedules=tuple(parse_package_schedule(as_object(item)) for item in as_list(data["schedules"])),
+        automations=tuple(parse_package_automation(as_object(item)) for item in as_list(data["automations"])),
+    )
+
+
+def parse_package_project(data: JsonObject) -> PackageProject:
+    """Build a ``PackageProject`` from a document that passed its schema."""
+    return PackageProject(
+        id=as_uuid(data["id"]),
+        name=as_str(data["name"]),
+    )
+
+
+def parse_package_board(data: JsonObject) -> PackageBoard:
+    """Build a ``PackageBoard`` from a document that passed its schema."""
+    return PackageBoard(
+        id=as_uuid(data["id"]),
+        name=as_str(data["name"]),
+        model=as_str(data["model"]),
+    )
+
+
+def parse_package_element(data: JsonObject) -> PackageElement:
+    """Build a ``PackageElement`` from a document that passed its schema."""
+    return PackageElement(
+        id=as_uuid(data["id"]),
+        name=as_str(data["name"]),
+        type=as_str(data["type"]),
+        pin=as_int(data["pin"]) if "pin" in data else None,
+        active_low=as_bool(data["activeLow"]) if "activeLow" in data else False,
+        bus=as_str(data["bus"]) if "bus" in data else None,
+        address=as_int(data["address"]) if "address" in data else None,
+        config=tuple(parse_named_value(as_object(item)) for item in as_list(data["config"])),
+    )
+
+
+def parse_package_variable(data: JsonObject) -> PackageVariable:
+    """Build a ``PackageVariable`` from a document that passed its schema."""
+    return PackageVariable(
+        id=as_uuid(data["id"]),
+        name=as_str(data["name"]),
+        type=as_choice(data["type"], _PACKAGE_VARIABLE_TYPE),
+        initial=as_scalar(data["initial"]),
+        min=as_float(data["min"]) if "min" in data else None,
+        max=as_float(data["max"]) if "max" in data else None,
+        persistent=as_bool(data["persistent"]),
+        setting=as_bool(data["setting"]),
+    )
+
+
+def parse_package_sequence(data: JsonObject) -> PackageSequence:
+    """Build a ``PackageSequence`` from a document that passed its schema."""
+    return PackageSequence(
+        id=as_uuid(data["id"]),
+        name=as_str(data["name"]),
+        priority=as_int(data["priority"]),
+        exclusive_group=as_str(data["exclusiveGroup"]) if "exclusiveGroup" in data else None,
+        when_done=as_choice(data["whenDone"], _PACKAGE_SEQUENCE_WHEN_DONE),
+        when_started_again=as_choice(data["whenStartedAgain"], _PACKAGE_SEQUENCE_WHEN_STARTED_AGAIN),
+        duration_ms=as_int(data["durationMs"]),
+        commands=tuple(parse_command(as_object(item)) for item in as_list(data["commands"])),
+    )
+
+
+def parse_command(data: JsonObject) -> Command:
+    """Build a ``Command`` from a document that passed its schema."""
+    return Command(
+        clip=as_uuid(data["clip"]),
+        element=as_uuid(data["element"]),
+        at_ms=as_int(data["atMs"]),
+        duration_ms=as_int(data["durationMs"]),
+        until_ms=as_int(data["untilMs"]) if "untilMs" in data else None,
+        action=as_str(data["action"]),
+        arguments=tuple(parse_command_argument(as_object(item)) for item in as_list(data["arguments"])),
+    )
+
+
+def parse_command_argument(data: JsonObject) -> CommandArgument:
+    """Build a ``CommandArgument`` from a document that passed its schema."""
+    return CommandArgument(
+        name=as_str(data["name"]),
+        value=as_scalar(data["value"]) if "value" in data else None,
+        variable=as_uuid(data["variable"]) if "variable" in data else None,
+    )
+
+
+def parse_package_event(data: JsonObject) -> PackageEvent:
+    """Build a ``PackageEvent`` from a document that passed its schema."""
+    return PackageEvent(
+        id=as_uuid(data["id"]),
+        name=as_str(data["name"]),
+        source=as_choice(data["source"], _PACKAGE_EVENT_SOURCE),
+        element=as_uuid(data["element"]) if "element" in data else None,
+        trigger=as_choice(data["trigger"], _PACKAGE_EVENT_TRIGGER) if "trigger" in data else None,
+    )
+
+
+def parse_package_schedule(data: JsonObject) -> PackageSchedule:
+    """Build a ``PackageSchedule`` from a document that passed its schema."""
+    return PackageSchedule(
+        id=as_uuid(data["id"]),
+        name=as_str(data["name"]),
+        times=tuple(parse_package_time(as_object(item)) for item in as_list(data["times"])),
+        windows=tuple(parse_package_window(as_object(item)) for item in as_list(data["windows"])),
+    )
+
+
+def parse_package_time(data: JsonObject) -> PackageTime:
+    """Build a ``PackageTime`` from a document that passed its schema."""
+    return PackageTime(
+        days=tuple(as_choice(item, _PACKAGE_TIME_DAYS) for item in as_list(data["days"])),
+        at=as_str(data["at"]),
+    )
+
+
+def parse_package_window(data: JsonObject) -> PackageWindow:
+    """Build a ``PackageWindow`` from a document that passed its schema."""
+    return PackageWindow(
+        days=tuple(as_choice(item, _PACKAGE_WINDOW_DAYS) for item in as_list(data["days"])),
+        from_=as_str(data["from"]),
+        to=as_str(data["to"]),
+    )
+
+
+def parse_package_automation(data: JsonObject) -> PackageAutomation:
+    """Build a ``PackageAutomation`` from a document that passed its schema."""
+    return PackageAutomation(
+        id=as_uuid(data["id"]),
+        name=as_str(data["name"]),
+        enabled=as_bool(data["enabled"]),
+        when=tuple(as_uuid(item) for item in as_list(data["when"])),
+        if_=as_str(data["if"]) if "if" in data else None,
+        do=tuple(parse_package_action(as_object(item)) for item in as_list(data["do"])),
+    )
+
+
+def parse_package_action(data: JsonObject) -> PackageAction:
+    """Build a ``PackageAction`` from a document that passed its schema."""
+    return PackageAction(
+        action=as_choice(data["action"], _PACKAGE_ACTION_ACTION),
+        sequence=as_uuid(data["sequence"]) if "sequence" in data else None,
+        variable=as_uuid(data["variable"]) if "variable" in data else None,
+        value=as_scalar(data["value"]) if "value" in data else None,
     )
 
 
@@ -648,7 +982,16 @@ def parse_clip(data: JsonObject) -> Clip:
         at_ms=as_int(data["atMs"]),
         duration_ms=as_int(data["durationMs"]),
         action=as_str(data["action"]),
-        arguments=tuple(parse_named_value(as_object(item)) for item in as_list(data["arguments"])) if "arguments" in data else (),
+        arguments=tuple(parse_clip_argument(as_object(item)) for item in as_list(data["arguments"])) if "arguments" in data else (),
+    )
+
+
+def parse_clip_argument(data: JsonObject) -> ClipArgument:
+    """Build a ``ClipArgument`` from a document that passed its schema."""
+    return ClipArgument(
+        name=as_str(data["name"]),
+        value=as_scalar(data["value"]) if "value" in data else None,
+        value_of=as_str(data["valueOf"]) if "valueOf" in data else None,
     )
 
 
@@ -668,6 +1011,7 @@ def parse_argument(data: JsonObject) -> Argument:
         parameter=as_uuid(data["parameter"]),
         element=as_uuid(data["element"]) if "element" in data else None,
         value=as_scalar(data["value"]) if "value" in data else None,
+        value_of=as_str(data["valueOf"]) if "valueOf" in data else None,
     )
 
 

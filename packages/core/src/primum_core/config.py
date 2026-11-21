@@ -10,7 +10,7 @@ from collections.abc import Iterator
 from primum_core.drivers import Drivers
 from primum_core.errors import CoreErrorCode, Issue
 from primum_core.generated.model import Hardware
-from primum_core.given import GivenCodes, Where, check_given
+from primum_core.given import Fixed, Given, GivenCodes, Where, check_given
 from primum_core.references import LocatedContent
 
 CONFIG = "config"
@@ -33,4 +33,5 @@ def check_config(file: LocatedContent, drivers: Drivers) -> Iterator[Issue]:
         declared = driver.config if driver is not None else ()
         where = Where(file.location, ("elements", index), CONFIG)
         context = {"element": element.name}
-        yield from check_given(element.config, declared, CONFIG_CODES, context, where)
+        given = [Given(option.name, Fixed(option.value)) for option in element.config]
+        yield from check_given(given, declared, CONFIG_CODES, context, where)

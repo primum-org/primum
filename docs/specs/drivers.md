@@ -31,6 +31,7 @@ A parameter of an action and an option of the configuration are written the same
 | `min`, `max` | Its limits on every board (numbers only, both or neither). What only a board limits is in its [profile](board-profiles.md) |
 | `choices` | The values it allows (texts only) |
 | `default` | The value it takes when not given. Without one it must be given |
+| `optional` | `true`: it may be left out with nothing in its place, and the driver decides (`fade` without `from` starts where the element is). Never with a `default` (`driver.optional_with_default`) |
 
 The state of an element is a level, from 0 (off) to 100 (fully on). Each action says the one
 it leaves its element in, its `endState`: the level itself (`on` is 100, `off` is 0) or the
@@ -124,10 +125,17 @@ every case:
 | An action the element's driver does not have | `action.unknown` | `available` |
 | An argument for a parameter the action does not have | `action.param_unknown` | `parameter` |
 | An argument given twice | `action.param_duplicate` | `parameter` |
-| A parameter without a default that gets no argument | `action.param_missing` | `parameter` |
+| A parameter without a default, and not optional, that gets no argument | `action.param_missing` | `parameter` |
 | A value of another type | `value.expected_*` | `field` |
 | A number outside the limits | `action.param_out_of_range` | `parameter`, `min`, `max` |
 | A text that is not one of the choices | `action.param_not_allowed` | `parameter`, `allowed` |
+| A variable whose limits are not within the parameter's | `action.param_variable_unlimited` | `parameter`, `name`, `min`, `max` |
+| A variable for a text parameter with choices | `action.param_variable_choices` | `parameter`, `name`, `allowed` |
+
+An argument is a value or a name (`valueOf`, decision 0024): a constant is checked as if its
+value were written; a variable is read while running, so its type must fit and its limits lie
+within the parameter's; a component's parameter is checked for its type in the component and
+for its value at the block that finally gives it, reported there.
 
 A track of a component plays a parameter, whose type is not known until a block gives it an
 element. Its clips are checked there and reported at the block, once per different problem
@@ -167,7 +175,7 @@ is `element.type_unsupported` (`element`, `type`).
 | Problem | Code | Also |
 |---|---|---|
 | A name the manifest does not declare | `element.value_unknown` | |
-| One without a default that is not given | `element.value_missing` | |
+| One without a default, and not optional, that is not given | `element.value_missing` | |
 | A value of another type, or not among the choices | `element.value_invalid` | |
 | A number outside the manifest's limits, or the board's | `element.value_out_of_range` | `min`, `max` |
 | A number that neither the manifest nor the board limits | `element.value_unlimited` | |

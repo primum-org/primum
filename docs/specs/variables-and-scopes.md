@@ -23,6 +23,9 @@ A `.vars` file holds constants and variables for the folder it is in.
 - Limits: only a numeric variable has `min` and `max` (`schema.unexpected_field` otherwise);
   `min` is not above `max` (`variable.limits_invalid`); `initial` lies within them, limits
   included (`variable.initial_out_of_range`).
+- A value an automation sets lies within the variable's limits
+  (`variable.set_out_of_range`, with `name` and `value`, at the value). An increment cannot
+  be judged here: the engine holds every assignment to the limits while running (phase 4).
 - Only a numeric variable is incremented (`variable.not_numeric`); the amount, when given, is
   of the variable's type.
 - `setting: true` exposes a variable in the phone UI. `persistent: true` keeps its value across
@@ -62,6 +65,13 @@ An automation resolves names in the scope of its own folder:
 - The words of its `if` condition. Conditions are text until phase 4 parses them, so for now
   any word that matches a visible name counts as a use, and nothing else is checked.
 
+A sequence uses names too (decision 0024): an argument of a clip or of a block may take its
+value from one (`valueOf`) instead of writing it. The name is a parameter of the sequence that
+is not an element (`name.not_a_value` for an element one), or a constant or a variable its
+folder sees (`name.unknown` otherwise). A clip's argument is a `value` or a `valueOf`, one of
+the two (`schema.missing_field`, `schema.unexpected_field`). What the value is checked
+against is in [`drivers.md`](drivers.md).
+
 A constant or variable that nothing uses, is not exported and is not a setting is a warning:
 `name.unused`.
 
@@ -73,7 +83,7 @@ giving one argument per parameter:
 | Parameter type | Argument | Otherwise |
 |---|---|---|
 | `element` | `element`: an element, or an element parameter of the including sequence | `argument.expected_element`; a `value` is `schema.unexpected_field` |
-| `number`, `integer`, `boolean`, `text` | `value`, of that type | `argument.expected_value`, `value.expected_*`; an `element` is `schema.unexpected_field` |
+| `number`, `integer`, `boolean`, `text` | `value`, of that type, or `valueOf`: a name that stands for one of that type (a whole number is a number) | `argument.expected_value`, `value.expected_*`; an `element`, or both, is `schema.unexpected_field` |
 
 Every parameter of the included sequence gets an argument (`argument.missing`), and each one
 only once (`argument.duplicate`). An argument naming a parameter of another sequence is
@@ -84,6 +94,10 @@ others (`sequence.cycle`, with the chain of sequence names): a loop could never 
 into a deployment package. Each block that closes a loop is reported once. Including the same
 sequence twice, at different times, is fine.
 
+A component is only ever included. An automation that starts or stops one is
+`automation.starts_component` (`sequence`), at the action: it has nothing to give its
+parameters.
+
 ## Not yet
 
 - Conditions (`if`) are stored, not interpreted: the expression language comes in phase 4,
@@ -91,5 +105,6 @@ sequence twice, at different times, is fine.
   (`mode == "night"`) also counts as a use of a constant called `night`.
 - The limits of an `integer` variable are not checked against its type: `min: 0.5` passes.
 - An exported name that nothing imports is not reported as unused.
-- Which board owns a variable (decision 0005): phase 4, with the deployment package.
+- Which board owns a variable (decision 0005): a package is for one board, which owns them
+  all; open again with projects on several boards.
 - Element parameters that no track plays are not reported.

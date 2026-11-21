@@ -153,10 +153,33 @@
           "description": "The values of the action's parameters, by name.",
           "type": "array",
           "items": {
-            "$ref": "common.schema.json#/$defs/namedValue"
+            "$ref": "#/$defs/clipArgument"
           }
         }
       }
+    },
+    "clipArgument": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The value of one parameter of the clip's action: written here, or taken from a name (valueOf). One of the two.",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "common.schema.json#/$defs/parameterName"
+        },
+        "value": {
+          "$ref": "common.schema.json#/$defs/value"
+        },
+        "valueOf": {
+          "$ref": "#/$defs/valueOf"
+        }
+      }
+    },
+    "valueOf": {
+      "description": "A value taken from a name instead of written: a parameter of this sequence (not an element one), or a constant or a variable its folder sees. A constant and a parameter are put in place when the project is compiled; a variable is read while running (decision 0024).",
+      "$ref": "common.schema.json#/$defs/variableName"
     },
     "block": {
       "type": "object",
@@ -188,7 +211,7 @@
     "argument": {
       "type": "object",
       "additionalProperties": false,
-      "description": "The value of one parameter of the included sequence: an element, or a value.",
+      "description": "The value of one parameter of the included sequence: an element for an element parameter; for the others a value, written (value) or taken from a name (valueOf).",
       "required": [
         "parameter"
       ],
@@ -201,6 +224,9 @@
         },
         "value": {
           "$ref": "common.schema.json#/$defs/value"
+        },
+        "valueOf": {
+          "$ref": "#/$defs/valueOf"
         }
       }
     }

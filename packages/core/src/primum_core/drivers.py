@@ -13,7 +13,7 @@ from dataclasses import replace
 
 from primum_core.errors import CoreErrorCode, Issue, Location
 from primum_core.generated.model import Driver, DriverAction, DriverParameter
-from primum_core.given import limits, within
+from primum_core.given import limits, needs_value, within
 from primum_core.pointers import Step, field_name, pointer
 from primum_core.values import EXPECTED, NUMERIC, fits
 
@@ -100,11 +100,16 @@ def _choice_issues(
 def _default_issues(
     parameter: DriverParameter, steps: tuple[Step, ...], location: Location
 ) -> Iterator[Issue]:
-    """A default of the parameter's type, within its limits and among its choices."""
+    """A default of the parameter's type, within its limits and among its choices; none for
+    a parameter that may be left out, which would never be without a value."""
     default = parameter.default
     if default is None:
         return
     place = _at(location, *steps, "default")
+    if parameter.optional:
+        params = {"parameter": parameter.name}
+        yield Issue(CoreErrorCode.DRIVER_OPTIONAL_WITH_DEFAULT, params, place)
+        return
     allowed = not parameter.choices or default in parameter.choices
     if not fits(default, parameter.type):
         yield Issue(EXPECTED[parameter.type], {"field": field_name((*steps, "default"))}, place)
@@ -153,7 +158,7 @@ def _output_issues(driver: Driver, location: Location) -> Iterator[Issue]:
         runs_without_arguments = {
             action.name
             for action in driver.actions
-            if all(parameter.default is not None for parameter in action.parameters)
+            if all(not needs_value(parameter) for parameter in action.parameters)
         }
         if driver.safe_state not in runs_without_arguments:
             params = {"action": driver.safe_state}

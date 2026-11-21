@@ -33,7 +33,9 @@
     "list.and": "y",
     "issue.unknown": "Un problema que esta versión de los mensajes no conoce ({code}).",
     "folder.not_a_folder": "{path} no es una carpeta.",
-    "folder.unreadable": "No se puede leer {path}: {detail}"
+    "folder.unreadable": "No se puede leer {path}: {detail}",
+    "build.written": "Paquete escrito en {path} ({hash}).",
+    "build.unwritable": "No se puede escribir el paquete en {path}: {detail}"
   },
   "errors": {
     "hal.pin_in_use": {
@@ -188,6 +190,10 @@
       "message": "El fichero no es texto UTF-8.",
       "hint": "Vuelve a guardarlo con la codificación UTF-8."
     },
+    "file.invalid_text": {
+      "message": "El fichero tiene medio carácter: un sustituto (surrogate) escrito sin su pareja.",
+      "hint": "Busca un escape como \\ud83d al que no sigue su segunda mitad, y escribe el carácter tal cual."
+    },
     "file.invalid_json": {
       "message": "El fichero no es JSON válido (línea {line}, columna {column}).",
       "hint": "Corrige el texto cerca de esa posición o recupera el fichero de una copia."
@@ -236,6 +242,10 @@
       "message": "{name} es una constante, así que no se puede cambiar.",
       "hint": "Cambia una variable, o convierte {name} en variable."
     },
+    "name.not_a_value": {
+      "message": "{name} es un elemento, y aquí va un valor.",
+      "hint": "Usa un parámetro que no sea un elemento, una constante o una variable."
+    },
     "name.unused": {
       "message": "Nada usa {name}.",
       "hint": "Úsala en una automatización, expórtala, conviértela en ajuste o quítala."
@@ -267,6 +277,10 @@
     "variable.not_numeric": {
       "message": "{name} no es un número, así que no se puede incrementar.",
       "hint": "Fija su valor en lugar de incrementarlo, o convierte {name} en número."
+    },
+    "variable.set_out_of_range": {
+      "message": "{value} está fuera de los límites de {name}.",
+      "hint": "Asigna un valor entre su mínimo y su máximo, o cámbialos."
     },
     "argument.missing": {
       "message": "La secuencia incluida necesita un valor para su parámetro {parameter}.",
@@ -351,6 +365,18 @@
     "action.param_not_allowed": {
       "message": "El valor de {parameter} en la acción {action} de {element} no es uno de los que admite.",
       "hint": "Valores admitidos: {allowed}."
+    },
+    "action.param_variable_unlimited": {
+      "message": "{name} puede tener valores que el parámetro {parameter} de la acción {action} de {element} no admite.",
+      "hint": "Da a la variable {name} un mínimo y un máximo entre {min} y {max}."
+    },
+    "action.param_variable_choices": {
+      "message": "El parámetro {parameter} de la acción {action} de {element} solo admite algunos textos, y la variable {name} podría tener cualquiera.",
+      "hint": "Escribe el valor, o usa una constante: uno de {allowed}."
+    },
+    "automation.starts_component": {
+      "message": "{sequence} tiene parámetros, así que una automatización no puede arrancarla ni pararla.",
+      "hint": "Inclúyela en otra secuencia, que le da sus argumentos, y arranca esa."
     },
     "config.unknown": {
       "message": "{element} no tiene la opción {option}.",
@@ -552,6 +578,10 @@
       "message": "El valor por defecto de {parameter} no es uno de los que admite.",
       "hint": "Mantenlo dentro de sus límites o entre sus opciones."
     },
+    "driver.optional_with_default": {
+      "message": "El parámetro {parameter} es opcional y tiene un valor por defecto.",
+      "hint": "Quita uno de los dos: un parámetro opcional se queda sin valor cuando no se da."
+    },
     "driver.unknown_safe_state": {
       "message": "El estado seguro {action} no es una acción que el driver pueda ejecutar sin argumentos.",
       "hint": "Indica una de sus acciones cuyos parámetros tengan todos un valor por defecto."
@@ -567,6 +597,18 @@
     "driver.duplicate_type": {
       "message": "Más de un driver atiende el tipo de elemento {type}.",
       "hint": "Deja un solo manifiesto por tipo de elemento."
+    },
+    "package.no_board": {
+      "message": "El proyecto no tiene ninguna placa, así que no hay para qué construir un paquete.",
+      "hint": "Añade una placa a un fichero de hardware (.hw)."
+    },
+    "package.several_boards": {
+      "message": "El proyecto tiene varias placas ({boards}), y un paquete se construye para una.",
+      "hint": "Los proyectos con varias placas aún no están soportados: deja una sola placa."
+    },
+    "package.hash_mismatch": {
+      "message": "El paquete no coincide con su hash: está incompleto o se cambió después de construirlo.",
+      "hint": "Constrúyelo de nuevo con primum build."
     }
   }
 }

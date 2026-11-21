@@ -41,7 +41,7 @@ structure already in place.
 | `schemas/` and generated types | ✓ | ✓ | ✓ |
 | `apps/webui` | ✓ (local web) | ✓ (inside Tauri) | optional |
 | `primum-runtime` (engine, HAL, drivers, safety) | ✓ | — | — |
-| `primum-cli` (`primum validate`: reads a folder, writes `core`'s findings) | ✓ | — | ✓ |
+| `primum-cli` (`primum validate`: reads a folder, writes `core`'s findings; `primum build`: writes its deployment package) | ✓ | — | ✓ |
 
 The backend never runs sequences on hardware; it uses `core` to validate, apply operations,
 compile packages and simulate.

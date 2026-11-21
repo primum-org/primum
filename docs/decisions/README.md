@@ -31,6 +31,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0021](0021-the-api-asks-outputs-for-actions.md) | The API asks an output for an action of its driver | Accepted |
 | [0022](0022-a-test-is-a-command-that-expires.md) | A test is a command that expires; the arbiter waits for the engine | Accepted |
 | [0023](0023-starting-a-sequence-and-what-a-restart-loses.md) | Starting a running sequence restarts it; a window brings back what a restart lost | Accepted |
+| [0024](0024-the-deployment-package-and-values-by-name.md) | The deployment package is flat JSON with its hash; a value may come from a name | Accepted |
 
 ## Template
 

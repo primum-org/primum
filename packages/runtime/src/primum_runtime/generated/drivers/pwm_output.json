@@ -42,7 +42,8 @@
           "name": "from",
           "type": "number",
           "min": 0,
-          "max": 100
+          "max": 100,
+          "optional": true
         },
         {
           "name": "to",

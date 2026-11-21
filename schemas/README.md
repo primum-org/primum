@@ -17,10 +17,11 @@ TypeScript types follow in phase 5.
 | `driver.schema.json` | `drivers/<elementType>.json`, a driver manifest (`docs/specs/drivers.md`) |
 | `hardware.schema.json` | `.hw`: boards and elements, with the options of their driver (`docs/specs/workspace.md`, as the rest) |
 | `variables.schema.json` | `.vars`: constants, variables, exports and imports |
-| `sequence.schema.json` | `.sec`: tracks of clips (an action and its arguments), blocks, parameters, priority, exclusive group, what it does when done (end or hold) and when started again (restart or ignore) |
+| `sequence.schema.json` | `.sec`: tracks of clips (an action and its arguments), blocks, parameters, priority, exclusive group, what it does when done (end or hold) and when started again (restart or ignore); an argument is a value or a name (valueOf) |
 | `event.schema.json` | `.evt`: events from elements, the phone UI or the API |
 | `schedule.schema.json` | `.sched`: times of day and windows of time |
 | `automation.schema.json` | `.auto`: when, if, do |
+| `package.schema.json` | A deployment package: a project compiled for one board (`docs/specs/deployment-package.md`). Built by `core`, never written by hand |
 
 ## The subset of JSON Schema we use
 

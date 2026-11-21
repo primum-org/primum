@@ -20,6 +20,7 @@ class CoreErrorCode(StrEnum):
     """Every code ``core`` can report, each with its params. Renaming one breaks the contract."""
 
     FILE_NOT_UTF8 = "file.not_utf8"
+    FILE_INVALID_TEXT = "file.invalid_text"  # half a character: a surrogate without its pair
     FILE_INVALID_JSON = "file.invalid_json"  # line, column
     FILE_DUPLICATE_KEY = "file.duplicate_key"  # key
     FILE_NOT_AN_OBJECT = "file.not_an_object"
@@ -33,6 +34,7 @@ class CoreErrorCode(StrEnum):
     NAME_UNKNOWN = "name.unknown"  # name
     NAME_NOT_EXPORTED = "name.not_exported"  # name
     NAME_NOT_A_VARIABLE = "name.not_a_variable"  # name
+    NAME_NOT_A_VALUE = "name.not_a_value"  # name: an element parameter where a value goes
     NAME_UNUSED = "name.unused"  # (warning) name
     VALUE_EXPECTED_NUMBER = "value.expected_number"  # field
     VALUE_EXPECTED_INTEGER = "value.expected_integer"  # field
@@ -41,6 +43,7 @@ class CoreErrorCode(StrEnum):
     VARIABLE_LIMITS_INVALID = "variable.limits_invalid"  # name, min, max
     VARIABLE_INITIAL_OUT_OF_RANGE = "variable.initial_out_of_range"  # name, initial
     VARIABLE_NOT_NUMERIC = "variable.not_numeric"  # name
+    VARIABLE_SET_OUT_OF_RANGE = "variable.set_out_of_range"  # name, value
     # Components: sequences with parameters, included with arguments.
     ARGUMENT_MISSING = "argument.missing"  # parameter
     ARGUMENT_DUPLICATE = "argument.duplicate"  # parameter
@@ -71,6 +74,10 @@ class CoreErrorCode(StrEnum):
     ACTION_PARAM_MISSING = "action.param_missing"  # action, element, parameter
     ACTION_PARAM_OUT_OF_RANGE = "action.param_out_of_range"  # ... parameter, min, max
     ACTION_PARAM_NOT_ALLOWED = "action.param_not_allowed"  # ... parameter, allowed
+    # A variable that may take a value the parameter does not: its limits are not within.
+    ACTION_PARAM_VARIABLE_UNLIMITED = "action.param_variable_unlimited"  # ... name, min, max
+    ACTION_PARAM_VARIABLE_CHOICES = "action.param_variable_choices"  # ... name, allowed
+    AUTOMATION_STARTS_COMPONENT = "automation.starts_component"  # sequence
     CONFIG_UNKNOWN = "config.unknown"  # element, option
     CONFIG_DUPLICATE = "config.duplicate"  # element, option
     CONFIG_MISSING = "config.missing"  # element, option
@@ -126,10 +133,15 @@ class CoreErrorCode(StrEnum):
     DRIVER_DUPLICATE_PARAMETER = "driver.duplicate_parameter"  # parameter
     DRIVER_LIMITS_INVALID = "driver.limits_invalid"  # parameter, min, max
     DRIVER_DEFAULT_NOT_ALLOWED = "driver.default_not_allowed"  # parameter
+    DRIVER_OPTIONAL_WITH_DEFAULT = "driver.optional_with_default"  # parameter
     DRIVER_UNKNOWN_SAFE_STATE = "driver.unknown_safe_state"  # action
     DRIVER_UNKNOWN_STATE_PARAMETER = "driver.unknown_state_parameter"  # action, parameter
     DRIVER_STATE_NOT_A_LEVEL = "driver.state_not_a_level"  # action, parameter
     DRIVER_DUPLICATE_TYPE = "driver.duplicate_type"  # type
+    # Compiling a project into a deployment package, and reading one (decision 0024).
+    PACKAGE_NO_BOARD = "package.no_board"
+    PACKAGE_SEVERAL_BOARDS = "package.several_boards"  # boards
+    PACKAGE_HASH_MISMATCH = "package.hash_mismatch"
 
 
 class Severity(StrEnum):

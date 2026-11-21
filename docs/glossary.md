@@ -50,7 +50,8 @@ and docs; the Spanish term is the one shown by the Spanish UI.
 | Term | Spanish | Meaning |
 |---|---|---|
 | Deploy | Desplegar | Send a validated project to the boards |
-| Deployment package | Paquete de despliegue | The flat, validated, hashed result of compiling a project for one board |
+| Deployment package | Paquete de despliegue | The flat, validated, hashed result of compiling a project for one board: its sequences as commands, nothing left to look up |
+| Command | Orden | What an element is asked from an instant, and until when it is in force: a clip after the rule of who commands an element. What a package carries |
 | Priority | Prioridad | Which sequence controls an element when several want it |
 | Layer | Capa | A priority level; when a higher layer ends, the element returns to what the layer below says |
 | Exclusive group | Grupo exclusivo | Sequences that cancel each other: starting one stops the others |

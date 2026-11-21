@@ -33,7 +33,9 @@
     "list.and": "and",
     "issue.unknown": "A problem this version of the messages does not know ({code}).",
     "folder.not_a_folder": "{path} is not a folder.",
-    "folder.unreadable": "Cannot read {path}: {detail}"
+    "folder.unreadable": "Cannot read {path}: {detail}",
+    "build.written": "Package written to {path} ({hash}).",
+    "build.unwritable": "Cannot write the package to {path}: {detail}"
   },
   "errors": {
     "hal.pin_in_use": {
@@ -188,6 +190,10 @@
       "message": "The file is not UTF-8 text.",
       "hint": "Save it again with UTF-8 encoding."
     },
+    "file.invalid_text": {
+      "message": "The file has half a character: a surrogate written without its pair.",
+      "hint": "Look for an escape like \\ud83d that is not followed by its second half, and write the character itself."
+    },
     "file.invalid_json": {
       "message": "The file is not valid JSON (line {line}, column {column}).",
       "hint": "Fix the text near that position, or restore the file from a copy."
@@ -236,6 +242,10 @@
       "message": "{name} is a constant, so it cannot be changed.",
       "hint": "Change a variable instead, or make {name} a variable."
     },
+    "name.not_a_value": {
+      "message": "{name} is an element, and a value goes here.",
+      "hint": "Use a parameter that is not an element, a constant or a variable."
+    },
     "name.unused": {
       "message": "Nothing uses {name}.",
       "hint": "Use it in an automation, export it, make it a setting, or remove it."
@@ -267,6 +277,10 @@
     "variable.not_numeric": {
       "message": "{name} is not a number, so it cannot be incremented.",
       "hint": "Set its value instead, or make {name} a number."
+    },
+    "variable.set_out_of_range": {
+      "message": "{value} is outside the limits of {name}.",
+      "hint": "Set a value between its minimum and its maximum, or change them."
     },
     "argument.missing": {
       "message": "The included sequence needs a value for its parameter {parameter}.",
@@ -351,6 +365,18 @@
     "action.param_not_allowed": {
       "message": "The {parameter} of the action {action} of {element} is not one of the values it allows.",
       "hint": "Allowed values: {allowed}."
+    },
+    "action.param_variable_unlimited": {
+      "message": "{name} can hold values that the {parameter} of the action {action} of {element} does not take.",
+      "hint": "Give the variable {name} a minimum and a maximum between {min} and {max}."
+    },
+    "action.param_variable_choices": {
+      "message": "The {parameter} of the action {action} of {element} takes only some texts, and the variable {name} could hold any.",
+      "hint": "Write the value, or use a constant: one of {allowed}."
+    },
+    "automation.starts_component": {
+      "message": "{sequence} has parameters, so an automation cannot start or stop it.",
+      "hint": "Include it in another sequence, which gives it its arguments, and start that one."
     },
     "config.unknown": {
       "message": "{element} has no option {option}.",
@@ -552,6 +578,10 @@
       "message": "The default value of {parameter} is not one it allows.",
       "hint": "Keep it within its limits, or among its choices."
     },
+    "driver.optional_with_default": {
+      "message": "The parameter {parameter} is optional and has a default value.",
+      "hint": "Remove one of the two: an optional parameter is left without a value when it is not given."
+    },
     "driver.unknown_safe_state": {
       "message": "The safe state {action} is not an action the driver can run without arguments.",
       "hint": "Name one of its actions whose parameters all have a default value."
@@ -567,6 +597,18 @@
     "driver.duplicate_type": {
       "message": "More than one driver serves the element type {type}.",
       "hint": "Keep one manifest per element type."
+    },
+    "package.no_board": {
+      "message": "The project has no board, so there is nothing to build a package for.",
+      "hint": "Add a board to a hardware file (.hw)."
+    },
+    "package.several_boards": {
+      "message": "The project has several boards ({boards}), and a package is built for one.",
+      "hint": "Projects on several boards are not supported yet: keep one board."
+    },
+    "package.hash_mismatch": {
+      "message": "The package does not match its hash: it is incomplete or was changed after it was built.",
+      "hint": "Build it again with primum build."
     }
   }
 }

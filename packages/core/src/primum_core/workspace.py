@@ -56,10 +56,13 @@ class ProjectFile:
 
 @dataclass(frozen=True)
 class Workspace:
-    """A project that passed every check: its manifest and its files, by path."""
+    """A project that passed every check: its manifest, its files, by path, and the driver
+    manifests it was checked against, which is what it means against: whoever compiles it
+    uses these and no others."""
 
     manifest: Project
     files: tuple[ProjectFile, ...]
+    drivers: Drivers
 
 
 def load_workspace(
@@ -102,7 +105,7 @@ def load_workspace(
         issues += check_board_limits(located, profiles, drivers)
     if manifest is None or any(issue.severity is Severity.ERROR for issue in issues):
         return Parsed(None, tuple(issues))
-    return Parsed(Workspace(manifest, tuple(read)), tuple(issues))
+    return Parsed(Workspace(manifest, tuple(read), dict(drivers)), tuple(issues))
 
 
 def _manifest(files: Mapping[PurePosixPath, bytes], issues: list[Issue]) -> Project | None:

@@ -9,7 +9,8 @@ of a sequence are its innermost scope and follow the same rule.
 
 Names are used by automations: the variable an action sets or increments, and the words of a
 condition (stored as text until phase 4 parses it: any word that matches a visible name counts
-as a use). A name nothing uses is a warning.
+as a use). And by sequences: an argument of a clip or of a block may take its value from a name
+(``valueOf``, decision 0024). A name nothing uses is a warning.
 """
 
 import re
@@ -41,6 +42,9 @@ class Definition:
     location: Location
     exported: bool = False
     setting: bool = False
+    value: Value | None = None  # a constant's
+    min: float | None = None  # a variable's limits
+    max: float | None = None
 
 
 @dataclass(frozen=True)
@@ -84,6 +88,38 @@ class _Scopes:
 def check_scopes(files: Iterable[LocatedContent]) -> tuple[Issue, ...]:
     """Every problem with the names of a project, then a warning per name nothing uses."""
     files = tuple(files)
+    scopes, definitions = _scopes_of(files)
+    _check_outer_scopes(scopes)
+    for file in files:
+        match file.content:
+            case Automation():
+                _use(file.content, file.location, scopes)
+            case Sequence():
+                _check_parameters(file.content, file.location, scopes)
+                _use_in_sequence(file.content, file.location, scopes)
+            case _:
+                pass
+    scopes.issues += _unused(definitions.values(), scopes.used)
+    return tuple(scopes.issues)
+
+
+def visible_definitions(files: Iterable[LocatedContent]) -> dict[UUID, Mapping[str, Definition]]:
+    """The constants and variables each sequence and automation sees, by name, by the file's
+    id: those of its folder and of the folders above."""
+    files = tuple(files)
+    scopes, _ = _scopes_of(files)
+    return {
+        file.content.id: {
+            name: entry.definition
+            for name, entry in scopes.visible(file.location.path.parent).items()
+        }
+        for file in files
+        if isinstance(file.content, Sequence | Automation)
+    }
+
+
+def _scopes_of(files: tuple[LocatedContent, ...]) -> tuple[_Scopes, _Definitions]:
+    """The names of each folder: defined in it or imported into it."""
     variables: list[_VarsFile] = [
         (file.content, file.location) for file in files if isinstance(file.content, Variables)
     ]
@@ -95,17 +131,7 @@ def check_scopes(files: Iterable[LocatedContent]) -> tuple[Issue, ...]:
         _export(content, location, definitions[content.id], scopes)
     for content, location in variables:
         _import(content, location, definitions, scopes)
-    _check_outer_scopes(scopes)
-    for file in files:
-        match file.content:
-            case Automation():
-                _use(file.content, file.location, scopes)
-            case Sequence():
-                _check_parameters(file.content, file.location, scopes)
-            case _:
-                pass
-    scopes.issues += _unused(definitions.values(), scopes.used)
-    return tuple(scopes.issues)
+    return scopes, definitions
 
 
 def _at(location: Location, *steps: Step) -> Location:
@@ -135,6 +161,7 @@ def _define(content: Variables, location: Location, scopes: _Scopes) -> dict[str
             constant.type,
             _at(location, "constants", index),
             constant.name in exports,
+            value=constant.value,
         )
         for index, constant in enumerate(content.constants)
     ] + [
@@ -146,6 +173,8 @@ def _define(content: Variables, location: Location, scopes: _Scopes) -> dict[str
             _at(location, "variables", index),
             variable.name in exports,
             variable.setting,
+            min=variable.min,
+            max=variable.max,
         )
         for index, variable in enumerate(content.variables)
     ]
@@ -236,10 +265,23 @@ def _action_value_issues(
         params = {"name": variable.name}
         yield Issue(CoreErrorCode.VARIABLE_NOT_NUMERIC, params, _at(location, *steps, "variable"))
         return
-    if value is not None:
-        issue = check_value(value, variable.value_type, (*steps, "value"), location)
-        if issue is not None:
-            yield issue
+    if value is None:
+        return
+    issue = check_value(value, variable.value_type, (*steps, "value"), location)
+    if issue is not None:
+        yield issue
+    elif action == "set_variable" and _outside(value, variable):
+        params = {"name": variable.name, "value": value}
+        at = _at(location, *steps, "value")
+        yield Issue(CoreErrorCode.VARIABLE_SET_OUT_OF_RANGE, params, at)
+
+
+def _outside(value: Value, variable: Definition) -> bool:
+    """Whether a number lies outside the limits the variable has."""
+    if isinstance(value, bool | str):
+        return False
+    below = variable.min is not None and value < variable.min
+    return below or (variable.max is not None and value > variable.max)
 
 
 def _check_parameters(sequence: Sequence, location: Location, scopes: _Scopes) -> None:
@@ -257,6 +299,34 @@ def _check_parameters(sequence: Sequence, location: Location, scopes: _Scopes) -
             continue
         params = {"name": parameter.name, "other": str(other.path)}
         scopes.issues.append(Issue(CoreErrorCode.NAME_REDEFINED, params, at))
+
+
+def _use_in_sequence(sequence: Sequence, location: Location, scopes: _Scopes) -> None:
+    """Resolve the names a sequence takes values from (``valueOf``), in the arguments of its
+    clips and of its blocks: a parameter of its own that is not an element, or a constant or
+    a variable its folder sees."""
+    visible = scopes.visible(location.path.parent)
+    parameters = {parameter.name: parameter.type for parameter in sequence.parameters}
+    taken: list[tuple[str, tuple[Step, ...]]] = []
+    for track_index, track in enumerate(sequence.tracks):
+        for clip_index, clip in enumerate(track.clips):
+            for index, argument in enumerate(clip.arguments):
+                if argument.value_of is not None:
+                    steps = ("tracks", track_index, "clips", clip_index, "arguments", index)
+                    taken.append((argument.value_of, steps))
+    for block_index, block in enumerate(sequence.blocks):
+        for index, argument in enumerate(block.arguments):
+            if argument.value_of is not None:
+                taken.append((argument.value_of, ("blocks", block_index, "arguments", index)))
+    for name, steps in taken:
+        at = _at(location, *steps, "valueOf")
+        if name in parameters:
+            if parameters[name] == "element":
+                scopes.issues.append(Issue(CoreErrorCode.NAME_NOT_A_VALUE, {"name": name}, at))
+        elif name in visible:
+            scopes.used.add(visible[name].definition.id)
+        else:
+            scopes.issues.append(Issue(CoreErrorCode.NAME_UNKNOWN, {"name": name}, at))
 
 
 def _unused(definitions: Iterable[Mapping[str, Definition]], used: set[UUID]) -> list[Issue]:

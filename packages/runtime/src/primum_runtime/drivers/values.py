@@ -22,7 +22,8 @@ def resolve(
     parameters: tuple[DriverParameter, ...],
     board: Limits | None = None,
 ) -> dict[str, Value]:
-    """A value for each of ``parameters``: the one given, or its default.
+    """A value for each of ``parameters``: the one given, or its default. One that is
+    optional and not given gets none.
 
     Fails with ``element.value_unknown`` for a name that is not declared,
     ``element.value_missing`` for one without a default that is not given,
@@ -38,6 +39,8 @@ def resolve(
     values: dict[str, Value] = {}
     for parameter in parameters:
         value = given.get(parameter.name, parameter.default)
+        if value is None and parameter.optional:
+            continue
         if value is None:
             raise _problem(ErrorCode.ELEMENT_VALUE_MISSING, element, parameter.name)
         _check(element, parameter, value, (board or {}).get(parameter.name))

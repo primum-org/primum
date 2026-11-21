@@ -62,11 +62,13 @@ class Command:
 @dataclass(frozen=True)
 class Span:
     """A command in the time of its sequence: in force from ``start`` until ``until``, or
-    until the sequence is stopped (``None``: what a sequence that holds keeps)."""
+    until the sequence is stopped (``None``: what a sequence that holds keeps). ``flat`` is
+    the clip as it came through the blocks, with what its parameters were given."""
 
     clip: Clip
     start: int
     until: int | None
+    flat: FlatClip | None = None
 
 
 @dataclass(frozen=True)
@@ -143,7 +145,7 @@ def timeline_of(sequence: Sequence, clips: list[FlatClip]) -> Timeline:
     spans: dict[UUID, list[Span]] = {}
     for clip in clips:
         until = _until(clip, instants.get((clip.element, clip.scope), []), end, held)
-        spans.setdefault(clip.element, []).append(Span(clip.clip, clip.start, until))
+        spans.setdefault(clip.element, []).append(Span(clip.clip, clip.start, until, clip))
     return Timeline(
         sequence.priority,
         {element: tuple(of) for element, of in spans.items()},

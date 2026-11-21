@@ -13,6 +13,7 @@
 
 import json
 import math
+import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -41,10 +42,11 @@ from primum_core.generated.model import (
     parse_sequence,
     parse_variables,
 )
-from primum_core.json_values import JsonObject, as_object, is_object
+from primum_core.json_values import JsonObject, as_object, is_array, is_object
 from primum_core.schema_validation import validate
 
 ID_FIELD = "id"
+HALF_A_CHARACTER = re.compile("[\ud800-\udfff]")
 
 type Check[T] = Callable[[T, Location], tuple[Issue, ...]]
 # The content of a project file other than the manifest, by its extension.
@@ -137,7 +139,7 @@ def _read[T](
     check: Check[T] | None = None,
 ) -> Parsed[T]:
     location = Location(path)
-    document = _decode(content, location)
+    document = decode(content, location)
     if isinstance(document, Issue):
         return Parsed(None, (document,))
     location = Location(path, file_id=_file_id(document))
@@ -149,8 +151,31 @@ def _read[T](
     return Parsed(None, issues) if issues else Parsed(value)
 
 
-def _decode(content: bytes, location: Location) -> object:
-    """The JSON document in ``content``, or the ``Issue`` that prevents reading it."""
+def decode(content: bytes, location: Location) -> object:
+    """The JSON document in ``content``, or the ``Issue`` that prevents reading it: UTF-8, no
+    repeated keys, numbers as JSON means them, and only text that can be written again."""
+    document = _loaded(content, location)
+    if not isinstance(document, Issue) and _has_half_a_character(document):
+        return Issue(CoreErrorCode.FILE_INVALID_TEXT, location=location)
+    return document
+
+
+def _has_half_a_character(value: object) -> bool:
+    """Whether a text anywhere in ``value``, a key included, has a surrogate without its pair.
+
+    JSON lets one be written (``"\\ud83d"``) and Python reads it, but it is no character:
+    nothing can write it as UTF-8, so it would raise wherever the text is next encoded (the
+    hash of a package). A pair written as two escapes is read as its one character."""
+    if isinstance(value, str):
+        return HALF_A_CHARACTER.search(value) is not None
+    if is_object(value):
+        return any(
+            _has_half_a_character(key) or _has_half_a_character(item) for key, item in value.items()
+        )
+    return is_array(value) and any(_has_half_a_character(item) for item in value)
+
+
+def _loaded(content: bytes, location: Location) -> object:
     try:
         text = content.decode("utf-8-sig")  # editors on Windows may add a byte order mark
     except UnicodeDecodeError:
