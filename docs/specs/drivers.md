@@ -201,8 +201,10 @@ line; a gap means the kernel dropped some (it keeps 1024 unread), which the driv
 logs. The state is still right.
 
 Over the API (decision 0021) an output is asked for an action the same way: `PUT
-/api/outputs/{name}` with `{"action": "set", "arguments": {"level": 40}}`. The state gives
-each output's `level` and the `actions` it has. With `durationMs` the command is a test and
+/api/outputs/{id}` with `{"action": "set", "arguments": {"level": 40}}`. The state gives
+each output's `id`, its `name`, its `level` and the `actions` it has. The id is the element's
+in the package the service runs (decision 0025), or its fixed name (`led`, `dimmer`) when the
+service was told its elements by options. With `durationMs` the command is a test and
 expires on its own ([safety](safety.md)). The codes above for what an output cannot do
 or take are answered with a 422; `element.level_not_reached` with a 500.
 

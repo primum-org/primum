@@ -50,6 +50,11 @@ All notable changes to this project are documented here. The format follows
   one automation and stopped by another (`examples/evening-lights/`). It only holds when it
   is started on its own: including it in another sequence gets a warning. A sequence that ends
   with an instant command and does not hold gets a warning: it would not be seen.
+- The runtime can run a deployment package: `primum-runtime --package <file>` takes its
+  elements and its board from it, and refuses to start with a package this board cannot run,
+  saying what is wrong. The API names elements by their id (`PUT /api/outputs/{id}`) and the
+  state gives each its `id` and its `name`; with `--pin` the ids are `led`, `button` and
+  `dimmer`, as before. Sequences are not run yet.
 - A file with half a character (an escape like `\ud83d` without its pair) is reported as a
   problem of the file; it used to pass validation and crash the build.
 - `primum build <folder>` compiles a project into its deployment package, one JSON file with

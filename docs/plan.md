@@ -702,13 +702,48 @@ per element, from a deployment package that can be rolled back. One pull request
   `valueOf`, so `clip.returns_to_instant` does not see a constant or a parameter that is 0.
   No example in `examples/invalid/` for the new codes.
 
-**4.3 · Engine and arbiter**
+**4.3a · The service runs a package** · **code done; not tried on `primum-dev`** (decision
+0025, `specs/deployment-package.md`)
+- `primum-runtime --package <file>` (`PRIMUM_PACKAGE`): the elements and the board are the
+  package's. The options of elements (`--pin` and the rest) stay, for one or the other, until
+  4.5.
+- `primum_runtime.package.load_package` reads the package with `core` and checks it against
+  the runtime's drivers and the board's profile before anything is claimed: the board, each
+  element's type and options, each command's action and arguments, and that a variable read
+  for a parameter can only hold what it takes. One that fails is refused whole and the
+  service does not start. Shared or missing pins are refused by the HAL's claim.
+- Elements are asked for by id (`PUT /api/outputs/{id}`; the state gives `id` and `name`);
+  the page shows the name and drops the rows of elements that are gone. `core`'s
+  `check_package` also checks that an element is wired as its type is.
+- The service starts no sequence yet: commands, test mode and panic, as before.
+- Tried here against the simulated HAL, the page in a browser by a script and not by a test
+  of the repository. On the board, with a package: nothing was run. `image/README.md` says
+  how to try it.
+- From review: `--pin 0` next to a package passed for "not given" (0 equals `False` in
+  Python); two elements on one pin are refused here, naming both, instead of by the HAL with
+  the pin alone; a variable read for a number that nothing limits is refused as a written
+  value is; the page shows the new name of an element that keeps its id.
+- Not checked: that an event's element is an input (4.4). A service that refuses its package
+  says why only in the journal.
+- For 4.5, seen by the reviewer on a running unit: a package that is refused leaves systemd
+  restarting the service for ever (`Restart=on-failure`, `RestartSec=2`), the same error at
+  every turn; a bad configuration already did. An exit status of its own for "cannot run
+  this" and `RestartPreventExitStatus=` in the unit would stop it; with activation, a
+  refused package should never become the one that runs. And what the HAL refuses at the
+  claim reaches the journal as a traceback of uvicorn's, some 25 lines for one fact.
+
+**4.3b · Engine and arbiter**
 - The runtime runs the sequences of a package on a monotonic clock, through the drivers, and
   agrees with `command_at` and `primum_core.runs` (a randomized test against both; the one for
   `block.hold_ignored` is still to write). Fades in time.
 - Arbiter per element: panic and safe state, then manual control and test mode, then
   sequences by priority. Test mode's expiry returns to what the sequences say; a command
-  without a duration is manual control (decision 0022). Exclusive elements.
+  without a duration is manual control (decision 0022). Exclusive elements. Sequences are
+  started and stopped through the API until events exist.
+
+**4.3c · Fades and variables**
+- Levels that move in time, `fade` without `from`, arguments read from a variable, and every
+  assignment of a variable held to its limits.
 
 **4.4 · Events, schedules, automations and variables**
 - `.evt` from inputs (lost input events are told to the user), `.sched` times and windows

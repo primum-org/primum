@@ -1,11 +1,17 @@
 """Service configuration, from command-line options or ``PRIMUM_*`` environment variables.
 
-An option given on the command line wins over the environment. Until elements come from a
-deployment package (phase 4) the service drives one digital output, named ``led``, and may
-listen to one digital input, named ``button``, and drive one PWM output, named ``dimmer``
-(since ``primum-safe`` covers PWM channels after a crash, decision 0020). The board
-(``rpi4b`` by default, the only one so far) says which pins exist, on which GPIO chip, and
-what it takes for the options of its elements.
+An option given on the command line wins over the environment. The service is told what
+elements it has in one of two ways, never both:
+
+- a deployment package (``--package``): its elements, each by its id, on its board. The
+  package is read and checked against the drivers and the board here, before anything is
+  claimed, and one that fails is refused whole (``primum_runtime.package``);
+- options of its own: one digital output, named ``led`` (``--pin``), and maybe one digital
+  input, named ``button``, and one PWM output, named ``dimmer``. They stay until packages
+  are activated on the board (block 4.5).
+
+The board (``rpi4b`` by default, the only one so far; a package says its own) says which pins
+exist, on which GPIO chip, and what it takes for the options of its elements.
 
 The pins have no default on purpose: a default pin is a pin someone may have wired to a relay.
 Neither has the pull of the input: every default is wrong for some wiring.
@@ -20,6 +26,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from primum_core.generated.model import Package
 from primum_core.values import Value
 from primum_runtime.board import (
     DEFAULT_BOARD,
@@ -28,8 +35,9 @@ from primum_runtime.board import (
     load_profile,
     option_limits,
 )
-from primum_runtime.drivers import ElementConfig, OptionLimits
+from primum_runtime.drivers import ElementConfig, OptionLimits, load_manifests
 from primum_runtime.hal import BoardGpio, Pull
+from primum_runtime.package import load_package
 
 LED = "led"
 BUTTON = "button"
@@ -51,6 +59,7 @@ class RuntimeConfig:
     data_dir: Path
     host: str
     port: int
+    package: Package | None = None  # the one the elements come from, if they do
 
 
 def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
@@ -60,11 +69,14 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
     """
     parser = _parser(env)
     args = parser.parse_args(argv)
+    package_path: Path | None = args.package
+    if package_path is not None:
+        return _from_package(package_path, args, parser)
     pin: int | None = args.pin
     if pin is None:
-        parser.error("the pin of the LED is required: --pin or PRIMUM_PIN")
+        parser.error("say what to drive: --package (PRIMUM_PACKAGE), or --pin (PRIMUM_PIN)")
     simulate: bool = args.simulate
-    board: str = args.board
+    board: str = args.board or DEFAULT_BOARD
     if board not in available_boards():  # argparse checks the choices of options, not defaults
         parser.error(
             f"no profile for board {board!r} (PRIMUM_BOARD): {', '.join(available_boards())}"
@@ -112,6 +124,50 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
     )
 
 
+# The options that say what elements there are: with a package, the package says it.
+_ELEMENT_OPTIONS = (
+    "pin",
+    "active_low",
+    "input_pin",
+    "input_pull",
+    "input_active_low",
+    "input_debounce_ms",
+    "pwm_pin",
+    "pwm_frequency_hz",
+)
+
+
+def _from_package(
+    path: Path, args: argparse.Namespace, parser: argparse.ArgumentParser
+) -> RuntimeConfig:
+    """The configuration of a service that runs a package: its board and its elements are
+    the package's. Raises what ``load_package`` does for one it cannot run."""
+    # By identity: 0 is a pin and a debounce like any other, and in Python it equals False.
+    values = {name: getattr(args, name) for name in _ELEMENT_OPTIONS}
+    given = [name for name, value in values.items() if value is not None and value is not False]
+    if given:
+        options = ", ".join("--" + name.replace("_", "-") for name in given)
+        parser.error(f"a package says what elements there are: remove {options} (or PRIMUM_*)")
+    loaded = load_package(path, load_manifests())
+    model = loaded.package.board.model
+    board: str | None = args.board
+    if board is not None and board != model:
+        parser.error(f"the package is for a board {model!r}, not {board!r} (PRIMUM_BOARD)")
+    simulate: bool = args.simulate
+    host: str = args.host
+    port: int = args.port
+    return RuntimeConfig(
+        simulate=simulate,
+        board=load_board(model),
+        limits=option_limits(load_profile(model)),
+        elements=loaded.elements,
+        data_dir=args.data_dir,
+        host=host,
+        port=port,
+        package=loaded.package,
+    )
+
+
 def _parser(env: Mapping[str, str]) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="primum-runtime", description="Primum runtime: local API for the outputs."
@@ -125,14 +181,22 @@ def _parser(env: Mapping[str, str]) -> argparse.ArgumentParser:
     parser.add_argument(
         "--board",
         choices=available_boards(),
-        default=env.get("PRIMUM_BOARD", DEFAULT_BOARD),
-        help=f"board model, with its pins and GPIO chip; {DEFAULT_BOARD} by default (PRIMUM_BOARD)",
+        default=env.get("PRIMUM_BOARD") or None,
+        help=f"board model, with its pins and GPIO chip; {DEFAULT_BOARD} by default, or the "
+        "one of the package (PRIMUM_BOARD)",
+    )
+    parser.add_argument(
+        "--package",
+        type=Path,
+        default=Path(env["PRIMUM_PACKAGE"]) if env.get("PRIMUM_PACKAGE") else None,
+        help="the deployment package to run (built by `primum build`): its elements and its "
+        "board; instead of --pin and the other options of elements (PRIMUM_PACKAGE)",
     )
     parser.add_argument(
         "--pin",
         type=int,
         default=_int(env, "PRIMUM_PIN"),
-        help="GPIO number of the LED (BCM); required, no default (PRIMUM_PIN)",
+        help="GPIO number of the LED (BCM); required without a package, no default (PRIMUM_PIN)",
     )
     parser.add_argument(
         "--active-low",

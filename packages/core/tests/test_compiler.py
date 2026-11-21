@@ -418,6 +418,13 @@ UNKNOWN = "00000000-0000-0000-0000-000000000999"
             CoreErrorCode.ID_DUPLICATE,
             "/elements/1",
         ),
+        (("elements", 0), {"pin": None}, CoreErrorCode.SCHEMA_MISSING_FIELD, "/elements/0"),
+        (
+            ("elements", 0),
+            {"bus": "i2c1"},
+            CoreErrorCode.SCHEMA_UNEXPECTED_FIELD,
+            "/elements/0/bus",
+        ),
     ],
 )
 def test_a_package_that_does_not_hold_together_is_refused_whatever_its_hash(

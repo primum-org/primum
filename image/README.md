@@ -15,6 +15,16 @@ development; in phase 7 rpi-image-gen runs the same script to build the Primum O
   `primum-safe`, which puts the outputs the runtime had claimed in their safe state
   (`docs/specs/safety.md`).
 
+## Running a package on the Pi
+
+Until packages are activated from the UI (block 4.5), by hand. On the laptop, `uv run primum
+build <project>`; copy the `.package.json` to the Pi, somewhere the `primum` user can read
+(`/data`); in `/etc/primum/runtime.env` set `PRIMUM_PACKAGE=/data/<name>.package.json` and
+remove `PRIMUM_PIN` and the other options of elements (the service refuses both together);
+`sudo systemctl restart primum`. If the package cannot be run the service does not start and
+`journalctl -u primum` says why. Wire only what the package says, on the pins it says: its
+project is what was checked against the board.
+
 ## The development Pi
 
 A Raspberry Pi 4 (or an SD card) for Primum only, never one that runs other GPIO software.

@@ -90,6 +90,9 @@ def create_app(
                 beats = systemd.feed_watchdog(notify, watchdog_interval_s, asyncio.sleep)
                 watchdog = asyncio.create_task(beats)
             log.info("started outputs=%s simulate=%s", _describe(controller), config.simulate)
+            if config.package is not None:
+                project, package_hash = config.package.project.name, config.package.hash
+                log.info("running package %s of project %s", package_hash, project)
             notify(systemd.READY)
             try:
                 yield

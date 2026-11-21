@@ -33,13 +33,23 @@ MAX_LEVEL = 100.0
 class ElementConfig:
     """An element as the runtime is told of it: its name, its type, how it is wired and the
     options it gives its driver. Nothing has a default but the options: theirs are the
-    manifest's."""
+    manifest's.
+
+    ``name`` is what a person reads. ``id`` is what identifies the element for good: its id
+    in a deployment package, where a name may change or be shared. An element told of by an
+    option of the service has none, and goes by its name (``key``)."""
 
     name: str
     type: str
     pin: int
     active_low: bool
     options: Mapping[str, Value] = field(default_factory=dict[str, Value])
+    id: str | None = None
+
+    @property
+    def key(self) -> str:
+        """What the element is asked for by: its id, or its name when it has none."""
+        return self.name if self.id is None else self.id
 
 
 class ElementDriver(ABC):
@@ -57,6 +67,10 @@ class ElementDriver(ABC):
     @property
     def name(self) -> str:
         return self._element.name
+
+    @property
+    def key(self) -> str:
+        return self._element.key
 
     @property
     def pin(self) -> int:
