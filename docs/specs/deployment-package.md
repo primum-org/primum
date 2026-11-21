@@ -3,7 +3,8 @@
 What the runtime receives: a project compiled for one board, flat, built only from a project
 that passed every check (decision 0024). That does not let a reader trust it: whoever reads a
 package checks it again (*Reading one*, below). Its format is `schemas/package.schema.json`. It is built by
-`primum_core.compiler.compile_package(workspace, drivers)` and from the command line by
+`primum_core.compiler.compile_package(workspace)`, with the driver manifests the workspace was
+checked against (it keeps them), and from the command line by
 `primum build <folder>`; nobody writes one by hand.
 
 ## Building
@@ -85,8 +86,8 @@ whose keys were sorted:
   (`1e-7`, `1e+21`).
 
 `primum_core.package.canonical(value)` writes it and `package_hash(document)` hashes it; a
-test holds the numbers to the examples of the RFC. The keys of a package are ASCII, so
-sorting them as text is the RFC's order. The same project always compiles to the same
+test holds the numbers to the examples of the RFC. Keys are sorted by their UTF-16 units, as
+the RFC asks and JavaScript compares text. The same project always compiles to the same
 package, whatever the order its files are given in.
 
 ## Reading one
@@ -94,7 +95,8 @@ package, whatever the order its files are given in.
 `primum_core.package.read_package(path, content)` reads a package and refuses it, in this
 order, for:
 
-1. its text and JSON, then its schema (the codes of any file);
+1. its text and JSON, then its schema (the codes of any file, `file.invalid_text` for half a
+   character among them, which could not be hashed);
 2. its hash: `package.hash_mismatch`, at `/hash`. It tells a file cut short or changed by
    hand, and nothing else: a package built wrong has a right hash;
 3. not holding together (`check_package`):
@@ -105,12 +107,16 @@ order, for:
 | A command on an element, an argument or an action on a variable, an action on a sequence, an event on an element or a `when` that the package does not have | `ref.unknown` |
 | An argument with neither `value` nor `variable`; an action or an event without a field its case needs | `schema.missing_field` |
 | An argument with both; an action or an event with a field that is not of its case | `schema.unexpected_field` |
-| A command whose `untilMs` is before its `atMs` | `schema.invalid_value` |
+| A command whose `untilMs` is before its `atMs`, whose action ends after its sequence does (`atMs`), or that is in force beyond it (`untilMs`) | `schema.invalid_value` |
+| An option of an element, or an argument of a command, given twice | `config.duplicate`, `action.param_duplicate` |
+| A variable with limits that is not a number (`schema.unexpected_field`), with `min` above `max`, or whose `initial` is of another type or outside them | `variable.limits_invalid`, `value.expected_*`, `variable.initial_out_of_range` |
+| An action that sets or adds a value of another type, sets one outside the variable's limits, or increments what is not a number | `value.expected_*`, `variable.set_out_of_range`, `variable.not_numeric` |
 
 Not checked here, because it needs the driver manifests and the board profile, which `core`
 only gets from its caller: that each action is one of its element's driver and takes its
-arguments, that the options of an element are its driver's, and that pins and buses are free
-on the board. **The runtime checks those when it loads a package** (block 4.3), with its own
+arguments (a variable read for a parameter is of its type and limited within its limits:
+the type and the limits of a parameter are in the manifest), that the options of an element
+are its driver's, and that pins and buses are free on the board. **The runtime checks those when it loads a package** (block 4.3), with its own
 drivers and its HAL, and refuses the package whole: it never trusts one for having a hash.
 
 ## Not yet

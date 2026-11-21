@@ -105,3 +105,18 @@ def test_building_from_inside_the_project_does_not_make_the_package_part_of_it(
     assert (folder / "project.package.json").exists()
     assert (first[0], again[0], validated) == (EXIT_VALID, EXIT_VALID, EXIT_VALID), out.getvalue()
     assert "warning" not in again[1]
+
+
+def test_a_name_with_half_a_character_is_a_problem_of_the_file_not_a_crash(tmp_path: Path) -> None:
+    folder = tmp_path / "project"
+    shutil.copytree(EXAMPLES / "minimal", folder)
+    manifest = folder / "project.json"
+    document = json.loads(manifest.read_text())
+    manifest.write_text(json.dumps({**document, "name": "Shop \ud83d window"}))
+    output = tmp_path / "out.package.json"
+
+    status, out, _ = _build(str(folder), "--output", str(output), "--lang", "en")
+
+    assert status == EXIT_PROBLEMS
+    assert "project.json" in out
+    assert not output.exists()

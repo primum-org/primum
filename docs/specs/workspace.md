@@ -67,7 +67,9 @@ bytes, the board profiles by model and the driver manifests by element type (`co
 files: the caller loads them), and returns the `Workspace` (manifest and files, by path) or the
 issues that prevent it. Checks come in stages, so each problem is reported once, where it is:
 
-1. each file on its own: UTF-8, JSON, its schema (`file.*`, `schema.*`), then the fields that
+1. each file on its own: UTF-8, JSON, no half characters (`file.invalid_text`: a surrogate
+   escape without its pair, which JSON allows and nothing can write back), its schema
+   (`file.*`, `schema.*`), then the fields that
    depend on the case (`schema.missing_field`, `schema.unexpected_field`) and the configuration
    of each element against its driver (`config.*`, `drivers.md`);
 2. once every file reads, the project as a whole: unique ids (`id.duplicate`) and references

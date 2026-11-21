@@ -22,9 +22,12 @@ required its `from`.
   with `JSON.stringify`. The same project always gives the same bytes: nothing of when or
   where it was built is in it.
 - **A hash is not a check.** It tells a file cut short or edited; a package built wrong has a
-  right one. Reading a package checks its shape, its hash and that it holds together (ids,
-  references, the fields of each case), and the runtime checks the rest when it loads it,
-  with its drivers and its board. Nothing trusts a package for being one.
+  right one. Reading a package checks its shape, its hash and that it holds together: ids,
+  references, the fields of each case, and everything about its variables (their limits,
+  their initial value, what automations set), since the safety of an argument that reads a
+  variable rests on those limits holding. The runtime checks the rest when it loads it, with
+  its drivers and its board: only a manifest says what a parameter takes. Nothing trusts a
+  package for being one.
 - **Sequences travel as commands, not clips.** The compiler expands components and applies
   the rule of decision 0017: each command says its element, when it starts, how long its
   action lasts and until when it is in force (no end: what a sequence that holds keeps). The

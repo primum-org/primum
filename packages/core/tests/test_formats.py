@@ -196,3 +196,23 @@ def test_a_number_no_float_holds_in_a_project_file_is_reported_not_raised() -> N
     assert [(issue.code, dict(issue.params)) for issue in parsed.issues] == [
         (CoreErrorCode.SCHEMA_EXPECTED_NUMBER, {"field": "variables[0].min"})
     ]
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        rb'{"id": "00000000-0000-0000-0000-000000000001", "name": "Shop \ud83d window"}',
+        rb'{"na\udc00me": 1}',
+        rb'{"list": [{"deep": "\udfff"}]}',
+    ],
+)
+def test_half_a_character_is_reported_and_not_carried_inside(document: bytes) -> None:
+    """A surrogate without its pair is no text: nothing can write it back as UTF-8."""
+    assert [code for code, _, _ in _codes(document)] == [CoreErrorCode.FILE_INVALID_TEXT]
+
+
+def test_a_character_written_as_its_two_halves_is_that_character() -> None:
+    pair = rb"\ud83d" + rb"\ude00"  # the two halves of one character, as JSON escapes
+    document = b'{"id": "00000000-0000-0000-0000-000000000001", "name": "Shop ' + pair + b'"}'
+
+    assert CoreErrorCode.FILE_INVALID_TEXT not in [code for code, _, _ in _codes(document)]

@@ -190,6 +190,10 @@
       "message": "The file is not UTF-8 text.",
       "hint": "Save it again with UTF-8 encoding."
     },
+    "file.invalid_text": {
+      "message": "The file has half a character: a surrogate written without its pair.",
+      "hint": "Look for an escape like \\ud83d that is not followed by its second half, and write the character itself."
+    },
     "file.invalid_json": {
       "message": "The file is not valid JSON (line {line}, column {column}).",
       "hint": "Fix the text near that position, or restore the file from a copy."

@@ -485,7 +485,7 @@ def test_a_deployment_package_says_what_command_at_says(
         return
     workspace = project.loaded()
     timelines = timelines_of(workspace)
-    compiled = compile_package(workspace, project.drivers)
+    compiled = compile_package(workspace)
     assert compiled.value is not None
     package = read_package(PurePosixPath("p.json"), json.dumps(compiled.value).encode()).value
     assert package is not None

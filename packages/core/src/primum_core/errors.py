@@ -20,6 +20,7 @@ class CoreErrorCode(StrEnum):
     """Every code ``core`` can report, each with its params. Renaming one breaks the contract."""
 
     FILE_NOT_UTF8 = "file.not_utf8"
+    FILE_INVALID_TEXT = "file.invalid_text"  # half a character: a surrogate without its pair
     FILE_INVALID_JSON = "file.invalid_json"  # line, column
     FILE_DUPLICATE_KEY = "file.duplicate_key"  # key
     FILE_NOT_AN_OBJECT = "file.not_an_object"

@@ -68,12 +68,11 @@ def build(folder: Path, output: Path, catalog: Catalog, *, out: TextIO, err: Tex
     files = _read(folder, catalog, err)
     if files is None:
         return EXIT_FAILED
-    drivers = load_drivers()
-    loaded = load_workspace(files, load_profiles(), drivers)
+    loaded = load_workspace(files, load_profiles(), load_drivers())
     issues = list(loaded.issues)
     package = None
     if loaded.value is not None:
-        compiled = compile_package(loaded.value, drivers)
+        compiled = compile_package(loaded.value)
         issues += compiled.issues
         package = compiled.value
     _write_text(folder, issues, catalog, package is not None, out)

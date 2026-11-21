@@ -6,11 +6,12 @@ as JavaScript writes them (``80``, ``0.00001``, ``1e-7``), so that the UI and an
 runtime compute the same hash with what their language already has.
 
 Whoever reads a package checks it: its shape, its hash, and that it holds together (every
-reference names something of the package, every field its case needs is there). The hash
+reference names something of the package, every field its case needs is there, every
+variable starts within its limits and is only ever set within them). The hash
 tells a file cut short or changed by hand; it says nothing of a package built wrong, so it is
 never the only check. What needs the driver manifests and the board profile (that an action
-exists and takes its arguments, that pins are free) is checked by the runtime when it loads
-the package, with its own.
+exists and takes its arguments, a variable among them; that pins are free) is checked by the
+runtime when it loads the package, with its own.
 """
 
 import hashlib
@@ -28,11 +29,14 @@ from primum_core.generated.model import (
     PackageAction,
     PackageAutomation,
     PackageEvent,
+    PackageSequence,
+    PackageVariable,
     parse_package,
 )
 from primum_core.json_values import as_object, is_array, is_object
 from primum_core.pointers import Step, field_name, pointer
 from primum_core.schema_validation import validate
+from primum_core.values import EXPECTED, NUMERIC, Value, fits
 from primum_core.variants import ACTION_CASES, EVENT_CASES
 
 HASH_FIELD = "hash"
@@ -49,10 +53,11 @@ def package_hash(document: Mapping[str, object]) -> str:
 
 
 def canonical(value: object) -> str:
-    """``value`` as canonical JSON (RFC 8785). Keys are sorted as Python sorts text, which is
-    the RFC's order for every key a package has (they are ASCII)."""
+    """``value`` as canonical JSON (RFC 8785). Keys are sorted by their UTF-16 units, as
+    JavaScript compares text and the RFC asks: not Python's order beyond the basic plane."""
     if is_object(value):
-        members = (f"{_text(key)}:{canonical(value[key])}" for key in sorted(value))
+        keys = sorted(value, key=lambda key: key.encode("utf-16-be"))
+        members = (f"{_text(key)}:{canonical(value[key])}" for key in keys)
         return "{" + ",".join(members) + "}"
     if is_array(value):
         return "[" + ",".join(canonical(item) for item in value) + "]"
@@ -129,27 +134,50 @@ def read_package(path: PurePosixPath, content: bytes) -> Parsed[Package]:
 
 def check_package(package: Package, location: Location) -> Iterator[Issue]:
     """What a package that fits its schema may still have wrong inside: an id twice, a
-    reference to nothing, a field missing for its case or one that does not belong, a command
-    that ends before it starts."""
+    reference to nothing, a field missing for its case or one that does not belong, an
+    argument or an option twice, a command outside the time of its sequence, a variable that
+    starts outside its limits or is set outside them."""
     check = _Check(location)
     elements = check.ids("elements", (element.id for element in package.elements))
-    variables = check.ids("variables", (variable.id for variable in package.variables))
+    check.ids("variables", (variable.id for variable in package.variables))
+    variables = {variable.id: variable for variable in package.variables}
     sequences = check.ids("sequences", (sequence.id for sequence in package.sequences))
     events = check.ids("events", (event.id for event in package.events))
     schedules = check.ids("schedules", (schedule.id for schedule in package.schedules))
     check.ids("automations", (automation.id for automation in package.automations))
     yield from check.issues
+    for index, element in enumerate(package.elements):
+        options = [option.name for option in element.config]
+        for number in _repeated(options):
+            params = {"element": element.name, "option": options[number]}
+            at = check.at("elements", index, "config", number)
+            yield Issue(CoreErrorCode.CONFIG_DUPLICATE, params, at)
+    for index, variable in enumerate(package.variables):
+        yield from _variable_issues(variable, ("variables", index), check)
+    names = {element.id: element.name for element in package.elements}
     for index, sequence in enumerate(package.sequences):
         for number, command in enumerate(sequence.commands):
             steps = ("sequences", index, "commands", number)
-            yield from _command_issues(command, steps, elements, variables, check)
+            yield from _command_issues(command, steps, elements, frozenset(variables), check)
+            yield from _time_issues(command, sequence, steps, check)
+            given = [argument.name for argument in command.arguments]
+            for repeated in _repeated(given):
+                params = {
+                    "action": command.action,
+                    "element": names.get(command.element, str(command.element)),
+                    "parameter": given[repeated],
+                }
+                at = check.at(*steps, "arguments", repeated)
+                yield Issue(CoreErrorCode.ACTION_PARAM_DUPLICATE, params, at)
     for index, event in enumerate(package.events):
         yield from _event_issues(event, ("events", index), elements, check)
     for index, automation in enumerate(package.automations):
         steps = ("automations", index)
         yield from _automation_issues(automation, steps, events | schedules, check)
         for number, action in enumerate(automation.do):
-            yield from _action_issues(action, (*steps, "do", number), sequences, variables, check)
+            at = (*steps, "do", number)
+            yield from _action_issues(action, at, sequences, frozenset(variables), check)
+            yield from _assignment_issues(action, at, variables, check)
 
 
 class _Check:
@@ -196,6 +224,80 @@ class _Check:
             if present[name]:
                 params = {"field": field_name((*steps, name))}
                 yield Issue(CoreErrorCode.SCHEMA_UNEXPECTED_FIELD, params, self.at(*steps, name))
+
+
+def _repeated(names: list[str]) -> Iterator[int]:
+    """The index of each name that was already given before it."""
+    seen: set[str] = set()
+    for index, name in enumerate(names):
+        if name in seen:
+            yield index
+        seen.add(name)
+
+
+def _variable_issues(
+    variable: PackageVariable, steps: tuple[Step, ...], check: _Check
+) -> Iterator[Issue]:
+    """A variable as the project's are (``primum_core.variants``): limits only on a number,
+    the minimum not above the maximum, an initial value of its type and within them."""
+    numeric = variable.type in NUMERIC
+    limits = {"min": variable.min is not None, "max": variable.max is not None}
+    yield from check.fields([], [] if numeric else ["min", "max"], limits, steps)
+    if not fits(variable.initial, variable.type):
+        params = {"field": field_name((*steps, "initial"))}
+        yield Issue(EXPECTED[variable.type], params, check.at(*steps, "initial"))
+    elif variable.min is not None and variable.max is not None and variable.min > variable.max:
+        params = {"name": variable.name, "min": variable.min, "max": variable.max}
+        yield Issue(CoreErrorCode.VARIABLE_LIMITS_INVALID, params, check.at(*steps))
+    elif numeric and _outside(variable.initial, variable):
+        params = {"name": variable.name, "initial": variable.initial}
+        yield Issue(CoreErrorCode.VARIABLE_INITIAL_OUT_OF_RANGE, params, check.at(*steps))
+
+
+def _outside(value: Value, variable: PackageVariable) -> bool:
+    if isinstance(value, bool | str):
+        return False
+    below = variable.min is not None and value < variable.min
+    return below or (variable.max is not None and value > variable.max)
+
+
+def _assignment_issues(
+    action: PackageAction,
+    steps: tuple[Step, ...],
+    variables: Mapping[UUID, PackageVariable],
+    check: _Check,
+) -> Iterator[Issue]:
+    """What an action sets or adds fits its variable: a value of its type, set within its
+    limits; only a number is incremented."""
+    variable = variables.get(action.variable) if action.variable is not None else None
+    if variable is None:
+        return
+    if action.action == "increment_variable" and variable.type not in NUMERIC:
+        params = {"name": variable.name}
+        at = check.at(*steps, "variable")
+        yield Issue(CoreErrorCode.VARIABLE_NOT_NUMERIC, params, at)
+        return
+    if action.value is None:
+        return
+    at = check.at(*steps, "value")
+    if not fits(action.value, variable.type):
+        yield Issue(EXPECTED[variable.type], {"field": field_name((*steps, "value"))}, at)
+    elif action.action == "set_variable" and _outside(action.value, variable):
+        params = {"name": variable.name, "value": action.value}
+        yield Issue(CoreErrorCode.VARIABLE_SET_OUT_OF_RANGE, params, at)
+
+
+def _time_issues(
+    command: Command, sequence: PackageSequence, steps: tuple[Step, ...], check: _Check
+) -> Iterator[Issue]:
+    """A command lies within the time of its sequence: its action is over by the end, and so
+    is its time in force, unless it has none (what a sequence that holds keeps)."""
+    if command.at_ms + command.duration_ms > sequence.duration_ms:
+        params = {"field": field_name((*steps, "atMs"))}
+        yield Issue(CoreErrorCode.SCHEMA_INVALID_VALUE, params, check.at(*steps, "atMs"))
+    elif command.until_ms is not None and command.until_ms > sequence.duration_ms:
+        params = {"field": field_name((*steps, "untilMs"))}
+        yield Issue(CoreErrorCode.SCHEMA_INVALID_VALUE, params, check.at(*steps, "untilMs"))
 
 
 def _command_issues(

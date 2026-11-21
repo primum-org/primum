@@ -681,12 +681,21 @@ per element, from a deployment package that can be rolled back. One pull request
   (`variable.set_out_of_range`); reading a package also checks that it holds together (ids,
   references, the fields of each case), since a right hash says nothing of a package built
   wrong; the canonical form is RFC 8785's, where Python's own wrote `1e-05` for JavaScript's
-  `0.00001`; `primum build .` no longer makes its package a file of the project.
+  `0.00001`; `primum build .` no longer makes its package a file of the project. A second
+  round: a surrogate escape without its pair (`"\ud83d"`) validated and then crashed `build`
+  and `read_package` with a traceback, so any file with one is refused when decoded
+  (`file.invalid_text`); `check_package` also holds a package's variables to what a
+  project's are held to (limits, initial value, values set, increments) and refuses an
+  argument or an option given twice and a command outside the time of its sequence; keys
+  are sorted by UTF-16 units; a `Workspace` keeps the drivers it was checked against, so
+  `compile_package` cannot be given others; a limit on one side alone limits.
 - Left for 4.3: when the engine reads the variable of an argument (once when the command
   starts, or following it); where the element "is" for a `fade` without `from`; **holding
   every assignment of a variable to its limits** (clamp or refuse), which the limits check
   of a clip's argument counts on; **checking a package against the drivers and the board
-  when loading it** (actions, arguments, options, pins), which `read_package` cannot. For 4.4: an
+  when loading it** (actions, arguments, options, pins, and that a variable read for a parameter is of its type
+  and limited within its limits), which `read_package` cannot: only a manifest says what a
+  parameter takes. For 4.4: an
   automation's `if` travels as text with its names unresolved, and the constants it names are
   not in the package. Sequences are still flattened once per check that needs them (three
   of them, and the compiler): fine at today's sizes. `end_level` does not look through a

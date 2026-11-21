@@ -44,9 +44,10 @@ type Document = dict[str, object]
 SCHEMA_VERSION = 1
 
 
-def compile_package(workspace: Workspace, drivers: Drivers) -> Parsed[Document]:
+def compile_package(workspace: Workspace) -> Parsed[Document]:
     """The deployment package of a valid project, as the JSON document to write, or why it
-    cannot be built. ``drivers`` are the manifests the project was checked against."""
+    cannot be built. Compiled with the driver manifests the project was checked against."""
+    drivers = workspace.drivers
     files = [
         LocatedContent(file.content, Location(file.path, file_id=file.content.id))
         for file in workspace.files

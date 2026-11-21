@@ -50,6 +50,8 @@ All notable changes to this project are documented here. The format follows
   one automation and stopped by another (`examples/evening-lights/`). It only holds when it
   is started on its own: including it in another sequence gets a warning. A sequence that ends
   with an instant command and does not hold gets a warning: it would not be seen.
+- A file with half a character (an escape like `\ud83d` without its pair) is reported as a
+  problem of the file; it used to pass validation and crash the build.
 - `primum build <folder>` compiles a project into its deployment package, one JSON file with
   its own hash: what a board will run. A project with errors is not built.
 - A clip can take a value from a name instead of writing it (`valueOf`): a constant, a

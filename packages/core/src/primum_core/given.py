@@ -168,7 +168,7 @@ def _value_issues(
             if not type_fits(value_type, parameter.type):
                 if not item.typed:
                     yield wrong_type
-            elif codes.variable_unlimited and not _limits_within(low, high, parameter):
+            elif codes.variable_unlimited and not limits_within(low, high, parameter):
                 yield Issue(codes.variable_unlimited, {**named, **limits(parameter)}, place)
             elif codes.variable_choices and parameter.choices:
                 yield Issue(codes.variable_choices, {**named, "allowed": parameter.choices}, place)
@@ -179,11 +179,12 @@ def type_fits(value_type: str, wanted: str) -> bool:
     return value_type == wanted or (value_type == "integer" and wanted in NUMERIC)
 
 
-def _limits_within(low: float | None, high: float | None, parameter: DriverParameter) -> bool:
-    """Whether a variable limited from ``low`` to ``high`` holds only what the parameter takes."""
-    if parameter.min is None or parameter.max is None:
-        return True
-    return low is not None and high is not None and parameter.min <= low and high <= parameter.max
+def limits_within(low: float | None, high: float | None, parameter: DriverParameter) -> bool:
+    """Whether a variable limited from ``low`` to ``high`` holds only what the parameter takes:
+    on each side the parameter limits, the variable is limited too, and no further out."""
+    if parameter.min is not None and (low is None or low < parameter.min):
+        return False
+    return parameter.max is None or (high is not None and high <= parameter.max)
 
 
 def needs_value(parameter: DriverParameter) -> bool:
@@ -192,10 +193,11 @@ def needs_value(parameter: DriverParameter) -> bool:
 
 
 def within(value: Value, parameter: DriverParameter) -> bool:
-    """Whether a value of the parameter's type lies within its limits, if it has them."""
-    if parameter.min is None or parameter.max is None or isinstance(value, bool | str):
+    """Whether a value of the parameter's type lies within the limits it has."""
+    if isinstance(value, bool | str):
         return True
-    return parameter.min <= value <= parameter.max
+    below = parameter.min is not None and value < parameter.min
+    return not below and not (parameter.max is not None and value > parameter.max)
 
 
 def limits(parameter: DriverParameter) -> dict[str, float]:

@@ -190,6 +190,10 @@
       "message": "El fichero no es texto UTF-8.",
       "hint": "Vuelve a guardarlo con la codificación UTF-8."
     },
+    "file.invalid_text": {
+      "message": "El fichero tiene medio carácter: un sustituto (surrogate) escrito sin su pareja.",
+      "hint": "Busca un escape como \\ud83d al que no sigue su segunda mitad, y escribe el carácter tal cual."
+    },
     "file.invalid_json": {
       "message": "El fichero no es JSON válido (línea {line}, columna {column}).",
       "hint": "Corrige el texto cerca de esa posición o recupera el fichero de una copia."

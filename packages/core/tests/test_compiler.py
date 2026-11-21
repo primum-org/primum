@@ -19,7 +19,7 @@ PATH = PurePosixPath("shop.package.json")
 
 
 def _document(project: Project) -> dict[str, object]:
-    compiled = compile_package(project.loaded(), project.drivers)
+    compiled = compile_package(project.loaded())
     assert compiled.value is not None, compiled.issues
     return compiled.value
 
@@ -267,7 +267,7 @@ def test_the_same_project_gives_the_same_package_whatever_the_order_of_its_files
 def test_a_project_without_a_board_cannot_be_built(ids: Ids) -> None:
     project = Project().add("project.json", "project", ids(1), name="Empty")
 
-    compiled = compile_package(project.loaded(), project.drivers)
+    compiled = compile_package(project.loaded())
 
     assert compiled.value is None
     assert [(issue.code, dict(issue.params)) for issue in compiled.issues] == [
@@ -279,7 +279,7 @@ def test_a_project_on_several_boards_cannot_be_built_yet(project: Project, ids: 
     other = [{"id": ids(90), "name": "Other Pi", "model": "rpi4b"}]
     project.add("other.hw", "hardware", ids(91), boards=other, elements=[])
 
-    compiled = compile_package(project.loaded(), project.drivers)
+    compiled = compile_package(project.loaded())
 
     assert compiled.value is None
     assert [(issue.code, dict(issue.params)) for issue in compiled.issues] == [
@@ -472,3 +472,119 @@ def test_the_canonical_form_sorts_keys_and_keeps_text_as_it_is() -> None:
     assert canonical({"b": [True, None, "año\n"], "a": {"d": 1, "c": "x"}}) == (
         '{"a":{"c":"x","d":1},"b":[true,null,"año\\n"]}'
     )
+
+
+def test_a_package_with_half_a_character_is_refused_and_does_not_raise(project: Project) -> None:
+    content = json.dumps(_document(project)).replace("Shop window", "Shop \\ud83d window")
+
+    read = read_package(PATH, content.encode())
+
+    assert read.value is None
+    assert [issue.code for issue in read.issues] == [CoreErrorCode.FILE_INVALID_TEXT]
+
+
+BRIGHTNESS = ("variables", 0)
+LED_OPTIONS = ("elements", 1, "config")
+
+
+@pytest.mark.parametrize(
+    ("path", "change", "code", "pointer"),
+    [
+        (BRIGHTNESS, {"initial": 500}, CoreErrorCode.VARIABLE_INITIAL_OUT_OF_RANGE, "/variables/0"),
+        (BRIGHTNESS, {"min": 200}, CoreErrorCode.VARIABLE_LIMITS_INVALID, "/variables/0"),
+        (
+            BRIGHTNESS,
+            {"initial": "high"},
+            CoreErrorCode.VALUE_EXPECTED_INTEGER,
+            "/variables/0/initial",
+        ),
+        (
+            BRIGHTNESS,
+            {"type": "text", "initial": "a"},
+            CoreErrorCode.SCHEMA_UNEXPECTED_FIELD,
+            "/variables/0/min",
+        ),
+        (SET, {"value": 500}, CoreErrorCode.VARIABLE_SET_OUT_OF_RANGE, "/automations/0/do/1/value"),
+        (SET, {"value": "high"}, CoreErrorCode.VALUE_EXPECTED_INTEGER, "/automations/0/do/1/value"),
+        (
+            COMMAND,
+            {"atMs": 5000, "untilMs": 6000},
+            CoreErrorCode.SCHEMA_INVALID_VALUE,
+            "/sequences/0/commands/0/atMs",
+        ),
+        (
+            COMMAND,
+            {"untilMs": 6000},
+            CoreErrorCode.SCHEMA_INVALID_VALUE,
+            "/sequences/0/commands/0/untilMs",
+        ),
+    ],
+)
+def test_a_package_whose_values_do_not_fit_is_refused_whatever_its_hash(
+    project: Project,
+    ids: Ids,
+    path: tuple[str | int, ...],
+    change: dict[str, object],
+    code: CoreErrorCode,
+    pointer: str,
+) -> None:
+    document = _full(project, ids)
+    _first(document, *path).update(change)
+
+    read = read_package(PATH, _rehashed(document))
+
+    assert read.value is None
+    assert (code, pointer) in [
+        (issue.code, issue.location and issue.location.pointer) for issue in read.issues
+    ]
+
+
+def test_a_package_that_increments_a_text_is_refused(project: Project, ids: Ids) -> None:
+    document = _full(project, ids)
+    _first(document, *BRIGHTNESS).update({"type": "text", "initial": "a"})
+    for limit in ("min", "max"):
+        del _first(document, *BRIGHTNESS)[limit]
+    step = _first(document, *SET)
+    step["action"] = "increment_variable"
+    del step["value"]
+    del _first(document, *ARGUMENT)["variable"]
+    _first(document, *ARGUMENT)["value"] = 1
+
+    read = read_package(PATH, _rehashed(document))
+
+    assert [(issue.code, issue.location and issue.location.pointer) for issue in read.issues] == [
+        (CoreErrorCode.VARIABLE_NOT_NUMERIC, "/automations/0/do/1/variable")
+    ]
+
+
+def test_a_package_that_gives_an_argument_or_an_option_twice_is_refused(
+    project: Project, ids: Ids
+) -> None:
+    document = _full(project, ids)
+    arguments = cast("list[object]", _first(document, *COMMAND)["arguments"])
+    arguments.append({"name": "level", "value": 3})
+    options = cast("list[object]", _first(document, "elements", 1)["config"])
+    options.append(dict(cast("dict[str, object]", options[0])))
+
+    read = read_package(PATH, _rehashed(document))
+
+    assert [(issue.code, issue.location and issue.location.pointer) for issue in read.issues] == [
+        (CoreErrorCode.CONFIG_DUPLICATE, "/elements/1/config/2"),
+        (CoreErrorCode.ACTION_PARAM_DUPLICATE, "/sequences/0/commands/0/arguments/1"),
+    ]
+
+
+def test_keys_are_sorted_as_javascript_compares_text() -> None:
+    """RFC 8785 sorts by UTF-16 units: a character beyond the basic plane (two units, the
+    first 0xD83D) goes before one near its end (0xFB33), though its code point is higher."""
+    assert canonical({"דּ": 1, "\U0001f600": 2, "a": 3}) == '{"a":3,"\U0001f600":2,"דּ":1}'
+
+
+def test_a_project_is_compiled_with_the_drivers_it_was_checked_against(
+    project: Project, ids: Ids
+) -> None:
+    _show(_lamp(project, ids), ids, _clip(ids, 21, 0, 1000, "set", level=40))
+    workspace = project.loaded()
+    project.drivers.clear()
+
+    assert compile_package(workspace).value is not None

@@ -4,6 +4,8 @@ variable, or a value parameter of the sequence, given by the block that includes
 import pytest
 
 from primum_core.errors import CoreErrorCode
+from primum_core.generated.model import DriverParameter
+from primum_core.given import limits_within, within
 from project_builder import Found, Ids, Project
 
 LAMP = 9
@@ -338,3 +340,29 @@ def test_an_automation_cannot_start_or_stop_a_component(
             "/do/0/sequence",
         )
     ]
+
+
+@pytest.mark.parametrize(
+    ("limits", "inside", "outside", "fitting", "too_wide"),
+    [
+        ({"max": 10}, -500, 11, (None, 10), (0, 11)),
+        ({"min": 0}, 500, -1, (0, None), (-1, 10)),
+        ({"min": 0, "max": 10}, 5, 11, (0, 10), (0, None)),
+    ],
+)
+def test_a_limit_on_one_side_alone_still_limits(
+    limits: dict[str, float],
+    inside: float,
+    outside: float,
+    fitting: tuple[float | None, float | None],
+    too_wide: tuple[float | None, float | None],
+) -> None:
+    """Manifests give both limits or neither, but nothing here should count on that."""
+    low, high = limits.get("min"), limits.get("max")
+    parameter = DriverParameter(name="level", type="number", min=low, max=high)
+
+    assert within(inside, parameter)
+    assert not within(outside, parameter)
+    assert limits_within(*fitting, parameter)
+    assert not limits_within(*too_wide, parameter)
+    assert not limits_within(None, None, parameter)
