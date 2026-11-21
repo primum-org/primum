@@ -225,7 +225,7 @@ def test_a_wrong_option_fails_before_anything_is_claimed(hal: SimulatedHal) -> N
 
 
 def test_two_elements_of_one_name_are_the_caller_s_mistake(hal: SimulatedHal) -> None:
-    with pytest.raises(ValueError, match="same name"):
+    with pytest.raises(ValueError, match="same id or name"):
         _controller(hal, LED, LED)
 
 

@@ -154,6 +154,22 @@
       "message": "{element} was set to {level} but reads back {read}.",
       "hint": "Check its wiring and whether something else drives it. Use the panic button if it is not safe."
     },
+    "element.variable_unfit": {
+      "message": "The variable {variable} can hold a value that the {name} of the action {action} of {element} does not take.",
+      "hint": "Build the package again from its project: primum validate reports this."
+    },
+    "package.unreadable": {
+      "message": "The package {path} cannot be read.",
+      "hint": "Check that the file exists and that the service may read it."
+    },
+    "package.invalid": {
+      "message": "{path} is not a package this version can run: {problems}.",
+      "hint": "Build it again with primum build, with this version of Primum."
+    },
+    "package.board_unsupported": {
+      "message": "The package is for a board {board}, and this version of Primum has no profile for it.",
+      "hint": "Boards with a profile: {available}."
+    },
     "safe.declaration_unwritable": {
       "message": "Primum cannot write down which outputs it is about to use, so it will not use them.",
       "hint": "Check that its data directory exists and that Primum may write in it."

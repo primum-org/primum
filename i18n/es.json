@@ -154,6 +154,22 @@
       "message": "{element} se puso a {level} pero se lee {read}.",
       "hint": "Revisa su cableado y si otra cosa lo está manejando. Usa el botón de pánico si no es seguro."
     },
+    "element.variable_unfit": {
+      "message": "La variable {variable} puede tener un valor que el parámetro {name} de la acción {action} de {element} no admite.",
+      "hint": "Vuelve a construir el paquete desde su proyecto: primum validate lo detecta."
+    },
+    "package.unreadable": {
+      "message": "No se puede leer el paquete {path}.",
+      "hint": "Comprueba que el fichero existe y que el servicio puede leerlo."
+    },
+    "package.invalid": {
+      "message": "{path} no es un paquete que esta versión pueda ejecutar: {problems}.",
+      "hint": "Constrúyelo de nuevo con primum build, con esta versión de Primum."
+    },
+    "package.board_unsupported": {
+      "message": "El paquete es para una placa {board}, y esta versión de Primum no tiene perfil para ella.",
+      "hint": "Placas con perfil: {available}."
+    },
     "safe.declaration_unwritable": {
       "message": "Primum no puede dejar anotadas las salidas que va a usar, así que no las usará.",
       "hint": "Comprueba que su directorio de datos existe y que Primum puede escribir en él."

@@ -30,6 +30,7 @@ SWITCH = ["on", "off"]
 OFF = {
     "outputs": [
         {
+            "id": LED,
             "name": LED,
             "on": False,
             "level": 0,
@@ -44,6 +45,7 @@ OFF = {
 ON = {
     "outputs": [
         {
+            "id": LED,
             "name": LED,
             "on": True,
             "level": 100,
@@ -167,7 +169,9 @@ def _with_button(hal: SimulatedHal) -> TestClient:
 
 def test_status_reports_the_inputs_too(hal: SimulatedHal) -> None:
     with _with_button(hal) as client:
-        assert client.get("/api/status").json()["inputs"] == [{"name": BUTTON, "active": False}]
+        assert client.get("/api/status").json()["inputs"] == [
+            {"id": BUTTON, "name": BUTTON, "active": False}
+        ]
 
 
 def test_a_change_of_an_input_reaches_the_websocket_without_anyone_asking(
@@ -182,8 +186,8 @@ def test_a_change_of_an_input_reaches_the_websocket_without_anyone_asking(
         hal.simulate_input(BUTTON_PIN, False)
         released = websocket.receive_json()
 
-    assert pressed["inputs"] == [{"name": BUTTON, "active": True}]
-    assert released["inputs"] == [{"name": BUTTON, "active": False}]
+    assert pressed["inputs"] == [{"id": BUTTON, "name": BUTTON, "active": True}]
+    assert released["inputs"] == [{"id": BUTTON, "name": BUTTON, "active": False}]
 
 
 def test_a_failure_reading_the_inputs_stops_the_watch_instead_of_spinning(
@@ -396,6 +400,7 @@ def test_a_pwm_output_is_reported_with_its_level_and_what_it_can_be_asked(
     dimmer_client: TestClient,
 ) -> None:
     assert _dimmer(dimmer_client.get("/api/status").json()) == {
+        "id": DIMMER,
         "name": DIMMER,
         "on": False,
         "level": 0,
@@ -414,6 +419,7 @@ def test_setting_a_level_drives_the_channel_and_returns_the_new_state(
 
     assert response.status_code == 200
     assert _dimmer(response.json()) == {
+        "id": DIMMER,
         "name": DIMMER,
         "on": True,
         "level": 40,
