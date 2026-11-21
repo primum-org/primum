@@ -26,7 +26,8 @@ Check one with `uv run primum validate examples/<name>`; a test keeps every exam
   accepts them and checks their types.
 - `evening-lights/`: a lamp that fades in at 19:00 and stays on until 23:00. `lights.sec`
   holds (`whenDone`), so it does not end when its fade does; `on.auto` starts it and
-  `off.auto` stops it, each from its own schedule.
+  `off.auto` stops it, each from its own schedule. *Evening* is a window, not a time, so
+  the lamp comes back if the board restarts at 20:00 (decision 0023).
 - `invalid/<code>/`: one small project per problem, a pin conflict or something an element
   cannot do, each giving exactly that code (see its README).
 

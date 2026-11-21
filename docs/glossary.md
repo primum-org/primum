@@ -17,7 +17,7 @@ and docs; the Spanish term is the one shown by the Spanish UI.
 | Parameter | Parámetro | An input of a component; exists only inside that use (instance) |
 | Automation (`.auto`) | Automatización | When an event happens → if conditions hold → do something (start/stop a sequence, change a variable) |
 | Event (`.evt`) | Evento | A named thing that happened in the outside world: a sensor, a button, a phone button, an external message. Sequences never emit events |
-| Schedule (`.sched`) | Programación | Time events ("every day at 20:30") and time windows used as conditions ("Mon–Sat 10:00–20:30"). Runs as an automation underneath |
+| Schedule (`.sched`) | Programación | Times ("every day at 20:30") and time windows ("Mon–Sat 10:00–20:30") that start automations; a window also starts them when the board comes back inside it, and can be a condition |
 | Variables file (`.vars`) | Variables | Constants and variables of the folder it is in |
 | Hardware file (`.hw`) | Hardware | Boards and elements of the project |
 | Constant | Constante | A value fixed while the show runs; resolved at compile time |
@@ -54,6 +54,7 @@ and docs; the Spanish term is the one shown by the Spanish UI.
 | Priority | Prioridad | Which sequence controls an element when several want it |
 | Layer | Capa | A priority level; when a higher layer ends, the element returns to what the layer below says |
 | Exclusive group | Grupo exclusivo | Sequences that cancel each other: starting one stops the others |
+| Re-trigger policy | Política de redisparo | What starting a sequence does while it is already running (`whenStartedAgain`): restart it, or ignore the start |
 | Exclusive element | Elemento exclusivo | An element (motor, servo) that one sequence owns while it runs |
 | Safe state | Estado seguro | The state every output goes to on start, stop, crash or panic |
 | Panic | Pánico | Immediately put everything in its safe state |

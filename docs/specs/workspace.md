@@ -13,9 +13,9 @@ A project is a folder of files (decision 0004). This spec says what the folder h
 |---|---|---|
 | `.hw` | `hardware` | Boards (`model` names a board profile) and the elements wired to them, each with the options of its driver (`config`) |
 | `.vars` | `variables` | Constants and variables of its folder; names exported and imported |
-| `.sec` | `sequence` | Tracks of clips per element, each clip an action of the element's driver with its `arguments`; blocks that include other sequences; parameters (a component); `priority` and `exclusiveGroup` (decision 0006); `whenDone` (`end` or `hold`, decision 0017) |
+| `.sec` | `sequence` | Tracks of clips per element, each clip an action of the element's driver with its `arguments`; blocks that include other sequences; parameters (a component); `priority` and `exclusiveGroup` (decision 0006); `whenDone` (`end` or `hold`, decision 0017); `whenStartedAgain` (`restart` or `ignore`, decision 0023) |
 | `.evt` | `event` | Something from outside: an input element, a button of the phone UI, the local API |
-| `.sched` | `schedule` | Times of day (start automations) and windows of time (conditions) |
+| `.sched` | `schedule` | Times of day and windows of time: both start automations (a window also when the engine starts inside it, decision 0023), and windows are conditions too |
 | `.auto` | `automation` | When events or schedules fire, if a condition holds, do actions |
 
 - Any other file is not part of the project: it is ignored with a warning
@@ -121,8 +121,9 @@ What a clip does (decisions 0016 and 0017):
 (phase 4): `timelines_of(workspace)` prepares the sequences of a valid project, and
 `command_at(element, at_ms, running, timelines)` gives the command in force on an element at
 an instant, or nothing (its safe state). `running` are the sequences started and not stopped,
-each with when it started, in the order they were started; the caller keeps that list, so
-exclusive groups and stopping are not this function's. A command says its clip, the sequence
+each with when it started, in the order they were started; the caller keeps that list, with
+`primum_core.runs` (`engine-semantics.md`), so exclusive groups and stopping are not this
+function's. A command says its clip, the sequence
 it is from, since when, and whether it is `settled`: the action is over and the element stays
 where it ends (an instant command, or a clip held by a sequence that holds). A `Timeline` is a
 priority and, per element, its `Span`s: a clip, when its command starts and until when it is

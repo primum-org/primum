@@ -8,7 +8,7 @@ when a phase starts or finishes.
 | 0 | Repository skeleton: structure, docs, rules, tooling, CI | Done |
 | 1 | End-to-end skeleton: toggle an LED from a phone | Done |
 | 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Done |
-| 3 | HAL, basic drivers and safety | In progress |
+| 3 | HAL, basic drivers and safety | Done |
 | 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Not started |
 | 5 | Local web UI v1 | Not started |
 | 6 | Hardware manager (`config.txt`, tryboot) and I2C, LED strip and audio drivers | Not started |
@@ -484,8 +484,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   3.3b.
 - Small: the sequences are now flattened three times (actions, overlaps, states).
 
-**3.3b · The three drivers** · **code done; its `hw` tests are still to be run on
-`primum-dev`** (decision 0019, `specs/drivers.md`)
+**3.3b · The three drivers** · **done** (decision 0019, `specs/drivers.md`)
 - `primum_runtime.drivers`: `digital_output`, `digital_input` and `pwm_output`, each made from
   its element, its manifest and the limits of its board, with tests against the simulated
   HAL. An output is commanded with the actions of its manifest, as an instant command: it
@@ -515,11 +514,10 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
   line's sequence number, and the input driver counts and logs the gaps. The state stays
   right, since every event carries it. Two events of the same kind in a row do not flip it;
   the simulated HAL can produce both cases (`simulate_event`, `lose_events`).
-- `hw` tests written and not yet run (`test_drivers_hw.py`; this block was written without
-  access to `primum-dev`): a digital output read back, a PWM output at 1 Hz and at 100 kHz,
+- `hw` tests (`test_drivers_hw.py`), written without access to `primum-dev` and run there
+  afterwards, as its owner reports (they passed): a digital output read back, a PWM output at 1 Hz and at 100 kHz,
   a real edge with no finger (the input's pull changed from up to down) with its polarity,
-  its time and its sequence number, and an input with a debounce of 10 s. Until they pass
-  there, the limits of `rpi4b` are still arithmetic on its sources.
+  its time and its sequence number, and an input with a debounce of 10 s.
 - PWM was not offered by the service until 3.4b: the drivers and the `Controller` handle PWM outputs
   (tested against the simulated HAL and by the `hw` tests), but the options of the service
   cannot ask for one, so the `kill -9` gap of a PWM channel cannot be reached from it. With
@@ -575,8 +573,7 @@ is on). Not here: running sequences (phase 4), I2C, LED strips, audio and `confi
 - If reading the inputs fails, the API still only stops watching them: whether that should
   end the service, now that a watchdog restarts it, is open.
 
-**3.4b · PWM in the service** · **code done; the PWM output of the service is still to be
-tried on `primum-dev`** (decision 0021)
+**3.4b · PWM in the service** · **done** (decision 0021)
 - The service can drive one PWM output, named `dimmer`: `--pwm-pin` and `--pwm-frequency-hz`
   (its driver's default if not given), or `PRIMUM_PWM_PIN` and `PRIMUM_PWM_FREQUENCY_HZ`. It
   is declared for `primum-safe` like the LED.
@@ -602,8 +599,8 @@ tried on `primum-dev`** (decision 0021)
   (phase 4).
 - Not in `image/provision.sh`: to try the PWM output on the Pi, add `PRIMUM_PWM_PIN=18` to
   `/etc/primum/runtime.env` (the overlay routes channels to GPIO 18 and 19).
-- Tried here against the simulated service only, the page included. On the board, with an
-  LED on the PWM pin: the slider, panic, and `kill -9` with the LED lit.
+- Tried here against the simulated service only, the page included. The PWM output of the
+  service was tried on `primum-dev` afterwards, as its owner reports: it passed.
 
 **3.4c · Test mode** · **done** (decision 0022, `specs/safety.md`)
 - A command with a duration is a test: it expires on its own and its output goes to rest.
@@ -629,6 +626,7 @@ tried on `primum-dev`** (decision 0021)
   3.3b (a `display` that overrode `hidden`). Fixed here.
 
 **Done when:** after `kill -9` of the service every output, PWM included, is in its safe state.
+Met, on `primum-dev`.
 
 Found in 1.4: after `SIGKILL` a line keeps its last value until the service starts again, and
 if systemd gives up restarting (`StartLimitBurst`) it stays so. The watchdog and the safe state
@@ -636,30 +634,55 @@ on start must cover a service that does not come back.
 
 ## Phase 4 · Engine and deployment packages
 
-**The case to decide the re-trigger policy with**, since it is what people write first: two
-sequences that hold, *On* (an instant `on`) and *Off* (an instant `off`), each started by its
-own automation. The first day it works: *Off* started last, so it wins (decision 0017). The
-second day the lamp lights only if starting *On* again is a new run, which then started last;
-if the engine ignores the start because *On* is already running, the lamp stays off for ever.
-Checked with `command_at` under both. Next to it, *Off* as a `fade` to 0 and an instant `off`
-over an *On* that holds: it dims the lamp and gives it back to *On* at 100 when it ends, so
-fading out needs both in one exclusive group. Both are tests of the engine before its code.
-And restarts: nothing says what a sequence that holds does when the Pi restarts. In
-`examples/evening-lights`, a power cut at 20:00 leaves the lamp off until the next day,
-since *Lights* is started at 19:00 and not again. To decide with the same policy: whether
-the engine remembers which sequences were holding, or a schedule can say "between 19:00 and
-23:00" instead of "at 19:00".
+The runtime runs a project: sequences in time, started by events and schedules, arbitrated
+per element, from a deployment package that can be rolled back. One pull request per block;
+4.1 and 4.2 need no Pi.
 
-1. Sequence engine (monotonic clock, components flattened by the compiler).
-2. Events (`.evt`), schedules (`.sched`), automations (`.auto`), runtime variables with atomic
-   operations and a small, safe expression language for conditions.
-3. Arbiter per element: layers by priority, latest command wins, exclusive elements,
-   exclusive groups, re-trigger policy, safety on top.
-4. Execution trace.
-5. Deployment package: build, validate, atomic activation, rollback. Reliable-clock flag.
+**4.1 · Which sequences are running** · **done** (decision 0023, `specs/engine-semantics.md`)
+- The three cases the plan kept for this, decided and held by tests against `command_at`:
+  *On* and *Off* that hold, each started by its automation, work day after day because
+  starting a running sequence restarts it (it counts as started last); a sequence can ask to
+  ignore that (`whenStartedAgain`), and a test keeps why that is not the default. Starting a
+  sequence stops the others of its exclusive group, so a fade out in the group of *On*
+  leaves the lamp off. Nothing is remembered across a restart: a schedule's window starts
+  its automations when it opens and when the engine starts inside it, a time is lost if the
+  board was off.
+- `primum_core.runs`: `start`, `stop` and `still_running` keep the list of running sequences
+  that `command_at` reads; a `Timeline` carries when its sequence ends, its group and whether
+  it restarts.
+- `examples/evening-lights` starts its lamp from a window.
+- Queueing (decision 0006's third policy) is not built: nothing asks for it.
+- Left for 4.3: exclusive elements and what priority does between sequences that wait or
+  preempt. For 4.4: windows are only decided here (a clock that becomes reliable late,
+  windows across midnight, once per window). Not warned about: a sequence that ignores being
+  started again, holds and shares an element with another on its priority.
 
-**Done when:** "presence sensor → 10 s sequence with relay, LED and servo" runs from a deployed
-package, shows in the trace and can be rolled back.
+**4.2 · Deployment package and compiler**
+- The package format (`specs/deployment-package.md`): flat, validated, with its hash and the
+  minimum runtime version; the compiler in `core` flattens components once (today sequences
+  are flattened three times) and binds what a clip takes from a parameter or a variable.
+  `fade` "from where it is" needs a parameter that may be left out.
+
+**4.3 · Engine and arbiter**
+- The runtime runs the sequences of a package on a monotonic clock, through the drivers, and
+  agrees with `command_at` and `primum_core.runs` (a randomized test against both; the one for
+  `block.hold_ignored` is still to write). Fades in time.
+- Arbiter per element: panic and safe state, then manual control and test mode, then
+  sequences by priority. Test mode's expiry returns to what the sequences say; a command
+  without a duration is manual control (decision 0022). Exclusive elements.
+
+**4.4 · Events, schedules, automations and variables**
+- `.evt` from inputs (lost input events are told to the user), `.sched` times and windows
+  with the reliable-clock flag, `.auto` with the expression language of `if`
+  (`specs/expressions.md`, `specs/events.md`), runtime variables with atomic operations.
+
+**4.5 · Trace, activation and rollback**
+- Execution trace; a package is activated atomically and the previous one can be brought
+  back.
+
+**Done when:** "presence sensor → 10 s sequence with relay, LED and PWM output" runs from a
+deployed package, shows in the trace and can be rolled back. A servo, an exclusive element
+with its pulse limits, comes with the drivers of phase 6.
 
 ## Phase 5 · Local web UI v1
 
