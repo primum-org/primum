@@ -21,7 +21,17 @@
     "connection.offline": "Sin conexión con el servicio. Reintentando…",
     "error.detail": "Detalle técnico",
     "error.unknown": "Error inesperado ({code}).",
-    "error.close": "Cerrar"
+    "error.close": "Cerrar",
+    "sequences.heading": "Secuencias",
+    "sequence.start": "Arrancar",
+    "sequence.stop": "Parar",
+    "sequence.start_of": "Arrancar {name}",
+    "sequence.stop_of": "Parar {name}",
+    "sequence.running": "En marcha",
+    "output.release": "Soltar",
+    "output.release_of": "Devolver {name} a las secuencias",
+    "output.by_manual": "Tomada a mano, por encima de las secuencias, hasta que se suelte.",
+    "output.by_sequence": "La está mandando una secuencia."
   },
   "cli": {
     "severity.error": "error",
@@ -193,6 +203,10 @@
     "output.unknown": {
       "message": "No hay ninguna salida {name}.",
       "hint": "Recarga la página para ver las salidas actuales."
+    },
+    "sequence.unknown": {
+      "message": "No hay ninguna secuencia {id}.",
+      "hint": "Recarga la página para ver las secuencias del paquete en marcha."
     },
     "panic.active": {
       "message": "El pánico está activo: las salidas no aceptan órdenes.",

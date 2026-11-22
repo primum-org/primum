@@ -151,6 +151,14 @@ class OutputDriver(ElementDriver):
             params = {"element": self.name, "level": level, "read": read}
             raise PrimumError(ErrorCode.ELEMENT_LEVEL_NOT_REACHED, params)
 
+    @property
+    def rest_level(self) -> float:
+        """The level the element rests at: where the safe state of its manifest leaves it."""
+        safe_state = self._manifest.safe_state
+        if safe_state is None:  # the manifest check refuses an output without one
+            raise TypeError(f"the driver of {self._manifest.element_type!r} has no safe state")
+        return self.level_for(safe_state)
+
     def rest(self) -> None:
         """Go to rest: the action the manifest names as the safe state, as a command (read
         back as any other)."""

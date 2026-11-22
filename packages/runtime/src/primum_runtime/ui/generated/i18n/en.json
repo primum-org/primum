@@ -21,7 +21,17 @@
     "connection.offline": "No connection with the service. Retrying…",
     "error.detail": "Technical detail",
     "error.unknown": "Unexpected error ({code}).",
-    "error.close": "Close"
+    "error.close": "Close",
+    "sequences.heading": "Sequences",
+    "sequence.start": "Start",
+    "sequence.stop": "Stop",
+    "sequence.start_of": "Start {name}",
+    "sequence.stop_of": "Stop {name}",
+    "sequence.running": "Running",
+    "output.release": "Release",
+    "output.release_of": "Give {name} back to the sequences",
+    "output.by_manual": "Held by hand, over the sequences, until released.",
+    "output.by_sequence": "A sequence is commanding it."
   },
   "cli": {
     "severity.error": "error",
@@ -193,6 +203,10 @@
     "output.unknown": {
       "message": "There is no output {name}.",
       "hint": "Reload the page to see the current outputs."
+    },
+    "sequence.unknown": {
+      "message": "There is no sequence {id}.",
+      "hint": "Reload the page to see the sequences of the package that is running."
     },
     "panic.active": {
       "message": "Panic is active: outputs do not accept commands.",

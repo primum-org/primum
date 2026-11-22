@@ -54,7 +54,9 @@ def test_set_output_drives_the_line_and_notifies_the_new_state(hal: SimulatedHal
 
     assert hal.lines[17].active
     assert states == [controller.state()]
-    assert states[0].outputs[0] == OutputState("led", on=True, level=100, actions=SWITCH)
+    assert states[0].outputs[0] == OutputState(
+        "led", on=True, level=100, actions=SWITCH, controlled_by="manual"
+    )
 
 
 def test_unknown_output_raises_output_unknown(hal: SimulatedHal) -> None:
@@ -142,7 +144,9 @@ def test_a_command_is_an_action_of_the_driver_with_its_arguments(hal: SimulatedH
     controller.command("dimmer", "set", {"level": 25})
 
     assert hal.pwm_lines[18].duty == 0.25
-    assert controller.state().outputs == (OutputState("dimmer", on=True, level=25, actions=LEVEL),)
+    assert controller.state().outputs == (
+        OutputState("dimmer", on=True, level=25, actions=LEVEL, controlled_by="manual"),
+    )
 
 
 def test_an_action_the_output_does_not_have_changes_nothing(hal: SimulatedHal) -> None:
@@ -264,7 +268,9 @@ def test_the_next_command_that_is_followed_says_what_it_did(hal: SimulatedHal) -
 
     controller.command("led", "on")
 
-    assert controller.state().outputs[0] == OutputState("led", on=True, level=100, actions=SWITCH)
+    assert controller.state().outputs[0] == OutputState(
+        "led", on=True, level=100, actions=SWITCH, controlled_by="manual"
+    )
 
 
 def test_panic_after_an_output_did_not_follow_reports_its_safe_state(hal: SimulatedHal) -> None:
@@ -548,7 +554,7 @@ def test_an_output_that_cannot_be_sent_to_rest_does_not_stop_the_others(
     controller.expire()
 
     assert not hal.lines[27].active
-    assert "the test of led expired and it could not be sent to rest" in caplog.text
+    assert "led could not be taken where it should be" in caplog.text
 
 
 def test_whatever_the_hardware_raises_does_not_stop_the_others_either(
@@ -697,7 +703,9 @@ def test_an_output_that_goes_on_failing_is_logged_once_and_again_when_it_rests(
         clock.now += wait
         controller.expire()
     failures = [
-        record for record in caplog.records if "could not be sent to rest" in record.message
+        record
+        for record in caplog.records
+        if "could not be taken where it should be" in record.message
     ]
 
     hal.lines[17].fail_writes(None)
@@ -705,7 +713,7 @@ def test_an_output_that_goes_on_failing_is_logged_once_and_again_when_it_rests(
     controller.expire()
 
     assert len(failures) == 1
-    assert "led is at rest after all" in caplog.text
+    assert "led is where it should be after all" in caplog.text
 
 
 def test_a_panic_that_fails_goes_on_trying_what_it_could_not_make_safe(

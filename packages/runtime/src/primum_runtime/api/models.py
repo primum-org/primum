@@ -30,6 +30,8 @@ class OutputStateBody(_Body):
     actions: list[str]
     remainingMs: int | None  # noqa: N815 (the name in the JSON body)
     restFailed: bool  # noqa: N815
+    # Who commands it: "manual", "test", "sequence", or nobody (it rests).
+    controlledBy: str | None  # noqa: N815
 
 
 class InputStateBody(_Body):
@@ -38,10 +40,17 @@ class InputStateBody(_Body):
     active: bool
 
 
+class SequenceStateBody(_Body):
+    id: str  # what it is started and stopped by: POST /api/sequences/{id}/start
+    name: str
+    running: bool
+
+
 class StateBody(_Body):
     outputs: list[OutputStateBody]
     inputs: list[InputStateBody]
     panic: bool
+    sequences: list[SequenceStateBody]  # of the package that is running; none without one
 
     @classmethod
     def of(cls, state: State) -> "StateBody":
@@ -54,13 +63,18 @@ class StateBody(_Body):
                 actions=list(output.actions),
                 remainingMs=output.remaining_ms,
                 restFailed=output.rest_failed,
+                controlledBy=output.controlled_by,
             )
             for output in state.outputs
         ]
         inputs = [
             InputStateBody(id=item.id, name=item.name, active=item.active) for item in state.inputs
         ]
-        return cls(outputs=outputs, inputs=inputs, panic=state.panic)
+        sequences = [
+            SequenceStateBody(id=item.id, name=item.name, running=item.running)
+            for item in state.sequences
+        ]
+        return cls(outputs=outputs, inputs=inputs, panic=state.panic, sequences=sequences)
 
 
 class ErrorBody(_Body):

@@ -51,6 +51,11 @@
       <ul id="outputs"></ul>
     </section>
 
+    <section id="sequences-section" class="outputs" aria-labelledby="sequences-heading" hidden>
+      <h2 id="sequences-heading" data-i18n="sequences.heading"></h2>
+      <ul id="sequences"></ul>
+    </section>
+
     <section id="inputs-section" class="outputs" aria-labelledby="inputs-heading" hidden>
       <h2 id="inputs-heading" data-i18n="inputs.heading"></h2>
       <ul id="inputs"></ul>
@@ -74,11 +79,23 @@
         <span class="switch-state"></span>
       </button>
       <button class="button test" type="button"></button>
+      <button class="button release" type="button" hidden></button>
       <p class="testing secondary" role="timer" hidden></p>
+      <p class="controlled-by secondary" role="status" hidden></p>
       <div class="level" hidden>
         <input class="level-slider" type="range" min="0" max="100" step="1">
         <output class="level-value"></output>
       </div>
+    </li>
+  </template>
+
+  <template id="sequence-row">
+    <li class="output">
+      <span class="icon icon-sequence" aria-hidden="true"></span>
+      <span class="output-name"></span>
+      <span class="input-state" role="status"></span>
+      <button class="button start" type="button"></button>
+      <button class="button stop" type="button"></button>
     </li>
   </template>
 

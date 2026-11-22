@@ -54,6 +54,7 @@ class ErrorCode(StrEnum):
     SAFE_DECLARATION_INVALID = "safe.declaration_invalid"
     TEST_DURATION_OUT_OF_RANGE = "test.duration_out_of_range"
     OUTPUT_UNKNOWN = "output.unknown"
+    SEQUENCE_UNKNOWN = "sequence.unknown"
     PANIC_ACTIVE = "panic.active"
     REQUEST_INVALID = "request.invalid"
     REQUEST_NOT_FOUND = "request.not_found"
