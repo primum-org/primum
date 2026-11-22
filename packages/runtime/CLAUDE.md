@@ -10,12 +10,16 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   has a simulated implementation, and tests use it; tests that need a real board are marked
   `@pytest.mark.hw`.
 - `gpiod` is imported only by `hal/gpiod_hal.py` (`just arch` enforces it).
+- The service runs a deployment package (`--package`, decision 0025): `package.load_package`
+  reads it with `core` and checks it against the drivers and the board before anything is
+  claimed, and refuses it whole. A package is never trusted for having a right hash. Elements
+  are asked for by their id (`ElementConfig.key`), never by their name.
 - Elements are driven through drivers (`primum_runtime.drivers`, decision 0019): one per
   element type, made from the element, its manifest (`drivers/`) and the limits of its board.
   The HAL's specs have no defaults: a driver gives every option. A new driver comes with its
   manifest and its tests against the simulated HAL.
-- Layers: `cli` and `safe` → `api` → `config` → `board` → `control` → `drivers` → `declared` →
-  `hal` → `systemd` → `errors`; each imports only
+- Layers: `cli` and `safe` → `api` → `config` → `package` → `board` → `control` → `drivers` →
+  `declared` → `hal` → `systemd` → `errors`; each imports only
   the ones below it, and FastAPI, uvicorn and pydantic stay in `api` and `cli` (`just arch`,
   decision 0011).
   The API commands outputs through `control.Controller`, never through the HAL or a driver.

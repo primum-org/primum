@@ -90,6 +90,9 @@ def create_app(
                 beats = systemd.feed_watchdog(notify, watchdog_interval_s, asyncio.sleep)
                 watchdog = asyncio.create_task(beats)
             log.info("started outputs=%s simulate=%s", _describe(controller), config.simulate)
+            if config.package is not None:
+                project, package_hash = config.package.project.name, config.package.hash
+                log.info("running package %s of project %s", package_hash, project)
             notify(systemd.READY)
             try:
                 yield
@@ -131,5 +134,12 @@ def _read_inputs(loop: asyncio.AbstractEventLoop, events_fd: int, controller: Co
 
 def _describe(controller: Controller) -> str:
     return ",".join(
-        f"{output.name}:{'on' if output.on else 'off'}" for output in controller.state().outputs
+        f"{_named(output.name, output.id)}:{'on' if output.on else 'off'}"
+        for output in controller.state().outputs
     )
+
+
+def _named(name: str, id_: str) -> str:
+    """An element in a log: its name, and its id when it has one of its own, since two
+    elements of a package may share a name."""
+    return name if id_ == name else f"{name} ({id_})"

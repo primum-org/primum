@@ -17,7 +17,7 @@ from primum_runtime.drivers import (
     create_driver,
     load_manifests,
 )
-from primum_runtime.errors import PrimumError
+from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.hal import Claim, InputSpec, OutputSpec, Pull, PwmSpec, SimulatedHal
 
 BOARD = load_board("rpi4b")
@@ -401,3 +401,15 @@ def test_lost_events_are_counted_and_the_state_is_still_right(
     assert driver.lost_events == 4
     assert driver.active  # the seventh change was to active
     assert "lost 4 events" in caplog.text
+
+
+def test_a_pwm_output_wired_active_low_is_refused_by_its_driver() -> None:
+    """The driver writes the duty as it is, so active low would rest fully on: it says so
+    instead of taking a wiring it does not carry out."""
+    with pytest.raises(PrimumError) as refused:
+        create_driver(replace(DIMMER, active_low=True), MANIFESTS, LIMITS)
+
+    assert (refused.value.code, dict(refused.value.params)) == (
+        ErrorCode.ELEMENT_ACTIVE_LOW_UNSUPPORTED,
+        {"element": "dimmer", "type": "pwm_output"},
+    )

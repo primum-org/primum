@@ -30,9 +30,12 @@ async def status(controller: ControllerDep) -> StateBody:
     return StateBody.of(controller.state())
 
 
-@router.put("/outputs/{name}")
-async def command_output(name: str, command: OutputCommand, controller: ControllerDep) -> StateBody:
-    controller.command(name, command.action, command.arguments, command.durationMs)
+@router.put("/outputs/{output_id}")
+async def command_output(
+    output_id: str, command: OutputCommand, controller: ControllerDep
+) -> StateBody:
+    """``output_id`` is the ``id`` the state gives the output."""
+    controller.command(output_id, command.action, command.arguments, command.durationMs)
     return StateBody.of(controller.state())
 
 

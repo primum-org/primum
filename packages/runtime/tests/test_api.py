@@ -3,6 +3,7 @@
 import socket
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from primum_runtime.api import create_app
 from primum_runtime.board import load_board
 from primum_runtime.config import BUTTON, DIMMER, LED, RuntimeConfig, parse_config
 from primum_runtime.declared import Declaration
+from primum_runtime.drivers import ElementConfig
 from primum_runtime.errors import PrimumError
 from primum_runtime.hal import Claim, OutputSpec, PwmSpec, SimulatedHal
 
@@ -30,6 +32,7 @@ SWITCH = ["on", "off"]
 OFF = {
     "outputs": [
         {
+            "id": LED,
             "name": LED,
             "on": False,
             "level": 0,
@@ -44,6 +47,7 @@ OFF = {
 ON = {
     "outputs": [
         {
+            "id": LED,
             "name": LED,
             "on": True,
             "level": 100,
@@ -167,7 +171,9 @@ def _with_button(hal: SimulatedHal) -> TestClient:
 
 def test_status_reports_the_inputs_too(hal: SimulatedHal) -> None:
     with _with_button(hal) as client:
-        assert client.get("/api/status").json()["inputs"] == [{"name": BUTTON, "active": False}]
+        assert client.get("/api/status").json()["inputs"] == [
+            {"id": BUTTON, "name": BUTTON, "active": False}
+        ]
 
 
 def test_a_change_of_an_input_reaches_the_websocket_without_anyone_asking(
@@ -182,8 +188,8 @@ def test_a_change_of_an_input_reaches_the_websocket_without_anyone_asking(
         hal.simulate_input(BUTTON_PIN, False)
         released = websocket.receive_json()
 
-    assert pressed["inputs"] == [{"name": BUTTON, "active": True}]
-    assert released["inputs"] == [{"name": BUTTON, "active": False}]
+    assert pressed["inputs"] == [{"id": BUTTON, "name": BUTTON, "active": True}]
+    assert released["inputs"] == [{"id": BUTTON, "name": BUTTON, "active": False}]
 
 
 def test_a_failure_reading_the_inputs_stops_the_watch_instead_of_spinning(
@@ -312,7 +318,9 @@ def test_a_service_that_cannot_declare_its_outputs_does_not_claim_them(
 def test_a_claim_that_fails_leaves_nothing_declared(tmp_path: Path) -> None:
     """Nothing was claimed, so there is nothing for primum-safe to make safe: a declaration
     left behind would name a pin the board may not even have."""
-    config = parse_config(["--pin", "99", "--data-dir", str(tmp_path)], {})
+    # The configuration refuses such a pin by now; a claim may still fail on its own (a line
+    # another program holds), and this is what it must leave behind.
+    config = replace(_real(tmp_path), elements=(ElementConfig("led", "digital_output", 99, False),))
     hal = SimulatedHal(BOARD)
 
     with pytest.raises(PrimumError) as raised, TestClient(create_app(config, lambda: hal, {})):
@@ -396,6 +404,7 @@ def test_a_pwm_output_is_reported_with_its_level_and_what_it_can_be_asked(
     dimmer_client: TestClient,
 ) -> None:
     assert _dimmer(dimmer_client.get("/api/status").json()) == {
+        "id": DIMMER,
         "name": DIMMER,
         "on": False,
         "level": 0,
@@ -414,6 +423,7 @@ def test_setting_a_level_drives_the_channel_and_returns_the_new_state(
 
     assert response.status_code == 200
     assert _dimmer(response.json()) == {
+        "id": DIMMER,
         "name": DIMMER,
         "on": True,
         "level": 40,

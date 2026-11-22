@@ -116,12 +116,52 @@ Not checked here, because it needs the driver manifests and the board profile, w
 only gets from its caller: that each action is one of its element's driver and takes its
 arguments (a variable read for a parameter is of its type and limited within its limits:
 the type and the limits of a parameter are in the manifest), that the options of an element
-are its driver's, and that pins and buses are free on the board. **The runtime checks those when it loads a package** (block 4.3), with its own
-drivers and its HAL, and refuses the package whole: it never trusts one for having a hash.
+are its driver's, and that pins and buses are free on the board. **The runtime checks those
+when it loads a package** (below), with its own drivers and its HAL, and refuses the package
+whole: it never trusts one for having a hash.
+
+## Running one
+
+```
+primum-runtime --package <file>        (or PRIMUM_PACKAGE)
+```
+
+The service takes its elements and its board from the package (decision 0025), instead of
+from `--pin` and the other options of elements: giving both, or a `--board` that is not the
+package's, is a mistake of the command line. `primum_runtime.package.load_package` reads the
+package and checks it before anything is claimed; any of these and the service does not start
+(exit 1, the reason in the log; also when it is the HAL that refuses, inside the server's
+startup, where uvicorn would exit with a 3 of its own):
+
+| Problem | Code | Params |
+|---|---|---|
+| The file cannot be read | `package.unreadable` | `path`, `detail` |
+| `core` refuses it (*Reading one*) | `package.invalid` | `path`; `problems`, the codes of up to five, and `pointers`, where each is, in the same order; the log has them all |
+| No profile for its board | `package.board_unsupported` | `board`, `available` |
+| An element of a type without a driver here | `element.type_unsupported` | `element`, `type` |
+| A `pwm_output` wired active low, should one get past `core` | `element.active_low_unsupported` | `element`, `type` |
+| An option its driver or its board does not take | `element.value_*` ([drivers](drivers.md)) | `element`, `name` |
+| An element wired as the board does not allow, by the rules `core` checks a project with: a pin the board lacks, reserves or gives to a bus, two elements on one pin, a PWM output where the board has no hardware PWM or on a channel another has | `element.wiring_refused` | `element`, `pin`, `problem` (`core`'s code: `pin.reserved`, `pin.in_use`…), `other` when another element is in the way |
+| A command with an action its element's driver does not have (an input has none) | `element.action_unknown` | `element`, `action`, `available` |
+| An argument the action does not take as written | `element.value_*` | `element`, `name` |
+| An argument read from a variable of another type, not limited within the parameter's limits, or for a parameter with choices | `element.variable_unfit` | `element`, `action`, `name`, `variable` |
+| An argument read from a variable for a number that nothing limits, as a written one | `element.value_unlimited` | `element`, `name` |
+| A line the kernel will not give (another program holds it), a PWM controller that is missing | the HAL's, at the claim (`hal.*`), by the pin alone. The HAL knows nothing of reserved pins: it is the last word, not the check | |
+
+Everything wrong is found and logged, not only the first thing; the first is the error the
+service ends with. An error about an element of a package carries its `id` next to its name
+(`element`): two elements may share a name. The same wiring rules hold for elements told of
+by options (`--pin 0` is refused: GPIO 0 is reserved).
+
+Elements are then asked for by their id: the state gives each output and input its `id` and
+its `name`, and a command goes to `PUT /api/outputs/{id}`. The service drives them as it
+drove its own (commands, test mode, panic); it starts no sequence yet.
 
 ## Not yet
 
-- Activation, rollback and sending a package to a board: block 4.5.
+- Running the sequences of the package: block 4.3b. That an event's element is an input: 4.4.
+- Activation, rollback and sending a package to a board: block 4.5. Until then the file is
+  copied by hand and named in the service's configuration.
 - An automation's `if` is the text of the project, its names unresolved, and the constants it
   names are not in the package: the expression language (4.4) replaces it.
 - When the engine reads the variable of an argument: block 4.3. So is what it does with a

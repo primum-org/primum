@@ -28,6 +28,7 @@ from primum_core.generated.model import (
     Package,
     PackageAction,
     PackageAutomation,
+    PackageElement,
     PackageEvent,
     PackageSequence,
     PackageVariable,
@@ -37,7 +38,7 @@ from primum_core.json_values import as_object, is_array, is_object
 from primum_core.pointers import Step, field_name, pointer
 from primum_core.schema_validation import validate
 from primum_core.values import EXPECTED, NUMERIC, Value, fits
-from primum_core.variants import ACTION_CASES, EVENT_CASES
+from primum_core.variants import ACTION_CASES, ELEMENT_CASES, EVENT_CASES
 
 HASH_FIELD = "hash"
 SCHEMA = "package.schema.json"
@@ -147,6 +148,7 @@ def check_package(package: Package, location: Location) -> Iterator[Issue]:
     check.ids("automations", (automation.id for automation in package.automations))
     yield from check.issues
     for index, element in enumerate(package.elements):
+        yield from _wiring_issues(element, ("elements", index), check)
         options = [option.name for option in element.config]
         for number in _repeated(options):
             params = {"element": element.name, "option": options[number]}
@@ -224,6 +226,23 @@ class _Check:
             if present[name]:
                 params = {"field": field_name((*steps, name))}
                 yield Issue(CoreErrorCode.SCHEMA_UNEXPECTED_FIELD, params, self.at(*steps, name))
+
+
+def _wiring_issues(
+    element: PackageElement, steps: tuple[Step, ...], check: _Check
+) -> Iterator[Issue]:
+    """An element is wired as its type is (``primum_core.variants``): a pin, or a bus and an
+    address. A type this version does not know is the runtime's to refuse."""
+    case = ELEMENT_CASES.get(element.type)
+    if case is None:
+        return
+    present = {
+        "pin": element.pin is not None,
+        "bus": element.bus is not None,
+        "address": element.address is not None,
+        "activeLow": element.active_low,
+    }
+    yield from check.fields(case.required, case.unexpected, present, steps)
 
 
 def _repeated(names: list[str]) -> Iterator[int]:

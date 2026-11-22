@@ -73,6 +73,11 @@ own `elementType` whatever its file is called; two of one type are refused
 | `pwm_output` | `on`, `off`, `set(level)`, `fade(from, to)` | `frequencyHz` (1000), limited by the board | `off` | latest wins |
 | `digital_input` | none | `pull` `up`, `down` or `none` (no default: required); `debounceMs` 0–10000 (20) | | |
 
+A `pwm_output` is never `activeLow`: its driver writes the duty as it is, so wired that way
+it would rest fully on, in panic and in its safe state too. `core` refuses it in a project and
+in a package (`schema.unexpected_field`), and the driver itself with
+`element.active_low_unsupported`, until the HAL can invert a channel.
+
 - A `level`, and the `from` and `to` of a fade, are percentages: 0 to 100, decimals allowed.
 - An input says its `pull`: it has no default, because every default is wrong for some wiring
   and a wrong one reads the input as active at rest. A button to ground is `pull` `up` and
@@ -201,8 +206,10 @@ line; a gap means the kernel dropped some (it keeps 1024 unread), which the driv
 logs. The state is still right.
 
 Over the API (decision 0021) an output is asked for an action the same way: `PUT
-/api/outputs/{name}` with `{"action": "set", "arguments": {"level": 40}}`. The state gives
-each output's `level` and the `actions` it has. With `durationMs` the command is a test and
+/api/outputs/{id}` with `{"action": "set", "arguments": {"level": 40}}`. The state gives
+each output's `id`, its `name`, its `level` and the `actions` it has. The id is the element's
+in the package the service runs (decision 0025), or its fixed name (`led`, `dimmer`) when the
+service was told its elements by options. With `durationMs` the command is a test and
 expires on its own ([safety](safety.md)). The codes above for what an output cannot do
 or take are answered with a 422; `element.level_not_reached` with a 500.
 

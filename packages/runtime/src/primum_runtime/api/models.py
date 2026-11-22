@@ -23,6 +23,7 @@ class OutputCommand(_Body):
 
 
 class OutputStateBody(_Body):
+    id: str  # what the output is commanded by: PUT /api/outputs/{id}
     name: str
     on: bool
     level: float
@@ -32,6 +33,7 @@ class OutputStateBody(_Body):
 
 
 class InputStateBody(_Body):
+    id: str
     name: str
     active: bool
 
@@ -45,6 +47,7 @@ class StateBody(_Body):
     def of(cls, state: State) -> "StateBody":
         outputs = [
             OutputStateBody(
+                id=output.id,
                 name=output.name,
                 on=output.on,
                 level=output.level,
@@ -54,7 +57,9 @@ class StateBody(_Body):
             )
             for output in state.outputs
         ]
-        inputs = [InputStateBody(name=item.name, active=item.active) for item in state.inputs]
+        inputs = [
+            InputStateBody(id=item.id, name=item.name, active=item.active) for item in state.inputs
+        ]
         return cls(outputs=outputs, inputs=inputs, panic=state.panic)
 
 

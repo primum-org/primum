@@ -46,7 +46,8 @@ RETRY_REST_S = 5.0
 @dataclass(frozen=True)
 class OutputState:
     """An output: its level, from 0 to 100, whether that is on at all, and the actions it
-    can be asked for (those of its driver's manifest)."""
+    can be asked for (those of its driver's manifest). ``id`` is what it is commanded by;
+    without one of its own it is its name."""
 
     name: str
     on: bool
@@ -54,12 +55,22 @@ class OutputState:
     actions: tuple[str, ...]
     remaining_ms: int | None = None  # of a test: until it expires and the output rests
     rest_failed: bool = False  # its test expired and it could not be sent to rest (yet)
+    id: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.id:
+            object.__setattr__(self, "id", self.name)
 
 
 @dataclass(frozen=True)
 class InputState:
     name: str
     active: bool
+    id: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.id:
+            object.__setattr__(self, "id", self.name)
 
 
 @dataclass(frozen=True)
@@ -89,15 +100,15 @@ class Controller:
 
         Fails, before anything is claimed, with what ``create_driver`` reports for an element
         (a type without a driver, an option its manifest or its board does not take); then
-        with what the HAL reports for the claim. Two elements of one name are a mistake of
-        the caller: ``ValueError``.
+        with what the HAL reports for the claim. Two elements of one key (its id, or its
+        name when it has none) are a mistake of the caller: ``ValueError``.
 
         ``before_claim`` is called with what is about to be claimed, and may refuse it by
         raising: it is how the service declares its outputs before they can go on.
         """
-        names = [element.name for element in elements]
-        if len(set(names)) != len(names):
-            raise ValueError(f"two elements have the same name: {names}")
+        keys = [element.key for element in elements]
+        if len(set(keys)) != len(keys):
+            raise ValueError(f"two elements have the same id or name: {keys}")
         self._hal = hal
         drivers = [create_driver(element, manifests, limits) for element in elements]
         specs = [driver.spec for driver in drivers]
@@ -111,7 +122,7 @@ class Controller:
         hal.claim(claim)
         for driver in drivers:
             driver.bind(hal)
-        self._outputs = {d.name: d for d in drivers if isinstance(d, OutputDriver)}
+        self._outputs = {d.key: d for d in drivers if isinstance(d, OutputDriver)}
         self._inputs = {d.pin: d for d in drivers if isinstance(d, DigitalInputDriver)}
         self._panic = False
         self._listeners: list[Listener] = []
@@ -121,20 +132,23 @@ class Controller:
 
     def state(self) -> State:
         # One reading per output: its level may come from the hardware, and change.
-        levels = {name: driver.level for name, driver in self._outputs.items()}
+        levels = {key: driver.level for key, driver in self._outputs.items()}
         now = self._clock()
         outputs = tuple(
             OutputState(
-                name,
-                levels[name] > 0,
-                levels[name],
+                driver.name,
+                levels[key] > 0,
+                levels[key],
                 driver.actions,
-                self._remaining_ms(name, now),
-                name in self._rest_failed,
+                self._remaining_ms(key, now),
+                key in self._rest_failed,
+                key,
             )
-            for name, driver in self._outputs.items()
+            for key, driver in self._outputs.items()
         )
-        inputs = tuple(InputState(driver.name, driver.active) for driver in self._inputs.values())
+        inputs = tuple(
+            InputState(driver.name, driver.active, driver.key) for driver in self._inputs.values()
+        )
         return State(outputs, inputs, self._panic)
 
     def command(
@@ -144,7 +158,8 @@ class Controller:
         arguments: Mapping[str, Value] | None = None,
         duration_ms: int | None = None,
     ) -> None:
-        """Ask output ``name`` for one of the actions of its driver, as an instant command.
+        """Ask output ``name`` (its id, or its name when it has no id) for one of the actions
+        of its driver, as an instant command.
 
         With ``duration_ms`` the command is a test: when that time has passed the output goes
         to rest on its own (``expire``). Without it the output stays as the command leaves
@@ -209,7 +224,7 @@ class Controller:
                     log.error(
                         "the test of %s expired and it could not be sent to rest "
                         "(trying again every %g s): %s",
-                        name,
+                        self._outputs[name].name,
                         RETRY_REST_S,
                         error,
                     )
@@ -217,7 +232,7 @@ class Controller:
                 self._deadlines[name] = now + RETRY_REST_S
             else:
                 if name in self._rest_failed:
-                    log.info("%s is at rest after all", name)
+                    log.info("%s is at rest after all", self._outputs[name].name)
                 self._rest_failed.discard(name)
         if expired:
             self._notify()

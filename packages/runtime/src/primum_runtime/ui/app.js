@@ -50,8 +50,10 @@ function take(newState) {
 
 function render() {
   page.panicActive.hidden = !state?.panic;
-  for (const output of state?.outputs ?? []) {
-    const button = rowFor(output.name).querySelector(".switch");
+  const outputs = state?.outputs ?? [];
+  dropRowsNotIn(page.outputs, "output", outputs);
+  for (const output of outputs) {
+    const button = rowFor(output).querySelector(".switch");
     // Offline the last state may be stale (stopping the service turns outputs off): the switch
     // is "mixed" (neither on nor off), with no word and the thumb in the middle.
     button.setAttribute("aria-pressed", online ? String(output.on) : "mixed");
@@ -63,8 +65,9 @@ function render() {
   }
   const inputs = state?.inputs ?? [];
   page.inputsSection.hidden = inputs.length === 0;
+  dropRowsNotIn(page.inputs, "input", inputs);
   for (const input of inputs) {
-    const shown = inputRowFor(input.name).querySelector(".input-state");
+    const shown = inputRowFor(input).querySelector(".input-state");
     // Offline the last state may be stale: no word, as for a switch.
     const word = input.active ? catalog.t("input.active") : catalog.t("input.inactive");
     shown.textContent = online ? word : "";
@@ -75,7 +78,7 @@ function render() {
 // A test under way shows how long is left. The service says it once, with the state; the
 // page counts down from there on its own clock, and never past zero.
 function renderTest(output) {
-  const row = rowFor(output.name);
+  const row = rowFor(output);
   // A test is for an output that is off: one left on on purpose would be turned off by it.
   const testing = online && output.remainingMs !== null;
   row.querySelector(".test").disabled = !online || state.panic || (output.on && !testing);
@@ -112,7 +115,7 @@ setInterval(() => page.outputs.querySelectorAll("[data-output]").forEach(countDo
 // An output that can be set to a level (its driver has the action "set") gets a slider. While
 // a finger is on it, the slider is the person's: a state that arrives does not move it.
 function renderLevel(output) {
-  const level = rowFor(output.name).querySelector(".level");
+  const level = rowFor(output).querySelector(".level");
   level.hidden = !output.actions.includes("set");
   if (level.hidden) return;
   const slider = level.querySelector(".level-slider");
@@ -132,34 +135,56 @@ function renderLevel(output) {
 const levelText = (level) => catalog.t("output.level", { level });
 
 // The level of an output as the slider shows it: whole, as the service last reported it.
-const shownLevel = (name) =>
-  Math.round(state?.outputs.find((output) => output.name === name)?.level ?? 0);
+const shownLevel = (id) =>
+  Math.round(state?.outputs.find((output) => output.id === id)?.level ?? 0);
 
-function inputRowFor(name) {
-  const existing = page.inputs.querySelector(`[data-input="${CSS.escape(name)}"]`);
-  if (existing) return existing;
-  const row = page.inputRow.content.firstElementChild.cloneNode(true);
-  row.dataset.input = name;
+// A row is of an element by its id, which never changes; its name is only what is shown.
+// The service may come back with other elements (another package): rows of what is gone go.
+function dropRowsNotIn(list, kind, elements) {
+  const ids = new Set(elements.map((element) => element.id));
+  for (const row of list.querySelectorAll(`[data-${kind}]`)) {
+    if (!ids.has(row.dataset[kind])) row.remove();
+  }
+}
+
+function inputRowFor({ id, name }) {
+  const existing = page.inputs.querySelector(`[data-input="${CSS.escape(id)}"]`);
+  const row = existing ?? page.inputRow.content.firstElementChild.cloneNode(true);
+  // The name is set every time: the same element may come back with another (a new package).
   row.querySelector(".output-name").textContent = name;
+  if (existing) return existing;
+  row.dataset.input = id;
   page.inputs.append(row);
   return row;
 }
 
-function rowFor(name) {
-  const existing = page.outputs.querySelector(`[data-output="${CSS.escape(name)}"]`);
-  if (existing) return existing;
-  const row = page.outputRow.content.firstElementChild.cloneNode(true);
-  row.dataset.output = name;
+// What a row says of its element's name, set every time it is rendered: an element keeps its
+// id and may change its name (a new package, the page still open).
+function nameRow(row, name) {
+  if (row.dataset.name === name) return;
+  row.dataset.name = name;
   row.querySelector(".output-name").textContent = name;
+  row.querySelector(".switch").setAttribute("aria-label", catalog.t("output.toggle", { name }));
+  const seconds = TEST_MS / 1000;
+  row.querySelector(".test").setAttribute("aria-label", catalog.t("output.test_of", { name, seconds }));
+  row.querySelector(".level-slider").setAttribute("aria-label", catalog.t("output.level_of", { name }));
+}
+
+function rowFor({ id, name }) {
+  const existing = page.outputs.querySelector(`[data-output="${CSS.escape(id)}"]`);
+  if (existing) {
+    nameRow(existing, name);
+    return existing;
+  }
+  const row = page.outputRow.content.firstElementChild.cloneNode(true);
+  row.dataset.output = id;
+  nameRow(row, name);
   const button = row.querySelector(".switch");
-  button.setAttribute("aria-label", catalog.t("output.toggle", { name }));
-  button.addEventListener("click", () => ask(name, button.getAttribute("aria-pressed") === "true" ? "off" : "on"));
+  button.addEventListener("click", () => ask(id, button.getAttribute("aria-pressed") === "true" ? "off" : "on"));
   const test = row.querySelector(".test");
   test.textContent = catalog.t("output.test");
-  test.setAttribute("aria-label", catalog.t("output.test_of", { name, seconds: TEST_MS / 1000 }));
-  test.addEventListener("click", () => ask(name, "on", {}, TEST_MS));
+  test.addEventListener("click", () => ask(id, "on", {}, TEST_MS));
   const slider = row.querySelector(".level-slider");
-  slider.setAttribute("aria-label", catalog.t("output.level_of", { name }));
   // Moving the slider only shows the number; the level is asked for once, on letting go: of
   // the pointer, of the key, or of the slider altogether. Never on "change": a browser sends
   // one per step of a held key, and none when the slider comes back to where it was.
@@ -168,14 +193,14 @@ function rowFor(name) {
     if (slider.dataset.held !== "true" || slider.disabled) return;
     slider.dataset.held = "false";
     const wanted = Number(slider.value);
-    if (wanted !== shownLevel(name)) {
+    if (wanted !== shownLevel(id)) {
       slider.dataset.asked = String(wanted);
       // During a test, the new level is part of the test: it keeps the time it had left
       // (a second at least, the shortest a test lasts), instead of staying on for good.
       // Whether a test is under way is the service's word, shown as a countdown or not.
       const testing = row.dataset.testUntil !== "";
       const left = testing ? Math.max(MIN_TEST_MS, Math.round(testLeftMs(row))) : null;
-      await ask(name, "set", { level: wanted }, left);
+      await ask(id, "set", { level: wanted }, left);
     }
     render(); // whatever came of it, the slider shows the level the service reports
   };
@@ -191,7 +216,7 @@ function rowFor(name) {
     if (slider.dataset.held === "true" || slider.dataset.asked === slider.value) return;
     // Disabled in the middle of a drag, a browser sends "change" as well: nobody asked.
     if (slider.disabled) return;
-    ask(name, "set", { level: Number(slider.value) });
+    ask(id, "set", { level: Number(slider.value) });
   });
   page.outputs.append(row);
   return row;
@@ -235,8 +260,8 @@ async function command(method, path, body) {
 
 // Ask an output for one of the actions of its driver, with the arguments it takes by name.
 // With a duration it is a test: the output goes to rest on its own when it has passed.
-const ask = (name, action, args = {}, durationMs = null) =>
-  command("PUT", `outputs/${encodeURIComponent(name)}`, { action, arguments: args, durationMs });
+const ask = (id, action, args = {}, durationMs = null) =>
+  command("PUT", `outputs/${encodeURIComponent(id)}`, { action, arguments: args, durationMs });
 
 page.panic.addEventListener("click", () => command("POST", "panic"));
 page.releasePanic.addEventListener("click", () => command("DELETE", "panic"));

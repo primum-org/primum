@@ -35,8 +35,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     # On SIGINT or SIGTERM, uvicorn shuts the app down and then re-raises the signal, so the
     # process ends by it (what systemd expects) and never returns here; the lifespan has
     # already logged whether the safe state was applied.
-    server.run()
-    # Otherwise uvicorn logs a failed startup or shutdown but returns normally: the exit status
+    try:
+        server.run()
+    except SystemExit as exit_:
+        # A startup that fails (the HAL refuses the claim, the port is taken): uvicorn logs it
+        # and exits by itself, with a status of its own. One status says "could not start".
+        log.error("the service could not start (uvicorn exited with %s)", exit_.code)
+        return EXIT_FAILED
+    # A failed shutdown is logged by uvicorn, which then returns normally: the exit status
     # says whether the outputs were left in their safe state.
     stopped_safely: bool = app.state.stopped_safely
     return 0 if server.started and stopped_safely else EXIT_FAILED

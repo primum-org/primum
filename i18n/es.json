@@ -126,6 +126,14 @@
       "message": "{element} es un {type}, y esta versión de Primum no tiene driver para ese tipo en esta placa.",
       "hint": "Usa un tipo de elemento para el que esta placa tenga driver."
     },
+    "element.active_low_unsupported": {
+      "message": "{element} es un {type} cableado activo a nivel bajo, y su driver aún no puede hacerlo: reposaría totalmente encendido.",
+      "hint": "Cabléalo para que se encienda con el pin a nivel alto, y quita activeLow."
+    },
+    "element.wiring_refused": {
+      "message": "{element} no puede estar en el GPIO {pin} de esta placa ({problem}).",
+      "hint": "Ejecuta primum validate sobre el proyecto: lo explica. Después vuelve a construir el paquete."
+    },
     "element.action_unknown": {
       "message": "{element} no puede hacer {action}.",
       "hint": "Puede hacer: {available}."
@@ -154,6 +162,22 @@
       "message": "{element} se puso a {level} pero se lee {read}.",
       "hint": "Revisa su cableado y si otra cosa lo está manejando. Usa el botón de pánico si no es seguro."
     },
+    "element.variable_unfit": {
+      "message": "La variable {variable} puede tener un valor que el parámetro {name} de la acción {action} de {element} no admite.",
+      "hint": "Vuelve a construir el paquete desde su proyecto: primum validate lo detecta."
+    },
+    "package.unreadable": {
+      "message": "No se puede leer el paquete {path}.",
+      "hint": "Comprueba que el fichero existe y que el servicio puede leerlo."
+    },
+    "package.invalid": {
+      "message": "{path} no es un paquete que esta versión pueda ejecutar: {problems}.",
+      "hint": "Constrúyelo de nuevo con primum build, con esta versión de Primum."
+    },
+    "package.board_unsupported": {
+      "message": "El paquete es para una placa {board}, y esta versión de Primum no tiene perfil para ella.",
+      "hint": "Placas con perfil: {available}."
+    },
     "safe.declaration_unwritable": {
       "message": "Primum no puede dejar anotadas las salidas que va a usar, así que no las usará.",
       "hint": "Comprueba que su directorio de datos existe y que Primum puede escribir en él."
@@ -167,7 +191,7 @@
       "hint": "Una prueba dura de {min_ms} a {max_ms} ms."
     },
     "output.unknown": {
-      "message": "No hay ninguna salida llamada {name}.",
+      "message": "No hay ninguna salida {name}.",
       "hint": "Recarga la página para ver las salidas actuales."
     },
     "panic.active": {

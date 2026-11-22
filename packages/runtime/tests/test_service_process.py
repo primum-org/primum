@@ -88,6 +88,7 @@ def test_sigterm_stops_the_service_with_every_output_in_its_safe_state(
     assert _turn_led_on(port) == {
         "outputs": [
             {
+                "id": "led",
                 "name": "led",
                 "on": True,
                 "level": 100,

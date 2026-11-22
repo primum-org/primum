@@ -1,6 +1,8 @@
 """``pwm_output``: an element with a level (a dimmed LED, a fan)."""
 
-from primum_runtime.drivers.base import MAX_LEVEL, OutputDriver
+from primum_core.generated.model import Driver
+from primum_runtime.drivers.base import MAX_LEVEL, ElementConfig, OptionLimits, OutputDriver
+from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.hal import Hal, PwmOutput, PwmSpec
 
 NS_PER_S = 1_000_000_000
@@ -8,9 +10,21 @@ FREQUENCY = "frequencyHz"
 
 
 class PwmOutputDriver(OutputDriver):
-    """The level is the duty cycle of a hardware PWM channel, at the element's frequency."""
+    """The level is the duty cycle of a hardware PWM channel, at the element's frequency.
+
+    The duty is written as it is: 0 is the pin low. An element wired active low would rest
+    fully on, in panic and in its safe state too, so it is refused
+    (``element.active_low_unsupported``) until the HAL can invert a channel: ``core`` refuses
+    it in a project and in a package, and the driver is the last thing between a wiring and
+    the hardware."""
 
     _output: PwmOutput
+
+    def __init__(self, element: ElementConfig, manifest: Driver, limits: OptionLimits) -> None:
+        if element.active_low:
+            params = {"element": element.name, "type": element.type}
+            raise PrimumError(ErrorCode.ELEMENT_ACTIVE_LOW_UNSUPPORTED, params)
+        super().__init__(element, manifest, limits)
 
     @property
     def spec(self) -> PwmSpec:
