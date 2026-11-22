@@ -74,6 +74,12 @@ All notable changes to this project are documented here. The format follows
   Two things that passed before are now errors: an empty `if` (`""`; leave the field out
   for no condition), and a constant or a variable called `and`, `or`, `not`, `true` or
   `false`, in any case.
+- The runtime runs the automations of its package: when an input turns on or off, or an
+  event is fired (`POST /api/events/{id}/fire`, for events of the app or the API), the
+  automations that wait for it check their condition and start or stop sequences and change
+  variables. A counter that is incremented stays within its limits. Panic stops all of it.
+  The state lists the events and the automations, with what went wrong in each, if anything.
+- `primum validate` refuses an event that waits for an element that tells nothing.
 - `primum build <folder>` compiles a project into its deployment package, one JSON file with
   its own hash: what a board will run. A project with errors is not built.
 - A clip can take a value from a name instead of writing it (`valueOf`): a constant, a

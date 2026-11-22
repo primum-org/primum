@@ -220,6 +220,26 @@
       "message": "{value} está fuera de los límites de {name}.",
       "hint": "Dale un valor entre su mínimo y su máximo."
     },
+    "event.unknown": {
+      "message": "No hay ningún evento con el id {id}.",
+      "hint": "Usa el id de uno de los eventos que lista el estado."
+    },
+    "event.not_fireable": {
+      "message": "El evento {name} espera a un elemento y solo ocurre cuando el elemento lo dice.",
+      "hint": "Solo se pueden disparar a mano los eventos cuyo origen es la app o la API."
+    },
+    "event.not_listenable": {
+      "message": "El evento {event} de este paquete espera a que {element} pase a {trigger}, y {element} no avisa de eso.",
+      "hint": "Vuelve a generar el paquete con primum build: primum validate explica qué cambiar."
+    },
+    "automation.condition_failed": {
+      "message": "La condición de la automatización {automation} no se pudo calcular ({reason}), así que no hizo nada.",
+      "hint": "Comprueba que la condición nunca divide entre cero y que sus números se mantienen por debajo de 9007199254740992."
+    },
+    "automation.action_failed": {
+      "message": "Una acción de la automatización {automation} falló ({action}); el resto de sus acciones sí se hicieron.",
+      "hint": "Mira el registro del servicio para ver qué falló."
+    },
     "panic.active": {
       "message": "El pánico está activo: las salidas no aceptan órdenes.",
       "hint": "Desactiva el pánico cuando sea seguro continuar."
@@ -447,6 +467,10 @@
     "track.element_without_actions": {
       "message": "{element} no admite acciones, así que no puede tener una pista.",
       "hint": "Una pista es para un elemento que hace algo, como una luz o un relé. Para reaccionar a {element}, usa un evento."
+    },
+    "event.trigger_unavailable": {
+      "message": "{element} no avisa cuando pasa a {trigger}, así que ningún evento puede esperarlo.",
+      "hint": "Elige un elemento que sí lo haga, como una entrada digital."
     },
     "track.element_without_driver": {
       "message": "{element} es de un tipo que Primum todavía no sabe manejar, así que no puede tener una pista.",

@@ -752,7 +752,7 @@ per element, from a deployment package that can be rolled back. One pull request
   Python); two elements on one pin are refused here, naming both, instead of by the HAL with
   the pin alone; a variable read for a number that nothing limits is refused as a written
   value is; the page shows the new name of an element that keeps its id.
-- Not checked: that an event's element is an input (4.4). A service that refuses its package
+- That an event's element is an input is checked since 4.4b. A service that refuses its package
   says why only in the journal.
 - For 4.5, seen by the reviewer on a running unit: a package that is refused leaves systemd
   restarting the service for ever (`Restart=on-failure`, `RestartSec=2`), the same error at
@@ -868,6 +868,36 @@ per element, from a deployment package that can be rolled back. One pull request
   condition must be below 2^53: a rule on the value, for runtimes that are not Python.
   Windows of time are not in the language: a field of the automation, in 4.4c. Not done:
   a variable whose limits allow 2^53 or more is not warned about when a condition reads it.
+- **4.4b · Events and automations: code done; tried in part on `primum-dev` by its owner**
+  (see below what; decision 0029,
+  `specs/events.md`). An input that turns on or off, or an event fired through the API
+  (`POST /api/events/{id}/fire`, only `ui` and `api` events), makes the automations of the
+  package act: conditions worked out first, all on the same values, then actions in the
+  order of the package. An increment stays at the limit it would pass. A condition that
+  fails does not hold and an action that fails does not stop the rest; both are logged and
+  stay in the automation's state. Panic ignores events and keeps none. Drivers declare what
+  their element tells (`triggers`); an event that waits for anything else is refused by
+  `primum validate` and by the runtime. The state has `events`, `automations` and
+  `lostEvents` on each input.
+  - First commit: 300 random runs of the controller against a simple model of its layers,
+    woken only when `next_expiry_s` says. It found nothing; three faults put in on purpose
+    were caught.
+  - Tried only on the simulated HAL, a real service included (the line of the button
+    changes, the loop reads it, the LED goes on). On a Pi: a real button or sensor, its
+    bounce with `debounceMs`, and a burst that loses events.
+  - On the Pi, by its owner: no change could be made to be lost. With `debounceMs` 0 and
+    the service stopped with `SIGSTOP`, 300 changes all arrived when it went on,
+    `lostEvents` at 0, each dealt with at that same instant. So losing events is checked
+    only on the simulated HAL.
+  - Also seen there by its owner: a counter incremented to its maximum became `3.0`, not
+    `3` (the limits of a package are written with decimals, and the limit itself was
+    returned). Fixed: an increment gives a value of the variable's type. Deduced from the
+    code and not run: such a value would have been refused by a command reading it for an
+    integer parameter.
+  - Debounce needed nothing new: it is the `debounceMs` of the input's driver, in the
+    kernel, since phase 3.
+  - Left out: the page shows neither events nor automations; an automation cannot be
+    enabled or disabled while the package runs; nothing is traced beyond the log (4.5).
 
 **4.5 · Trace, activation and rollback**
 - Execution trace; a package is activated atomically and the previous one can be brought

@@ -76,7 +76,8 @@ each output, `controlledBy`: `manual`, `test`, `sequence` or nothing.
 - A sequence the package asks to restart starts from its beginning; when the service starts,
   none is running.
 
-Nothing starts a sequence but the API until events and automations exist (4.4).
+A sequence is started and stopped by the API, and by the automations of the package when an
+input changes or an event is fired (`events.md`).
 
 ### Fades (decision 0027)
 
@@ -117,8 +118,10 @@ output, and keeps it while the command lasts: setting the variable shows the nex
 a command starts. A command that starts while a higher priority has its output reads its
 variables when it gets the output.
 
-Not yet: variables marked `persistent` are not kept across a restart, and nothing but the
-API sets one (automations, 4.4).
+An automation sets and increments variables too (`events.md`): an increment stays within
+the variable's limits.
+
+Not yet: variables marked `persistent` are not kept across a restart (4.4d).
 
 ## Schedules and restarts (decision 0023)
 

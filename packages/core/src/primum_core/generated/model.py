@@ -15,6 +15,7 @@ _HEADER_PIN_DEFAULT_PULL: Final[tuple[Literal["up", "down"], ...]] = ("up", "dow
 _BUS_KIND: Final[tuple[Literal["i2c", "spi", "uart"], ...]] = ("i2c", "spi", "uart")
 _RESERVED_GPIO_REASON: Final[tuple[Literal["hat_eeprom"], ...]] = ("hat_eeprom",)
 _DRIVER_CONFLICT_POLICY: Final[tuple[Literal["latest_wins", "exclusive"], ...]] = ("latest_wins", "exclusive")
+_DRIVER_TRIGGERS: Final[tuple[Literal["on", "off"], ...]] = ("on", "off")
 _DRIVER_PARAMETER_TYPE: Final[tuple[Literal["number", "integer", "boolean", "text"], ...]] = ("number", "integer", "boolean", "text")
 _EVENT_SOURCE: Final[tuple[Literal["element", "ui", "api"], ...]] = ("element", "ui", "api")
 _EVENT_TRIGGER: Final[tuple[Literal["on", "off"], ...]] = ("on", "off")
@@ -162,6 +163,7 @@ class Driver:
     safe_state: str | None = None
     config: tuple[DriverParameter, ...]
     actions: tuple[DriverAction, ...]
+    triggers: tuple[Literal["on", "off"], ...] = ()
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -689,6 +691,7 @@ def parse_driver(data: JsonObject) -> Driver:
         safe_state=as_str(data["safeState"]) if "safeState" in data else None,
         config=tuple(parse_driver_parameter(as_object(item)) for item in as_list(data["config"])),
         actions=tuple(parse_driver_action(as_object(item)) for item in as_list(data["actions"])),
+        triggers=tuple(as_choice(item, _DRIVER_TRIGGERS) for item in as_list(data["triggers"])) if "triggers" in data else (),
     )
 
 

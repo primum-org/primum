@@ -553,6 +553,18 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
       "items": {
         "$ref": "#/$defs/driverAction"
       }
+    },
+    "triggers": {
+      "description": "What an event may listen to on the element: it turning on (pressed, detected) or off. Absent for an element that tells nothing.",
+      "type": "array",
+      "items": {
+        "enum": [
+          "on",
+          "off"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
     }
   },
   "$defs": {

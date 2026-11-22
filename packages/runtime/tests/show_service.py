@@ -35,20 +35,20 @@ BRIGHTNESS, SPEED = str(UUID(int=61)), str(UUID(int=62))  # an integer, and a nu
 WAIT_S = 5  # for a second of a real service to pass: far more than it takes
 
 
-def _id(number: int) -> str:
+def make_id(number: int) -> str:
     return str(UUID(int=number))
 
 
-def _file(kind: str, number: int, **fields: object) -> bytes:
-    return json.dumps({"id": _id(number), "kind": kind, "schemaVersion": 1, **fields}).encode()
+def make_file(kind: str, number: int, **fields: object) -> bytes:
+    return json.dumps({"id": make_id(number), "kind": kind, "schemaVersion": 1, **fields}).encode()
 
 
-def _sequence(
+def make_sequence(
     number: int, name: str, element: int, *clips: dict[str, object], **fields: object
 ) -> bytes:
-    written = [{"id": _id(number + index + 1), **clip} for index, clip in enumerate(clips)]
-    tracks = [{"element": _id(element), "clips": written}]
-    return _file("sequence", number, name=name, tracks=tracks, **fields)
+    written = [{"id": make_id(number + index + 1), **clip} for index, clip in enumerate(clips)]
+    tracks = [{"element": make_id(element), "clips": written}]
+    return make_file("sequence", number, name=name, tracks=tracks, **fields)
 
 
 def _fade(duration_ms: int, *arguments: dict[str, object]) -> dict[str, object]:
@@ -60,7 +60,7 @@ def _pulse(number: int, name: str, half_ms: int) -> bytes:
     """Up to 100 and straight back down, the way down without a ``from``."""
     up = _fade(half_ms, {"name": "from", "value": 0}, {"name": "to", "value": 100})
     down = {**_fade(half_ms, {"name": "to", "value": 0}), "atMs": half_ms}
-    return _sequence(number, name, 5, up, down)
+    return make_sequence(number, name, 5, up, down)
 
 
 def document() -> dict[str, object]:
@@ -78,53 +78,60 @@ def document() -> dict[str, object]:
     - *High*: priority 5, the lamp fades from 0 to 100 in ten seconds;
     - *Low*: the lamp fades to 0 in twenty seconds, from where it is.
     """
-    board = {"id": _id(3), "name": "Pi", "model": "rpi4b"}
-    wiring = {"board": _id(3)}
+    board = {"id": make_id(3), "name": "Pi", "model": "rpi4b"}
+    wiring = {"board": make_id(3)}
     elements = [
-        {"id": _id(4), "name": "LED", "type": "digital_output", "pin": LED_PIN, **wiring},
-        {"id": _id(5), "name": "Lamp", "type": "pwm_output", "pin": LAMP_PIN, **wiring},
+        {"id": make_id(4), "name": "LED", "type": "digital_output", "pin": LED_PIN, **wiring},
+        {"id": make_id(5), "name": "Lamp", "type": "pwm_output", "pin": LAMP_PIN, **wiring},
     ]
-    brightness = {"id": _id(61), "name": "brightness", "type": "integer", "initial": 60}
+    brightness = {"id": make_id(61), "name": "brightness", "type": "integer", "initial": 60}
     limited = {**brightness, "min": 0, "max": 100, "setting": True}
-    speed = {"id": _id(62), "name": "speed", "type": "number", "initial": 1.5}
+    speed = {"id": make_id(62), "name": "speed", "type": "number", "initial": 1.5}
     variables = [limited, {**speed, "min": 0, "max": 10, "setting": True}]
     dim = {"atMs": 0, "durationMs": 1000, "action": "set"}
     files = {
-        "project.json": _file("project", 1, name="Arbiter"),
-        "hardware.hw": _file("hardware", 2, boards=[board], elements=elements),
-        "shop.vars": _file("variables", 60, constants=[], variables=variables),
-        "blink.sec": _sequence(20, "Blink", 4, {"atMs": 1000, "durationMs": 1000, "action": "on"}),
-        "on.sec": _sequence(
+        "project.json": make_file("project", 1, name="Arbiter"),
+        "hardware.hw": make_file("hardware", 2, boards=[board], elements=elements),
+        "shop.vars": make_file("variables", 60, constants=[], variables=variables),
+        "blink.sec": make_sequence(
+            20, "Blink", 4, {"atMs": 1000, "durationMs": 1000, "action": "on"}
+        ),
+        "on.sec": make_sequence(
             30, "On", 4, {"atMs": 0, "durationMs": 0, "action": "on"}, whenDone="hold"
         ),
-        "over.sec": _sequence(
+        "over.sec": make_sequence(
             40, "Over", 4, {"atMs": 0, "durationMs": 2000, "action": "off"}, priority=5
         ),
-        "dim.sec": _sequence(
+        "dim.sec": make_sequence(
             50, "Dim", 5, {**dim, "arguments": [{"name": "level", "valueOf": "brightness"}]}
         ),
-        "glow.sec": _sequence(
+        "glow.sec": make_sequence(
             70,
             "Glow",
             5,
             _fade(2000, {"name": "from", "value": 20}, {"name": "to", "value": 80}),
             whenDone="hold",
         ),
-        "down.sec": _sequence(80, "Down", 5, _fade(1000, {"name": "to", "value": 0})),
+        "down.sec": make_sequence(80, "Down", 5, _fade(1000, {"name": "to", "value": 0})),
         "pulse.sec": _pulse(110, "Pulse", 100),
         "slow.sec": _pulse(120, "Slow pulse", 1000),
-        "high.sec": _sequence(
+        "high.sec": make_sequence(
             130,
             "High",
             5,
             _fade(10_000, {"name": "from", "value": 0}, {"name": "to", "value": 100}),
             priority=5,
         ),
-        "low.sec": _sequence(140, "Low", 5, _fade(20_000, {"name": "to", "value": 0})),
-        "rise.sec": _sequence(
+        "low.sec": make_sequence(140, "Low", 5, _fade(20_000, {"name": "to", "value": 0})),
+        "rise.sec": make_sequence(
             90, "Rise", 5, _fade(1000, {"name": "to", "valueOf": "brightness"}), whenDone="hold"
         ),
     }
+    return compiled(files)
+
+
+def compiled(files: dict[str, bytes]) -> dict[str, object]:
+    """The deployment package of a project, given as its files by path."""
     loaded = load_workspace(
         {PurePosixPath(path): content for path, content in files.items()},
         {"rpi4b": PROFILE},
@@ -136,8 +143,10 @@ def document() -> dict[str, object]:
     return document
 
 
-def package() -> Package:
-    package = read_package(PurePosixPath("p.json"), json.dumps(document()).encode()).value
+def package(of: dict[str, object] | None = None) -> Package:
+    """The package of ``of``, a compiled document; of the show when none is given."""
+    written = json.dumps(document() if of is None else of).encode()
+    package = read_package(PurePosixPath("p.json"), written).value
     assert package is not None
     return package
 
@@ -155,8 +164,8 @@ class Clock:
 class Service:
     """A controller running the package on a simulated board, its clock in the test's hand."""
 
-    def __init__(self) -> None:
-        loaded = package()
+    def __init__(self, loaded: Package | None = None) -> None:
+        loaded = package() if loaded is None else loaded
         self.hal = SimulatedHal(load_board("rpi4b"))
         self.clock = Clock()
         self.controller = Controller(
@@ -192,10 +201,13 @@ class Service:
 
 
 @contextmanager
-def running(tmp_path: Path) -> Generator[tuple[TestClient, SimulatedHal]]:
-    """The service running the package, with its API, on a simulated board."""
+def running(
+    tmp_path: Path, of: dict[str, object] | None = None
+) -> Generator[tuple[TestClient, SimulatedHal]]:
+    """The service running the package (of the show, or ``of``), with its API, on a
+    simulated board."""
     path = tmp_path / "show.package.json"
-    path.write_text(json.dumps(document()), encoding="utf-8")
+    path.write_text(json.dumps(document() if of is None else of), encoding="utf-8")
     config = parse_config(["--simulate", "--package", str(path)], {})
     hal = SimulatedHal(load_board("rpi4b"))
     with TestClient(create_app(config, open_hal=lambda: hal)) as client:

@@ -14,6 +14,7 @@ The implementations live in the runtimes ([below](#on-a-board-the-runtime)). Why
 | `id`, `kind` (`driver`), `schemaVersion` (1) | As every file format |
 | `elementType` | The type of the elements it serves, as `.hw` files write it (`pwm_output`): the file name |
 | `actions` | What a clip may ask of the element, each with a `name`, its `parameters` and the state it leaves the element in (`endState`, and `startState` for one that moves it). None for an element that only reads |
+| `triggers` | What an event may listen to on the element: `on`, `off`. Absent for an element that tells nothing (`events.md`) |
 | `config` | The options an element of this type takes in a `.hw` file, beyond its wiring |
 | `safeState` | The action the element rests in when nothing commands it, on stop and on panic |
 | `conflictPolicy` | `latest_wins` (lights, relays) or `exclusive` (motors, servos: one sequence owns the element while it runs) |

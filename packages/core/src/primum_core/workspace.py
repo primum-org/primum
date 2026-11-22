@@ -28,6 +28,7 @@ from primum_core.components import check_components
 from primum_core.config import check_config
 from primum_core.drivers import Drivers
 from primum_core.errors import CoreErrorCode, Issue, Location, Severity
+from primum_core.events import check_events
 from primum_core.formats import (
     PROJECT_FILE_FORMATS,
     Parsed,
@@ -99,6 +100,7 @@ def load_workspace(
         issues += check_scopes(located)
         issues += check_components(located)
         issues += check_actions(located, drivers)
+        issues += check_events(located, drivers)
         issues += check_overlaps(located, drivers)
         issues += check_returns(located, drivers)
         issues += check_resources(located, profiles)

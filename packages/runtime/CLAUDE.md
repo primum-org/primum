@@ -18,6 +18,10 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   asked (manual control or a test), then the sequences, as `engine.Engine` says. The engine
   touches no hardware and reads no clock; a test holds it to `core`'s oracle. Nothing writes
   an output but `Controller._settle` and a person's command.
+- Automations act when an input changes (`Controller.read_inputs`) or an event is fired
+  (`fire_event`, decision 0029): `primum_core.automations` says which, the controller does
+  their actions (sequences through the engine, variables). An automation never writes an
+  output, and nothing acts while panic is on.
 - Elements are driven through drivers (`primum_runtime.drivers`, decision 0019): one per
   element type, made from the element, its manifest (`drivers/`) and the limits of its board.
   The HAL's specs have no defaults: a driver gives every option. A new driver comes with its

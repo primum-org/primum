@@ -45,6 +45,21 @@ class InputStateBody(_Body):
     id: str
     name: str
     active: bool
+    lostEvents: int  # noqa: N815 (changes that never arrived, and so started nothing)
+
+
+class EventStateBody(_Body):
+    id: str  # what it is fired by, unless its source is an element: POST /api/events/{id}/fire
+    name: str
+    source: str  # "element", "ui" or "api"
+
+
+class AutomationStateBody(_Body):
+    id: str
+    name: str
+    enabled: bool
+    # What went wrong the last time something it waits for happened, as an error is told.
+    problem: "ErrorBody | None"
 
 
 class SequenceStateBody(_Body):
@@ -69,6 +84,8 @@ class StateBody(_Body):
     panic: bool
     sequences: list[SequenceStateBody]  # of the package that is running; none without one
     variables: list[VariableStateBody]  # of that package too, with the value each has now
+    events: list[EventStateBody]
+    automations: list[AutomationStateBody]
 
     @classmethod
     def of(cls, state: State) -> "StateBody":
@@ -86,7 +103,24 @@ class StateBody(_Body):
             for output in state.outputs
         ]
         inputs = [
-            InputStateBody(id=item.id, name=item.name, active=item.active) for item in state.inputs
+            InputStateBody(
+                id=item.id, name=item.name, active=item.active, lostEvents=item.lost_events
+            )
+            for item in state.inputs
+        ]
+        events = [
+            EventStateBody(id=item.id, name=item.name, source=item.source) for item in state.events
+        ]
+        automations = [
+            AutomationStateBody(
+                id=item.id,
+                name=item.name,
+                enabled=item.enabled,
+                problem=None
+                if item.problem is None
+                else ErrorBody(code=item.problem.code.value, params=dict(item.problem.params)),
+            )
+            for item in state.automations
         ]
         sequences = [
             SequenceStateBody(id=item.id, name=item.name, running=item.running)
@@ -110,6 +144,8 @@ class StateBody(_Body):
             panic=state.panic,
             sequences=sequences,
             variables=variables,
+            events=events,
+            automations=automations,
         )
 
 
