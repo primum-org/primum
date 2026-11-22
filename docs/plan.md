@@ -884,6 +884,10 @@ per element, from a deployment package that can be rolled back. One pull request
   - Tried only on the simulated HAL, a real service included (the line of the button
     changes, the loop reads it, the LED goes on). On a Pi: a real button or sensor, its
     bounce with `debounceMs`, and a burst that loses events.
+  - On the Pi, by its owner: no change could be made to be lost. With `debounceMs` 0 and
+    the service stopped with `SIGSTOP`, 300 changes all arrived when it went on,
+    `lostEvents` at 0, each dealt with at that same instant. So losing events is checked
+    only on the simulated HAL.
   - Debounce needed nothing new: it is the `debounceMs` of the input's driver, in the
     kernel, since phase 3.
   - Left out: the page shows neither events nor automations; an automation cannot be

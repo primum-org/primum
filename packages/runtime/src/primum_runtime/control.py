@@ -37,8 +37,8 @@ to say (``primum_core.automations``); here their actions are done, in order: seq
 started and stopped through the engine, variables set and incremented. An automation never
 writes an output. While panic is on, what happens is ignored: nothing acts, nothing is kept
 for later. An action that fails does not stop the ones after it; that, and a condition that
-could not be worked out, is logged and stays in the automation's state until it next acts
-cleanly.
+could not be worked out, is logged and stays in the automation's state until an event next
+concerns it and nothing goes wrong.
 
 Time is a monotonic clock the controller is given. Whoever owns the event loop calls
 ``expire`` when ``next_expiry_s`` says: a test runs out, a command of a sequence starts or
@@ -169,7 +169,8 @@ class EventState:
 class AutomationState:
     """An automation of the package that is running. ``problem`` is what went wrong the last
     time something it waits for happened, if anything did: ``automation.condition_failed``
-    or ``automation.action_failed``."""
+    or ``automation.action_failed``. A condition that is worked out and is false is not a
+    problem."""
 
     id: str
     name: str
@@ -595,30 +596,48 @@ class Controller:
 
     def _act_on(self, source: UUID, now: float) -> None:
         """Something happened: the automations that wait for it act, each condition worked
-        out on the values the variables have now, before any of them acts."""
-        log.info("event %s (%s)", self._events[source].name, source)
-        for verdict in verdicts(self._automations, source, self._values):
+        out on the values the variables have now, before any of them acts.
+
+        Nothing gets out of here, whatever goes wrong: the next event must still be dealt
+        with, and whoever reads the inputs stops listening to them on an error.
+        """
+        name = self._events[source].name
+        log.info("event %s (%s)", name, source)
+        try:
+            concerned = verdicts(self._automations, source, self._values)
+        except Exception:
+            log.exception("event %s could not be dealt with: its automations did nothing", name)
+            return
+        for verdict in concerned:
             automation = verdict.automation
             problem: PrimumError | None = None
             if verdict.failure is not None:
                 params = {"automation": automation.name, "reason": verdict.failure.reason}
                 problem = PrimumError(ErrorCode.AUTOMATION_CONDITION_FAILED, params)
-            else:
-                log.info("automation %s acts", automation.name)
-                for action in automation.do:
-                    try:
-                        self._do(action, now)
-                    except Exception as error:  # the actions after it are still done
-                        params = {"automation": automation.name, "action": action.action}
-                        if isinstance(error, PrimumError):
-                            params["problem"] = error.code.value
-                        log.exception("automation %s: %s failed", automation.name, action.action)
-                        problem = problem or PrimumError(ErrorCode.AUTOMATION_ACTION_FAILED, params)
+                log.warning("%s", problem)
+            elif verdict.acts:
+                problem = self._do_all(automation, now)
+            # Concerned, and nothing went wrong: also when its condition was just false.
             if problem is None:
                 self._problems.pop(automation.id, None)
             else:
-                log.warning("%s", problem)
                 self._problems[automation.id] = problem
+
+    def _do_all(self, automation: PackageAutomation, now: float) -> PrimumError | None:
+        """Do the actions of an automation, in order; the first that failed, if any did.
+        One that fails does not stop the ones after it."""
+        log.info("automation %s acts", automation.name)
+        problem: PrimumError | None = None
+        for action in automation.do:
+            try:
+                self._do(action, now)
+            except Exception as error:
+                params = {"automation": automation.name, "action": action.action}
+                if isinstance(error, PrimumError):
+                    params["problem"] = error.code.value
+                log.exception("automation %s: %s failed", automation.name, action.action)
+                problem = problem or PrimumError(ErrorCode.AUTOMATION_ACTION_FAILED, params)
+        return problem
 
     def _do(self, action: PackageAction, now: float) -> None:
         """One action of an automation. A package that holds together gives each what it

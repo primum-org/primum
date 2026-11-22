@@ -29,32 +29,30 @@ LARGEST = 1.7976931348623157e308
 
 @dataclass(frozen=True)
 class Verdict:
-    """An automation an event concerns, and whether it acts: ``failure`` says why its
-    condition could not be worked out, and then it does not."""
+    """An automation an event concerns, and whether it ``acts``: its condition held. When
+    it does not, ``failure`` says why the condition could not be worked out, if that is
+    why; without one the condition was simply false."""
 
     automation: PackageAutomation
+    acts: bool
     failure: Failure | None = None
-
-    @property
-    def acts(self) -> bool:
-        return self.failure is None
 
 
 def verdicts(
     automations: Iterable[PackageAutomation], source: UUID, values: Mapping[UUID, Value]
 ) -> tuple[Verdict, ...]:
-    """The automations that act on ``source``, in the order given, and those whose condition
-    failed. One that is disabled, does not wait for ``source`` or whose condition is false
-    is left out."""
+    """What each automation that ``source`` concerns does, in the order given: every one
+    that is enabled and waits for it, whether its condition holds, is false or failed. One
+    that is disabled or does not wait for ``source`` is left out."""
     found: list[Verdict] = []
     for automation in automations:
         if not automation.enabled or source not in automation.when:
             continue
         holds = evaluate(automation.if_, values) if automation.if_ else True
         if isinstance(holds, Failure):
-            found.append(Verdict(automation, holds))
-        elif holds is True:
-            found.append(Verdict(automation))
+            found.append(Verdict(automation, acts=False, failure=holds))
+        else:
+            found.append(Verdict(automation, acts=holds is True))
     return tuple(found)
 
 

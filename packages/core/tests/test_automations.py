@@ -45,7 +45,19 @@ def _automation(
 def _acting(
     automations: list[PackageAutomation], source: UUID, values: dict[UUID, Value]
 ) -> list[tuple[int, Failure | None]]:
-    return [(v.automation.id.int, v.failure) for v in verdicts(automations, source, values)]
+    return [
+        (v.automation.id.int, v.failure)
+        for v in verdicts(automations, source, values)
+        if v.acts or v.failure is not None
+    ]
+
+
+def test_an_automation_whose_condition_is_false_is_concerned_and_does_not_act() -> None:
+    automations = [_automation(1, condition="visits < 3"), _automation(2, when=(OPENED,))]
+
+    [verdict] = verdicts(automations, PRESSED, {VISITS: 5, PAUSED: False})
+
+    assert (verdict.automation.id.int, verdict.acts, verdict.failure) == (1, False, None)
 
 
 def test_an_automation_acts_on_an_event_it_waits_for() -> None:

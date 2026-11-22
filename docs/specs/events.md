@@ -37,6 +37,8 @@ in the driver's manifest (`drivers.md`), `on` and `off` for a `digital_input`.
 - The kernel keeps a bounded number of unread changes and drops the oldest of a longer
   burst. The state of the input is still right, but the changes dropped started nothing:
   they are counted, logged, and told in the input's state (`lostEvents`).
+- A service that was held up deals, when it comes back, with every change that waited, one
+  after another and all at that instant: 300 changes are 300 events, not one.
 - When the service starts, the state an input is in is read and starts nothing: only a
   change is an event.
 
@@ -95,9 +97,13 @@ held, and a sequence an automation starts shows when it is let go.
 | The condition cannot be worked out (a division by zero, a number at or past 2^53) | It does not hold: the automation does nothing. `automation.condition_failed` (`automation`, `reason`: `division_by_zero` or `overflow`) |
 | An action fails | The actions after it are still done, and so are the other automations. `automation.action_failed` (`automation`, `action`, and `problem`, the code of what failed, when it has one) |
 
-Either is logged as a warning and stays in the automation's state (`problem`, as an error
-is told: `code` and `params`) until the automation is next concerned by an event and
-nothing goes wrong.
+Either is logged, once, and stays in the automation's state (`problem`, as an error is
+told: `code` and `params`) until an event next concerns the automation and nothing goes
+wrong: it acts cleanly, or its condition is worked out and is false. Events it does not wait
+for leave it as it is.
+
+Whatever else goes wrong dealing with an event is logged and ends with that event: the
+next one is dealt with as any, and the inputs go on being listened to.
 
 ### Panic
 

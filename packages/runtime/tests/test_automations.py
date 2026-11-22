@@ -298,6 +298,65 @@ def test_a_problem_is_forgotten_when_the_automation_next_acts_cleanly(shop: _Sho
     assert (shop.problem(RISKY), shop.value()) == (None, 2)
 
 
+def test_a_problem_is_forgotten_when_the_condition_is_next_worked_out_even_if_false(
+    shop: _Shop,
+) -> None:
+    """Nothing went wrong the second time: the condition was worked out, and it was false."""
+    shop.controller.set_variable(DIVISOR, 0)
+    shop.controller.fire_event(CALL)
+    failed = shop.problem(RISKY)
+
+    shop.controller.set_variable(DIVISOR, 10)  # 10 / 10 > 1 is false
+    shop.controller.fire_event(CALL)
+
+    assert failed is not None
+    assert (shop.problem(RISKY), shop.value()) == (None, 0)
+
+
+def test_a_problem_stays_while_other_events_happen(shop: _Shop) -> None:
+    shop.controller.set_variable(DIVISOR, 0)
+    shop.controller.fire_event(CALL)
+
+    shop.controller.fire_event(GO)  # not an event Risky waits for
+
+    assert shop.problem(RISKY) is not None
+
+
+def test_an_event_that_cannot_be_dealt_with_does_not_stop_the_inputs(
+    shop: _Shop, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Whatever goes wrong judging one event, the next is still read and dealt with: the
+    loop of the service stops listening to the inputs on anything this lets through."""
+
+    def broken(*_: object) -> None:
+        raise RuntimeError("unexpected")
+
+    with monkeypatch.context() as patched:
+        patched.setattr("primum_runtime.control.verdicts", broken)
+        shop.press()
+    pressed = shop.controller.state().inputs[0].active
+    shop.press(False)
+    shop.press()
+
+    assert pressed  # the input itself was read
+    assert "Pressed" in caplog.text
+    assert (shop.led, shop.value()) == (True, 1)  # the press after it is an event as any
+
+
+def test_an_action_that_fails_is_logged_once(
+    shop: _Shop, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    def broken(*_: object) -> None:
+        raise PrimumError(ErrorCode.SEQUENCE_UNKNOWN, {"id": ON})
+
+    monkeypatch.setattr(Engine, "start", broken)
+
+    shop.press()
+
+    told = [record.levelname for record in caplog.records if "Welcome" in record.message]
+    assert told == ["ERROR"]  # once, with the traceback
+
+
 def test_an_action_that_fails_does_not_stop_the_ones_after_it(
     shop: _Shop, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
