@@ -12,10 +12,18 @@ it is, in whole milliseconds of a monotonic clock, and asks.
   that started last, then a command with a length over an instant one, then the sequence
   started last. With none in force, nothing is asked: the element rests.
 
+What a sequence asks of an element depends only on the time since it started, so it is
+worked out once, when the package is loaded: for each element, the instants at which what is
+asked changes and what is asked from each. Asking is then a search, whatever the length of
+the show: a change must never keep the event loop, and panic with it, waiting on the size of
+a sequence.
+
 Tests hold it to ``primum_core.commands.command_at`` and ``primum_core.runs`` on random
 projects.
 """
 
+import heapq
+from bisect import bisect_right
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from uuid import UUID
@@ -43,6 +51,29 @@ class Asked:
     settled: bool
 
 
+@dataclass(frozen=True)
+class _Track:
+    """What a sequence asks of one element over its own time: from ``starts[i]`` (ms since
+    the sequence started) it asks ``asked[i]``, or nothing, until the next start."""
+
+    starts: tuple[int, ...]
+    asked: tuple[Command | None, ...]
+
+    def at(self, local_ms: int) -> Command | None:
+        index = bisect_right(self.starts, local_ms) - 1
+        return None if index < 0 else self.asked[index]
+
+
+@dataclass(frozen=True)
+class _Timeline:
+    """A sequence ready to be asked: what it asks of each element, and every instant of its
+    own time at which something may change (a command starts, its action ends, it stops
+    being in force, the sequence ends)."""
+
+    tracks: Mapping[UUID, _Track]
+    changes: tuple[int, ...]
+
+
 class Engine:
     """The sequences of one package, and which of them are running."""
 
@@ -50,6 +81,7 @@ class Engine:
         self._sequences: Mapping[UUID, PackageSequence] = {
             sequence.id: sequence for sequence in package.sequences
         }
+        self._timelines = {sequence.id: _timeline(sequence) for sequence in package.sequences}
         self._running: tuple[Run, ...] = ()  # in the order they were started
 
     @property
@@ -91,32 +123,30 @@ class Engine:
         """The command in force on ``element`` at ``now_ms``, or ``None``: it rests."""
         winner: tuple[tuple[int, int, bool, int], Asked] | None = None
         for order, run in enumerate(self.running(now_ms)):
-            sequence = self._sequences[run.sequence]
+            track = self._timelines[run.sequence].tracks.get(element)
             local = now_ms - run.started_ms
-            for command in sequence.commands:
-                if command.element != element or not _in_force(command, local):
-                    continue
-                since = run.started_ms + command.at_ms
-                rank = (sequence.priority, since, command.duration_ms > 0, order)
-                if winner is None or rank > winner[0]:
-                    settled = local >= command.at_ms + command.duration_ms
-                    winner = (rank, Asked(command, run.sequence, since, settled))
+            command = None if track is None else track.at(local)
+            if command is None:
+                continue
+            since = run.started_ms + command.at_ms
+            priority = self._sequences[run.sequence].priority
+            rank = (priority, since, command.duration_ms > 0, order)
+            if winner is None or rank > winner[0]:
+                settled = local >= command.at_ms + command.duration_ms
+                winner = (rank, Asked(command, run.sequence, since, settled))
         return winner[1] if winner else None
 
     def next_change_ms(self, now_ms: int) -> int | None:
         """The next instant after ``now_ms`` at which what is asked may change: a command of
-        a running sequence starts or stops being in force, or a sequence ends. ``None`` when
-        nothing will change until something is started or stopped."""
+        a running sequence starts, ends its action or stops being in force, or a sequence
+        ends. ``None`` when nothing will change until something is started or stopped."""
         instants: list[int] = []
         for run in self.running(now_ms):
-            sequence = self._sequences[run.sequence]
-            if sequence.when_done != "hold":
-                instants.append(run.started_ms + sequence.duration_ms)
-            for command in sequence.commands:
-                instants.append(run.started_ms + command.at_ms)
-                if command.until_ms is not None:
-                    instants.append(run.started_ms + command.until_ms)
-        return min((instant for instant in instants if instant > now_ms), default=None)
+            changes = self._timelines[run.sequence].changes
+            index = bisect_right(changes, now_ms - run.started_ms)
+            if index < len(changes):
+                instants.append(run.started_ms + changes[index])
+        return min(instants, default=None)
 
     def _known(self, sequence: UUID) -> PackageSequence:
         found = self._sequences.get(sequence)
@@ -129,8 +159,53 @@ class Engine:
         return sequence.when_done != "hold" and now_ms - run.started_ms >= sequence.duration_ms
 
 
-def _in_force(command: Command, local_ms: int) -> bool:
-    """Whether the command is in force at ``local_ms``, in the time of its sequence."""
-    if local_ms < command.at_ms:
-        return False
-    return command.until_ms is None or local_ms < command.until_ms
+def _timeline(sequence: PackageSequence) -> _Timeline:
+    changes: set[int] = set()
+    if sequence.when_done != "hold":
+        changes.add(sequence.duration_ms)
+    of_element: dict[UUID, list[Command]] = {}
+    for command in sequence.commands:
+        of_element.setdefault(command.element, []).append(command)
+        changes.add(command.at_ms)
+        changes.add(command.at_ms + command.duration_ms)
+        if command.until_ms is not None:
+            changes.add(command.until_ms)
+    tracks = {element: _track(commands) for element, commands in of_element.items()}
+    return _Timeline(tracks, tuple(sorted(changes)))
+
+
+def _track(commands: list[Command]) -> _Track:
+    """What the commands of one element, of one sequence, ask over the time of the sequence.
+
+    Within a sequence the priority is one, so of the commands in force the one that started
+    last wins, a command with a length before an instant one. A sweep over the instants at
+    which a command starts or stops being in force, with the ones in force in a heap: the
+    best is on top, and one that is over is dropped when it gets there.
+    """
+    # A command that stops being in force no later than it starts never is.
+    lasting = [c for c in commands if c.until_ms is None or c.until_ms > c.at_ms]
+    by_start = sorted(enumerate(lasting), key=lambda item: item[1].at_ms)
+    instants = sorted(
+        {c.at_ms for c in lasting} | {c.until_ms for c in lasting if c.until_ms is not None}
+    )
+    in_force: list[tuple[int, int, int, Command]] = []  # best first: latest, with a length
+    starts: list[int] = []
+    asked: list[Command | None] = []
+    following = 0
+    for instant in instants:
+        while following < len(by_start) and by_start[following][1].at_ms <= instant:
+            index, command = by_start[following]
+            best_first = (-command.at_ms, 0 if command.duration_ms > 0 else 1, index)
+            heapq.heappush(in_force, (*best_first, command))
+            following += 1
+        while in_force and _over(in_force[0][3], instant):
+            heapq.heappop(in_force)
+        now_asked = in_force[0][3] if in_force else None
+        if not asked or asked[-1] is not now_asked:
+            starts.append(instant)
+            asked.append(now_asked)
+    return _Track(tuple(starts), tuple(asked))
+
+
+def _over(command: Command, local_ms: int) -> bool:
+    return command.until_ms is not None and command.until_ms <= local_ms
