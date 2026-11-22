@@ -23,7 +23,10 @@ of 100 clips and 539 ms with 16 of 2000, all of it on the event loop, where pani
   second, not at every step, and when it ends.
 - **A `fade` without its `from` starts from the level the output has** when the command
   first commands it: whatever took it there, a sequence, a person or rest. It is what a
-  person sees. Under a person's hand the fade goes on unseen from the level it found, and
+  person sees. When it was a command of a sequence that had the output, that is the level
+  that command had it at in that very instant, its end if its action was over, and not the
+  last step that happened to be written: a fade stepped every 20 ms is rarely written at its
+  last instant, and up and straight back down is what a show does most. Under a person's hand the fade goes on unseen from the level it found, and
   when the output is let go it is where the fade is by then.
 - **A variable is read when its command first commands its output, and kept while the
   command lasts.** A fade has a fixed start and a fixed end. Setting the variable shows the

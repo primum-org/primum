@@ -29,6 +29,7 @@ LED_PIN, LAMP_PIN = 17, 18
 BLINK, ON, OVER, DIM, UNKNOWN = (str(UUID(int=number)) for number in (20, 30, 40, 50, 99))
 # Fades of the lamp.
 GLOW, DOWN, RISE = (str(UUID(int=number)) for number in (70, 80, 90))
+PULSE, SLOW_PULSE = str(UUID(int=110)), str(UUID(int=120))
 BRIGHTNESS, SPEED = str(UUID(int=61)), str(UUID(int=62))  # an integer, and a number
 WAIT_S = 5  # for a second of a real service to pass: far more than it takes
 
@@ -54,6 +55,13 @@ def _fade(duration_ms: int, *arguments: dict[str, object]) -> dict[str, object]:
     return {**clip, "arguments": list(arguments)}
 
 
+def _pulse(number: int, name: str, half_ms: int) -> bytes:
+    """Up to 100 and straight back down, the way down without a ``from``."""
+    up = _fade(half_ms, {"name": "from", "value": 0}, {"name": "to", "value": 100})
+    down = {**_fade(half_ms, {"name": "to", "value": 0}), "atMs": half_ms}
+    return _sequence(number, name, 5, up, down)
+
+
 def document() -> dict[str, object]:
     """A Pi with an LED and a lamp, and four sequences:
 
@@ -63,7 +71,9 @@ def document() -> dict[str, object]:
     - *Dim*: the lamp at ``brightness`` (60 to start with) for a second;
     - *Glow*: the lamp fades from 20 to 80 in two seconds, and holds;
     - *Down*: the lamp fades to 0 in a second, from where it is;
-    - *Rise*: the lamp fades to ``brightness`` in a second, from where it is, and holds.
+    - *Rise*: the lamp fades to ``brightness`` in a second, from where it is, and holds;
+    - *Pulse*: the lamp fades from 0 to 100 in 100 ms, then to 0 from where it is in
+      another 100 ms; *Slow pulse* does the same in a second each.
     """
     board = {"id": _id(3), "name": "Pi", "model": "rpi4b"}
     wiring = {"board": _id(3)}
@@ -98,6 +108,8 @@ def document() -> dict[str, object]:
             whenDone="hold",
         ),
         "down.sec": _sequence(80, "Down", 5, _fade(1000, {"name": "to", "value": 0})),
+        "pulse.sec": _pulse(110, "Pulse", 100),
+        "slow.sec": _pulse(120, "Slow pulse", 1000),
         "rise.sec": _sequence(
             90, "Rise", 5, _fade(1000, {"name": "to", "valueOf": "brightness"}), whenDone="hold"
         ),

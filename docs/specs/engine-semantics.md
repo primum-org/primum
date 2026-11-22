@@ -91,7 +91,10 @@ command is in force.
 - While a sequence is moving an output the runtime wakes every 20 ms and writes it; the
   rest of the time it wakes only at changes. A fade under a person's hand is not stepped.
 - Without a `from`, the fade starts from the level the output has when the command first
-  commands it, whatever took it there. Held by hand meanwhile, the fade goes on unseen from
+  commands it, whatever took it there. After a command of a sequence that was in force until
+  then, that is where that command had the output at that instant by its own time (where a
+  fade ended, or where one that is cut had got to), not the last step written: a fade up
+  followed by one down reaches its top whatever its length and however late a step comes. Held by hand meanwhile, the fade goes on unseen from
   that level, and the output joins it where it is by then when it is let go.
 - Listeners are told the state four times a second while only fades move, and when one ends.
 

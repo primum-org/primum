@@ -219,6 +219,9 @@ class Controller:
         # What each command that has commanded an output asks of it: by its sequence, when
         # it started, and the command.
         self._motions: dict[tuple[UUID, int, Command], _Motion] = {}
+        # The command of a sequence that last took each output somewhere, while nothing else
+        # has since: where a fade without a ``from`` that follows it starts from.
+        self._last: dict[str, tuple[Asked, _Motion]] = {}
         self._ran: tuple[UUID, ...] = ()  # the sequences running when listeners were last told
         self._told_at = clock()  # when listeners were last told
 
@@ -297,10 +300,12 @@ class Controller:
             if until is not None:
                 self._held[name] = _Held(level, until)
             self._at.pop(name, None)
+            self._last.pop(name, None)
             self._notify()
             raise
         self._held[name] = _Held(level, until)
         self._at[name] = level
+        self._last.pop(name, None)  # a person took it there, not a sequence
         self._retry_at.pop(name, None)  # commanded again: no longer waiting to get anywhere
         self._notify()
 
@@ -435,6 +440,7 @@ class Controller:
         self._panic = True
         self._held.clear()  # nothing is left to expire: everything rests now
         self._retry_at.clear()
+        self._last.clear()
         if self._engine is not None:
             self._engine.stop_all()
         not_safe: list[str] = []
@@ -473,33 +479,25 @@ class Controller:
             return list(self._outputs)
         return [name for name, driver in self._outputs.items() if driver.pin in pins]
 
-    def _wanted(self, key: str, now: float) -> float:
+    def _wanted(self, key: str, now: float) -> tuple[float, Asked | None]:
         """The level output ``key`` should be at: what the highest layer with something to
-        say asks of it."""
+        say asks of it. And the command of a sequence that asks it, when one does."""
         output = self._outputs[key]
         if self._panic:
-            return output.rest_level
+            return output.rest_level, None
         held = self._held.get(key)
         if held is not None:
-            return held.level
+            return held.level, None
         asked = self._asked(key, now)
-        return output.rest_level if asked is None else self._level_of(key, asked, now)
+        if asked is None:
+            return output.rest_level, None
+        return _level_at(asked, self._motion_of(key, asked), _ms(now)), asked
 
     def _asked(self, key: str, now: float) -> Asked | None:
         """What the sequences ask of output ``key``, if anything."""
         if self._engine is None:
             return None
         return self._engine.asked(UUID(key), _ms(now))
-
-    def _level_of(self, key: str, asked: Asked, now: float) -> float:
-        """The level a command of a sequence asks of its output at ``now``: where it ends,
-        or, while it moves there, as far along as its time is."""
-        motion = self._motion_of(key, asked)
-        length = asked.command.duration_ms
-        if motion.start is None or asked.settled or length == 0:
-            return motion.end
-        gone = min(1.0, max(0.0, (_ms(now) - asked.since_ms) / length))
-        return motion.start + (motion.end - motion.start) * gone
 
     def _motion_of(self, key: str, asked: Asked) -> _Motion:
         """What the command asks of its output, worked out the first time it commands it and
@@ -522,11 +520,30 @@ class Controller:
             if command.duration_ms > 0 and output.moves(command.action):
                 start = output.start_level_for(command.action, given)
                 if start is None:
-                    # Read from the hardware only if the level it was taken to is not known.
-                    known_level = self._at.get(key)
-                    start = output.level if known_level is None else known_level
+                    start = self._level_before(key, asked)
             motion = self._motions[known] = _Motion(end, start)
         return motion
+
+    def _level_before(self, key: str, asked: Asked) -> float:
+        """The level output ``key`` has when ``asked`` starts: where a fade without a
+        ``from`` starts from.
+
+        If a command of a sequence was the last to take it anywhere, and was still in force
+        when this one starts, it is where that command had it at that very instant: its end
+        if its action was over, however long ago its last step was written. A fade written
+        every 20 ms is rarely written at its last instant, and the one that follows must
+        start from where it ended, not from its last step. Otherwise it is the level the
+        output was last taken to; read from the hardware only if that is not known.
+        """
+        last = self._last.get(key)
+        if last is not None:
+            before, motion = last
+            until = before.command.until_ms
+            started = before.since_ms - before.command.at_ms  # its sequence
+            if until is None or started + until >= asked.since_ms:
+                return _level_at(before, motion, asked.since_ms)
+        known_level = self._at.get(key)
+        return self._outputs[key].level if known_level is None else known_level
 
     def _note(self, now: float) -> None:
         """Fix what every command that commands an output now asks of it, before anything is
@@ -578,8 +595,9 @@ class Controller:
             if retry_at is not None and retry_at > now:
                 continue
             try:
-                wanted = self._wanted(key, now)
+                wanted, asked = self._wanted(key, now)
                 if retry_at is None and key in self._at and self._at[key] == wanted:
+                    self._taken_by(key, asked)
                     continue
                 tried.add(key)
                 output.go_to(wanted)
@@ -595,12 +613,21 @@ class Controller:
                     )
                 self._retry_at[key] = now + RETRY_REST_S
                 self._at.pop(key, None)
+                self._last.pop(key, None)
             else:
                 if retry_at is not None:
                     log.info("%s is where it should be after all", output.name)
                     del self._retry_at[key]
                 self._at[key] = wanted
+                self._taken_by(key, asked)
         return frozenset(tried)
+
+    def _taken_by(self, key: str, asked: Asked | None) -> None:
+        """Remember which command of a sequence has output ``key`` where it is, if one has."""
+        if asked is None:
+            self._last.pop(key, None)
+        else:
+            self._last[key] = (asked, self._motion_of(key, asked))
 
     def _controlled_by(self, key: str, now: float) -> str | None:
         if self._panic:
@@ -647,6 +674,16 @@ class Controller:
         state = self.state()
         for listener in tuple(self._listeners):
             listener(state)
+
+
+def _level_at(asked: Asked, motion: _Motion, at_ms: int) -> float:
+    """The level a command of a sequence asks of its output at ``at_ms``: where it ends, or,
+    while it moves there, as far along as its time is."""
+    length = asked.command.duration_ms
+    if motion.start is None or length == 0:
+        return motion.end
+    gone = min(1.0, max(0.0, (at_ms - asked.since_ms) / length))
+    return motion.start + (motion.end - motion.start) * gone
 
 
 def _ms(seconds: float) -> int:

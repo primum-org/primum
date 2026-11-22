@@ -809,7 +809,9 @@ per element, from a deployment package that can be rolled back. One pull request
   output and keeps the value while the command lasts.
 - Tried here on the simulated HAL with a clock moved by hand, and once with the real timer
   of a simulated service running `examples/shop-window`: the LED rose from 0 to `brightness`
-  (set to 60) between 0.5 s and 2 s and fell back to 0 by 3.5 s, sampled over the API. On
+  (set to 60) between 0.5 s and 2 s and fell back to 0 by 3.5 s, sampled over the API
+  (after the fix below: it reaches 60.0 at 2.006 s; before it, the "59–60" first written
+  here was the fault showing). On
   the board: nothing was run. To see there: whether 50 steps a second look smooth on a real
   LED, what a step costs (each is a write and a read-back through sysfs), and the cost per
   change after indexing.
@@ -822,6 +824,13 @@ per element, from a deployment package that can be rolled back. One pull request
   answer); what cannot be worked out for one output is contained to it; and a wake that
   fails, which is not meant to happen, is tried again a second later instead of ending the
   timer.
+- From review, measured by the reviewer: a fade that ends where a fade without `from`
+  starts never reached its top, since the second started from the last step written of the
+  first, and at the instant of the change the engine already asks for the new clip. Up from
+  0 to 100 and straight down: 80 % with 100 ms a side and exact steps, 75 % with every step
+  5 ms late, 98 % with a second a side, simulated; 88–89 % on the Pi, three times. The start
+  is now where the command of a sequence that had the output had it at that instant by its
+  own time. The Pi was not tried again after the fix.
 - Left for 4.4: variables marked `persistent` are not kept across a restart; nothing but
   the API sets a variable. A command that starts under a higher priority reads its
   variables, and takes the start of its fade, when it gets its output, not when it starts.

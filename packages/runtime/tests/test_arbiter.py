@@ -27,7 +27,9 @@ from show_service import (
     ON,
     OVER,
     PROFILE,
+    PULSE,
     RISE,
+    SLOW_PULSE,
     UNKNOWN,
     WAIT_S,
     Service,
@@ -213,7 +215,9 @@ def test_the_state_lists_the_sequences_of_the_package_and_which_are_running(
         (GLOW, "Glow", False),
         (ON, "On", True),
         (OVER, "Over", False),
+        (PULSE, "Pulse", False),
         (RISE, "Rise", False),
+        (SLOW_PULSE, "Slow pulse", False),
     ]
 
 

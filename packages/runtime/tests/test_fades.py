@@ -20,7 +20,9 @@ from show_service import (
     LAMP_PIN,
     LED,
     ON,
+    PULSE,
     RISE,
+    SLOW_PULSE,
     SPEED,
     UNKNOWN,
     Service,
@@ -332,3 +334,43 @@ def test_an_output_whose_command_can_be_worked_out_again_gets_there(
 
     assert _lamp(service) == 60  # the fade is over by now: where it ends
     assert not service.controller.state().outputs[1].rest_failed
+
+
+@pytest.mark.parametrize(
+    ("sequence", "half_s", "late_s"),
+    [(PULSE, 0.1, 0.0), (PULSE, 0.1, 0.005), (SLOW_PULSE, 1.0, 0.0), (SLOW_PULSE, 1.0, 0.013)],
+    ids=["100 ms", "100 ms, every step 5 ms late", "1 s", "1 s, every step 13 ms late"],
+)
+def test_a_fade_that_follows_another_starts_from_where_that_one_ends(
+    service: Service, sequence: str, half_s: float, late_s: float
+) -> None:
+    """Up to 100, then down from where it is: the way down starts at 100, the end of the way
+    up, not at the last step that happened to be written before it. So at every wake, however
+    late it comes, the lamp is where a pulse from 0 to 100 and back is at that time."""
+    service.controller.start_sequence(sequence)
+    started = service.clock.now
+    seen: list[tuple[float, float]] = []
+
+    for _ in range(round(2 * half_s / FADE_STEP_S) + 2):
+        service.after(FADE_STEP_S + late_s)
+        seen.append((service.clock.now - started, _lamp(service)))
+
+    for at_s, level in seen:
+        expected = 100 * max(0.0, 1 - abs(at_s - half_s) / half_s)
+        assert level == pytest.approx(expected, abs=0.2), at_s  # a PWM step is 1/20000
+    if late_s == 0:
+        assert max(service.hal.pwm_lines[LAMP_PIN].history) == 1.0  # written at its instant
+
+
+def test_a_fade_that_cuts_another_starts_from_where_that_one_is_by_then(
+    service: Service,
+) -> None:
+    """*Glow* is half a second in, last written at 35. A quarter of a second later, with no
+    step in between, *Down* starts: from 42.5, where *Glow* is by then, not from 35."""
+    service.controller.start_sequence(GLOW)
+    service.after(0.5)
+    service.clock.now += 0.25
+
+    service.controller.start_sequence(DOWN)
+
+    assert _lamp(service) == 42.5
