@@ -282,7 +282,7 @@
     },
     "name.reserved": {
       "message": "{name} es una palabra de las condiciones y no puede ser un nombre.",
-      "hint": "Elige otro nombre: and, or, not, true y false están reservados."
+      "hint": "Elige otro nombre: and, or, not, true y false están reservados, con mayúsculas o sin ellas."
     },
     "name.unknown": {
       "message": "Aquí no se ve ninguna constante ni variable llamada {name}.",
@@ -343,6 +343,18 @@
     "expression.single_equals": {
       "message": "La condición tiene un = suelto en la posición {position}, que no compara.",
       "hint": "Para comparar dos cosas escribe ==, por ejemplo: visits == 3."
+    },
+    "expression.single_quotes": {
+      "message": "La condición tiene una comilla simple en la posición {position}: los textos van entre comillas dobles.",
+      "hint": "Escribe el texto así: mode == \"night\"."
+    },
+    "expression.decimal_comma": {
+      "message": "La condición tiene una coma en la posición {position}: los decimales van después de un punto.",
+      "hint": "Escribe el número con punto, por ejemplo 1.5."
+    },
+    "expression.word_case": {
+      "message": "En la condición, {found} en la posición {position} debe escribirse en minúsculas.",
+      "hint": "Escribe {word}."
     },
     "expression.too_long": {
       "message": "La condición tiene más de {max} caracteres.",

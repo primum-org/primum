@@ -24,8 +24,9 @@ mode == "night" or brightness / 2 > 30
 
 The words are English and lower case in every language of the UI, like the file formats.
 `and`, `or`, `not`, `true` and `false` are not names: a constant or a variable cannot be
-called one of them (`name.reserved`, at its `name` in the `.vars` file). `True` and `order`
-are fine.
+called one of them, in any case (`name.reserved`, at its `name` in the `.vars` file: `True`
+and `AND` are refused too). `order` and `notable` are fine. In a condition the words are
+lower case only: `AND` is `expression.word_case`.
 
 What binds tighter comes first; each line binds its operands left to right:
 
@@ -57,8 +58,19 @@ variables. A written `3` is an integer and `3.0` a number.
 | `and` `or` `not` | booleans | a boolean |
 
 An integer and a number mix freely, and compare (`visits == 7.0`). Nothing else converts: a
-boolean is not a number, a text is not ordered. `%` gives the remainder with the sign of the
-divisor: `-7 % 3` is `2`.
+boolean is not a number, a text is not ordered.
+
+`a % b` is the remainder with the sign of the divisor (`-7 % 3` is `2`), worked out exactly
+this way, in doubles, by every runtime:
+
+```
+r = fmod(a, b)                    # the remainder of the division that truncates (C, IEEE 754)
+if r != 0 and (r < 0) != (b < 0):
+    r = r + b
+```
+
+With decimals the last sum can round: `-0.00000000000000000001 % 3` is `3`, the divisor
+itself. It is what the formula gives, and what every runtime must give.
 
 `integer` and `number` only differ in these checks. In a package and when evaluating there is
 **one kind of number**, a double (IEEE 754, 64 bits): `3` and `3.0` are the same value, as
@@ -76,6 +88,9 @@ unknown names, which are all reported.
 |---|---|---|
 | `expression.syntax` | It cannot be read | `position` (from 1), `found` (what is there, or `end`) |
 | `expression.single_equals` | A single `=`: to compare is `==` | `position` |
+| `expression.single_quotes` | A text in single quotes (`'night'`): texts go in double quotes | `position` |
+| `expression.decimal_comma` | A comma between digits (`1,5`): decimals go after a point | `position` |
+| `expression.word_case` | A word of the language not in lower case (`AND`, `True`) | `position`, `found`, `word` (how to write it) |
 | `expression.too_long` | More than 500 characters | `max` |
 | `expression.too_deep` | Nested more than 32 deep | `max` |
 | `name.unknown` | A name the automation does not see | `name` |
@@ -86,10 +101,12 @@ unknown names, which are all reported.
 | `expression.constant_too_large` | A constant not below 2^53 in size: it could not be written as a number either | `name` |
 | `expression.not_a_condition` | The whole gives a number or a text | |
 
-The limit is one rule: a number that is written, a constant and a result of arithmetic must
-all be **below 2^53 in size** (`9007199254740991` is the largest). A number written at or
-past it is `expression.syntax` at the number, judged as written, before any rounding. So
-whatever can be written can also be negated: `x > -9007199254740991` works.
+The limit is one rule for **every number of a condition**: one that is written, a constant,
+the value a variable has when it is read and a result of arithmetic must all be **below 2^53
+in size** (`9007199254740991` is the largest). A number written at or past it is
+`expression.syntax` at the number, judged as the double it becomes: `9007199254740991.5`
+rounds to 2^53 and is refused. So whatever can be written can also be negated:
+`x > -9007199254740991` works.
 
 Every name of a condition that exists counts as a use of it, also when the condition
 has something else wrong (another name that does not exist, or it cannot be read); a word
@@ -130,15 +147,16 @@ raises.
 What cannot be worked out is a **failure**, with its reason:
 
 - `division_by_zero`: `/` or `%` by a variable or a result that is zero;
-- `overflow`: a result of arithmetic (`+ - * / %`, `-x`) that is not below 2^53 in size, or
-  a value no double holds.
+- `overflow`: a number that is not below 2^53 in size: the value of a variable when it is
+  read, or a result of arithmetic (`+ - * / %`, `-x`).
 
 The limit looks at the **value**, never at how it is held or at the type it was declared
 with: `x + 1` with `x` at 2^53 fails the same whether `x` is an integer or a number. Below
-it, arithmetic on whole numbers is exact; at it, it fails instead of rounding in silence. A
-variable may hold a larger value (its own limits allow it): it compares (`x > 5`), but
-arithmetic on it fails. A runtime in another language reproduces the rule with doubles and
-one comparison per result.
+it, arithmetic on whole numbers is exact; at it, a condition fails instead of rounding in
+silence. A variable may hold a larger value (its own limits allow it), but a condition that
+reads it fails, also to compare it (`x > 5`, `x == y`): past the limit a double no longer
+tells one whole number from the next. A runtime in another language reproduces the rule
+with doubles and one comparison per number.
 
 A failure spoils whatever needs it, with one exception: `and` and `or` do not need a side
 when the other settles the answer. `false and <failure>` is false and `true or <failure>` is

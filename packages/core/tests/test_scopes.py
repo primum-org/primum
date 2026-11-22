@@ -310,7 +310,7 @@ def test_every_unknown_name_of_a_condition_is_reported(project: Project, ids: Id
     ]
 
 
-@pytest.mark.parametrize("word", ["true", "false", "and", "or", "not"])
+@pytest.mark.parametrize("word", ["true", "false", "and", "or", "not", "True", "AND"])
 def test_a_word_of_the_condition_language_cannot_be_a_name(
     project: Project, ids: Ids, word: str
 ) -> None:
@@ -330,7 +330,7 @@ def test_a_name_that_only_starts_like_a_word_of_the_language_is_fine(
 ) -> None:
     variables = [
         _variable(ids, 11, "order", setting=True),
-        _variable(ids, 12, "True", setting=True),
+        _variable(ids, 12, "notable", setting=True),
     ]
     project.add("shop.vars", "variables", ids(10), constants=[], variables=variables)
 

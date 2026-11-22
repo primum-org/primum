@@ -11,10 +11,12 @@ grammar, checks that tell a person what is wrong before deploying, and a form a 
 run without parsing anything.
 
 ## Decision
-- **Words for logic, in English**: `and`, `or`, `not`, `true`, `false`. Comparisons
+- **Words for logic, in English**: `and`, `or`, `not`, `true`, `false`. Lower case only,
+  and reserved in any case: no constant or variable is called one of them. Comparisons
   (`== != < <= > >=`), parentheses, numbers and texts in double quotes.
 - **Arithmetic from the start**: `+ - * / %` and `-x`. `/` always gives a number with
-  decimals; the rest give an integer from integers. `%` has the sign of the divisor.
+  decimals; the rest give an integer from integers. `%` has the sign of the divisor, by a formula the
+  spec fixes (`fmod`, then one divisor added when the signs differ).
 - **Typed, and checked before deploying**: the four types of constants and variables.
   Integers and numbers mix; nothing else converts. A condition must give a boolean. A
   division by a zero that can be seen (written, or a constant) is an error of the project.
@@ -27,9 +29,11 @@ run without parsing anything.
 - **One kind of number when evaluating: a double.** `integer` and `number` only matter to
   the checks; the package does not tell `3` from `3.0`.
 - **What cannot be worked out is a failure, not an exception**: a division by zero, or a
-  result of arithmetic that is not below 2^53 in size. The limit is on the value, not on
-  how it is held or declared, so any runtime that works in doubles gives the same answer. `and` and
-  `or` ignore a failed side when the other side settles the answer, whichever side it is.
+  number that is not below 2^53 in size. `and` and `or` ignore a failed side when the other
+  side settles the answer, whichever side it is.
+- **One limit for every number of a condition**: written, a constant, the value of a
+  variable when read, a result. It is on the value, not on how it is held or declared, so
+  any runtime that works in doubles gives the same answer, and nothing rounds in silence.
 - **One comparison, not a chain**: `1 < x < 5` is refused rather than read in a way a
   person does not expect.
 - **Bounded**: 500 characters, 32 levels of nesting.

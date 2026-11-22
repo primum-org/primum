@@ -8,7 +8,7 @@ from uuid import UUID
 import pytest
 
 from primum_core import expressions
-from primum_core.errors import CoreErrorCode
+from primum_core.errors import CoreErrorCode, ParamValue
 from primum_core.expressions import Binary, Failure, Literal, Name, Node, Problem, Unary
 from primum_core.generated.model import ConditionStep
 from primum_core.values import Value
@@ -96,11 +96,11 @@ def test_an_expression_is_read_with_the_usual_precedence(text: str, tree: Node) 
         ("visits < 3)", 11, ")"),
         ("1 < 2 < 3", 7, "<"),
         ("visits && paused", 8, "&"),
+        ("visits < 3, 4", 11, ","),  # a comma that is not between digits
         ("3 visits", 3, "visits"),
         ("and paused", 1, "and"),
         ("not", 4, "end"),
         ('mode == "night', 9, '"'),
-        ("mode == 'night'", 9, "'"),
         ("1.", 2, "."),
         ("9007199254740993 > 1", 1, "9007199254740993"),
         ("f(1)", 2, "("),
@@ -119,6 +119,34 @@ def test_a_single_equals_sign_has_its_own_code(text: str, position: int) -> None
     assert expressions.parse(text) == Problem(
         CoreErrorCode.EXPRESSION_SINGLE_EQUALS, {"position": position}
     )
+
+
+@pytest.mark.parametrize(
+    ("text", "code", "params"),
+    [
+        ("ratio > 1,5", CoreErrorCode.EXPRESSION_DECIMAL_COMMA, {"position": 10}),
+        ("mode == 'night'", CoreErrorCode.EXPRESSION_SINGLE_QUOTES, {"position": 9}),
+        (
+            "visits > 3 AND paused",
+            CoreErrorCode.EXPRESSION_WORD_CASE,
+            {"position": 12, "found": "AND", "word": "and"},
+        ),
+        (
+            "Not paused",
+            CoreErrorCode.EXPRESSION_WORD_CASE,
+            {"position": 1, "found": "Not", "word": "not"},
+        ),
+        (
+            "paused == TRUE",
+            CoreErrorCode.EXPRESSION_WORD_CASE,
+            {"position": 11, "found": "TRUE", "word": "true"},
+        ),
+    ],
+)
+def test_the_likeliest_slips_have_their_own_codes(
+    text: str, code: CoreErrorCode, params: dict[str, ParamValue]
+) -> None:
+    assert expressions.parse(text) == Problem(code, params)
 
 
 @pytest.mark.parametrize(
@@ -292,12 +320,44 @@ def test_a_result_below_the_limit_is_exact_however_the_value_is_held(held: float
     assert _value("ratio + 1 == 9007199254740990", values) is False
 
 
-@pytest.mark.parametrize("held", [2**54, float(2**54), 1e300])
-def test_a_value_beyond_the_limit_compares_but_does_not_count(held: float) -> None:
-    values = {**VALUES, RATIO: held}
+@pytest.mark.parametrize("held", [2**53, 2**60 + 1, float(2**54), -(2**53), 1e300])
+@pytest.mark.parametrize(
+    "text",
+    ["ratio > 5", "ratio % 2 == 1", "ratio - ratio == 0", "ratio == ratio", "ratio / 2 > 5"],
+)
+def test_a_variable_holding_a_number_at_or_past_the_limit_fails_wherever_it_is_read(
+    text: str, held: float
+) -> None:
+    """One rule for every number of a condition: nothing is rounded in silence."""
+    assert _value(text, {**VALUES, RATIO: held}) == Failure("overflow")
 
-    assert _value("ratio > 5", values) is True
-    assert _value("ratio / 2 > 5", values) == Failure("overflow")
+
+def test_a_failed_variable_is_still_ignored_by_a_side_that_settles() -> None:
+    assert _value("paused or ratio > 5", {**VALUES, RATIO: 2**60, PAUSED: True}) is True
+
+
+@pytest.mark.parametrize(
+    ("left", "right", "remainder"),
+    [
+        (7, 3, 1),
+        (-7, 3, 2),
+        (7, -3, -2),
+        (-7, -3, -1),
+        (7.5, 2, 1.5),
+        (-7.5, 2, 0.5),
+        (6, 3, 0),
+        (-6, 3, 0),
+        # The formula of the spec, rounding included: adding the divisor to a remainder this
+        # small gives the divisor itself.
+        (-1e-20, 3, 3),
+    ],
+)
+def test_the_remainder_follows_the_formula_of_the_spec(
+    left: float, right: float, remainder: float
+) -> None:
+    values = {**VALUES, RATIO: left, VISITS: right}
+
+    assert _value(f"ratio % visits == {remainder}", values) is True
 
 
 def test_a_value_no_number_can_hold_is_a_failure_wherever_it_is_used() -> None:
@@ -306,7 +366,14 @@ def test_a_value_no_number_can_hold_is_a_failure_wherever_it_is_used() -> None:
 
 @pytest.mark.parametrize(
     "number",
-    ["9007199254740994.0", "9007199254740993.0", "9007199254740992.5", "9007199254740992.0"],
+    [
+        "9007199254740994.0",
+        "9007199254740993.0",
+        "9007199254740992.5",
+        "9007199254740992.0",
+        "9007199254740991.5",  # below the limit as written, at it once it is a double
+        "9007199254740991.9999",
+    ],
 )
 def test_a_decimal_written_beyond_the_limit_is_refused_like_a_whole_one(number: str) -> None:
     """Judged as written, not after rounding to the nearest double."""

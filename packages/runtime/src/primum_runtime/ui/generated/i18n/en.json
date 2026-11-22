@@ -282,7 +282,7 @@
     },
     "name.reserved": {
       "message": "{name} is a word of conditions and cannot be a name.",
-      "hint": "Choose another name: and, or, not, true and false are reserved."
+      "hint": "Choose another name: and, or, not, true and false are reserved, however they are capitalised."
     },
     "name.unknown": {
       "message": "No constant or variable named {name} is visible here.",
@@ -343,6 +343,18 @@
     "expression.single_equals": {
       "message": "The condition has a single = at position {position}, which does not compare.",
       "hint": "To compare two things write ==, such as: visits == 3."
+    },
+    "expression.single_quotes": {
+      "message": "The condition has a single quote at position {position}: texts go in double quotes.",
+      "hint": "Write the text like this: mode == \"night\"."
+    },
+    "expression.decimal_comma": {
+      "message": "The condition has a comma at position {position}: decimals go after a point.",
+      "hint": "Write the number with a point, such as 1.5."
+    },
+    "expression.word_case": {
+      "message": "In the condition, {found} at position {position} must be written in lower case.",
+      "hint": "Write {word}."
     },
     "expression.too_long": {
       "message": "The condition is longer than {max} characters.",

@@ -71,6 +71,9 @@ All notable changes to this project are documented here. The format follows
   `visits < max_visits and not paused`, with `and`, `or`, `not`, comparisons, arithmetic and
   parentheses. A condition that cannot be read, uses a name it does not see or mixes types
   is explained before deploying. The deployment package carries each condition compiled.
+  Two things that passed before are now errors: an empty `if` (`""`; leave the field out
+  for no condition), and a constant or a variable called `and`, `or`, `not`, `true` or
+  `false`, in any case.
 - `primum build <folder>` compiles a project into its deployment package, one JSON file with
   its own hash: what a board will run. A project with errors is not built.
 - A clip can take a value from a name instead of writing it (`valueOf`): a constant, a

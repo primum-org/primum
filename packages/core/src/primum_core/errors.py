@@ -48,6 +48,9 @@ class CoreErrorCode(StrEnum):
     # A condition (decision 0028): what cannot be read, and what does not fit.
     EXPRESSION_SYNTAX = "expression.syntax"  # position, found
     EXPRESSION_SINGLE_EQUALS = "expression.single_equals"  # position
+    EXPRESSION_DECIMAL_COMMA = "expression.decimal_comma"  # position
+    EXPRESSION_SINGLE_QUOTES = "expression.single_quotes"  # position
+    EXPRESSION_WORD_CASE = "expression.word_case"  # position, found, word
     EXPRESSION_TOO_LONG = "expression.too_long"  # max
     EXPRESSION_TOO_DEEP = "expression.too_deep"  # max
     EXPRESSION_EXPECTED_NUMBER = "expression.expected_number"  # operator

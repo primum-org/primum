@@ -23,7 +23,6 @@ import math
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from fractions import Fraction
 from typing import Protocol
 from uuid import UUID
 
@@ -39,6 +38,7 @@ MAX_LENGTH = 500  # characters, as the schema of an automation says
 MAX_EXACT = 2**53
 
 KEYWORDS = frozenset({"and", "or", "not", "true", "false"})
+DIGITS = "0123456789"
 COMPARISONS = frozenset({"==", "!=", "<", "<=", ">", ">="})
 ORDERINGS = frozenset({"<", "<=", ">", ">="})
 ARITHMETIC = frozenset({"+", "-", "*", "/", "%"})
@@ -174,15 +174,38 @@ def _tokens(text: str) -> list[_Token]:
         match = _TOKEN.match(text, position)
         if match is None or match.end() == position:
             at = position + len(text[position:]) - len(text[position:].lstrip())
-            if text[at] == "=":  # the likeliest slip: to compare is ==
-                params = {"position": at + 1}
-                raise _UnreadableError(Problem(CoreErrorCode.EXPRESSION_SINGLE_EQUALS, params))
-            raise _UnreadableError(_syntax(at + 1, text[at]))
+            raise _UnreadableError(_slip(text, at, tokens) or _syntax(at + 1, text[at]))
         kind = match.lastgroup or ""
-        tokens.append(_Token(kind, match.group(kind), match.start(kind) + 1))
+        found = match.group(kind)
+        if kind == "name" and is_reserved(found) and found not in KEYWORDS:
+            params = {"position": match.start(kind) + 1, "found": found, "word": found.lower()}
+            raise _UnreadableError(Problem(CoreErrorCode.EXPRESSION_WORD_CASE, params))
+        tokens.append(_Token(kind, found, match.start(kind) + 1))
         position = match.end()
     tokens.append(_Token("end", "", len(text) + 1))
     return tokens
+
+
+def _slip(text: str, at: int, before: list[_Token]) -> Problem | None:
+    """The likeliest slips of someone who does not program, each with a code of its own: a
+    single ``=`` to compare, single quotes around a text, a comma for the decimals."""
+    params: dict[str, ParamValue] = {"position": at + 1}
+    if text[at] == "=":
+        return Problem(CoreErrorCode.EXPRESSION_SINGLE_EQUALS, params)
+    if text[at] == "'":
+        return Problem(CoreErrorCode.EXPRESSION_SINGLE_QUOTES, params)
+    after_number = (
+        bool(before) and before[-1].kind == "number" and at > 0 and text[at - 1] in DIGITS
+    )
+    if text[at] == "," and after_number and text[at + 1 : at + 2] in DIGITS and at + 1 < len(text):
+        return Problem(CoreErrorCode.EXPRESSION_DECIMAL_COMMA, params)
+    return None
+
+
+def is_reserved(name: str) -> bool:
+    """Whether a name is a word of the language, in any case: ``True`` would be told apart
+    from ``true`` only by who knows to look."""
+    return name.lower() in KEYWORDS
 
 
 def _syntax(position: int, found: str) -> Problem:
@@ -306,11 +329,12 @@ class _Parser:
         raise self._unexpected()
 
     def _number(self, token: _Token) -> float:
-        # Judged as written: past the limit a double would round it, in silence. And the
-        # limit itself is out, as for a result: its minus could never be worked out.
-        if Fraction(token.text) >= MAX_EXACT:
+        # Judged as the double it becomes (rounding never brings a number back under the
+        # limit). The limit itself is out, as for a result: its minus could not be worked out.
+        number = float(token.text) if "." in token.text else int(token.text)
+        if number >= MAX_EXACT:
             raise _UnreadableError(_syntax(token.position, token.text))
-        return float(token.text) if "." in token.text else int(token.text)
+        return number
 
 
 # --- checking --------------------------------------------------------------------------------
@@ -345,6 +369,8 @@ def _unfit(code: CoreErrorCode, operator: str) -> _UnreadableError:
 
 
 def _type_of(node: Node, types: Mapping[str, str], constants: Mapping[str, Value]) -> str:
+    # Recursive, unlike the walks of names_in and compile_program: a tree is as deep as its
+    # text is long at most, and parse reads nothing longer than MAX_LENGTH.
     match node:
         case Literal(value):
             return _type_of_value(value)
@@ -510,14 +536,14 @@ def evaluate(items: Sequence[Item], values: Mapping[UUID, Value]) -> Value | Fai
 
 def _held(value: Value) -> Value | Failure:
     """A value as it is worked with: every number the same kind (a double), whether it was
-    held as a whole one or not. One that no double holds is a failure."""
+    held as a whole one or not. A number not below 2^53 in size is a failure wherever it is
+    read, like a result: past it a double no longer tells one whole number from the next."""
     if isinstance(value, bool | str):
         return value
     try:
-        held = float(value)
+        return _number(float(value))
     except OverflowError:
         return Failure("overflow")
-    return held if math.isfinite(held) else Failure("overflow")
 
 
 def _unary(operator: str, operand: Value | Failure) -> Value | Failure:
@@ -574,8 +600,17 @@ def _arithmetic(operator: str, left: float, right: float) -> Value | Failure:
         case _:
             if right == 0:
                 return Failure("division_by_zero")
-            # The remainder has the sign of the divisor, as in Python: -7 % 3 is 2.
-            return _number(left / right if operator == "/" else left % right)
+            return _number(left / right if operator == "/" else _remainder(left, right))
+
+
+def _remainder(left: float, right: float) -> float:
+    """``left % right`` as the spec writes it, for any runtime to repeat: the remainder of
+    the division that truncates (C's ``fmod``), moved by one divisor when its sign is not
+    the divisor's. So ``-7 % 3`` is ``2``."""
+    remainder = math.fmod(left, right)
+    if remainder != 0 and (remainder < 0) != (right < 0):
+        remainder += right
+    return remainder
 
 
 def _as_number(value: Value) -> float:
