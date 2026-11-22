@@ -55,6 +55,8 @@ All notable changes to this project are documented here. The format follows
   saying what is wrong, always with exit status 1. The API names elements by their id (`PUT /api/outputs/{id}`) and the
   state gives each its `id` and its `name`; with `--pin` the ids are `led`, `button` and
   `dimmer`, as before. Sequences are not run yet.
+- `primum validate` refuses a PWM output with `activeLow`: its driver cannot invert the
+  output yet, and it would have rested fully on.
 - A file with half a character (an escape like `\ud83d` without its pair) is reported as a
   problem of the file; it used to pass validation and crash the build.
 - `primum build <folder>` compiles a project into its deployment package, one JSON file with

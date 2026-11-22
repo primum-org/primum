@@ -595,3 +595,29 @@ def test_a_project_is_compiled_with_the_drivers_it_was_checked_against(
     project.drivers.clear()
 
     assert compile_package(workspace).value is not None
+
+
+def test_a_pwm_output_wired_active_low_is_refused_until_its_driver_can_do_it(
+    project: Project, ids: Ids
+) -> None:
+    """The PWM driver writes the duty as it is: wired active low, the element would rest
+    fully on. Refused in the project, and in a package made some other way."""
+    _show(_lamp(project, ids), ids, _clip(ids, 21, 0, 1000, "on"))
+    document = _document(project)
+    _lamp(project, ids, activeLow=True)
+
+    assert project.found() == [
+        (
+            CoreErrorCode.SCHEMA_UNEXPECTED_FIELD,
+            {"field": "elements[0].activeLow"},
+            "lamp.hw",
+            "/elements/0/activeLow",
+        )
+    ]
+
+    _first(document, "elements", 2)["activeLow"] = True
+    read = read_package(PATH, _rehashed(document))
+
+    assert [(issue.code, issue.location and issue.location.pointer) for issue in read.issues] == [
+        (CoreErrorCode.SCHEMA_UNEXPECTED_FIELD, "/elements/2/activeLow")
+    ]

@@ -126,6 +126,10 @@
       "message": "{element} is a {type}, and this version of Primum has no driver for that type on this board.",
       "hint": "Use an element type this board has a driver for."
     },
+    "element.active_low_unsupported": {
+      "message": "{element} is a {type} wired active low, which its driver cannot do yet: it would rest fully on.",
+      "hint": "Wire it so that it is on when the pin is high, and remove activeLow."
+    },
     "element.action_unknown": {
       "message": "{element} cannot do {action}.",
       "hint": "It can do: {available}."

@@ -73,6 +73,11 @@ own `elementType` whatever its file is called; two of one type are refused
 | `pwm_output` | `on`, `off`, `set(level)`, `fade(from, to)` | `frequencyHz` (1000), limited by the board | `off` | latest wins |
 | `digital_input` | none | `pull` `up`, `down` or `none` (no default: required); `debounceMs` 0–10000 (20) | | |
 
+A `pwm_output` is never `activeLow`: its driver writes the duty as it is, so wired that way
+it would rest fully on, in panic and in its safe state too. `core` refuses it in a project and
+in a package (`schema.unexpected_field`), and the driver itself with
+`element.active_low_unsupported`, until the HAL can invert a channel.
+
 - A `level`, and the `from` and `to` of a fade, are percentages: 0 to 100, decimals allowed.
 - An input says its `pull`: it has no default, because every default is wrong for some wiring
   and a wrong one reads the input as active at rest. A button to ground is `pull` `up` and

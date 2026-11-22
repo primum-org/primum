@@ -52,7 +52,8 @@ name.
 
 | Object | Case | Needs | Must not have |
 |---|---|---|---|
-| Element | `digital_output`, `digital_input`, `pwm_output` | `pin` | `bus`, `address` |
+| Element | `digital_output`, `digital_input` | `pin` | `bus`, `address` |
+| Element | `pwm_output` | `pin` | `bus`, `address`, `activeLow: true` (its driver writes the duty as it is: wired active low it would rest fully on) |
 | Element | `i2c_device` | `bus`, `address` | `pin`, `activeLow: true` |
 | Event | `source: element` | `element`, `trigger` | |
 | Event | `source: ui` or `api` | | `element`, `trigger` |

@@ -46,7 +46,9 @@ GPIO_ELEMENT = _case(required="pin", unexpected="bus address")
 ELEMENT_CASES: Mapping[str, _Case] = {
     "digital_output": GPIO_ELEMENT,
     "digital_input": GPIO_ELEMENT,
-    "pwm_output": GPIO_ELEMENT,
+    # Never active low: its driver writes the duty as it is, so wired that way the element
+    # would rest fully on, in panic and in its safe state too. Until a driver can invert it.
+    "pwm_output": _case(required="pin", unexpected="bus address activeLow"),
     "i2c_device": _case(required="bus address", unexpected="pin activeLow"),
 }
 EVENT_CASES: Mapping[str, _Case] = {

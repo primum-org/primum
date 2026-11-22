@@ -37,6 +37,7 @@ class ErrorCode(StrEnum):
     HAL_SAFE_STATE_UNVERIFIED = "hal.safe_state_unverified"
     HAL_RELEASE_INCOMPLETE = "hal.release_incomplete"
     ELEMENT_TYPE_UNSUPPORTED = "element.type_unsupported"
+    ELEMENT_ACTIVE_LOW_UNSUPPORTED = "element.active_low_unsupported"
     ELEMENT_ACTION_UNKNOWN = "element.action_unknown"
     ELEMENT_VALUE_UNKNOWN = "element.value_unknown"
     ELEMENT_VALUE_MISSING = "element.value_missing"

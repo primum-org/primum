@@ -139,6 +139,7 @@ startup, where uvicorn would exit with a 3 of its own):
 | `core` refuses it (*Reading one*) | `package.invalid` | `path`; `problems`, the codes of up to five, and `pointers`, where each is, in the same order; the log has them all |
 | No profile for its board | `package.board_unsupported` | `board`, `available` |
 | An element of a type without a driver here | `element.type_unsupported` | `element`, `type` |
+| A `pwm_output` wired active low, should one get past `core` | `element.active_low_unsupported` | `element`, `type` |
 | An option its driver or its board does not take | `element.value_*` ([drivers](drivers.md)) | `element`, `name` |
 | Two elements on one pin | `package.pin_shared` | `pin`, `elements`: the names of the two |
 | A command with an action its element's driver does not have (an input has none) | `element.action_unknown` | `element`, `action`, `available` |

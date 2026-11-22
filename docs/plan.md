@@ -732,6 +732,14 @@ per element, from a deployment package that can be rolled back. One pull request
   the journal giving the code with the names: an altered hash, two elements on one pin, an
   action the driver does not have, a package next to `PRIMUM_PIN`. The page was not opened
   on the board. `image/README.md` says how to run a package there.
+- Found there, measured on GPIO 19 with nothing wired: a `pwm_output` with `activeLow` was
+  accepted by `validate`, written by `build`, accepted by the service, and not carried out:
+  the pin rested low, went high with `set` 100, low with `off` and low after the service
+  stopped. A load wired active low would rest fully on, in panic and in the safe state too,
+  with no warning. The options never gave the dimmer an `activeLow`; the package is the
+  first way it could arrive. Refused now in a project and in a package
+  (`schema.unexpected_field`) and by the driver itself (`element.active_low_unsupported`),
+  until the HAL can invert a channel (sysfs has `polarity`): with the drivers of phase 6.
 - Found there: when it is the HAL that refuses (two pins of one PWM channel), the process
   exited with uvicorn's 3 and not with 1 as the spec said. It is 1 now, for every refusal.
 - From review: `--pin 0` next to a package passed for "not given" (0 equals `False` in

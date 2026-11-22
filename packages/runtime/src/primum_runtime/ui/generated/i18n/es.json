@@ -126,6 +126,10 @@
       "message": "{element} es un {type}, y esta versión de Primum no tiene driver para ese tipo en esta placa.",
       "hint": "Usa un tipo de elemento para el que esta placa tenga driver."
     },
+    "element.active_low_unsupported": {
+      "message": "{element} es un {type} cableado activo a nivel bajo, y su driver aún no puede hacerlo: reposaría totalmente encendido.",
+      "hint": "Cabléalo para que se encienda con el pin a nivel alto, y quita activeLow."
+    },
     "element.action_unknown": {
       "message": "{element} no puede hacer {action}.",
       "hint": "Puede hacer: {available}."
