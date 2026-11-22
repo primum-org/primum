@@ -79,6 +79,9 @@ All notable changes to this project are documented here. The format follows
   automations that wait for it check their condition and start or stop sequences and change
   variables. A counter that is incremented stays within its limits. Panic stops all of it.
   The state lists the events and the automations, with what went wrong in each, if anything.
+- Variables marked `persistent` keep their value across a restart and a power cut: a
+  counter of visits, a brightness set from the phone. They are kept on the board for the
+  project, so a new package of the same project finds them.
 - Schedules run on the board: a time of day ("Monday at 20:30") and a window that opens
   ("Monday to Saturday, 10:00 to 20:30") start their automations, and a board that comes
   back inside a window starts them again. An automation can act only during the windows

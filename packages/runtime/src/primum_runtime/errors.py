@@ -59,6 +59,7 @@ class ErrorCode(StrEnum):
     VARIABLE_UNKNOWN = "variable.unknown"
     VARIABLE_VALUE_INVALID = "variable.value_invalid"
     VARIABLE_VALUE_OUT_OF_RANGE = "variable.value_out_of_range"
+    VARIABLES_UNWRITABLE = "variables.unwritable"
     EVENT_UNKNOWN = "event.unknown"
     EVENT_NOT_FIREABLE = "event.not_fireable"
     EVENT_NOT_LISTENABLE = "event.not_listenable"

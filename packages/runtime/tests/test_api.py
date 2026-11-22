@@ -50,6 +50,7 @@ OFF = {
     "automations": [],
     "schedules": [],
     "timeKnown": False,
+    "variablesUnsaved": False,
 }
 ON = {
     "outputs": [
@@ -72,6 +73,7 @@ ON = {
     "automations": [],
     "schedules": [],
     "timeKnown": False,
+    "variablesUnsaved": False,
 }
 
 

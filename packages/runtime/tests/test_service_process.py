@@ -106,6 +106,7 @@ def test_sigterm_stops_the_service_with_every_output_in_its_safe_state(
         "automations": [],
         "schedules": [],
         "timeKnown": False,
+        "variablesUnsaved": False,
     }
 
     process.send_signal(signal.SIGTERM)

@@ -899,7 +899,8 @@ per element, from a deployment package that can be rolled back. One pull request
   - Left out: the page shows neither events nor automations; an automation cannot be
     enabled or disabled while the package runs; nothing is traced beyond the log (4.5).
 
-- **4.4c · Schedules and the trusted clock: code done; not tried on `primum-dev`**
+- **4.4c · Schedules and the trusted clock: code done; seen in part on `primum-dev` by
+  its owner, before the fixes listed below**
   (decision 0030, `specs/events.md`). A time of day and a window that opens start their
   automations; so does a window that is open when the service starts or when the time
   first comes to be known. Times are in the project's time zone (`timeZone` in
@@ -925,6 +926,38 @@ per element, from a deployment package that can be rolled back. One pull request
     day.
   - Left out: the time from a client for a board that never has Internet; once per window
     across restarts; a window that opened during panic is not caught up with.
+
+- **4.4d · Persistent variables: code done; not tried on `primum-dev`** (decision 0031,
+  `specs/engine-semantics.md`). The values of variables marked `persistent` are kept in
+  `variables.json` in the data directory, for the project, and found when the service
+  starts. A kept value its variable no longer takes gives way to the initial one. A change
+  is written a second later, off the event loop, and on shutdown; a write that fails is
+  told in the state (`variablesUnsaved`) and tried again.
+  - Tried with a temporary directory: the file, the controller, the saver with timers in
+    the test's hand, and a real service stopped and started again on the same directory.
+  - To try on a Pi: a real restart of the service, and a power cut a moment after a change
+    (the last second may be lost; the file must be whole).
+  - On the Pi, by its owner, before the fixes: 31 s after a write failed, with the
+    directory writable again and nothing pending, the state still said `variablesUnsaved`.
+    Found too with the tests' fake loop, not seen on the board: a write under way could
+    land over the one made on closing. Both fixed; the fixes have not been reported as run
+    on the Pi.
+  - Then, also by its owner on the Pi: a `variables.json` of binary garbage kept the
+    service from starting (only texts that were not what they should had been tried). And
+    with the fake loop: a write under way could leave an old value when the variable went
+    back to the kept one and the service stopped. Both fixed; not reported as run again.
+  - Found by the CI of this block, in the simulated HAL and not in the block: a change of
+    an input made from another thread could be queued and never announced (the reader woke
+    between the two), and the one test that waits for it over a WebSocket hung until the
+    job was cancelled. The queue and its announcement are now one step, a test with two
+    threads fails without that, and that wait is bounded.
+  - For 4.5: what was kept is copied to `variables.json.bak` before values that drop some
+    of it replace it; nothing reads the copy yet, and putting a package back must say how
+    its values come back.
+  - For phase 5: nobody sees `variablesUnsaved` but the log and the API; the page does not
+    show it, and the catalog message of `variables.unwritable` only reaches the log.
+  - Left out: a way to reset the variables other than removing the file; "once per window"
+    across restarts, which could use the same file.
 
 **4.5 · Trace, activation and rollback**
 - Execution trace; a package is activated atomically and the previous one can be brought

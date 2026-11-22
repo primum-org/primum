@@ -82,6 +82,7 @@ class VariableStateBody(_Body):
     min: float | None
     max: float | None
     setting: bool
+    persistent: bool  # kept across a restart
 
 
 class StateBody(_Body):
@@ -94,6 +95,8 @@ class StateBody(_Body):
     automations: list[AutomationStateBody]
     schedules: list[ScheduleStateBody]
     timeKnown: bool  # noqa: N815 (until the board knows the time, no schedule happens)
+    # The values of persistent variables could not be kept: a restart would lose changes.
+    variablesUnsaved: bool  # noqa: N815
 
     @classmethod
     def of(cls, state: State) -> "StateBody":
@@ -143,6 +146,7 @@ class StateBody(_Body):
                 min=item.min,
                 max=item.max,
                 setting=item.setting,
+                persistent=item.persistent,
             )
             for item in state.variables
         ]
@@ -159,6 +163,7 @@ class StateBody(_Body):
                 for item in state.schedules
             ],
             timeKnown=state.time_known,
+            variablesUnsaved=state.variables_unsaved,
         )
 
 
