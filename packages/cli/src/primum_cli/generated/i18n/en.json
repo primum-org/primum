@@ -370,7 +370,7 @@
     },
     "expression.constant_too_large": {
       "message": "The constant {name} is too large to use in a condition.",
-      "hint": "Conditions work with numbers up to 9007199254740992: use a smaller value."
+      "hint": "Conditions work with numbers up to 9007199254740991: use a smaller value."
     },
     "expression.not_a_condition": {
       "message": "The condition gives a number or a text, not a yes or a no.",

@@ -34,8 +34,8 @@ from primum_core.values import NUMERIC, Value
 # a bound on what reading and checking an expression costs.
 MAX_DEPTH = 32
 MAX_LENGTH = 500  # characters, as the schema of an automation says
-# Numbers are doubles. Up to this size whole numbers are exact; a result of arithmetic that
-# reaches it is a failure, and a number written beyond it is refused.
+# Numbers are doubles, and below this size whole numbers are exact. One rule everywhere: a
+# number that is written, a constant and a result of arithmetic must all be below it.
 MAX_EXACT = 2**53
 
 KEYWORDS = frozenset({"and", "or", "not", "true", "false"})
@@ -306,8 +306,9 @@ class _Parser:
         raise self._unexpected()
 
     def _number(self, token: _Token) -> float:
-        # Judged as written: beyond the limit a double would round it, in silence.
-        if Fraction(token.text) > MAX_EXACT:
+        # Judged as written: past the limit a double would round it, in silence. And the
+        # limit itself is out, as for a result: its minus could never be worked out.
+        if Fraction(token.text) >= MAX_EXACT:
             raise _UnreadableError(_syntax(token.position, token.text))
         return float(token.text) if "." in token.text else int(token.text)
 
@@ -326,8 +327,8 @@ def check(
     - ``expression.not_comparable``: ``==`` or ``!=`` between things of different kinds;
     - ``expression.division_by_zero``: ``/`` or ``%`` by a zero that is written, or by a
       constant that is one (``constants``: the value of each name that is a constant);
-    - ``expression.constant_too_large``: a constant beyond 2^53, which could not be written
-      as a number either (with its ``name``).
+    - ``expression.constant_too_large``: a constant not below 2^53 in size, which could not
+      be written as a number either (with its ``name``).
 
     The others with the ``operator``. Every name must be in ``types``: one that is not is the
     caller's to report, before asking.
@@ -380,7 +381,7 @@ def _type_of_value(value: Value) -> str:
 
 def _too_large(value: Value | None) -> bool:
     """Whether a constant is a number that could not be written in a condition."""
-    return value is not None and not isinstance(value, bool | str) and abs(value) > MAX_EXACT
+    return value is not None and not isinstance(value, bool | str) and abs(value) >= MAX_EXACT
 
 
 def _is_zero(node: Node, constants: Mapping[str, Value]) -> bool:

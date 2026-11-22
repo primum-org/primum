@@ -256,8 +256,8 @@ def test_a_program_gives_the_value_of_its_expression(text: str, value: Value) ->
         ("limit / (visits - 7) > 1", Failure("division_by_zero")),
         ("limit % (visits - 7) == 1", Failure("division_by_zero")),
         ("not (limit / (visits - 7) > 1)", Failure("division_by_zero")),
-        ("9007199254740992 + visits > 0", Failure("overflow")),
-        ("9007199254740992 * 9007199254740992 > 0", Failure("overflow")),
+        ("9007199254740991 + visits > 0", Failure("overflow")),
+        ("9007199254740991 * 9007199254740991 > 0", Failure("overflow")),
         ("9007199254740991 + 1 > 0", Failure("overflow")),
         ("9007199254740990 + 1 > 0", True),
         # A guard works whichever side it is written on.
@@ -305,7 +305,8 @@ def test_a_value_no_number_can_hold_is_a_failure_wherever_it_is_used() -> None:
 
 
 @pytest.mark.parametrize(
-    "number", ["9007199254740994.0", "9007199254740993.0", "9007199254740992.5"]
+    "number",
+    ["9007199254740994.0", "9007199254740993.0", "9007199254740992.5", "9007199254740992.0"],
 )
 def test_a_decimal_written_beyond_the_limit_is_refused_like_a_whole_one(number: str) -> None:
     """Judged as written, not after rounding to the nearest double."""
@@ -314,12 +315,21 @@ def test_a_decimal_written_beyond_the_limit_is_refused_like_a_whole_one(number: 
     )
 
 
-def test_the_limit_itself_can_be_written() -> None:
-    assert _tree("ratio < 9007199254740992.0") == Binary("<", Name("ratio"), Literal(float(2**53)))
+def test_the_limit_itself_cannot_be_written_since_no_result_reaches_it() -> None:
+    """One rule for what is written and what is worked out: below 2^53. Its negative would
+    otherwise validate and then fail every time."""
+    assert expressions.parse("visits > -9007199254740992") == Problem(
+        CoreErrorCode.EXPRESSION_SYNTAX, {"position": 11, "found": "9007199254740992"}
+    )
+
+
+@pytest.mark.parametrize("text", ["visits > -9007199254740991", "visits < 9007199254740991.0"])
+def test_the_largest_number_that_can_be_written_works_with_its_minus(text: str) -> None:
+    assert isinstance(_value(text), bool)
 
 
 @pytest.mark.parametrize("text", ["visits + huge > 1", "visits < huge", "huge == visits"])
-@pytest.mark.parametrize("value", [10**30, 1e30, -(2**53) - 2])
+@pytest.mark.parametrize("value", [10**30, 1e30, -(2**53) - 2, 2**53, -float(2**53)])
 def test_a_constant_too_large_to_write_is_refused_like_the_number(text: str, value: float) -> None:
     types = {**TYPES, "huge": "number"}
 
@@ -328,10 +338,13 @@ def test_a_constant_too_large_to_write_is_refused_like_the_number(text: str, val
     )
 
 
-def test_a_constant_at_the_limit_is_taken() -> None:
+def test_the_largest_constant_is_taken_and_works_with_its_minus() -> None:
     types = {**TYPES, "huge": "integer"}
+    bindings: dict[str, Value | UUID] = {**IDS, "huge": 2**53 - 1}
 
-    assert expressions.check(_tree("visits < huge"), types, {"huge": 2**53}) == "boolean"
+    assert expressions.check(_tree("visits > -huge"), types, {"huge": 2**53 - 1}) == "boolean"
+    program = _steps(expressions.compile_program(_tree("visits > -huge"), bindings))
+    assert expressions.evaluate(program, VALUES) is True
 
 
 def test_decimals_that_overflow_are_a_failure() -> None:
