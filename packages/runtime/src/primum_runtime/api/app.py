@@ -134,5 +134,12 @@ def _read_inputs(loop: asyncio.AbstractEventLoop, events_fd: int, controller: Co
 
 def _describe(controller: Controller) -> str:
     return ",".join(
-        f"{output.name}:{'on' if output.on else 'off'}" for output in controller.state().outputs
+        f"{_named(output.name, output.id)}:{'on' if output.on else 'off'}"
+        for output in controller.state().outputs
     )
+
+
+def _named(name: str, id_: str) -> str:
+    """An element in a log: its name, and its id when it has one of its own, since two
+    elements of a package may share a name."""
+    return name if id_ == name else f"{name} ({id_})"

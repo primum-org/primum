@@ -37,7 +37,7 @@ from primum_runtime.board import (
 )
 from primum_runtime.drivers import ElementConfig, OptionLimits, load_manifests
 from primum_runtime.hal import BoardGpio, Pull
-from primum_runtime.package import load_package
+from primum_runtime.package import load_package, refuse, wiring_problems
 
 LED = "led"
 BUTTON = "button"
@@ -111,6 +111,9 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
         if pwm_frequency_hz is not None:
             frequency["frequencyHz"] = pwm_frequency_hz
         elements.append(ElementConfig(DIMMER, "pwm_output", pwm_pin, False, frequency))
+    # Wired as the board allows, by the rules a package's elements are held to: a reserved
+    # pin is refused here, since the HAL knows nothing of them.
+    refuse(wiring_problems(elements, board))
     host: str = args.host
     port: int = args.port
     return RuntimeConfig(

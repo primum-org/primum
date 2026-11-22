@@ -740,6 +740,13 @@ per element, from a deployment package that can be rolled back. One pull request
   first way it could arrive. Refused now in a project and in a package
   (`schema.unexpected_field`) and by the driver itself (`element.active_low_unsupported`),
   until the HAL can invert a channel (sysfs has `polarity`): with the drivers of phase 6.
+- Found there: a package with its sensor on GPIO 0 (reserved: the EEPROM of a HAT) started
+  and claimed the line. The spec said the HAL refuses reserved pins, and nobody in the
+  runtime read them; `--pin 0` had the same hole. The wiring of a package's elements, and of
+  those told of by options, is checked by `core`'s rules for a project
+  (`element.wiring_refused`, with `core`'s code), which also replaces the check of two
+  elements on one pin. Every problem of a package is logged, not only the first; errors
+  about its elements carry their id.
 - Found there: when it is the HAL that refuses (two pins of one PWM channel), the process
   exited with uvicorn's 3 and not with 1 as the spec said. It is 1 now, for every refusal.
 - From review: `--pin 0` next to a package passed for "not given" (0 equals `False` in

@@ -141,12 +141,17 @@ startup, where uvicorn would exit with a 3 of its own):
 | An element of a type without a driver here | `element.type_unsupported` | `element`, `type` |
 | A `pwm_output` wired active low, should one get past `core` | `element.active_low_unsupported` | `element`, `type` |
 | An option its driver or its board does not take | `element.value_*` ([drivers](drivers.md)) | `element`, `name` |
-| Two elements on one pin | `package.pin_shared` | `pin`, `elements`: the names of the two |
+| An element wired as the board does not allow, by the rules `core` checks a project with: a pin the board lacks, reserves or gives to a bus, two elements on one pin, a PWM output where the board has no hardware PWM or on a channel another has | `element.wiring_refused` | `element`, `pin`, `problem` (`core`'s code: `pin.reserved`, `pin.in_use`…), `other` when another element is in the way |
 | A command with an action its element's driver does not have (an input has none) | `element.action_unknown` | `element`, `action`, `available` |
 | An argument the action does not take as written | `element.value_*` | `element`, `name` |
 | An argument read from a variable of another type, not limited within the parameter's limits, or for a parameter with choices | `element.variable_unfit` | `element`, `action`, `name`, `variable` |
 | An argument read from a variable for a number that nothing limits, as a written one | `element.value_unlimited` | `element`, `name` |
-| A pin the board lacks or reserves, a PWM channel two pins share | the HAL's, at the claim (`hal.pin_*`, `hal.pwm_*`): the last word, by the pin alone | |
+| A line the kernel will not give (another program holds it), a PWM controller that is missing | the HAL's, at the claim (`hal.*`), by the pin alone. The HAL knows nothing of reserved pins: it is the last word, not the check | |
+
+Everything wrong is found and logged, not only the first thing; the first is the error the
+service ends with. An error about an element of a package carries its `id` next to its name
+(`element`): two elements may share a name. The same wiring rules hold for elements told of
+by options (`--pin 0` is refused: GPIO 0 is reserved).
 
 Elements are then asked for by their id: the state gives each output and input its `id` and
 its `name`, and a command goes to `PUT /api/outputs/{id}`. The service drives them as it

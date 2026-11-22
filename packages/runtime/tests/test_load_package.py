@@ -13,13 +13,13 @@ from primum_core.compiler import compile_package
 from primum_core.formats import read_driver
 from primum_core.package import package_hash
 from primum_core.workspace import load_workspace
-from primum_runtime.api import create_app
+from primum_runtime.api import app, create_app
 from primum_runtime.board import load_board, load_profile
 from primum_runtime.cli import EXIT_FAILED, main
 from primum_runtime.config import parse_config
 from primum_runtime.drivers import ElementConfig, load_manifests
 from primum_runtime.errors import ErrorCode, PrimumError
-from primum_runtime.hal import SimulatedHal
+from primum_runtime.hal import BoardGpio, Claim, SimulatedHal
 from primum_runtime.package import load_package
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -135,7 +135,7 @@ def test_an_element_of_a_type_without_a_driver_is_refused(tmp_path: Path) -> Non
 
     assert (error.code, dict(error.params)) == (
         ErrorCode.ELEMENT_TYPE_UNSUPPORTED,
-        {"element": "Sign relay", "type": "servo"},
+        {"element": "Sign relay", "type": "servo", "id": RELAY},
     )
 
 
@@ -213,7 +213,13 @@ def test_a_variable_that_may_not_fit_the_parameter_it_is_read_for_is_refused(
 
     assert (error.code, dict(error.params)) == (
         ErrorCode.ELEMENT_VARIABLE_UNFIT,
-        {"element": "Window LED", "action": "fade", "name": "to", "variable": "brightness"},
+        {
+            "element": "Window LED",
+            "action": "fade",
+            "name": "to",
+            "variable": "brightness",
+            "id": LED,
+        },
     )
 
 
@@ -314,24 +320,21 @@ def test_an_output_of_a_package_is_commanded_by_its_id_on_its_pin(tmp_path: Path
         assert (by_name.status_code, by_name.json()["code"]) == (404, "output.unknown")
 
 
+class _BusyHal(SimulatedHal):
+    """A board where another program holds a line: only the kernel knows, at the claim."""
+
+    def claim(self, claim: Claim) -> None:
+        raise PrimumError(ErrorCode.HAL_REQUEST_FAILED, {"pins": (27,), "detail": "busy"})
+
+
 def test_the_hal_still_refuses_what_only_it_can_tell_and_nothing_is_claimed(
     tmp_path: Path,
 ) -> None:
-    """GPIO 12 and 18 are two pins of one PWM channel: no two elements share a pin, and the
-    board cannot drive both."""
-
-    def same_channel(document: Document) -> None:
-        _inside(document, "elements", 0).update(type="pwm_output", pin=12, activeLow=False)
-        _inside(document, "elements", 0)["config"] = [{"name": "frequencyHz", "value": 500}]
-        commands = cast("list[Document]", document["sequences"])
-        for sequence in commands:
-            sequence["commands"] = []
-
-    hal = SimulatedHal(load_board("rpi4b"))
-    with pytest.raises(PrimumError) as refused, _client(tmp_path, hal, same_channel):
+    hal = _BusyHal(load_board("rpi4b"))
+    with pytest.raises(PrimumError) as refused, _client(tmp_path, hal):
         pass
 
-    assert refused.value.code is ErrorCode.HAL_PWM_CHANNEL_IN_USE
+    assert refused.value.code is ErrorCode.HAL_REQUEST_FAILED
     assert not hal.lines
     assert not hal.pwm_lines
 
@@ -357,8 +360,86 @@ def test_two_elements_on_one_pin_are_refused_by_name_before_the_hal_is_asked(
     error = _refused(tmp_path, same_pin)
 
     assert (error.code, dict(error.params)) == (
-        ErrorCode.PACKAGE_PIN_SHARED,
-        {"pin": 27, "elements": ("Sign relay", "Presence sensor")},
+        ErrorCode.ELEMENT_WIRING_REFUSED,
+        {
+            "element": "Presence sensor",
+            "id": SENSOR,
+            "pin": 27,
+            "problem": "pin.in_use",
+            "other": "Sign relay",
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    ("element", "change", "problem"),
+    [
+        (2, {"pin": 0}, "pin.reserved"),  # the EEPROM of a HAT: the HAL would hand it over
+        (2, {"pin": 99}, "pin.not_on_board"),
+        (1, {"pin": 17}, "pin.function_unavailable"),  # no hardware PWM there
+    ],
+)
+def test_an_element_wired_as_the_board_does_not_allow_is_refused(
+    tmp_path: Path, element: int, change: Document, problem: str
+) -> None:
+    """By the rules ``core`` checks a project with: a package is not trusted to have been
+    built from one that passed them."""
+    error = _refused(tmp_path, lambda d: _inside(d, "elements", element).update(change))
+
+    assert (error.code, error.params["problem"], error.params["pin"]) == (
+        ErrorCode.ELEMENT_WIRING_REFUSED,
+        problem,
+        change["pin"],
+    )
+
+
+def test_two_pwm_outputs_on_one_channel_are_refused_naming_the_other(tmp_path: Path) -> None:
+    def same_channel(document: Document) -> None:
+        _inside(document, "elements", 0).update(type="pwm_output", pin=12, activeLow=False)
+        _inside(document, "elements", 0)["config"] = [{"name": "frequencyHz", "value": 500}]
+        for sequence in cast("list[Document]", document["sequences"]):
+            sequence["commands"] = []
+
+    error = _refused(tmp_path, same_channel)
+
+    assert (error.code, error.params["problem"], error.params["other"]) == (
+        ErrorCode.ELEMENT_WIRING_REFUSED,
+        "pwm.channel_in_use",
+        "Sign relay",
+    )
+
+
+def test_everything_wrong_with_a_package_is_logged_and_the_first_is_raised(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    def several(document: Document) -> None:
+        _inside(document, "elements", 2)["pin"] = 0
+        _welcome_fade(document).update(action="blink")
+        _inside(document, "elements", 1, "config", 0)["value"] = 200_000
+
+    error = _refused(tmp_path, several)
+
+    assert error.code is ErrorCode.ELEMENT_VALUE_OUT_OF_RANGE  # the first found
+    refused = [record.getMessage() for record in caplog.records if "refused" in record.message]
+    assert [message.split()[1] for message in refused] == [
+        "element.value_out_of_range",
+        "element.wiring_refused",
+    ]
+
+
+def test_an_error_about_an_element_says_its_id_since_a_name_may_be_shared(
+    tmp_path: Path,
+) -> None:
+    def twins(document: Document) -> None:
+        _inside(document, "elements", 1)["name"] = "Sign relay"
+        _welcome_fade(document).update(action="blink")
+
+    error = _refused(tmp_path, twins)
+
+    assert (error.code, error.params["element"], error.params["id"]) == (
+        ErrorCode.ELEMENT_ACTION_UNKNOWN,
+        "Sign relay",
+        LED,
     )
 
 
@@ -397,21 +478,18 @@ def test_a_variable_for_a_number_that_nothing_limits_is_refused_as_a_written_one
 
 
 def test_a_package_the_hal_refuses_ends_the_service_as_any_other_refusal_does(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Refused at the claim, inside the server's startup, where uvicorn exits on its own with
     a status of its own (3): the service gives the same status as for a package refused
     before it, so that whoever supervises it has one to tell "cannot run this" by."""
 
-    def same_channel(document: Document) -> None:
-        _inside(document, "elements", 0).update(type="pwm_output", pin=12, activeLow=False)
-        _inside(document, "elements", 0)["config"] = [{"name": "frequencyHz", "value": 500}]
-        for sequence in cast("list[Document]", document["sequences"]):
-            sequence["commands"] = []
+    def busy(*, simulate: bool, board: BoardGpio) -> SimulatedHal:
+        return _BusyHal(board)
 
-    path = _written(tmp_path, same_channel)
+    monkeypatch.setattr(app, "create_hal", busy)
 
-    status = main(["--simulate", "--package", str(path), "--port", "0"])
+    status = main(["--simulate", "--package", str(_written(tmp_path)), "--port", "0"])
 
     assert status == EXIT_FAILED
-    assert "hal.pwm_channel_in_use" in caplog.text
+    assert "hal.request_failed" in caplog.text

@@ -130,6 +130,10 @@
       "message": "{element} is a {type} wired active low, which its driver cannot do yet: it would rest fully on.",
       "hint": "Wire it so that it is on when the pin is high, and remove activeLow."
     },
+    "element.wiring_refused": {
+      "message": "{element} cannot be on GPIO {pin} of this board ({problem}).",
+      "hint": "Run primum validate on the project: it explains it. Then build the package again."
+    },
     "element.action_unknown": {
       "message": "{element} cannot do {action}.",
       "hint": "It can do: {available}."
@@ -174,10 +178,6 @@
       "message": "The package is for a board {board}, and this version of Primum has no profile for it.",
       "hint": "Boards with a profile: {available}."
     },
-    "package.pin_shared": {
-      "message": "{elements} are both on GPIO {pin}.",
-      "hint": "Each element needs a pin of its own: change one in the project and build the package again."
-    },
     "safe.declaration_unwritable": {
       "message": "Primum cannot write down which outputs it is about to use, so it will not use them.",
       "hint": "Check that its data directory exists and that Primum may write in it."
@@ -191,7 +191,7 @@
       "hint": "A test lasts from {min_ms} to {max_ms} ms."
     },
     "output.unknown": {
-      "message": "There is no output called {name}.",
+      "message": "There is no output {name}.",
       "hint": "Reload the page to see the current outputs."
     },
     "panic.active": {

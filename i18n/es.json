@@ -130,6 +130,10 @@
       "message": "{element} es un {type} cableado activo a nivel bajo, y su driver aún no puede hacerlo: reposaría totalmente encendido.",
       "hint": "Cabléalo para que se encienda con el pin a nivel alto, y quita activeLow."
     },
+    "element.wiring_refused": {
+      "message": "{element} no puede estar en el GPIO {pin} de esta placa ({problem}).",
+      "hint": "Ejecuta primum validate sobre el proyecto: lo explica. Después vuelve a construir el paquete."
+    },
     "element.action_unknown": {
       "message": "{element} no puede hacer {action}.",
       "hint": "Puede hacer: {available}."
@@ -174,10 +178,6 @@
       "message": "El paquete es para una placa {board}, y esta versión de Primum no tiene perfil para ella.",
       "hint": "Placas con perfil: {available}."
     },
-    "package.pin_shared": {
-      "message": "{elements} están los dos en el GPIO {pin}.",
-      "hint": "Cada elemento necesita su propio pin: cambia uno en el proyecto y vuelve a construir el paquete."
-    },
     "safe.declaration_unwritable": {
       "message": "Primum no puede dejar anotadas las salidas que va a usar, así que no las usará.",
       "hint": "Comprueba que su directorio de datos existe y que Primum puede escribir en él."
@@ -191,7 +191,7 @@
       "hint": "Una prueba dura de {min_ms} a {max_ms} ms."
     },
     "output.unknown": {
-      "message": "No hay ninguna salida llamada {name}.",
+      "message": "No hay ninguna salida {name}.",
       "hint": "Recarga la página para ver las salidas actuales."
     },
     "panic.active": {

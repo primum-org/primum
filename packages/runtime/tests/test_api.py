@@ -3,6 +3,7 @@
 import socket
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from primum_runtime.api import create_app
 from primum_runtime.board import load_board
 from primum_runtime.config import BUTTON, DIMMER, LED, RuntimeConfig, parse_config
 from primum_runtime.declared import Declaration
+from primum_runtime.drivers import ElementConfig
 from primum_runtime.errors import PrimumError
 from primum_runtime.hal import Claim, OutputSpec, PwmSpec, SimulatedHal
 
@@ -316,7 +318,9 @@ def test_a_service_that_cannot_declare_its_outputs_does_not_claim_them(
 def test_a_claim_that_fails_leaves_nothing_declared(tmp_path: Path) -> None:
     """Nothing was claimed, so there is nothing for primum-safe to make safe: a declaration
     left behind would name a pin the board may not even have."""
-    config = parse_config(["--pin", "99", "--data-dir", str(tmp_path)], {})
+    # The configuration refuses such a pin by now; a claim may still fail on its own (a line
+    # another program holds), and this is what it must leave behind.
+    config = replace(_real(tmp_path), elements=(ElementConfig("led", "digital_output", 99, False),))
     hal = SimulatedHal(BOARD)
 
     with pytest.raises(PrimumError) as raised, TestClient(create_app(config, lambda: hal, {})):

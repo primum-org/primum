@@ -12,6 +12,7 @@ from primum_runtime.config import (
     parse_config,
 )
 from primum_runtime.drivers import ElementConfig
+from primum_runtime.errors import ErrorCode, PrimumError
 
 
 def test_options_build_the_configuration_with_defaults() -> None:
@@ -158,3 +159,26 @@ def test_the_pwm_output_comes_from_the_environment_too_with_its_frequency() -> N
 def test_a_frequency_without_a_pwm_output_exits_instead_of_being_ignored() -> None:
     with pytest.raises(SystemExit):
         parse_config(["--pin", "17", "--pwm-frequency-hz", "1000"], {})
+
+
+@pytest.mark.parametrize(
+    ("options", "problem"),
+    [
+        (["--pin", "0"], "pin.reserved"),
+        (["--pin", "99"], "pin.not_on_board"),
+        (["--pin", "17", "--pwm-pin", "17"], "pin.in_use"),
+        (["--pin", "17", "--pwm-pin", "27"], "pin.function_unavailable"),
+    ],
+)
+def test_elements_wired_as_the_board_does_not_allow_are_refused(
+    options: list[str], problem: str
+) -> None:
+    """A reserved pin among them (GPIO 0 is the EEPROM of a HAT): the HAL knows nothing of
+    those and would claim it."""
+    with pytest.raises(PrimumError) as refused:
+        parse_config(["--simulate", *options], {})
+
+    assert (refused.value.code, refused.value.params["problem"]) == (
+        ErrorCode.ELEMENT_WIRING_REFUSED,
+        problem,
+    )
