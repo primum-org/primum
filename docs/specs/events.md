@@ -221,6 +221,5 @@ running:
 - Once per window across restarts: it would need something kept on disk.
 - A window that opened during panic is not caught up with when panic is released.
 - Variables marked `persistent` kept across a restart: block 4.4d.
-- An execution trace of what each event started: block 4.5. Until then, the log.
 - The page of the runtime shows neither events nor automations (the UI of phase 5).
 - An automation cannot be enabled or disabled while the package runs.

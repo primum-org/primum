@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from primum_runtime.control import State
 from primum_runtime.errors import ErrorParam
+from primum_runtime.trace import Entry, Trace
 
 
 class _Body(BaseModel):
@@ -165,6 +166,44 @@ class StateBody(_Body):
             timeKnown=state.time_known,
             variablesUnsaved=state.variables_unsaved,
         )
+
+
+class TraceEntryBody(_Body):
+    """One thing the board did: a ``kind`` and its ``params``, as an error is a code and
+    its params. ``cause`` is the number of the entry that led to it, if one did."""
+
+    number: int
+    atMs: int  # noqa: N815 (since the service started, on the clock that never jumps)
+    time: str | None  # the time of day (ISO 8601, UTC), when the board knows it
+    kind: str
+    params: dict[str, ErrorParam]
+    cause: int | None
+
+    @classmethod
+    def of(cls, entry: Entry) -> "TraceEntryBody":
+        return cls(
+            number=entry.number,
+            atMs=entry.at_ms,
+            time=None if entry.time is None else entry.time.isoformat(),
+            kind=entry.kind,
+            params=dict(entry.params),
+            cause=entry.cause,
+        )
+
+
+class TraceBody(_Body):
+    """The entries asked for, oldest first. ``first`` is the oldest entry still kept and
+    ``last`` the newest ever noted: asked for entries after one that is below ``first`` less
+    one, some were noted and are gone."""
+
+    entries: list[TraceEntryBody]
+    first: int
+    last: int
+
+    @classmethod
+    def of(cls, trace: Trace, after: int) -> "TraceBody":
+        entries = [TraceEntryBody.of(entry) for entry in trace.entries(after)]
+        return cls(entries=entries, first=trace.first, last=trace.last)
 
 
 class ErrorBody(_Body):

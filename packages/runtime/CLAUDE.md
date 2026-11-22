@@ -30,6 +30,9 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   directory, for one project. The controller starts from them (`kept`) and never touches the
   disk; `api.saving.VariableSaver` writes a second after a change, off the event loop, and
   on shutdown.
+- The controller notes what it decides in `Controller.trace` (decision 0032,
+  `primum_runtime.trace`): a kind and params, never text, and the entry that led to it. A
+  new kind of decision adds its entry, and its row in `docs/specs/trace.md`.
 - Elements are driven through drivers (`primum_runtime.drivers`, decision 0019): one per
   element type, made from the element, its manifest (`drivers/`) and the limits of its board.
   The HAL's specs have no defaults: a driver gives every option. A new driver comes with its

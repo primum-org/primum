@@ -962,6 +962,16 @@ per element, from a deployment package that can be rolled back. One pull request
 **4.5 · Trace, activation and rollback**
 - Execution trace; a package is activated atomically and the previous one can be brought
   back.
+  In two blocks: 4.5a the trace, 4.5b activation and rollback.
+- **4.5a · Trace: code done; not tried on `primum-dev`** (decision 0032, `specs/trace.md`).
+  The controller notes what it decides: events, what each automation did and why,
+  sequences started, stopped and ended, variables, what a person commanded, panic; each
+  with the entry that led to it. The last 1000, in memory. `GET /api/trace?after=n` and
+  the WebSocket `/api/trace/ws`.
+  - Tried on the simulated HAL only, a real service with both routes included.
+  - Left for phase 5: texts for the kinds, and a page that shows it. Left out: a trace
+    kept across restarts; a restart of a sequence in the very millisecond it started is
+    not noted.
 
 **Done when:** "presence sensor → 10 s sequence with relay, LED and PWM output" runs from a
 deployed package, shows in the trace and can be rolled back. A servo, an exclusive element

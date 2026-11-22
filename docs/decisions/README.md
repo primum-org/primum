@@ -39,6 +39,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0029](0029-automations-judge-on-one-set-of-values-then-act.md) | Automations judge on one set of values, then act; inputs declare what they tell | Accepted |
 | [0030](0030-schedules-read-a-trusted-clock-in-the-projects-time-zone.md) | Schedules read a trusted clock, in the project's time zone, once a minute | Accepted |
 | [0031](0031-persistent-variables-are-kept-per-project-and-written-in-batches.md) | Persistent variables are kept per project, and written a moment after they change | Accepted |
+| [0032](0032-the-trace-is-decisions-in-memory-with-their-cause.md) | The trace is decisions, kept in memory, each with what led to it | Accepted |
 
 ## Template
 
