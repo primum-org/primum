@@ -26,8 +26,9 @@ Variables are the package's, at their initial values when the service starts. A 
 to one (``set_variable``) is of its type and within its limits, or it is refused: commands
 that read a variable count on that.
 
-An output is only written when what it should be at changes. One that cannot be taken there
-does not stop the others, whatever it raises: it is logged once, its state says so
+An output is only written when what it should be at changes. One that cannot be taken
+there, or whose command cannot even be worked out (a value its driver refuses), does not
+stop the others, whatever it raises: it is logged once, its state says so
 (``rest_failed``), and it is tried again every ``RETRY_REST_S`` until it gets there.
 
 Time is a monotonic clock the controller is given. Whoever owns the event loop calls
@@ -37,7 +38,9 @@ listened to: ``read_inputs`` takes their changes from the HAL. Listeners are tol
 ``State`` after every change; they must not block.
 """
 
+import contextlib
 import logging
+import math
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -337,7 +340,8 @@ class Controller:
         """Give a variable of the package a value, by its id.
 
         Fails, changing nothing, with ``variable.unknown`` (``id``; also with no package),
-        ``variable.value_invalid`` (``name``, ``type``) for a value of another type, and
+        ``variable.value_invalid`` (``name``, ``type``) for a value of another type, or one
+        that is no number (NaN, an infinity), and
         ``variable.value_out_of_range`` (``name``, ``value``, and the ``min`` and ``max`` it
         has) for a number outside its limits. A command that already commands its output
         keeps the value it read; the next one to start reads the new one.
@@ -348,7 +352,10 @@ class Controller:
             found = None
         if found is None:
             raise PrimumError(ErrorCode.VARIABLE_UNKNOWN, {"id": variable})
-        if not fits(value, found.type):
+        # NaN and the infinities are no values: NaN is neither under a minimum nor over a
+        # maximum, so it would pass the limits and fail every command that read it.
+        finite = not isinstance(value, float) or math.isfinite(value)
+        if not fits(value, found.type) or not finite:
             params = {"name": found.name, "type": found.type}
             raise PrimumError(ErrorCode.VARIABLE_VALUE_INVALID, params)
         if found.type in NUMERIC and not isinstance(value, bool | str):
@@ -530,7 +537,12 @@ class Controller:
             return
         for key in self._outputs:
             asked = self._asked(key, now)
-            if asked is not None:
+            if asked is None:
+                continue
+            # If what this output is asked cannot be worked out (a value its driver refuses),
+            # ``_settle`` finds the same, logs it, says so in the state and tries again: here
+            # it must only not keep the other outputs from being settled.
+            with contextlib.suppress(Exception):
                 self._motion_of(key, asked)
         runs = {(run.sequence, run.started_ms) for run in self._engine.running(_ms(now))}
         self._motions = {
@@ -548,7 +560,10 @@ class Controller:
             asked = None if key in self._held else self._asked(key, now)
             if asked is None or asked.settled:
                 continue
-            motion = self._motion_of(key, asked)
+            try:
+                motion = self._motion_of(key, asked)
+            except Exception:  # noqa: S112 (an output that cannot be worked out moves nothing)
+                continue  # ``_settle`` says so; the timer must still be told when to come
             if motion.start is not None and motion.start != motion.end:
                 moving.add(key)
         return frozenset(moving)

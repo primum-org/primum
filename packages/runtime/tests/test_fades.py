@@ -1,13 +1,15 @@
 """Fades moved in time and variables read while running, on the show of ``show_service``: the
 simulated board, a clock moved by hand."""
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from primum_runtime.control import FADE_STEP_S, FADE_TOLD_S
+from primum_core.values import Value
+from primum_runtime.control import FADE_STEP_S, FADE_TOLD_S, RETRY_REST_S
+from primum_runtime.drivers import PwmOutputDriver
 from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.hal import SimulatedHal
 from show_service import (
@@ -16,8 +18,10 @@ from show_service import (
     GLOW,
     LAMP,
     LAMP_PIN,
+    LED,
     ON,
     RISE,
+    SPEED,
     UNKNOWN,
     Service,
     running,
@@ -221,7 +225,7 @@ def test_a_variable_is_set_over_the_api(client: tuple[TestClient, SimulatedHal])
     response = api.put(f"/api/variables/{BRIGHTNESS}", json={"value": 30})
 
     assert response.status_code == 200
-    assert response.json()["variables"] == [
+    assert response.json()["variables"][:1] == [
         {
             "id": BRIGHTNESS,
             "name": "brightness",
@@ -246,3 +250,85 @@ def test_a_value_a_variable_cannot_hold_is_a_422_and_one_that_is_not_there_a_404
     assert (too_much.status_code, too_much.json()["code"]) == (422, "variable.value_out_of_range")
     assert (wrong.status_code, wrong.json()["code"]) == (422, "variable.value_invalid")
     assert (nothing.status_code, nothing.json()["code"]) == (404, "variable.unknown")
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_a_value_that_is_no_number_is_refused(service: Service, value: float) -> None:
+    """NaN is neither under a minimum nor over a maximum: it passed the limits, and every
+    command that then read the variable failed."""
+    with pytest.raises(PrimumError) as refused:
+        service.controller.set_variable(SPEED, value)
+
+    assert (refused.value.code, dict(refused.value.params)) == (
+        ErrorCode.VARIABLE_VALUE_INVALID,
+        {"name": "speed", "type": "number"},
+    )
+    assert service.controller.state().variables[1].value == 1.5
+
+
+def test_a_value_that_is_no_number_is_a_422_over_the_api(
+    client: tuple[TestClient, SimulatedHal],
+) -> None:
+    api, _ = client
+
+    for written in ("NaN", "Infinity", "-Infinity"):
+        response = api.put(
+            f"/api/variables/{SPEED}",
+            content='{"value": ' + written + "}",
+            headers={"Content-Type": "application/json"},
+        )
+        assert (response.status_code, response.json()["code"]) == (
+            422,
+            "variable.value_invalid",
+        ), written
+
+
+def _break_fades_of_the_lamp(monkeypatch: pytest.MonkeyPatch) -> None:
+    """From now on what a fade asks of a PWM output cannot be worked out, as when a value it
+    reads is one its driver refuses."""
+    level_for = PwmOutputDriver.level_for
+
+    def refusing(
+        driver: PwmOutputDriver, action: str, arguments: Mapping[str, Value] | None = None
+    ) -> float:
+        if action == "fade":
+            raise PrimumError(ErrorCode.ELEMENT_VALUE_OUT_OF_RANGE, {"element": driver.name})
+        return level_for(driver, action, arguments)
+
+    monkeypatch.setattr(PwmOutputDriver, "level_for", refusing)
+
+
+def test_a_command_that_cannot_be_worked_out_does_not_stop_the_other_outputs(
+    service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """What a sequence asks of the lamp fails to be worked out: the lamp says it is not
+    where it should be, and everything else goes on: the sequence starts, a test of the LED
+    expires, the LED is released, the timer is told when to come back."""
+    _break_fades_of_the_lamp(monkeypatch)
+
+    service.controller.start_sequence(RISE)
+    failed = {output.id: output.rest_failed for output in service.controller.state().outputs}
+    service.controller.command(LED, "on", duration_ms=1000)
+    waiting = service.controller.next_expiry_s()
+    service.after(1)
+    expired = service.led
+    service.controller.command(LED, "on")
+    service.controller.release(LED)
+
+    assert failed == {LED: False, LAMP: True}
+    assert waiting == pytest.approx(1.0)
+    assert (expired, service.led) == (False, False)
+    assert service.running() == ["Rise"]
+
+
+def test_an_output_whose_command_can_be_worked_out_again_gets_there(
+    service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with monkeypatch.context() as broken:
+        _break_fades_of_the_lamp(broken)
+        service.controller.start_sequence(RISE)
+
+    service.after(RETRY_REST_S)
+
+    assert _lamp(service) == 60  # the fade is over by now: where it ends
+    assert not service.controller.state().outputs[1].rest_failed

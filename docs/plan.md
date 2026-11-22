@@ -813,6 +813,15 @@ per element, from a deployment package that can be rolled back. One pull request
   the board: nothing was run. To see there: whether 50 steps a second look smooth on a real
   LED, what a step costs (each is a write and a read-back through sysfs), and the cost per
   change after indexing.
+- From review, reproduced there with the simulated service and its real timer: `NaN` set to
+  a variable passed its limits (it is neither under a minimum nor over a maximum), and every
+  command that then read it failed outside the `try` that protects the other outputs: the
+  error left `expire` and `next_expiry_s`, the timer was not armed again, a test of another
+  output never expired and could not be released. A value that is no number is refused
+  (`Infinity` was refused before, with a 500: its own value could not be written in the
+  answer); what cannot be worked out for one output is contained to it; and a wake that
+  fails, which is not meant to happen, is tried again a second later instead of ending the
+  timer.
 - Left for 4.4: variables marked `persistent` are not kept across a restart; nothing but
   the API sets a variable. A command that starts under a higher priority reads its
   variables, and takes the start of its fade, when it gets its output, not when it starts.

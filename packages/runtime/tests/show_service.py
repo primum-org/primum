@@ -29,7 +29,7 @@ LED_PIN, LAMP_PIN = 17, 18
 BLINK, ON, OVER, DIM, UNKNOWN = (str(UUID(int=number)) for number in (20, 30, 40, 50, 99))
 # Fades of the lamp.
 GLOW, DOWN, RISE = (str(UUID(int=number)) for number in (70, 80, 90))
-BRIGHTNESS = str(UUID(int=61))
+BRIGHTNESS, SPEED = str(UUID(int=61)), str(UUID(int=62))  # an integer, and a number
 WAIT_S = 5  # for a second of a real service to pass: far more than it takes
 
 
@@ -73,11 +73,13 @@ def document() -> dict[str, object]:
     ]
     brightness = {"id": _id(61), "name": "brightness", "type": "integer", "initial": 60}
     limited = {**brightness, "min": 0, "max": 100, "setting": True}
+    speed = {"id": _id(62), "name": "speed", "type": "number", "initial": 1.5}
+    variables = [limited, {**speed, "min": 0, "max": 10, "setting": True}]
     dim = {"atMs": 0, "durationMs": 1000, "action": "set"}
     files = {
         "project.json": _file("project", 1, name="Arbiter"),
         "hardware.hw": _file("hardware", 2, boards=[board], elements=elements),
-        "shop.vars": _file("variables", 60, constants=[], variables=[limited]),
+        "shop.vars": _file("variables", 60, constants=[], variables=variables),
         "blink.sec": _sequence(20, "Blink", 4, {"atMs": 1000, "durationMs": 1000, "action": "on"}),
         "on.sec": _sequence(
             30, "On", 4, {"atMs": 0, "durationMs": 0, "action": "on"}, whenDone="hold"

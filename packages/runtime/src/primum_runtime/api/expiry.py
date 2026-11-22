@@ -7,10 +7,16 @@ fires calls ``Controller.expire``, which changes the state, which arms the next.
 and no polling, as for the inputs: between two changes of a sequence nothing runs.
 """
 
+import logging
 from collections.abc import Callable
 from typing import Protocol
 
 from primum_runtime.control import Controller, State
+
+log = logging.getLogger(__name__)
+
+# How long until the controller is woken again after waking it failed.
+RETRY_S = 1.0
 
 
 class Timer(Protocol):
@@ -41,7 +47,15 @@ class ExpiryTimer:
 
     def _fire(self) -> None:
         self._timer = None
-        self._controller.expire()
+        try:
+            self._controller.expire()
+        except Exception:
+            # ``expire`` is not meant to raise. If it does, the timer must still be armed
+            # again, or tests would never expire and sequences would stop where they were;
+            # and not at once, or a failure that stays would spin the event loop.
+            log.exception("waking the controller failed; trying again in %g s", RETRY_S)
+            self._timer = self._call_later(RETRY_S, self._fire)
+            return
         # ``expire`` told the listeners only if something expired: a timer that fired a
         # moment early, by the loop's clock, must be armed again for what is left.
         if self._timer is None:

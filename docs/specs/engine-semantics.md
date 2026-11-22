@@ -70,7 +70,9 @@ each output, `controlledBy`: `manual`, `test`, `sequence` or nothing.
   command starting or ending, an output to be tried again). An output is written only when
   the level it should be at changes.
 - An output that cannot be taken where it should be does not stop its sequence or the other
-  outputs: it says so (`restFailed`) and is tried again every 5 s.
+  outputs: it says so (`restFailed`) and is tried again every 5 s. So does one whose command
+  cannot even be worked out (a value its driver refuses): tests of other outputs still
+  expire, they can still be released, and the timer is still told when to come back.
 - A sequence the package asks to restart starts from its beginning; when the service starts,
   none is running.
 
@@ -100,7 +102,7 @@ state gives them (`variables`: `id`, `name`, `type`, `value`, `min`, `max`, `set
 
 | Request | Does | Refused |
 |---|---|---|
-| `PUT /api/variables/{id}` with `{"value": 40}` | Gives the variable that value | `variable.unknown` (404; also with no package); `variable.value_invalid` (422: `name`, `type`) for a value of another type; `variable.value_out_of_range` (422: `name`, `value`, `min`, `max`) outside its limits. Nothing changes |
+| `PUT /api/variables/{id}` with `{"value": 40}` | Gives the variable that value | `variable.unknown` (404; also with no package); `variable.value_invalid` (422: `name`, `type`) for a value of another type, or one that is no number (`NaN`, `Infinity`, which Python's JSON reads); `variable.value_out_of_range` (422: `name`, `value`, `min`, `max`) outside its limits. Nothing changes |
 
 An argument that reads a variable takes its value when its command first commands its
 output, and keeps it while the command lasts: setting the variable shows the next time such
