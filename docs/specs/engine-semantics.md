@@ -139,14 +139,22 @@ cut.
   value.
 - **When a value changes** (the API, an automation), it is written a second later, with
   whatever changed meanwhile: one write a second at most, however often a counter counts.
-  A power cut loses at most that last second. When the service stops, what is pending is
-  written first.
+  A power cut loses the changes of about that last second (the wait, and the time the card
+  takes). When the service stops, what is pending is written first, before the outputs are
+  made safe.
 - **The file is never half written**: written whole beside it, synced, renamed into place.
   The write does not hold up the service: outputs, inputs and panic go on meanwhile.
+- **What was kept is set aside before it is dropped**: when the values on the board are
+  another project's, cannot be read, or include one a variable no longer takes (or whose
+  variable is gone), the file is copied to `variables.json.bak` before the new values
+  replace it. Only the last copy is there. Nothing reads it yet: putting a package back
+  (block 4.5) will say how its values come back.
 - **If it cannot be read** (not there, damaged, of another version), the variables start at
   their initial values and the service runs. **If it cannot be written**, the service runs
   all the same: the log says so once, the state says so while it lasts
-  (`variablesUnsaved`), and it is tried again every 30 s.
+  (`variablesUnsaved`), and it is tried again every 30 s. It stops saying so as soon as
+  what is on the board is what the variables are worth, written or not: a value that went
+  back to the one kept leaves nothing to write.
 - Panic does not change any variable.
 
 To start the variables of a project again: stop the service and remove the file.

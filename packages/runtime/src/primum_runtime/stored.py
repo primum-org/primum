@@ -5,7 +5,9 @@ of visits, a brightness set from the phone. The values are kept in the data dire
 one file, for one project: the values of another project are not this one's, and a new
 package of the same project finds them.
 
-The file is written whole and then renamed into place, so it is never half written. Reading
+The file is written whole and then renamed into place, so it is never half written. What
+is kept is never replaced by values that drop some of it without a copy left beside it
+(``set_aside``): another project's, or a new package that no longer takes them. Reading
 never fails the service: a file that is not there, cannot be read, does not say what it
 should or is of another project gives no values, and the variables start at their initial
 ones. What a value is worth against its variable (its type, its limits) is for whoever has
@@ -27,6 +29,7 @@ from primum_runtime.errors import ErrorCode, PrimumError
 log = logging.getLogger(__name__)
 
 FILE_NAME = "variables.json"
+ASIDE_NAME = "variables.json.bak"
 VERSION = 1
 # One write at a time: the last save of a service that stops must not cross one under way.
 _writing = threading.Lock()
@@ -51,9 +54,37 @@ def write(directory: Path, project: UUID, values: Mapping[UUID, Value]) -> None:
             file.flush()
             os.fsync(file.fileno())  # on the card, or a power cut would leave the name empty
             temporary.replace(path)
+            _sync_directory(directory)
     except OSError as error:
         params = {"path": str(path), "detail": error.strerror or str(error)}
         raise PrimumError(ErrorCode.VARIABLES_UNWRITABLE, params) from error
+
+
+def _sync_directory(directory: Path) -> None:
+    """Have the new name on the card too, not only the content: until then a power cut
+    would bring the file before back."""
+    descriptor = os.open(directory, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def set_aside(directory: Path) -> None:
+    """Copy what is kept to ``variables.json.bak`` before it is replaced by values that
+    drop some of it: another project's, a file that could not be read, values a new package
+    no longer takes. Going back must be able to find them. Nothing kept, nothing done; a
+    copy that fails is logged, and stops nothing."""
+    path = directory / FILE_NAME
+    try:
+        content = path.read_bytes()
+        (directory / ASIDE_NAME).write_bytes(content)
+    except FileNotFoundError:
+        return
+    except OSError as error:
+        log.warning("the kept variables (%s) could not be set aside: %s", path, error)
+        return
+    log.info("the kept variables were set aside in %s", directory / ASIDE_NAME)
 
 
 def read(directory: Path, project: UUID) -> dict[UUID, Value]:

@@ -13,10 +13,12 @@ from collections.abc import AsyncGenerator, Callable, Mapping
 from contextlib import asynccontextmanager
 from functools import partial
 from pathlib import Path
+from uuid import UUID
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from primum_core.values import Value
 from primum_runtime import __version__, declared, stored, systemd
 from primum_runtime.api.broadcast import StateBroadcaster
 from primum_runtime.api.errors import install_error_handlers
@@ -97,6 +99,9 @@ def create_app(
             expiry = ExpiryTimer(controller, loop.call_later)
             # The values of persistent variables, kept as they change.
             saver = None
+            if project is not None and _drops(kept, controller.persistent_values()):
+                # Before anything replaces it: going back must be able to find them.
+                stored.set_aside(config.data_dir)
             if project is not None and controller.persistent_values():
                 saver = VariableSaver(
                     controller,
@@ -145,6 +150,14 @@ def create_app(
     app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")
     install_error_handlers(app)
     return app
+
+
+def _drops(kept: Mapping[UUID, Value], now: Mapping[UUID, Value]) -> bool:
+    """Whether writing ``now`` over what is on the board would lose something of it: a
+    value that was kept and is not what its variable starts at (the variable is gone, or
+    no longer takes it), or a file whose values could not be used at all (another
+    project's, or unreadable; nothing kept sets nothing aside)."""
+    return not kept or any(now.get(variable) != value for variable, value in kept.items())
 
 
 def _off_the_loop(

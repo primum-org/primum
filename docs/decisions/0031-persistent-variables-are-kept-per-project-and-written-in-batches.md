@@ -20,9 +20,18 @@ changes, what a value is worth when its variable changed, and how often a card i
 - **A change is written a moment later, not at once**: the first change arms a timer of a
   second, and what the values are then is written. However often a counter changes, the
   card sees one write a second. When the service stops, what is pending is written first.
-- **The write is off the event loop, whole and renamed into place, and synced.** A write
-  waits for the card, and panic must never wait behind it; a power cut leaves the file
-  before or the file after, never half of one.
+- **The write is off the event loop, whole and renamed into place, and synced**, the
+  directory too. A write waits for the card, and panic must never wait behind it; a power
+  cut leaves the file before or the file after, never half of one. Writes land in the
+  order they were asked for: one that gets to the card after a later one writes nothing.
+- **What is kept is not replaced by values that drop some of it without a copy left
+  beside it** (`variables.json.bak`): another project's values, a file that could not be
+  read, a value a new package no longer takes. A package put back (block 4.5) must be able
+  to find its counter; how it does is that block's to say.
+- **On stopping, the last save is made before the outputs are made safe.** It is a write
+  of milliseconds. A card that hangs would hold the stop until systemd's `TimeoutStopSec`
+  ends it and `primum-safe` makes the outputs safe: the same net as for any hang. Saving
+  after the HAL closes would need the service to outlive its own shutdown.
 - **Nothing here stops the service.** A file that cannot be read gives no values. A write
   that fails is logged once, told in the state (`variablesUnsaved`) and tried again every
   30 s.
@@ -48,7 +57,11 @@ changes, what a value is worth when its variable changed, and how often a card i
   for `primum-safe`, not a format of projects that other tools read.
 
 ## Consequences
-- A power cut loses at most the changes of the last second.
+- A power cut loses the changes of about the last second: the second a change waits, and
+  the time the card takes to take the write.
+- Nobody but the log and the API's state sees that the values are not kept
+  (`variablesUnsaved`): the page of the runtime does not show it. For the UI of phase 5.
+- Only the last file set aside is there: a second replacement writes over the copy.
 - Deleting `variables.json` (or putting another project on the board) starts every
   variable at its initial value: that is the way to reset them until the UI has one.
 - The data directory must be writable for persistent variables to be kept; when it is not,

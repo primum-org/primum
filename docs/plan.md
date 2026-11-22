@@ -937,6 +937,16 @@ per element, from a deployment package that can be rolled back. One pull request
     the test's hand, and a real service stopped and started again on the same directory.
   - To try on a Pi: a real restart of the service, and a power cut a moment after a change
     (the last second may be lost; the file must be whole).
+  - On the Pi, by its owner, before the fixes: 31 s after a write failed, with the
+    directory writable again and nothing pending, the state still said `variablesUnsaved`.
+    Found too with the tests' fake loop, not seen on the board: a write under way could
+    land over the one made on closing. Both fixed; the fixes have not been reported as run
+    on the Pi.
+  - For 4.5: what was kept is copied to `variables.json.bak` before values that drop some
+    of it replace it; nothing reads the copy yet, and putting a package back must say how
+    its values come back.
+  - For phase 5: nobody sees `variablesUnsaved` but the log and the API; the page does not
+    show it, and the catalog message of `variables.unwritable` only reaches the log.
   - Left out: a way to reset the variables other than removing the file; "once per window"
     across restarts, which could use the same file.
 

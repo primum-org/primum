@@ -12,6 +12,7 @@ kept) and tried again every ``RETRY_S`` until it works.
 """
 
 import logging
+import threading
 from collections.abc import Callable, Mapping
 from uuid import UUID
 
@@ -54,12 +55,19 @@ class VariableSaver:
         self._timer: Timer | None = None
         self._writing = False
         self._failed = False
+        self._closed = False
+        # Each write has its turn, in the order they were asked for.
+        self._order = threading.Lock()
+        self._turns = 0
+        self._written_turn = 0
         self._unsubscribe = controller.subscribe(self._changed)
         self._changed(controller.state())  # values restored differently than they were kept
 
     def close(self) -> None:
         """Stop following the controller, and write what is not kept yet: now, and here,
-        since nothing comes after."""
+        since nothing comes after. A write still under way in its thread is older: it
+        writes nothing if it gets to the card later, and arms nothing when it ends."""
+        self._closed = True
         self._unsubscribe()
         if self._timer is not None:
             self._timer.cancel()
@@ -68,11 +76,26 @@ class VariableSaver:
         if values == self._kept:
             return
         try:
-            self._write(values)
+            self._write_in_turn(self._next_turn(), values)
         except Exception:
             log.exception("the persistent variables could not be kept on stopping")
 
+    def _next_turn(self) -> int:
+        self._turns += 1
+        return self._turns
+
+    def _write_in_turn(self, turn: int, values: Values) -> None:
+        """Write, unless values asked for later have been written already: writes run in
+        threads, and the one handed over first is not always the first to get there."""
+        with self._order:
+            if turn < self._written_turn:
+                return
+            self._write(values)
+            self._written_turn = turn
+
     def _changed(self, _state: State) -> None:
+        if self._closed:
+            return
         if self._timer is None and not self._writing and self._pending():
             self._timer = self._call_later(SAVE_DELAY_S, self._save)
 
@@ -82,18 +105,21 @@ class VariableSaver:
     def _save(self) -> None:
         self._timer = None
         if not self._pending():
+            # Nothing left to write: a write that failed before has nothing to keep any
+            # more (the value went back to what is on the board).
+            self._settled()
             return
         values = self._controller.persistent_values()
+        turn = self._next_turn()
         self._writing = True
 
         def done(error: BaseException | None) -> None:
             self._writing = False
+            if self._closed:
+                return
             if error is None:
-                if self._failed:
-                    log.info("the persistent variables are kept again")
-                self._failed = False
                 self._kept = values
-                self._controller.values_kept(True)
+                self._settled()
                 self._changed(self._controller.state())  # what changed while it was written
             else:
                 if not self._failed:  # said once, not at every retry: the state goes on saying it
@@ -108,4 +134,11 @@ class VariableSaver:
                 self._timer = self._call_later(RETRY_S, self._save)
                 self._controller.values_kept(False)
 
-        self._submit(lambda: self._write(values), done)
+        self._submit(lambda: self._write_in_turn(turn, values), done)
+
+    def _settled(self) -> None:
+        """What is on the board is what the variables are worth: say so, if it was not."""
+        if self._failed:
+            log.info("the persistent variables are kept again")
+        self._failed = False
+        self._controller.values_kept(True)

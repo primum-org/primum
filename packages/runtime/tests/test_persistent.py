@@ -116,6 +116,22 @@ def test_a_write_replaces_the_file_whole_and_leaves_nothing_else(tmp_path: Path)
     assert json.loads((tmp_path / stored.FILE_NAME).read_text())["values"] == {VISITS: 4}
 
 
+def test_what_is_about_to_be_replaced_can_be_set_aside(tmp_path: Path) -> None:
+    stored.write(tmp_path, PROJECT, {UUID(VISITS): 7})
+
+    stored.set_aside(tmp_path)
+    stored.write(tmp_path, OTHER_PROJECT, {UUID(VISITS): 0})
+
+    aside = json.loads((tmp_path / stored.ASIDE_NAME).read_text())
+    assert (aside["project"], aside["values"]) == (str(PROJECT), {VISITS: 7})
+
+
+def test_setting_aside_nothing_does_nothing(tmp_path: Path) -> None:
+    stored.set_aside(tmp_path)
+
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_a_write_that_fails_says_so_and_keeps_what_was_there(tmp_path: Path) -> None:
     missing = tmp_path / "gone"
 
@@ -338,6 +354,40 @@ def test_a_write_that_fails_is_told_once_and_tried_again_until_it_works(
     assert [values[UUID(VISITS)] for values in loop.written] == [4]
 
 
+def test_a_failed_write_is_over_when_nothing_is_left_to_write() -> None:
+    """The write failed, and then the value went back to what is on the board: there is
+    nothing to keep any more, and the state must stop saying there is."""
+    service = _service({})
+    loop, _ = _saving(service)
+    loop.failing = True
+    service.controller.set_variable(VISITS, 4)
+    loop.fire()
+    failed = service.controller.state().variables_unsaved
+
+    service.controller.set_variable(VISITS, 0)
+    loop.fire()  # the retry: nothing pending
+
+    assert (failed, service.controller.state().variables_unsaved) == (True, False)
+    assert (loop.written, loop.timers) == ([], [])
+
+
+def test_a_write_under_way_never_lands_over_the_one_made_on_closing() -> None:
+    """The thread of an earlier write may get to the card after the last one: what it
+    carries is older, and must not replace it."""
+    service = _service({})
+    loop, saver = _saving(service)
+    service.controller.set_variable(VISITS, 4)
+    loop.hold = True
+    loop.fire()  # the write of 4 is handed over, and has not run
+    service.controller.set_variable(VISITS, 5)
+
+    saver.close()  # writes 5, here and now
+    loop.held.pop()()  # and only then the thread runs
+
+    assert [values[UUID(VISITS)] for values in loop.written] == [5]
+    assert loop.timers == []  # and nothing is armed after closing
+
+
 def test_closing_writes_what_is_pending_at_once() -> None:
     service = _service({})
     loop, saver = _saving(service)
@@ -417,6 +467,40 @@ def test_a_service_whose_values_cannot_be_read_starts_at_the_initial_ones(tmp_pa
     found = _run(tmp_path, DOCUMENT)
 
     assert found[VISITS] == 0
+    assert (tmp_path / stored.ASIDE_NAME).read_text(encoding="utf-8") == "{"  # set aside
+
+
+def _aside(tmp_path: Path) -> dict[str, object] | None:
+    path = tmp_path / stored.ASIDE_NAME
+    return json.loads(path.read_text(encoding="utf-8"))["values"] if path.exists() else None
+
+
+def test_kept_values_that_a_new_package_drops_are_set_aside_before_they_are_replaced(
+    tmp_path: Path,
+) -> None:
+    """Going back to the package before must be able to find the counter again."""
+    _run(tmp_path, DOCUMENT, (VISITS, 7))
+
+    _run(tmp_path, _document(max=5))
+
+    assert _aside(tmp_path) == {VISITS: 7, LEVEL: 0.5, NOTE: ""}
+
+
+def test_values_of_another_project_are_set_aside_before_they_are_replaced(tmp_path: Path) -> None:
+    stored.write(tmp_path, OTHER_PROJECT, {UUID(VISITS): 9})
+
+    _run(tmp_path, DOCUMENT, (VISITS, 1))
+
+    assert _aside(tmp_path) == {VISITS: 9}
+
+
+def test_nothing_is_set_aside_when_every_kept_value_is_taken(tmp_path: Path) -> None:
+    _run(tmp_path, DOCUMENT, (VISITS, 7))
+
+    _run(tmp_path, DOCUMENT, (VISITS, 8))
+    _run(tmp_path, _document(max=20))
+
+    assert _aside(tmp_path) is None
 
 
 def test_the_status_says_which_variables_are_persistent(tmp_path: Path) -> None:
