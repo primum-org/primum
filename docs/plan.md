@@ -946,6 +946,11 @@ per element, from a deployment package that can be rolled back. One pull request
     service from starting (only texts that were not what they should had been tried). And
     with the fake loop: a write under way could leave an old value when the variable went
     back to the kept one and the service stopped. Both fixed; not reported as run again.
+  - Found by the CI of this block, in the simulated HAL and not in the block: a change of
+    an input made from another thread could be queued and never announced (the reader woke
+    between the two), and the one test that waits for it over a WebSocket hung until the
+    job was cancelled. The queue and its announcement are now one step, a test with two
+    threads fails without that, and that wait is bounded.
   - For 4.5: what was kept is copied to `variables.json.bak` before values that drop some
     of it replace it; nothing reads the copy yet, and putting a package back must say how
     its values come back.

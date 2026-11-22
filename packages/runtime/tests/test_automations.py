@@ -1,6 +1,7 @@
 """Events and automations on a board: an input or the API makes something happen, and the
 automations of the package act (decision 0029). On the simulated HAL, clock moved by hand."""
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
 from uuid import UUID
@@ -13,6 +14,7 @@ from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.package import check_against_board
 from show_service import (
     MANIFESTS,
+    WAIT_S,
     Service,
     compiled,
     make_file,
@@ -478,11 +480,19 @@ def test_the_api_refuses_to_fire_an_event_while_panic_is_on(tmp_path: Path) -> N
 def test_an_input_of_a_running_service_starts_its_sequence(tmp_path: Path) -> None:
     """The whole way: the line of the button changes, the loop of the service reads it, the
     automation starts the sequence and the LED goes on."""
-    with running(tmp_path, DOCUMENT) as (client, hal), client.websocket_connect("/api/ws") as ws:
-        ws.receive_json()
-        hal.simulate_input(BUTTON_PIN, True)
-        state = ws.receive_json()
-        lit = hal.lines[LED_PIN].active  # before the service stops and makes it safe
+    waiting = ThreadPoolExecutor(max_workers=1)
+    try:
+        with (
+            running(tmp_path, DOCUMENT) as (client, hal),
+            client.websocket_connect("/api/ws") as ws,
+        ):
+            ws.receive_json()
+            hal.simulate_input(BUTTON_PIN, True)
+            # Bounded: a change the service never hears of fails the test, not hangs it.
+            state = waiting.submit(ws.receive_json).result(timeout=WAIT_S)
+            lit = hal.lines[LED_PIN].active  # before the service stops and makes it safe
+    finally:
+        waiting.shutdown(wait=False)
 
     assert lit
     assert [s["name"] for s in state["sequences"] if s["running"]] == ["On"]

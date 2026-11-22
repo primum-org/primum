@@ -2,6 +2,7 @@
 
 import contextlib
 import os
+import threading
 from collections import deque
 from collections.abc import Mapping
 from types import MappingProxyType
@@ -170,6 +171,7 @@ class SimulatedHal(Hal):
         self._pwm_lines: dict[int, SimulatedPwm] = {}
         self._events: deque[InputEvent] = deque()
         self._pipe: tuple[int, int] | None = None
+        self._queue = threading.Lock()  # the events that wait, and the byte that says so
 
     @property
     def lines(self) -> Mapping[int, SimulatedLine]:
@@ -193,19 +195,24 @@ class SimulatedHal(Hal):
         """Queue an event of a claimed input whatever its state: with ``active`` as it already
         is, it is what the kernel gives for a pulse too short to tell its edges apart."""
         line = self._input_lines[pin]
-        line.active = active
-        line.events += 1
-        if not self._events and self._pipe is not None:
-            os.write(self._pipe[1], b"e")
-        self._events.append(InputEvent(pin, active, timestamp_ns, line.events))
+        # A test changes a line from its own thread while a service reads on its event
+        # loop. Queued and announced as one step: a reader that woke between the two found
+        # nothing, emptied the pipe, and the change was never announced again.
+        with self._queue:
+            line.active = active
+            line.events += 1
+            if not self._events and self._pipe is not None:
+                os.write(self._pipe[1], b"e")
+            self._events.append(InputEvent(pin, active, timestamp_ns, line.events))
 
     def lose_events(self, count: int) -> None:
         """Drop the ``count`` oldest unread events, as the kernel does with a burst it cannot
         hold: the ones that follow keep their sequence numbers."""
-        for _ in range(min(count, len(self._events))):
-            self._events.popleft()
-        if not self._events:
-            self._drain_pipe()
+        with self._queue:
+            for _ in range(min(count, len(self._events))):
+                self._events.popleft()
+            if not self._events:
+                self._drain_pipe()
 
     def _claim(self, claim: Claim) -> Drivers:
         self._lines = {spec.pin: SimulatedLine(spec) for spec in claim.outputs}
@@ -230,9 +237,10 @@ class SimulatedHal(Hal):
         return failures
 
     def _read_events(self) -> list[InputEvent]:
-        events = list(self._events)
-        self._events.clear()
-        self._drain_pipe()
+        with self._queue:
+            events = list(self._events)
+            self._events.clear()
+            self._drain_pipe()
         return events
 
     def _events_fd(self) -> int | None:
