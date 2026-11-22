@@ -7,26 +7,25 @@ different definitions with the same name, visible from one place, are an error: 
 An import of a definition that is already visible is redundant, not a conflict. The parameters
 of a sequence are its innermost scope and follow the same rule.
 
-Names are used by automations: the variable an action sets or increments, and the words of a
-condition (stored as text until phase 4 parses it: any word that matches a visible name counts
-as a use). And by sequences: an argument of a clip or of a block may take its value from a name
+Names are used by automations: the variable an action sets or increments, and the names of a
+condition (``primum_core.expressions``), which must make sense with the types those names have.
+And by sequences: an argument of a clip or of a block may take its value from a name
 (``valueOf``, decision 0024). A name nothing uses is a warning.
 """
 
-import re
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import PurePosixPath
 from typing import Literal
 from uuid import UUID
 
+from primum_core import expressions
 from primum_core.errors import CoreErrorCode, Issue, Location, Severity
 from primum_core.generated.model import Automation, Sequence, Variables
 from primum_core.pointers import Step, pointer
 from primum_core.references import LocatedContent
 from primum_core.values import NUMERIC, Value, check_value
 
-WORD = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 # The actions that name a variable; elsewhere a stray ``variable`` is the variants check's.
 VARIABLE_ACTIONS = frozenset({"set_variable", "increment_variable"})
 
@@ -180,6 +179,10 @@ def _define(content: Variables, location: Location, scopes: _Scopes) -> dict[str
     ]
     defined: dict[str, Definition] = {}
     for definition in definitions:
+        if expressions.is_reserved(definition.name):
+            # In a condition the word would win, and the name would never be read.
+            at = replace(definition.location, pointer=f"{definition.location.pointer}/name")
+            scopes.issues.append(Issue(CoreErrorCode.NAME_RESERVED, {"name": definition.name}, at))
         entry = _Entry(definition, definition.location)
         existing = defined.get(definition.name)
         if existing is not None:  # twice in the same file: not entered in the folder again
@@ -231,10 +234,8 @@ def _check_outer_scopes(scopes: _Scopes) -> None:
 def _use(automation: Automation, location: Location, scopes: _Scopes) -> None:
     """Resolve the names an automation uses, and check what it does with them."""
     visible = scopes.visible(location.path.parent)
-    if automation.if_:
-        for word in set(WORD.findall(automation.if_)):
-            if word in visible:
-                scopes.used.add(visible[word].definition.id)
+    if automation.if_ is not None:
+        _use_in_condition(automation.if_, _at(location, "if"), visible, scopes)
     for index, action in enumerate(automation.do):
         if action.action not in VARIABLE_ACTIONS or action.variable is None:
             continue
@@ -252,6 +253,40 @@ def _use(automation: Automation, location: Location, scopes: _Scopes) -> None:
             continue
         at = _at(location, *steps, "variable")
         scopes.issues.append(Issue(code, {"name": action.variable}, at))
+
+
+def _use_in_condition(
+    text: str, at: Location, visible: Mapping[str, _Entry], scopes: _Scopes
+) -> None:
+    """A condition must be readable, use only names it sees, fit their types and say yes or
+    no. The first thing wrong with it is reported; unknown names, all of them."""
+    tree = expressions.parse(text)
+    if isinstance(tree, expressions.Problem):
+        scopes.issues.append(Issue(tree.code, tree.params, at))
+        # What it meant to use still counts: one mistake is not also a name nothing uses.
+        words = expressions.words_in(text)
+        scopes.used.update(visible[word].definition.id for word in words if word in visible)
+        return
+    names = expressions.names_in(tree)
+    unknown = [name for name in names if name not in visible]
+    scopes.issues += (Issue(CoreErrorCode.NAME_UNKNOWN, {"name": name}, at) for name in unknown)
+    definitions = [visible[name].definition for name in names if name in visible]
+    scopes.used.update(definition.id for definition in definitions)
+    if unknown:
+        return
+    result = expressions.check(
+        tree,
+        {definition.name: definition.value_type for definition in definitions},
+        {
+            definition.name: definition.value
+            for definition in definitions
+            if definition.value is not None
+        },
+    )
+    if isinstance(result, expressions.Problem):
+        scopes.issues.append(Issue(result.code, result.params, at))
+    elif result != expressions.BOOLEAN:
+        scopes.issues.append(Issue(CoreErrorCode.EXPRESSION_NOT_A_CONDITION, {}, at))
 
 
 def _action_value_issues(

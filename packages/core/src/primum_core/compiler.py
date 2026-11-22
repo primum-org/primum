@@ -15,6 +15,7 @@ is what a project may be but a package cannot yet: a project without a board, or
 from collections.abc import Iterator, Mapping
 from uuid import UUID
 
+from primum_core import expressions
 from primum_core.commands import Span, Timeline, timeline_of
 from primum_core.drivers import Drivers
 from primum_core.errors import CoreErrorCode, Issue, Location
@@ -227,6 +228,19 @@ def _schedule(schedule: Schedule) -> Document:
     }
 
 
+def _condition(text: str, visible: Mapping[str, Definition]) -> list[dict[str, object]]:
+    """The condition as a program (``primum_core.expressions``): constants in place, variables
+    by id."""
+    tree = expressions.parse(text)
+    if isinstance(tree, expressions.Problem):  # the checks refuse it before compiling
+        raise ValueError(f"condition cannot be read: {tree.code}")
+    bindings: dict[str, Value | UUID] = {}
+    for name in expressions.names_in(tree):
+        definition = visible[name]
+        bindings[name] = definition.id if definition.value is None else definition.value
+    return expressions.compile_program(tree, bindings)
+
+
 def _automation(automation: Automation, visible: Mapping[str, Definition]) -> Document:
     compiled: Document = {
         "id": str(automation.id),
@@ -235,7 +249,7 @@ def _automation(automation: Automation, visible: Mapping[str, Definition]) -> Do
         "when": [str(source) for source in automation.when],
     }
     if automation.if_ is not None:
-        compiled["if"] = automation.if_
+        compiled["if"] = _condition(automation.if_, visible)
     do: list[Document] = []
     for action in automation.do:
         step: Document = {"action": action.action}

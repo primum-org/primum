@@ -40,7 +40,7 @@
       "uniqueItems": true
     },
     "if": {
-      "description": "Condition, in the expression language of phase 4: stored, not interpreted yet.",
+      "description": "The condition that must hold, in the expression language (docs/specs/expressions.md): visits < limit and not paused. Without it, the actions always run.",
       "type": "string",
       "maxLength": 500
     },

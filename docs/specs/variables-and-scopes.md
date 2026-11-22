@@ -62,8 +62,13 @@ An automation resolves names in the scope of its own folder:
 - `do[].variable`, the variable an action sets or increments: it must be visible
   (`name.unknown`) and be a variable (`name.not_a_variable`). On an action that takes no
   variable, a stray `variable` is only `schema.unexpected_field`.
-- The words of its `if` condition. Conditions are text until phase 4 parses them, so for now
-  any word that matches a visible name counts as a use, and nothing else is checked.
+- The names of its `if` condition (`expressions.md`): each must be visible (`name.unknown`),
+  and the condition must fit the types they have. A word inside a text (`mode == "night"`) is
+  not a name.
+
+A constant or a variable cannot be called `and`, `or`, `not`, `true` or `false`, the words of
+the condition language (`name.reserved`, at its `name`): in a condition the word would win
+and the name would never be read.
 
 A sequence uses names too (decision 0024): an argument of a clip or of a block may take its
 value from one (`valueOf`) instead of writing it. The name is a parameter of the sequence that
@@ -100,9 +105,6 @@ parameters.
 
 ## Not yet
 
-- Conditions (`if`) are stored, not interpreted: the expression language comes in phase 4,
-  and with it the real uses of names in conditions. Until then a word inside a text literal
-  (`mode == "night"`) also counts as a use of a constant called `night`.
 - The limits of an `integer` variable are not checked against its type: `min: 0.5` passes.
 - An exported name that nothing imports is not reported as unused.
 - Which board owns a variable (decision 0005): a package is for one board, which owns them

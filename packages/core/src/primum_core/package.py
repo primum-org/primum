@@ -21,6 +21,7 @@ from collections.abc import Iterable, Iterator, Mapping
 from pathlib import PurePosixPath
 from uuid import UUID
 
+from primum_core import expressions
 from primum_core.errors import CoreErrorCode, Issue, Location
 from primum_core.formats import Parsed, decode
 from primum_core.generated.model import (
@@ -176,6 +177,7 @@ def check_package(package: Package, location: Location) -> Iterator[Issue]:
     for index, automation in enumerate(package.automations):
         steps = ("automations", index)
         yield from _automation_issues(automation, steps, events | schedules, check)
+        yield from _condition_issues(automation, steps, variables, check)
         for number, action in enumerate(automation.do):
             at = (*steps, "do", number)
             yield from _action_issues(action, at, sequences, frozenset(variables), check)
@@ -355,6 +357,20 @@ def _automation_issues(
 ) -> Iterator[Issue]:
     for index, source in enumerate(automation.when):
         yield from check.reference(source, sources, (*steps, "when", index))
+
+
+def _condition_issues(
+    automation: PackageAutomation,
+    steps: tuple[Step, ...],
+    variables: Mapping[UUID, PackageVariable],
+    check: _Check,
+) -> Iterator[Issue]:
+    """The condition is a program that holds together and says yes or no."""
+    if not automation.if_:
+        return
+    types = {id: variable.type for id, variable in variables.items()}
+    if expressions.check_program(automation.if_, types) != expressions.BOOLEAN:
+        yield Issue(CoreErrorCode.EXPRESSION_PROGRAM_INVALID, {}, check.at(*steps, "if"))
 
 
 def _action_issues(

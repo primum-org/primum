@@ -263,6 +263,125 @@ def test_a_word_of_a_condition_an_export_or_a_setting_count_as_uses(
     assert project.found() == []
 
 
+def _shop(project: Project, ids: Ids) -> Project:
+    return project.add(
+        "shop.vars",
+        "variables",
+        ids(10),
+        constants=[
+            {"id": ids(13), "name": "limit", "type": "integer", "value": 100},
+            {"id": ids(15), "name": "none", "type": "integer", "value": 0},
+        ],
+        variables=[
+            _variable(ids, 11, "visits", setting=True),
+            {"id": ids(12), "name": "paused", "type": "boolean", "initial": False, "setting": True},
+        ],
+        exports=["limit", "none"],
+    )
+
+
+@pytest.mark.parametrize(
+    ("condition", "code", "params"),
+    [
+        ("visits <", CoreErrorCode.EXPRESSION_SYNTAX, {"position": 9, "found": "end"}),
+        ("", CoreErrorCode.EXPRESSION_SYNTAX, {"position": 1, "found": "end"}),
+        ("visits + paused > 1", CoreErrorCode.EXPRESSION_EXPECTED_NUMBER, {"operator": "+"}),
+        ("visits and paused", CoreErrorCode.EXPRESSION_EXPECTED_BOOLEAN, {"operator": "and"}),
+        ("visits == paused", CoreErrorCode.EXPRESSION_NOT_COMPARABLE, {"operator": "=="}),
+        ("limit / none > 1", CoreErrorCode.EXPRESSION_DIVISION_BY_ZERO, {"operator": "/"}),
+        ("visits + 1", CoreErrorCode.EXPRESSION_NOT_A_CONDITION, {}),
+        ("visits < max_visits", CoreErrorCode.NAME_UNKNOWN, {"name": "max_visits"}),
+    ],
+)
+def test_a_condition_must_read_fit_its_names_and_say_yes_or_no(
+    project: Project, ids: Ids, condition: str, code: CoreErrorCode, params: dict[str, object]
+) -> None:
+    _automation(_shop(project, ids), ids, "count.auto", **{"if": condition})
+
+    assert project.found(severity=Severity.ERROR) == [(code, params, "count.auto", "/if")]
+
+
+def test_every_unknown_name_of_a_condition_is_reported(project: Project, ids: Ids) -> None:
+    _automation(_shop(project, ids), ids, "count.auto", **{"if": "a < b and visits < a"})
+
+    assert project.found(severity=Severity.ERROR) == [
+        (CoreErrorCode.NAME_UNKNOWN, {"name": "a"}, "count.auto", "/if"),
+        (CoreErrorCode.NAME_UNKNOWN, {"name": "b"}, "count.auto", "/if"),
+    ]
+
+
+@pytest.mark.parametrize("word", ["true", "false", "and", "or", "not", "True", "AND"])
+def test_a_word_of_the_condition_language_cannot_be_a_name(
+    project: Project, ids: Ids, word: str
+) -> None:
+    constant = {"id": ids(13), "name": word, "type": "boolean", "value": False}
+    variable = {"id": ids(11), "name": word, "type": "boolean", "initial": False}
+    project.add("a/shop.vars", "variables", ids(10), constants=[constant], variables=[])
+    project.add("b/shop.vars", "variables", ids(12), constants=[], variables=[variable])
+
+    assert project.found(severity=Severity.ERROR) == [
+        (CoreErrorCode.NAME_RESERVED, {"name": word}, "a/shop.vars", "/constants/0/name"),
+        (CoreErrorCode.NAME_RESERVED, {"name": word}, "b/shop.vars", "/variables/0/name"),
+    ]
+
+
+def test_a_name_that_only_starts_like_a_word_of_the_language_is_fine(
+    project: Project, ids: Ids
+) -> None:
+    variables = [
+        _variable(ids, 11, "order", setting=True),
+        _variable(ids, 12, "notable", setting=True),
+    ]
+    project.add("shop.vars", "variables", ids(10), constants=[], variables=variables)
+
+    assert project.found() == []
+
+
+def test_an_unknown_name_in_a_condition_does_not_make_the_known_ones_unused(
+    project: Project, ids: Ids
+) -> None:
+    project.add(
+        "shop.vars",
+        "variables",
+        ids(10),
+        constants=[{"id": ids(13), "name": "limit", "type": "integer", "value": 100}],
+        variables=[_variable(ids, 11, "visits")],
+    )
+    _automation(project, ids, "count.auto", **{"if": "visits < limit and nope"})
+
+    assert project.found() == [(CoreErrorCode.NAME_UNKNOWN, {"name": "nope"}, "count.auto", "/if")]
+
+
+def test_a_condition_that_cannot_be_read_still_uses_the_names_in_it(
+    project: Project, ids: Ids
+) -> None:
+    project.add(
+        "shop.vars",
+        "variables",
+        ids(10),
+        constants=[{"id": ids(13), "name": "limit", "type": "integer", "value": 100}],
+        variables=[_variable(ids, 11, "visits")],
+    )
+    _automation(project, ids, "count.auto", **{"if": "visits < (limit"})
+
+    assert [code for code, *_ in project.found()] == [CoreErrorCode.EXPRESSION_SYNTAX]
+
+
+def test_a_word_inside_a_text_of_a_condition_is_not_a_use(project: Project, ids: Ids) -> None:
+    project.add(
+        "shop.vars",
+        "variables",
+        ids(10),
+        constants=[{"id": ids(13), "name": "mode", "type": "text", "value": "night"}],
+        variables=[_variable(ids, 11, "visits"), _variable(ids, 12, "idle")],
+    )
+    _automation(project, ids, "count.auto", **{"if": 'mode == "idle"'})
+
+    assert project.found() == [
+        (CoreErrorCode.NAME_UNUSED, {"name": "idle"}, "shop.vars", "/variables/1")
+    ]
+
+
 def test_parameters_are_the_innermost_scope(project: Project, ids: Ids) -> None:
     project.add(
         "shop.vars",

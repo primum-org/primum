@@ -31,6 +31,7 @@ class CoreErrorCode(StrEnum):
     REF_WRONG_KIND = "ref.wrong_kind"  # field, id
     # Constants, variables and the scopes of their names (decision 0005).
     NAME_REDEFINED = "name.redefined"  # name, other (the path that already defines it)
+    NAME_RESERVED = "name.reserved"  # name (a word of the condition language)
     NAME_UNKNOWN = "name.unknown"  # name
     NAME_NOT_EXPORTED = "name.not_exported"  # name
     NAME_NOT_A_VARIABLE = "name.not_a_variable"  # name
@@ -44,6 +45,21 @@ class CoreErrorCode(StrEnum):
     VARIABLE_INITIAL_OUT_OF_RANGE = "variable.initial_out_of_range"  # name, initial
     VARIABLE_NOT_NUMERIC = "variable.not_numeric"  # name
     VARIABLE_SET_OUT_OF_RANGE = "variable.set_out_of_range"  # name, value
+    # A condition (decision 0028): what cannot be read, and what does not fit.
+    EXPRESSION_SYNTAX = "expression.syntax"  # position, found
+    EXPRESSION_SINGLE_EQUALS = "expression.single_equals"  # position
+    EXPRESSION_DECIMAL_COMMA = "expression.decimal_comma"  # position
+    EXPRESSION_SINGLE_QUOTES = "expression.single_quotes"  # position
+    EXPRESSION_WORD_CASE = "expression.word_case"  # position, found, word
+    EXPRESSION_TOO_LONG = "expression.too_long"  # max
+    EXPRESSION_TOO_DEEP = "expression.too_deep"  # max
+    EXPRESSION_EXPECTED_NUMBER = "expression.expected_number"  # operator
+    EXPRESSION_EXPECTED_BOOLEAN = "expression.expected_boolean"  # operator
+    EXPRESSION_NOT_COMPARABLE = "expression.not_comparable"  # operator
+    EXPRESSION_DIVISION_BY_ZERO = "expression.division_by_zero"  # operator
+    EXPRESSION_CONSTANT_TOO_LARGE = "expression.constant_too_large"  # name
+    EXPRESSION_NOT_A_CONDITION = "expression.not_a_condition"
+    EXPRESSION_PROGRAM_INVALID = "expression.program_invalid"  # in a package
     # Components: sequences with parameters, included with arguments.
     ARGUMENT_MISSING = "argument.missing"  # parameter
     ARGUMENT_DUPLICATE = "argument.duplicate"  # parameter

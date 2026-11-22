@@ -280,6 +280,10 @@
       "message": "The name {name} is already defined in {other}.",
       "hint": "Names are visible in the folders below the one that defines them: use a different name here, or remove this one."
     },
+    "name.reserved": {
+      "message": "{name} is a word of conditions and cannot be a name.",
+      "hint": "Choose another name: and, or, not, true and false are reserved, however they are capitalised."
+    },
     "name.unknown": {
       "message": "No constant or variable named {name} is visible here.",
       "hint": "Define it in a .vars file of this folder or of one above, or import it from the folder that exports it."
@@ -331,6 +335,62 @@
     "variable.set_out_of_range": {
       "message": "{value} is outside the limits of {name}.",
       "hint": "Set a value between its minimum and its maximum, or change them."
+    },
+    "expression.syntax": {
+      "message": "The condition cannot be read: \"{found}\" at position {position} is not expected there.",
+      "hint": "Write comparisons joined with and, or and not, such as: visits < limit and not paused."
+    },
+    "expression.single_equals": {
+      "message": "The condition has a single = at position {position}, which does not compare.",
+      "hint": "To compare two things write ==, such as: visits == 3."
+    },
+    "expression.single_quotes": {
+      "message": "The condition has a single quote at position {position}: texts go in double quotes.",
+      "hint": "Write the text like this: mode == \"night\"."
+    },
+    "expression.decimal_comma": {
+      "message": "The condition has a comma at position {position}: decimals go after a point.",
+      "hint": "Write the number with a point, such as 1.5."
+    },
+    "expression.word_case": {
+      "message": "In the condition, {found} at position {position} must be written in lower case.",
+      "hint": "Write {word}."
+    },
+    "expression.too_long": {
+      "message": "The condition is longer than {max} characters.",
+      "hint": "Shorten it, or split it between several automations."
+    },
+    "expression.too_deep": {
+      "message": "The condition nests more than {max} levels deep.",
+      "hint": "Simplify it, or split it between several automations."
+    },
+    "expression.expected_number": {
+      "message": "In the condition, {operator} needs numbers.",
+      "hint": "Use it with numbers, or with names of constants and variables that are numbers."
+    },
+    "expression.expected_boolean": {
+      "message": "In the condition, {operator} needs something that is true or false.",
+      "hint": "Join comparisons or true/false variables with it, such as: visits > 3 and not paused."
+    },
+    "expression.not_comparable": {
+      "message": "In the condition, {operator} compares two things of different kinds.",
+      "hint": "Compare a number with a number, a text with a text, or a true/false with a true/false."
+    },
+    "expression.division_by_zero": {
+      "message": "The condition divides by zero ({operator}).",
+      "hint": "Divide by a value that is not zero."
+    },
+    "expression.constant_too_large": {
+      "message": "The constant {name} is too large to use in a condition.",
+      "hint": "Conditions work with numbers up to 9007199254740991: use a smaller value."
+    },
+    "expression.not_a_condition": {
+      "message": "The condition gives a number or a text, not a yes or a no.",
+      "hint": "Compare it with something, such as: visits > 3."
+    },
+    "expression.program_invalid": {
+      "message": "The condition of an automation in this package does not hold together.",
+      "hint": "Build the package again with primum build."
     },
     "argument.missing": {
       "message": "The included sequence needs a value for its parameter {parameter}.",
