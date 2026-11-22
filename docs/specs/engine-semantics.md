@@ -74,9 +74,41 @@ each output, `controlledBy`: `manual`, `test`, `sequence` or nothing.
 - A sequence the package asks to restart starts from its beginning; when the service starts,
   none is running.
 
-Not yet (block 4.3c): a `fade` jumps to where it ends, and an argument read from a variable
-takes the variable's initial value. Nothing starts a sequence but the API until events and
-automations exist (4.4).
+Nothing starts a sequence but the API until events and automations exist (4.4).
+
+### Fades (decision 0027)
+
+A command whose action moves its element (a `fade`: its driver gives it a `startState`)
+takes its output from where the clip starts to where it ends, in a straight line over the
+length of the clip: at a time `t` into a clip of length `d`, the level is `start + (end -
+start) × t / d`. When the clip is over the output stays where it ends, for as long as the
+command is in force.
+
+- The level is worked out from the clock every time, so a step that comes late goes to
+  where the fade is by then.
+- While a sequence is moving an output the runtime wakes every 20 ms and writes it; the
+  rest of the time it wakes only at changes. A fade under a person's hand is not stepped.
+- Without a `from`, the fade starts from the level the output has when the command first
+  commands it, whatever took it there. Held by hand meanwhile, the fade goes on unseen from
+  that level, and the output joins it where it is by then when it is let go.
+- Listeners are told the state four times a second while only fades move, and when one ends.
+
+### Variables (decision 0027)
+
+The variables of the package start at their initial values when the service starts. The
+state gives them (`variables`: `id`, `name`, `type`, `value`, `min`, `max`, `setting`).
+
+| Request | Does | Refused |
+|---|---|---|
+| `PUT /api/variables/{id}` with `{"value": 40}` | Gives the variable that value | `variable.unknown` (404; also with no package); `variable.value_invalid` (422: `name`, `type`) for a value of another type; `variable.value_out_of_range` (422: `name`, `value`, `min`, `max`) outside its limits. Nothing changes |
+
+An argument that reads a variable takes its value when its command first commands its
+output, and keeps it while the command lasts: setting the variable shows the next time such
+a command starts. A command that starts while a higher priority has its output reads its
+variables when it gets the output.
+
+Not yet: variables marked `persistent` are not kept across a restart, and nothing but the
+API sets one (automations, 4.4).
 
 ## Schedules and restarts (decision 0023)
 

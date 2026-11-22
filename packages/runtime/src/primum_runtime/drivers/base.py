@@ -141,6 +141,26 @@ class OutputDriver(ElementDriver):
             raise TypeError(f"the state of {action!r} is not a level: {level!r}")
         return level
 
+    def moves(self, action: str) -> bool:
+        """Whether ``action`` moves the element from one state to another over a clip (a
+        fade), instead of holding the state it ends in for the whole of it."""
+        return self._action(action).start_state is not None
+
+    def start_level_for(
+        self, action: str, arguments: Mapping[str, Value] | None = None
+    ) -> float | None:
+        """The level ``action`` starts a clip from with these arguments. ``None`` when it
+        does not say: the action moves nothing, or its start is a parameter that was left
+        out, and then it starts from where the element is."""
+        declared = self._action(action)
+        state = declared.start_state
+        if state is None:
+            return None
+        if not isinstance(state, str):
+            return state
+        level = resolve(self.name, arguments or {}, declared.parameters).get(state)
+        return None if level is None or isinstance(level, bool | str) else level
+
     def go_to(self, level: float) -> None:
         """Write ``level`` and read it back; ``element.level_not_reached`` if the hardware
         reads another. From here on the output may have changed, whatever is raised."""

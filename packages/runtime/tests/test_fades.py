@@ -1,0 +1,248 @@
+"""Fades moved in time and variables read while running, on the show of ``show_service``: the
+simulated board, a clock moved by hand."""
+
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from primum_runtime.control import FADE_STEP_S, FADE_TOLD_S
+from primum_runtime.errors import ErrorCode, PrimumError
+from primum_runtime.hal import SimulatedHal
+from show_service import (
+    BRIGHTNESS,
+    DOWN,
+    GLOW,
+    LAMP,
+    LAMP_PIN,
+    ON,
+    RISE,
+    UNKNOWN,
+    Service,
+    running,
+)
+
+STEPS_PER_S = round(1 / FADE_STEP_S)
+
+
+@pytest.fixture
+def service() -> Service:
+    return Service()
+
+
+@pytest.fixture
+def client(tmp_path: Path) -> Iterator[tuple[TestClient, SimulatedHal]]:
+    with running(tmp_path) as service:
+        yield service
+
+
+def _lamp(service: Service) -> float:
+    """The lamp's level, from 0 to 100, as the board has it."""
+    return round(service.lamp * 100, 3)
+
+
+def _brightness(service: Service) -> object:
+    return service.controller.state().variables[0].value
+
+
+def test_a_fade_moves_its_output_in_proportion_to_the_time_gone_by(service: Service) -> None:
+    service.controller.start_sequence(GLOW)
+    levels = [_lamp(service)]
+
+    for _ in range(4):
+        service.after(0.5)
+        levels.append(_lamp(service))
+
+    assert levels == [20, 35, 50, 65, 80]
+
+
+def test_a_fade_is_stepped_while_it_moves_and_not_after(service: Service) -> None:
+    service.controller.start_sequence(GLOW)
+    moving = service.controller.next_expiry_s()
+
+    service.after(1.99)
+    nearly = service.controller.next_expiry_s()
+    service.after(0.01)
+
+    assert moving == pytest.approx(FADE_STEP_S)
+    assert nearly == pytest.approx(0.01)  # its end comes before the next step
+    assert service.controller.next_expiry_s() is None  # held at 80: nothing left to do
+    assert _lamp(service) == 80
+
+
+def test_every_step_writes_the_level_its_time_asks_for(service: Service) -> None:
+    service.controller.start_sequence(GLOW)
+
+    for _ in range(STEPS_PER_S):
+        service.after(FADE_STEP_S)
+
+    written = service.hal.pwm_lines[LAMP_PIN].history
+    assert len(written) == STEPS_PER_S + 1  # where it starts, then one per step
+    assert list(written) == sorted(written)
+    assert written[-1] == pytest.approx(0.5)
+
+
+def test_a_wake_that_comes_late_goes_to_where_the_fade_is_by_then(service: Service) -> None:
+    service.controller.start_sequence(GLOW)
+
+    service.after(1.5)
+
+    assert _lamp(service) == 65
+
+
+def test_listeners_are_told_of_a_fade_now_and_then_and_when_it_ends(service: Service) -> None:
+    service.controller.start_sequence(GLOW)
+    told = len(service.states)
+
+    for _ in range(2 * STEPS_PER_S):
+        service.after(FADE_STEP_S)
+
+    during = len(service.states) - told
+    assert 2 / FADE_TOLD_S - 2 <= during <= 2 / FADE_TOLD_S + 1  # not once per step
+    assert service.states[-1].outputs[1].level == 80
+
+
+def test_a_fade_without_its_from_starts_from_where_the_output_is(service: Service) -> None:
+    service.controller.start_sequence(GLOW)
+    service.after(2)  # held at 80
+
+    service.controller.start_sequence(DOWN)
+    start = _lamp(service)
+    service.after(0.5)
+
+    assert (start, _lamp(service)) == (80, 40)
+
+
+def test_a_fade_goes_on_under_a_person_s_hand_from_the_level_it_found(service: Service) -> None:
+    """Held by hand at 60, the fade to 0 starts from 60, unseen; let go half way, the lamp
+    is where the fade is by then."""
+    service.controller.command(LAMP, "set", {"level": 60})
+
+    service.controller.start_sequence(DOWN)
+    held = (_lamp(service), service.controller.next_expiry_s())
+    service.clock.now += 0.5
+    service.controller.release(LAMP)
+
+    assert held == (60, 1.0)  # nothing to step while a person holds it: only its end
+    assert _lamp(service) == 30
+
+
+def test_a_variable_is_read_when_its_command_starts_and_kept_while_it_lasts(
+    service: Service,
+) -> None:
+    service.controller.set_variable(BRIGHTNESS, 40)
+    service.controller.start_sequence(RISE)
+    service.after(0.5)
+    half = _lamp(service)
+
+    service.controller.set_variable(BRIGHTNESS, 90)
+    service.after(0.5)
+    kept = _lamp(service)
+    service.controller.start_sequence(RISE)  # again: a new command, which reads 90
+    service.after(1)
+
+    assert (half, kept, _lamp(service)) == (20, 40, 90)
+
+
+def test_setting_a_variable_tells_the_listeners_its_new_value(service: Service) -> None:
+    service.controller.set_variable(BRIGHTNESS, 75)
+
+    variable = service.states[-1].variables[0]
+    assert (variable.id, variable.name, variable.type, variable.value) == (
+        BRIGHTNESS,
+        "brightness",
+        "integer",
+        75,
+    )
+    assert (variable.min, variable.max, variable.setting) == (0, 100, True)
+
+
+@pytest.mark.parametrize(
+    ("variable", "value", "code", "params"),
+    [
+        (UNKNOWN, 5, ErrorCode.VARIABLE_UNKNOWN, {"id": UNKNOWN}),
+        ("brightness", 5, ErrorCode.VARIABLE_UNKNOWN, {"id": "brightness"}),
+        (BRIGHTNESS, "high", ErrorCode.VARIABLE_VALUE_INVALID, None),
+        (BRIGHTNESS, True, ErrorCode.VARIABLE_VALUE_INVALID, None),
+        (BRIGHTNESS, 2.5, ErrorCode.VARIABLE_VALUE_INVALID, None),
+        (BRIGHTNESS, 101, ErrorCode.VARIABLE_VALUE_OUT_OF_RANGE, None),
+        (BRIGHTNESS, -1, ErrorCode.VARIABLE_VALUE_OUT_OF_RANGE, None),
+    ],
+)
+def test_a_value_a_variable_cannot_hold_is_refused_and_changes_nothing(
+    service: Service,
+    variable: str,
+    value: float | bool | str,
+    code: ErrorCode,
+    params: dict[str, object] | None,
+) -> None:
+    told = len(service.states)
+    expected = params
+    if code is ErrorCode.VARIABLE_VALUE_INVALID:
+        expected = {"name": "brightness", "type": "integer"}
+    if code is ErrorCode.VARIABLE_VALUE_OUT_OF_RANGE:
+        expected = {"name": "brightness", "value": value, "min": 0, "max": 100}
+
+    with pytest.raises(PrimumError) as refused:
+        service.controller.set_variable(variable, value)
+
+    assert (refused.value.code, dict(refused.value.params)) == (code, expected)
+    assert _brightness(service) == 60
+    assert len(service.states) == told
+
+
+def test_panic_stops_a_fade_where_it_rests(service: Service) -> None:
+    service.controller.start_sequence(GLOW)
+    service.after(1)
+
+    service.controller.panic()
+
+    assert _lamp(service) == 0
+    assert service.controller.next_expiry_s() is None
+
+
+def test_a_fade_and_a_digital_output_run_side_by_side(service: Service) -> None:
+    service.controller.start_sequence(ON)
+    service.controller.start_sequence(GLOW)
+
+    service.after(1)
+
+    assert (service.led, _lamp(service)) == (True, 50)
+    assert service.hal.lines[17].history == (True,)  # written once, however many steps
+
+
+# --- over the API --------------------------------------------------------------------------
+
+
+def test_a_variable_is_set_over_the_api(client: tuple[TestClient, SimulatedHal]) -> None:
+    api, _ = client
+
+    response = api.put(f"/api/variables/{BRIGHTNESS}", json={"value": 30})
+
+    assert response.status_code == 200
+    assert response.json()["variables"] == [
+        {
+            "id": BRIGHTNESS,
+            "name": "brightness",
+            "type": "integer",
+            "value": 30,
+            "min": 0,
+            "max": 100,
+            "setting": True,
+        }
+    ]
+
+
+def test_a_value_a_variable_cannot_hold_is_a_422_and_one_that_is_not_there_a_404(
+    client: tuple[TestClient, SimulatedHal],
+) -> None:
+    api, _ = client
+
+    too_much = api.put(f"/api/variables/{BRIGHTNESS}", json={"value": 500})
+    wrong = api.put(f"/api/variables/{BRIGHTNESS}", json={"value": "high"})
+    nothing = api.put(f"/api/variables/{UNKNOWN}", json={"value": 5})
+
+    assert (too_much.status_code, too_much.json()["code"]) == (422, "variable.value_out_of_range")
+    assert (wrong.status_code, wrong.json()["code"]) == (422, "variable.value_invalid")
+    assert (nothing.status_code, nothing.json()["code"]) == (404, "variable.unknown")

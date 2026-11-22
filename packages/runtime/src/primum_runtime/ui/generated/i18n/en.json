@@ -208,6 +208,18 @@
       "message": "There is no sequence {id}.",
       "hint": "Reload the page to see the sequences of the package that is running."
     },
+    "variable.unknown": {
+      "message": "There is no variable {id}.",
+      "hint": "Reload the page to see the variables of the package that is running."
+    },
+    "variable.value_invalid": {
+      "message": "{name} is a {type}, and that value is not one.",
+      "hint": "Give it a value of its type."
+    },
+    "variable.value_out_of_range": {
+      "message": "{value} is outside the limits of {name}.",
+      "hint": "Give it a value between its minimum and its maximum."
+    },
     "panic.active": {
       "message": "Panic is active: outputs do not accept commands.",
       "hint": "Release panic when it is safe to continue."

@@ -11,7 +11,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
 
 from primum_runtime.api.broadcast import StateBroadcaster, Subscription
-from primum_runtime.api.models import OutputCommand, StateBody
+from primum_runtime.api.models import OutputCommand, StateBody, VariableValue
 from primum_runtime.control import Controller, State
 
 router = APIRouter(prefix="/api")
@@ -55,6 +55,15 @@ async def start_sequence(sequence_id: str, controller: ControllerDep) -> StateBo
 @router.post("/sequences/{sequence_id}/stop")
 async def stop_sequence(sequence_id: str, controller: ControllerDep) -> StateBody:
     controller.stop_sequence(sequence_id)
+    return StateBody.of(controller.state())
+
+
+@router.put("/variables/{variable_id}")
+async def set_variable(
+    variable_id: str, body: VariableValue, controller: ControllerDep
+) -> StateBody:
+    """Give a variable of the package a value. Commands that start from now on read it."""
+    controller.set_variable(variable_id, body.value)
     return StateBody.of(controller.state())
 
 

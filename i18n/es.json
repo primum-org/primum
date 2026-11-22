@@ -208,6 +208,18 @@
       "message": "No hay ninguna secuencia {id}.",
       "hint": "Recarga la página para ver las secuencias del paquete en marcha."
     },
+    "variable.unknown": {
+      "message": "No hay ninguna variable {id}.",
+      "hint": "Recarga la página para ver las variables del paquete en marcha."
+    },
+    "variable.value_invalid": {
+      "message": "{name} es de tipo {type}, y ese valor no lo es.",
+      "hint": "Dale un valor de su tipo."
+    },
+    "variable.value_out_of_range": {
+      "message": "{value} está fuera de los límites de {name}.",
+      "hint": "Dale un valor entre su mínimo y su máximo."
+    },
     "panic.active": {
       "message": "El pánico está activo: las salidas no aceptan órdenes.",
       "hint": "Desactiva el pánico cuando sea seguro continuar."

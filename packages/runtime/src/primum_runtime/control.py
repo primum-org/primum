@@ -16,15 +16,25 @@ When a layer has nothing to say, the one below does; when none has, the output r
 driver's safe state. So a test that expires, or manual control that is released, gives the
 output back to the sequences, not to rest.
 
+A command of a sequence may move its output over its clip (a ``fade``): the level then goes
+from where the clip starts to where it ends, in proportion to the time gone by, in steps of
+``FADE_STEP_S``. Without a ``from`` it starts at the level the output had when the command
+first commanded it. An argument read from a variable takes the variable's value at that
+same moment, and keeps it while the command lasts.
+
+Variables are the package's, at their initial values when the service starts. A value set
+to one (``set_variable``) is of its type and within its limits, or it is refused: commands
+that read a variable count on that.
+
 An output is only written when what it should be at changes. One that cannot be taken there
 does not stop the others, whatever it raises: it is logged once, its state says so
 (``rest_failed``), and it is tried again every ``RETRY_REST_S`` until it gets there.
 
 Time is a monotonic clock the controller is given. Whoever owns the event loop calls
 ``expire`` when ``next_expiry_s`` says: a test runs out, a command of a sequence starts or
-ends, or an output is due to be tried again. Inputs are listened to: ``read_inputs`` takes
-their changes from the HAL. Listeners are told the new ``State`` after every change; they
-must not block.
+ends, a fade is due its next step, or an output is due to be tried again. Inputs are
+listened to: ``read_inputs`` takes their changes from the HAL. Listeners are told the new
+``State`` after every change; they must not block.
 """
 
 import logging
@@ -33,8 +43,8 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
-from primum_core.generated.model import Command, Driver, Package
-from primum_core.values import Value
+from primum_core.generated.model import Command, Driver, Package, PackageVariable
+from primum_core.values import NUMERIC, Value, fits
 from primum_runtime.drivers import (
     DigitalInputDriver,
     ElementConfig,
@@ -42,7 +52,7 @@ from primum_runtime.drivers import (
     OutputDriver,
     create_driver,
 )
-from primum_runtime.engine import Engine
+from primum_runtime.engine import Asked, Engine
 from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.hal import Claim, Hal, InputSpec, OutputSpec, PwmSpec
 
@@ -57,6 +67,11 @@ MIN_TEST_MS = 1_000
 MAX_TEST_MS = 300_000
 # How long until an output that could not be taken where it should be is tried again.
 RETRY_REST_S = 5.0
+# How often an output that a sequence is moving (a fade) is written, and how often listeners
+# are told while nothing but that happens: a level every 20 ms is smooth to the eye, and a
+# state every 20 ms would drown whoever listens.
+FADE_STEP_S = 0.02
+FADE_TOLD_S = 0.25
 # Who commands an output, as its state says it.
 MANUAL, TEST, SEQUENCE = "manual", "test", "sequence"
 
@@ -103,14 +118,37 @@ class SequenceState:
 
 
 @dataclass(frozen=True)
+class VariableState:
+    """A variable of the package that is running, and the value it has now."""
+
+    id: str
+    name: str
+    type: str
+    value: Value
+    min: float | None = None
+    max: float | None = None
+    setting: bool = False
+
+
+@dataclass(frozen=True)
 class State:
     """What the controller reports: every output and every input, in configuration order,
-    panic, and the sequences of the package, if it runs one."""
+    panic, and the sequences and the variables of the package, if it runs one."""
 
     outputs: tuple[OutputState, ...]
     inputs: tuple[InputState, ...]
     panic: bool
     sequences: tuple[SequenceState, ...] = ()
+    variables: tuple[VariableState, ...] = ()
+
+
+@dataclass(frozen=True)
+class _Motion:
+    """What a command of a sequence asks of its output over its clip, fixed when it first
+    commands it: where it ends, and where it starts from if it moves there (a fade)."""
+
+    end: float
+    start: float | None = None  # ``None``: it holds ``end`` for the whole clip
 
 
 @dataclass(frozen=True)
@@ -172,11 +210,14 @@ class Controller:
         # all in their safe state.
         self._at = {key: output.rest_level for key, output in self._outputs.items()}
         self._engine = None if package is None else Engine(package)
-        # A variable is read at its initial value until variables change (block 4.3c).
         variables = () if package is None else package.variables
-        self._variables: Mapping[UUID, Value] = {v.id: v.initial for v in variables}
-        self._levels: dict[Command, float] = {}  # what each command of a sequence asks
+        self._variables: Mapping[UUID, PackageVariable] = {v.id: v for v in variables}
+        self._values: dict[UUID, Value] = {v.id: v.initial for v in variables}
+        # What each command that has commanded an output asks of it: by its sequence, when
+        # it started, and the command.
+        self._motions: dict[tuple[UUID, int, Command], _Motion] = {}
         self._ran: tuple[UUID, ...] = ()  # the sequences running when listeners were last told
+        self._told_at = clock()  # when listeners were last told
 
     def state(self) -> State:
         # One reading per output: its level may come from the hardware, and change.
@@ -198,7 +239,19 @@ class Controller:
         inputs = tuple(
             InputState(driver.name, driver.active, driver.key) for driver in self._inputs.values()
         )
-        return State(outputs, inputs, self._panic, self._sequences(now))
+        variables = tuple(
+            VariableState(
+                str(variable.id),
+                variable.name,
+                variable.type,
+                self._values[variable.id],
+                variable.min,
+                variable.max,
+                variable.setting,
+            )
+            for variable in self._variables.values()
+        )
+        return State(outputs, inputs, self._panic, self._sequences(now), variables)
 
     def command(
         self,
@@ -280,10 +333,39 @@ class Controller:
         self._settle(self._clock())
         self._notify()
 
+    def set_variable(self, variable: str, value: Value) -> None:
+        """Give a variable of the package a value, by its id.
+
+        Fails, changing nothing, with ``variable.unknown`` (``id``; also with no package),
+        ``variable.value_invalid`` (``name``, ``type``) for a value of another type, and
+        ``variable.value_out_of_range`` (``name``, ``value``, and the ``min`` and ``max`` it
+        has) for a number outside its limits. A command that already commands its output
+        keeps the value it read; the next one to start reads the new one.
+        """
+        try:
+            found = self._variables.get(UUID(variable))
+        except ValueError:
+            found = None
+        if found is None:
+            raise PrimumError(ErrorCode.VARIABLE_UNKNOWN, {"id": variable})
+        if not fits(value, found.type):
+            params = {"name": found.name, "type": found.type}
+            raise PrimumError(ErrorCode.VARIABLE_VALUE_INVALID, params)
+        if found.type in NUMERIC and not isinstance(value, bool | str):
+            below = found.min is not None and value < found.min
+            if below or (found.max is not None and value > found.max):
+                limits = {"min": found.min, "max": found.max}
+                given = {key: limit for key, limit in limits.items() if limit is not None}
+                params = {"name": found.name, "value": value, **given}
+                raise PrimumError(ErrorCode.VARIABLE_VALUE_OUT_OF_RANGE, params)
+        self._values[found.id] = value
+        self._notify()
+
     def next_expiry_s(self) -> float | None:
         """In how many seconds ``expire`` next has something to do (0 if it already has): a
-        test runs out, a command of a running sequence starts or ends, or an output is due
-        to be tried again. ``None`` while nothing is pending."""
+        test runs out, a command of a running sequence starts or ends, a fade is due its
+        next step, or an output is due to be tried again. ``None`` while nothing is pending.
+        """
         now = self._clock()
         due = [held.until for held in self._held.values() if held.until is not None]
         due += self._retry_at.values()
@@ -291,6 +373,8 @@ class Controller:
             change = self._engine.next_change_ms(_ms(now))
             if change is not None:
                 due.append(change / MS_PER_S)
+            if self._moving(now):
+                due.append(now + FADE_STEP_S)
         return max(0.0, min(due) - now) if due else None
 
     def expire(self) -> None:
@@ -301,14 +385,20 @@ class Controller:
         output that fails does not stop the others, whatever it raises (the real HAL lets an
         ``OSError`` of a line through): nobody is waiting for an answer here. That it failed
         does not say it is on: the write may have worked and the read-back failed. Listeners
-        are told once, if anything changed.
+        are told once, if anything changed; while the only thing that changes is the level
+        of a fade, every ``FADE_TOLD_S`` and not at every step.
         """
         now = self._clock()
         expired = [key for key, held in self._held.items() if _over(held, now)]
         for key in expired:
             del self._held[key]
-        changed = self._settle(now)
-        if expired or changed or self._running(now) != self._ran:
+        moving = self._moving(now)
+        written = self._settle(now)
+        # Nothing written but the steps of fades is told now and then, not at every step.
+        only_steps = bool(written) and written <= moving
+        told_lately = now - self._told_at < FADE_TOLD_S
+        other = expired or self._running(now) != self._ran or (written and not only_steps)
+        if other or (only_steps and not told_lately):
             self._notify()
 
     def events_fd(self) -> int | None:
@@ -385,44 +475,101 @@ class Controller:
         held = self._held.get(key)
         if held is not None:
             return held.level
-        command = self._asked(key, now)
-        return output.rest_level if command is None else self._level_of(command, output)
+        asked = self._asked(key, now)
+        return output.rest_level if asked is None else self._level_of(key, asked, now)
 
-    def _asked(self, key: str, now: float) -> Command | None:
+    def _asked(self, key: str, now: float) -> Asked | None:
         """What the sequences ask of output ``key``, if anything."""
         if self._engine is None:
             return None
-        asked = self._engine.asked(UUID(key), _ms(now))
-        return None if asked is None else asked.command
+        return self._engine.asked(UUID(key), _ms(now))
 
-    def _level_of(self, command: Command, output: OutputDriver) -> float:
-        level = self._levels.get(command)
-        if level is None:
+    def _level_of(self, key: str, asked: Asked, now: float) -> float:
+        """The level a command of a sequence asks of its output at ``now``: where it ends,
+        or, while it moves there, as far along as its time is."""
+        motion = self._motion_of(key, asked)
+        length = asked.command.duration_ms
+        if motion.start is None or asked.settled or length == 0:
+            return motion.end
+        gone = min(1.0, max(0.0, (_ms(now) - asked.since_ms) / length))
+        return motion.start + (motion.end - motion.start) * gone
+
+    def _motion_of(self, key: str, asked: Asked) -> _Motion:
+        """What the command asks of its output, worked out the first time it commands it and
+        kept: its variables are read then, and a fade without a ``from`` starts from the
+        level the output has then."""
+        command = asked.command
+        known = (asked.sequence, asked.since_ms, command)
+        motion = self._motions.get(known)
+        if motion is None:
+            output = self._outputs[key]
             arguments = {
-                argument.name: self._variables[argument.variable]
+                argument.name: self._values[argument.variable]
                 if argument.variable is not None
                 else argument.value
                 for argument in command.arguments
             }
             given = {name: value for name, value in arguments.items() if value is not None}
-            level = self._levels[command] = output.level_for(command.action, given)
-        return level
+            end = output.level_for(command.action, given)
+            start = None
+            if command.duration_ms > 0 and output.moves(command.action):
+                start = output.start_level_for(command.action, given)
+                if start is None:
+                    # Read from the hardware only if the level it was taken to is not known.
+                    known_level = self._at.get(key)
+                    start = output.level if known_level is None else known_level
+            motion = self._motions[known] = _Motion(end, start)
+        return motion
 
-    def _settle(self, now: float) -> bool:
+    def _note(self, now: float) -> None:
+        """Fix what every command that commands an output now asks of it, before anything is
+        written: so a fade without a ``from`` starts from the level its output had, whoever
+        commanded it, and also while a person holds the output. And forget the commands of
+        sequences that no longer run."""
+        if self._engine is None:
+            return
+        for key in self._outputs:
+            asked = self._asked(key, now)
+            if asked is not None:
+                self._motion_of(key, asked)
+        runs = {(run.sequence, run.started_ms) for run in self._engine.running(_ms(now))}
+        self._motions = {
+            known: motion
+            for known, motion in self._motions.items()
+            if (known[0], known[1] - known[2].at_ms) in runs
+        }
+
+    def _moving(self, now: float) -> frozenset[str]:
+        """The outputs a sequence is moving right now: those written at every step."""
+        if self._panic or self._engine is None:
+            return frozenset()
+        moving: set[str] = set()
+        for key in self._outputs:
+            asked = None if key in self._held else self._asked(key, now)
+            if asked is None or asked.settled:
+                continue
+            motion = self._motion_of(key, asked)
+            if motion.start is not None and motion.start != motion.end:
+                moving.add(key)
+        return frozenset(moving)
+
+    def _settle(self, now: float) -> frozenset[str]:
         """Take each output to the level it should be at, if it is not known to be there, or
-        if it failed to get there and is due to be tried again. Whether anything was done."""
-        changed = False
+        if it failed to get there and is due to be tried again. The outputs it tried."""
+        self._note(now)
+        tried: set[str] = set()
         for key, output in self._outputs.items():
             retry_at = self._retry_at.get(key)
-            if retry_at is None and key in self._at and self._at[key] == self._wanted(key, now):
-                continue
             if retry_at is not None and retry_at > now:
                 continue
-            changed = True
             try:
                 wanted = self._wanted(key, now)
+                if retry_at is None and key in self._at and self._at[key] == wanted:
+                    continue
+                tried.add(key)
                 output.go_to(wanted)
             except Exception as error:  # the others must still be taken where they should be
+                tried.add(key)
                 # Said once, not at every retry: its state goes on saying it meanwhile.
                 if retry_at is None:
                     log.error(
@@ -438,7 +585,7 @@ class Controller:
                     log.info("%s is where it should be after all", output.name)
                     del self._retry_at[key]
                 self._at[key] = wanted
-        return changed
+        return frozenset(tried)
 
     def _controlled_by(self, key: str, now: float) -> str | None:
         if self._panic:
@@ -480,7 +627,8 @@ class Controller:
         return max(0, round((held.until - now) * MS_PER_S))
 
     def _notify(self) -> None:
-        self._ran = self._running(self._clock())
+        self._told_at = self._clock()
+        self._ran = self._running(self._told_at)
         state = self.state()
         for listener in tuple(self._listeners):
             listener(state)
