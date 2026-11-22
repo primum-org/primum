@@ -918,6 +918,9 @@ per element, from a deployment package that can be rolled back. One pull request
     no listener. All four fixed: the clock stays trusted once set, the state says what the
     service last looked at, the gap between looks is counted in real time, and a window
     that opens or closes is told. The fixes have not been reported as run on the Pi.
+    The fix of the gap broke something its owner then found: a window that starts in the
+    hour summer time skips did not open that day (the time counted back fell inside it).
+    Fixed: a window opens against what the look before found open.
   - Still to try on a Pi: starting without network and getting it later; a real time of
     day.
   - Left out: the time from a client for a board that never has Internet; once per window

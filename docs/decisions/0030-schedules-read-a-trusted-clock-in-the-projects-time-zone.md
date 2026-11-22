@@ -20,8 +20,10 @@ correction.
   that only acts during a window does not act. Once known it stays known while the service
   runs: the file goes when timesyncd restarts, and the clock is no worse for it.
 - **`core` says whether a schedule happens between two looks** (`primum_core.schedules`):
-  a time that was passed, a window that is open now and was not before, or, the first time
-  the time is known, a window that is open.
+  a time that was passed, a window that is open now and was not at the look before, or,
+  the first time the time is known, a window that is open. Whether a window was open
+  before is what that look found, never worked out again from a time of day: counted back
+  across the start of summer time, that time never was.
 - **The runtime looks as each minute turns**, and every 10 s while the time is not known.
   One timer, the one the controller already had.
 - **A time is lost in any gap longer than 90 s**: the board off, the time not known, the

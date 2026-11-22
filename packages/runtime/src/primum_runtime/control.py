@@ -321,6 +321,9 @@ class Controller:
         # The schedules with a window open at that look; ``None``: the time was not known.
         # What the state says, so that it never runs ahead of what the controller acted on.
         self._open: frozenset[UUID] | None = None
+        # Those open at the latest time looked at (``_looked_at``): what a window opens
+        # against.
+        self._were_open: frozenset[UUID] = frozenset()
         # What each command that has commanded an output asks of it: by its sequence, when
         # it started, and the command.
         self._motions: dict[tuple[UUID, int, Command], _Motion] = {}
@@ -721,7 +724,17 @@ class Controller:
                 # has happened.
                 since = max(local - (trusted - before), latest)
         self._looked_at = local
-        return [schedule.id for schedule in self._schedules if happens(schedule, since, local)]
+        # A window opens against what was open at the look before, as that look saw it;
+        # ``since`` may be a time of day that never was. With the time newly known, none was.
+        # Not against the look just before either, while the clock was being waited for:
+        # in the hour lived twice a window closes and opens again, and it opened once.
+        previously = self._were_open if since is not None else frozenset[UUID]()
+        self._were_open = self._open
+        return [
+            schedule.id
+            for schedule in self._schedules
+            if happens(schedule, schedule.id in previously, since, local)
+        ]
 
     def _open_schedules(self) -> frozenset[UUID] | None:
         """The schedules with a window open now, for the automations that only act during

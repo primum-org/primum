@@ -6,11 +6,13 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import pytest
 from starlette.testclient import WebSocketTestSession
 
+from primum_core.generated.model import Package, PackageWindow
 from primum_runtime import systemd
 from primum_runtime.api.models import StateBody
 from primum_runtime.config import parse_config
@@ -112,9 +114,9 @@ class _Wall:
 
 
 class _Shop(Service):
-    def __init__(self) -> None:
+    def __init__(self, loaded: Package | None = None) -> None:
         self.wall = _Wall()
-        super().__init__(package(DOCUMENT), self.wall)
+        super().__init__(package(DOCUMENT) if loaded is None else loaded, self.wall)
 
     def at(self, local: str, day: str = MONDAY) -> None:
         """It is ``local`` in Madrid, and the service is woken, as its timer would."""
@@ -128,8 +130,8 @@ class _Shop(Service):
     def visits(self) -> object:
         return next(v.value for v in self.controller.state().variables if v.id == VISITS)
 
-    def is_open(self) -> bool | None:
-        return next(s.open for s in self.controller.state().schedules if s.id == OPEN)
+    def is_open(self, schedule: str = OPEN) -> bool | None:
+        return next(s.open for s in self.controller.state().schedules if s.id == schedule)
 
 
 @pytest.fixture
@@ -261,6 +263,56 @@ def test_a_time_right_after_the_hour_lived_twice_happens_once(shop: _Shop) -> No
     shop.at_utc("2026-10-25 02:01:10")
 
     assert (first_pass, started, shop.running()) == ([], ["On"], [])
+
+
+@pytest.mark.parametrize(
+    ("start", "end"), [("02:30", "04:00"), ("02:00", "06:00"), ("03:00", "06:00")]
+)
+def test_a_window_that_starts_in_the_hour_summer_time_skips_still_opens(
+    start: str, end: str
+) -> None:
+    """On 2026-03-29 there is no 02:30 in Madrid. A window from 02:30 is open at 03:00, and
+    was not at 01:59: it opened, though the time counted back a minute from 03:00 is a
+    02:59 that never was and that falls inside it."""
+    loaded = package(DOCUMENT)
+    window = PackageWindow(days=("sun",), from_=start, to=end)
+    schedules = tuple(
+        replace(s, windows=(window,)) if s.id == UUID(LUNCH) else s for s in loaded.schedules
+    )
+    early = next(a for a in loaded.automations if a.name == "Early")
+    shop = _Shop(
+        replace(loaded, schedules=schedules, automations=(replace(early, when=(UUID(LUNCH),)),))
+    )
+    shop.at_utc("2026-03-29 00:59:30")  # 01:59:30
+    before = (shop.running(), shop.is_open(LUNCH))
+
+    shop.at_utc("2026-03-29 01:00:10")  # 03:00:10
+
+    assert before == ([], False)
+    assert (shop.running(), shop.is_open(LUNCH)) == (["On"], True)
+
+
+def test_a_window_open_through_the_hour_lived_twice_opens_once() -> None:
+    """On 2026-10-25, a window from 02:30: it opens at 02:30 summer time, and the second
+    02:30, an hour later, is not another opening."""
+    loaded = package(DOCUMENT)
+    window = PackageWindow(days=("sun",), from_="02:30", to="04:00")
+    schedules = tuple(
+        replace(s, windows=(window,)) if s.id == UUID(LUNCH) else s for s in loaded.schedules
+    )
+    early = next(a for a in loaded.automations if a.name == "Early")
+    shop = _Shop(
+        replace(loaded, schedules=schedules, automations=(replace(early, when=(UUID(LUNCH),)),))
+    )
+    shop.at_utc("2026-10-25 00:29:30")  # 02:29:30, summer time
+    shop.at_utc("2026-10-25 00:30:10")  # 02:30:10: it opens
+    opened = shop.running()
+    shop.controller.stop_sequence(ON)
+
+    for minute in ("01:00:10", "01:29:30", "01:30:10", "02:00:10", "02:30:10"):
+        shop.at_utc(f"2026-10-25 {minute}")  # 02:00 to 02:30 again, then on to 03:30
+
+    assert (opened, shop.running()) == (["On"], [])
 
 
 def test_a_clock_corrected_forward_loses_the_times_it_jumps_over(shop: _Shop) -> None:

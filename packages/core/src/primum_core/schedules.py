@@ -11,10 +11,11 @@ and only once the clock can be trusted.
 - A schedule **happens**, and starts its automations, at each of its times and when one of
   its windows opens: when it has an open window and had none the time before.
 
-What ``happens`` is asked is the time now and the time it was last asked (``since``). The
-first time, with no ``since``, only an open window counts: the board has just come to know
-the time inside it. A time of a schedule that falls in a gap longer than ``LATE`` is lost:
-the board was off, did not know the time, or its clock jumped.
+What ``happens`` is asked is the time now, whether a window was open the last time it was
+asked, and the time that was (``since``). The first time, with no ``since``, only an open
+window counts: the board has just come to know the time inside it. A time of a schedule
+that falls in a gap longer than ``LATE`` is lost: the board was off, did not know the time,
+or its clock jumped.
 """
 
 from collections.abc import Iterable, Iterator
@@ -74,12 +75,18 @@ def is_open(schedule: AnySchedule, local: datetime) -> bool:
     return False
 
 
-def happens(schedule: AnySchedule, since: datetime | None, now: datetime) -> bool:
-    """Whether the schedule happens between ``since`` (not included) and ``now``: one of
-    its windows opened, or one of its times was passed no longer than ``LATE`` ago. Both are
-    local times of the project's zone; ``since`` is ``None`` the first time the time is
-    known, and then only a window that is open counts."""
-    if is_open(schedule, now) and (since is None or not is_open(schedule, since)):
+def happens(schedule: AnySchedule, was_open: bool, since: datetime | None, now: datetime) -> bool:
+    """Whether the schedule happens at this look: one of its windows opened, or one of its
+    times was passed since the look before, no longer than ``LATE`` ago.
+
+    ``was_open`` is whether it had a window open at the look before, as that look found it
+    (false the first time the time is known, so a window that is open then counts). A
+    window opens against that, never against ``since``: ``since`` is ``now`` less the time
+    that really went by, and when summer time starts that is a time of day that never was.
+    ``since`` is for the times alone; ``None`` the first time, when none counts. Both are
+    local times of the project's zone.
+    """
+    if is_open(schedule, now) and not was_open:
         return True
     if since is None or not timedelta(0) < now - since <= LATE:
         return False

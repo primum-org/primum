@@ -37,6 +37,13 @@ def _schedule(
     )
 
 
+def _happens(schedule: PackageSchedule, since: datetime | None, now: datetime) -> bool:
+    """As whoever looks time after time asks: a window was open before if it was open at
+    the time of the look before."""
+    was_open = since is not None and schedules.is_open(schedule, since)
+    return schedules.happens(schedule, was_open, since, now)
+
+
 SHOP = _schedule(windows=[("mon tue", "10:00", "20:30")])
 NIGHT = _schedule(windows=[("fri", "22:00", "02:00")])
 
@@ -87,21 +94,32 @@ def test_a_window_that_starts_and_ends_at_the_same_time_is_never_open() -> None:
 def test_a_schedule_happens_when_a_window_opens() -> None:
     before, opening, inside = (_at(MON, clock) for clock in ("09:59", "10:00", "10:01"))
 
-    assert schedules.happens(SHOP, before, opening)
-    assert not schedules.happens(SHOP, opening, inside)  # once: it was open already
-    assert not schedules.happens(SHOP, _at(MON, "09:00"), before)
+    assert _happens(SHOP, before, opening)
+    assert not _happens(SHOP, opening, inside)  # once: it was open already
+    assert not _happens(SHOP, _at(MON, "09:00"), before)
 
 
 def test_a_schedule_happens_the_first_time_the_time_is_known_inside_a_window() -> None:
     """A board that starts, or comes to know the time, with the shop open."""
-    assert schedules.happens(SHOP, None, _at(MON, "15:00"))
-    assert not schedules.happens(SHOP, None, _at(MON, "21:00"))
+    assert _happens(SHOP, None, _at(MON, "15:00"))
+    assert not _happens(SHOP, None, _at(MON, "21:00"))
 
 
 def test_a_window_that_opened_in_a_long_gap_still_happens_while_it_is_open() -> None:
     """The clock jumped from the morning into the window: the light must still come on."""
-    assert schedules.happens(SHOP, _at(MON, "07:00"), _at(MON, "15:00"))
-    assert not schedules.happens(SHOP, _at(MON, "07:00"), _at(MON, "21:00"))  # and closed again
+    assert _happens(SHOP, _at(MON, "07:00"), _at(MON, "15:00"))
+    assert not _happens(SHOP, _at(MON, "07:00"), _at(MON, "21:00"))  # and closed again
+
+
+def test_a_window_opens_against_what_was_open_before_not_against_the_time_it_was() -> None:
+    """When summer time starts the time of the look before, counted back from 03:00, is a
+    02:59 that never was. It falls inside a window from 02:30, which was not open at the
+    look before (01:59): the window opened."""
+    early = _schedule(windows=[("sun", "02:30", "04:00")])
+    never_was, now = _at(SUN, "02:59:30"), _at(SUN, "03:00:10")
+
+    assert schedules.happens(early, False, never_was, now)
+    assert not schedules.happens(early, True, never_was, now)  # it was open already
 
 
 LIGHTS = _schedule(times=[("mon", "20:30")])
@@ -119,26 +137,26 @@ LIGHTS = _schedule(times=[("mon", "20:30")])
     ],
 )
 def test_a_time_happens_when_the_clock_passes_it(since: str, now: str, happens: bool) -> None:
-    assert schedules.happens(LIGHTS, _at(MON, since), _at(MON, now)) is happens
+    assert _happens(LIGHTS, _at(MON, since), _at(MON, now)) is happens
 
 
 def test_a_time_does_not_happen_on_a_day_it_does_not_name() -> None:
-    assert not schedules.happens(LIGHTS, _at(TUE, "20:29"), _at(TUE, "20:30"))
+    assert not _happens(LIGHTS, _at(TUE, "20:29"), _at(TUE, "20:30"))
 
 
 def test_a_time_is_lost_while_the_time_is_not_known() -> None:
-    assert not schedules.happens(LIGHTS, None, _at(MON, "20:30"))
+    assert not _happens(LIGHTS, None, _at(MON, "20:30"))
 
 
 def test_a_time_at_midnight_happens_as_the_day_turns() -> None:
     midnight = _schedule(times=[("tue", "00:00")])
 
-    assert schedules.happens(midnight, _at(MON, "23:59:30"), _at(TUE, "00:00:10"))
-    assert not schedules.happens(midnight, _at(SUN, "23:59:30"), _at(SUN, "23:59:50"))
+    assert _happens(midnight, _at(MON, "23:59:30"), _at(TUE, "00:00:10"))
+    assert not _happens(midnight, _at(SUN, "23:59:30"), _at(SUN, "23:59:50"))
 
 
 def test_a_clock_that_goes_back_makes_nothing_happen() -> None:
-    assert not schedules.happens(LIGHTS, _at(MON, "20:30:30"), _at(MON, "20:29:30"))
+    assert not _happens(LIGHTS, _at(MON, "20:30:30"), _at(MON, "20:29:30"))
 
 
 def test_a_time_passed_is_exactly_one_step_however_the_steps_fall() -> None:
@@ -148,7 +166,7 @@ def test_a_time_passed_is_exactly_one_step_however_the_steps_fall() -> None:
         count = 0
         while now < _at(MON, "20:35"):
             following = now + timedelta(seconds=step_s)
-            count += schedules.happens(LIGHTS, now, following)
+            count += _happens(LIGHTS, now, following)
             now = following
         assert count == 1, step_s
 

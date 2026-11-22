@@ -58,7 +58,7 @@ A schedule **happens**, and its automations act:
 | When | |
 |---|---|
 | The clock passes one of its times | Once |
-| One of its windows opens | Once: it had no window open and now it has |
+| One of its windows opens | Once: it had no window open the last time the service looked, and now it has |
 | The board comes to know the time inside one of its windows | When the service starts there, or when the clock is first set there. How a light comes back after a power cut (decision 0023) |
 
 A service that restarts inside a window starts its automations again each time: nothing is
@@ -101,8 +101,8 @@ happens**.
 |---|---|
 | The time comes to be known late (no network at 19:00, set at 19:40) | Windows that are open happen. Times that passed meanwhile are lost, as if the board had been off |
 | It jumps forward, or the service did not look for more than 90 s | The times jumped over are lost. A window that opened meanwhile and is still open happens |
-| Summer time starts (02:00 becomes 03:00) | A time in the hour that does not exist (02:30) is lost. One right after it (03:00) happens: the gap is counted in the time that really went by, a minute, not in what the clock on the wall jumped |
-| Summer time ends (03:00 becomes 02:00 again), or the clock is set back up to two hours | Nothing happens again until the clock is past where it was: a time happens once |
+| Summer time starts (02:00 becomes 03:00) | A time in the hour that does not exist (02:30) is lost. One right after it (03:00) happens: the gap is counted in the time that really went by, a minute, not in what the clock on the wall jumped. A window that starts in that hour (from 02:30) opens at 03:00: it is open then and was not at the look before |
+| Summer time ends (03:00 becomes 02:00 again), or the clock is set back up to two hours | Nothing happens again until the clock is past where it was: a time happens once, and a window that opened in that hour does not open again |
 | It is set back further | The time is taken as newly known: windows that are open happen |
 
 Durations (clips, fades, tests) never use this clock: they count on a monotonic one, and a
