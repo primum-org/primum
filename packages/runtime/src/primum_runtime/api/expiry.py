@@ -1,9 +1,10 @@
-"""Waking the controller when a test is due to expire.
+"""Waking the controller when it next has something to do: a test is due to expire, a command
+of a running sequence starts or ends, an output is due to be tried again.
 
 The controller keeps the deadlines; the event loop keeps the time. After every change of
 state this arms one timer for the next deadline, replacing the one before: a timer that
 fires calls ``Controller.expire``, which changes the state, which arms the next. No thread
-and no polling, as for the inputs.
+and no polling, as for the inputs: between two changes of a sequence nothing runs.
 """
 
 from collections.abc import Callable

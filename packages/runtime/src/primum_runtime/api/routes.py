@@ -39,6 +39,25 @@ async def command_output(
     return StateBody.of(controller.state())
 
 
+@router.delete("/outputs/{output_id}")
+async def release_output(output_id: str, controller: ControllerDep) -> StateBody:
+    """Let go of an output a person commanded: it goes back to what the sequences say."""
+    controller.release(output_id)
+    return StateBody.of(controller.state())
+
+
+@router.post("/sequences/{sequence_id}/start")
+async def start_sequence(sequence_id: str, controller: ControllerDep) -> StateBody:
+    controller.start_sequence(sequence_id)
+    return StateBody.of(controller.state())
+
+
+@router.post("/sequences/{sequence_id}/stop")
+async def stop_sequence(sequence_id: str, controller: ControllerDep) -> StateBody:
+    controller.stop_sequence(sequence_id)
+    return StateBody.of(controller.state())
+
+
 @router.post("/panic")
 async def panic(controller: ControllerDep) -> StateBody:
     controller.panic()

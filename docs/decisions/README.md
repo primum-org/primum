@@ -33,6 +33,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0023](0023-starting-a-sequence-and-what-a-restart-loses.md) | Starting a running sequence restarts it; a window brings back what a restart lost | Accepted |
 | [0024](0024-the-deployment-package-and-values-by-name.md) | The deployment package is flat JSON with its hash; a value may come from a name | Accepted |
 | [0025](0025-the-service-runs-a-package-and-asks-elements-by-id.md) | The service runs a package, checked against its drivers; elements are asked for by id | Accepted |
+| [0026](0026-the-controller-arbitrates-the-engine-only-says.md) | The controller arbitrates each output; the engine only says what the sequences ask | Accepted |
 
 ## Template
 

@@ -1,7 +1,7 @@
 # Engine semantics
 
 What the engine does with sequences in time. It grows with phase 4; today it covers which
-sequences are running. Who commands an element given those is in
+sequences are running and how a board runs them. Who commands an element given those is in
 [`workspace.md`](workspace.md) (decision 0017).
 
 ## Which sequences are running (decision 0023)
@@ -33,6 +33,50 @@ that includes it.
 order they were started, which is what `command_at` reads. A `Timeline` carries what they
 need: `end` (`None` when the sequence holds), `exclusive_group` and `restarts`. A sequence
 that is not of the project is the caller's mistake: `ValueError`.
+
+## Running them on a board (decision 0026)
+
+The runtime runs the sequences of the package it loaded (`deployment-package.md`). Its engine
+(`primum_runtime.engine`) keeps the rules above on the package's commands; a test holds it to
+`command_at` and `primum_core.runs` on random projects.
+
+Each output has one arbiter, the controller. What it should be at is what the highest of
+these with something to say asks:
+
+| Layer | Says | Ends when |
+|---|---|---|
+| Panic | rest (the safe state) | it is released; nothing comes back |
+| A person: manual control | the level of a command of the API without a duration | it is released (`DELETE /api/outputs/{id}`), commanded again, or panic |
+| A person: a test | the level of a command with `durationMs` | it runs out, is released, commanded again, or panic |
+| The sequences | the command in force of the highest priority, then the one that started last | its time is over, or its sequence is stopped |
+| Nobody | rest | |
+
+A person's command replaces the one before on that output, test or not. When a layer ends,
+the output goes to what the next one says: a test over a sequence gives the output back to
+the sequence.
+
+| Request | Does | Refused |
+|---|---|---|
+| `POST /api/sequences/{id}/start` | Starts a sequence of the package, by the rules above | `sequence.unknown` (404; also with no package), `panic.active` (409) |
+| `POST /api/sequences/{id}/stop` | Stops it; one not running stays so | `sequence.unknown` (404) |
+| `DELETE /api/outputs/{id}` | Lets go of an output: manual control or a test is over | `output.unknown` (404) |
+
+The state gives `sequences` (`id`, `name`, `running`, in the order of the package) and, for
+each output, `controlledBy`: `manual`, `test`, `sequence` or nothing.
+
+- Panic stops every sequence and ends everything a person asked. While it is on no sequence
+  starts.
+- The runtime works only at changes: one timer for the next thing due (a test running out, a
+  command starting or ending, an output to be tried again). An output is written only when
+  the level it should be at changes.
+- An output that cannot be taken where it should be does not stop its sequence or the other
+  outputs: it says so (`restFailed`) and is tried again every 5 s.
+- A sequence the package asks to restart starts from its beginning; when the service starts,
+  none is running.
+
+Not yet (block 4.3c): a `fade` jumps to where it ends, and an argument read from a variable
+takes the variable's initial value. Nothing starts a sequence but the API until events and
+automations exist (4.4).
 
 ## Schedules and restarts (decision 0023)
 

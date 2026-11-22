@@ -96,15 +96,18 @@ for them, the whole procedure and the `hw` tests pass, as the owner of the board
 
 A command may be a test: given a duration, it expires on its own and its output goes to rest
 (the safe-state action of its driver), so that an output switched on to check a wire is not
-left on by forgetting it. It is the layer between panic and sequences of decision 0006; with
-no sequences yet (phase 4) there is nothing under it to return to but rest.
+left on by forgetting it. It is the layer between panic and sequences of decision 0006: when
+it ends the output goes to what the sequences say, and to rest when they say nothing
+(`engine-semantics.md`).
 
 - A test lasts from 1 s to 5 min (`durationMs`, 1000 to 300000); outside that it is
   `test.duration_out_of_range` (`duration_ms`, `min_ms`, `max_ms`), and nothing is commanded.
 - Any action can be a test: `on` for ten seconds, a level for five.
-- A command without a duration is not a test: the output stays as it leaves it. Either kind
-  of command replaces a test of that output still under way, with its own time or with none.
-- When it expires the output is sent to rest and read back, as by any command. If that
+- A command without a duration is not a test but manual control: the output stays as it
+  leaves it, over the sequences, until it is released (`DELETE /api/outputs/{id}`). Either
+  kind of command replaces what was asked of that output before, a test under way included.
+- When it expires the output is taken to what the sequences say, or to rest, and read back,
+  as by any command. If that
   fails, whatever the hardware raises, the other outputs still expire; the failure is
   logged (once, and again when it rests), the state of the output says so (`restFailed`,
   shown on the page) and it is tried again every 5 s until it rests, is commanded again, or

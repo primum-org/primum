@@ -50,6 +50,7 @@ p { margin: 0; }
 }
 .icon-led { --icon: var(--icon-led); }
 .icon-button { --icon: var(--icon-button); }
+.icon-sequence { --icon: var(--icon-sequence); }
 .icon-panic { --icon: var(--icon-panic); }
 .icon-warn { --icon: var(--icon-warn); }
 
@@ -127,6 +128,9 @@ main {
 /* A test under way: how long until the output goes off on its own, on a row of its own. */
 .testing { flex-basis: 100%; margin: 0; padding-bottom: var(--space-2); }
 .testing[hidden] { display: none; }
+.controlled-by { flex-basis: 100%; margin: 0; padding-bottom: var(--space-2); }
+.controlled-by[hidden], .release[hidden] { display: none; }
+.start:disabled, .stop:disabled { cursor: not-allowed; opacity: 0.45; }
 .test:disabled { cursor: not-allowed; opacity: 0.45; }
 
 /* The level of an output that takes one: a row of its own under the switch. */

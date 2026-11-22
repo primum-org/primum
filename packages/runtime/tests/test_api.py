@@ -39,10 +39,12 @@ OFF = {
             "actions": SWITCH,
             "remainingMs": None,
             "restFailed": False,
+            "controlledBy": None,
         }
     ],
     "inputs": [],
     "panic": False,
+    "sequences": [],
 }
 ON = {
     "outputs": [
@@ -54,10 +56,12 @@ ON = {
             "actions": SWITCH,
             "remainingMs": None,
             "restFailed": False,
+            "controlledBy": "manual",
         }
     ],
     "inputs": [],
     "panic": False,
+    "sequences": [],
 }
 
 
@@ -411,6 +415,7 @@ def test_a_pwm_output_is_reported_with_its_level_and_what_it_can_be_asked(
         "actions": LEVEL,
         "remainingMs": None,
         "restFailed": False,
+        "controlledBy": None,
     }
 
 
@@ -430,6 +435,7 @@ def test_setting_a_level_drives_the_channel_and_returns_the_new_state(
         "actions": LEVEL,
         "remainingMs": None,
         "restFailed": False,
+        "controlledBy": "manual",
     }
     assert hal.pwm_lines[DIMMER_PIN].duty == 0.4
 

@@ -763,16 +763,41 @@ per element, from a deployment package that can be rolled back. One pull request
   claim reaches the journal as a traceback of uvicorn's, some 25 lines for one fact. Seen
   on the board too: the unit stays `activating`, the same error at every turn.
 
-**4.3b · Engine and arbiter**
-- The runtime runs the sequences of a package on a monotonic clock, through the drivers, and
-  agrees with `command_at` and `primum_core.runs` (a randomized test against both; the one for
-  `block.hold_ignored` is still to write). Fades in time.
-- Arbiter per element: panic and safe state, then manual control and test mode, then
-  sequences by priority. Test mode's expiry returns to what the sequences say; a command
-  without a duration is manual control (decision 0022). Exclusive elements. Sequences are
-  started and stopped through the API until events exist.
+**4.3b · Engine and arbiter** · **code done; not tried on `primum-dev`** (decision 0026,
+`specs/engine-semantics.md`)
+- `primum_runtime.engine`: which sequences of the package run (restart, ignore, exclusive
+  groups, ending with the last clip) and what each element is asked, with no hardware and no
+  clock. A test holds it to `command_at` and `primum_core.runs` on 400 random projects (267
+  of them valid) with random starts and stops.
+- The controller arbitrates each output: panic, then a person (a command without a duration
+  is manual control until released; with one, a test), then the sequences, then rest. A
+  test that expires gives the output back to the sequences. Panic stops every sequence.
+- One timer for the next thing due; an output is written only when what it should be at
+  changes; one that cannot be taken there is tried again every 5 s and does not stop the
+  rest.
+- `POST /api/sequences/{id}/start` and `/stop`, `DELETE /api/outputs/{id}`; the state gives
+  the sequences and who commands each output. The page lists the sequences with *Start* and
+  *Stop*, says who commands an output and has a *Release* for one held by hand.
+- A `fade` still jumps to its end and a variable is read at its initial value: 4.3c.
+- Tried here on the simulated HAL with a clock moved by hand, one test with the real timer
+  of the service (a sequence of two seconds), and the page in a browser by a script, not by
+  a test of the repository. On the board: nothing was run. To try there: the real times of
+  a sequence, panic and `kill -9` in the middle of one, a held sequence across a restart.
+- Open: a manual command that fails is not held, and its output goes back to what the
+  layers say only the next time the controller has something to do. The page's text for
+  `restFailed` still speaks of a test. Exclusive elements wait for a driver that is one.
+  The randomized test for `block.hold_ignored` is still to write.
 
 **4.3c · Fades and variables**
+- **First, before any fade**: index the engine's commands. `Engine.asked` walks every command
+  of every running sequence, and the controller calls it for each output twice per change
+  (`_settle` and `state()`), besides `next_change_ms`. Measured on the Pi 4 by its owner,
+  with an equivalent loop over the engine, per change: 7 ms for 8 outputs × 100 clips, 135 ms
+  for 16 × 500, 539 ms for 16 × 2000. That time blocks the event loop: the next edge and the
+  API, panic included. A long show with many channels reaches thousands of commands, and a
+  fade stepped every 20 ms would spend a third of the processor on the small case. The cure
+  is local to the engine: commands by element, sorted by `atMs`, when the package is loaded;
+  the randomized test against `command_at` already guards the change.
 - Levels that move in time, `fade` without `from`, arguments read from a variable, and every
   assignment of a variable held to its limits.
 

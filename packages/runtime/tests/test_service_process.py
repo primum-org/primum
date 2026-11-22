@@ -95,10 +95,12 @@ def test_sigterm_stops_the_service_with_every_output_in_its_safe_state(
                 "actions": ["on", "off"],
                 "remainingMs": None,
                 "restFailed": False,
+                "controlledBy": "manual",
             }
         ],
         "inputs": [],
         "panic": False,
+        "sequences": [],
     }
 
     process.send_signal(signal.SIGTERM)

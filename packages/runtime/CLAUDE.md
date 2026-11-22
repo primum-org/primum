@@ -14,11 +14,15 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   reads it with `core` and checks it against the drivers and the board before anything is
   claimed, and refuses it whole. A package is never trusted for having a right hash. Elements
   are asked for by their id (`ElementConfig.key`), never by their name.
+- The controller is the arbiter of every output (decision 0026): panic, then what a person
+  asked (manual control or a test), then the sequences, as `engine.Engine` says. The engine
+  touches no hardware and reads no clock; a test holds it to `core`'s oracle. Nothing writes
+  an output but `Controller._settle` and a person's command.
 - Elements are driven through drivers (`primum_runtime.drivers`, decision 0019): one per
   element type, made from the element, its manifest (`drivers/`) and the limits of its board.
   The HAL's specs have no defaults: a driver gives every option. A new driver comes with its
   manifest and its tests against the simulated HAL.
-- Layers: `cli` and `safe` → `api` → `config` → `package` → `board` → `control` → `drivers` →
+- Layers: `cli` and `safe` → `api` → `config` → `package` → `board` → `control` → `engine` → `drivers` →
   `declared` → `hal` → `systemd` → `errors`; each imports only
   the ones below it, and FastAPI, uvicorn and pydantic stay in `api` and `cli` (`just arch`,
   decision 0011).

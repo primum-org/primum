@@ -64,7 +64,12 @@ def create_app(
             before_claim = None if config.simulate else declare
             try:
                 controller = Controller(
-                    hal, config.elements, load_manifests(), config.limits, before_claim
+                    hal,
+                    config.elements,
+                    load_manifests(),
+                    config.limits,
+                    before_claim,
+                    package=config.package,
                 )
             except Exception:
                 # A claim that fails leaves nothing claimed: what was declared for it names
@@ -80,7 +85,8 @@ def create_app(
             # Input changes are read when the HAL says there are some: no thread, no polling.
             # Without inputs there is nothing to watch.
             loop = asyncio.get_running_loop()
-            expiry = ExpiryTimer(controller, loop.call_later)  # tests that expire on their own
+            # Tests that expire on their own, and the sequences in their time.
+            expiry = ExpiryTimer(controller, loop.call_later)
             events_fd = controller.events_fd()
             if events_fd is not None:
                 loop.add_reader(events_fd, _read_inputs, loop, events_fd, controller)

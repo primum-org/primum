@@ -24,6 +24,9 @@ const page = {
   errorClose: document.getElementById("error-close"),
   outputs: document.getElementById("outputs"),
   outputRow: document.getElementById("output-row"),
+  sequencesSection: document.getElementById("sequences-section"),
+  sequences: document.getElementById("sequences"),
+  sequenceRow: document.getElementById("sequence-row"),
   inputsSection: document.getElementById("inputs-section"),
   inputs: document.getElementById("inputs"),
   inputRow: document.getElementById("input-row"),
@@ -62,6 +65,19 @@ function render() {
     button.disabled = !online || state.panic;
     renderTest(output);
     renderLevel(output);
+    renderControl(output);
+  }
+  const sequences = state?.sequences ?? [];
+  page.sequencesSection.hidden = sequences.length === 0;
+  dropRowsNotIn(page.sequences, "sequence", sequences);
+  for (const sequence of sequences) {
+    const row = sequenceRowFor(sequence);
+    const shown = row.querySelector(".input-state");
+    // Offline the last state may be stale: no word, as for a switch.
+    shown.textContent = online && sequence.running ? catalog.t("sequence.running") : "";
+    shown.dataset.active = String(online && sequence.running);
+    row.querySelector(".start").disabled = !online || state.panic;
+    row.querySelector(".stop").disabled = !online || !sequence.running;
   }
   const inputs = state?.inputs ?? [];
   page.inputsSection.hidden = inputs.length === 0;
@@ -132,6 +148,19 @@ function renderLevel(output) {
   level.querySelector(".level-value").textContent = online ? levelText(slider.value) : "";
 }
 
+// Who commands an output. A person's hand on it (the switch, the slider) stays until it is
+// let go: the button gives the output back to the sequences.
+function renderControl(output) {
+  const row = rowFor(output);
+  const by = online ? output.controlledBy : null;
+  const release = row.querySelector(".release");
+  release.hidden = by !== "manual";
+  const shown = row.querySelector(".controlled-by");
+  shown.hidden = by !== "manual" && by !== "sequence";
+  if (by === "manual") shown.textContent = catalog.t("output.by_manual");
+  if (by === "sequence") shown.textContent = catalog.t("output.by_sequence");
+}
+
 const levelText = (level) => catalog.t("output.level", { level });
 
 // The level of an output as the slider shows it: whole, as the service last reported it.
@@ -145,6 +174,25 @@ function dropRowsNotIn(list, kind, elements) {
   for (const row of list.querySelectorAll(`[data-${kind}]`)) {
     if (!ids.has(row.dataset[kind])) row.remove();
   }
+}
+
+function sequenceRowFor({ id, name }) {
+  const existing = page.sequences.querySelector(`[data-sequence="${CSS.escape(id)}"]`);
+  const row = existing ?? page.sequenceRow.content.firstElementChild.cloneNode(true);
+  // Set every time: a sequence keeps its id and may change its name (a new package).
+  row.querySelector(".output-name").textContent = name;
+  const start = row.querySelector(".start");
+  const stop = row.querySelector(".stop");
+  start.setAttribute("aria-label", catalog.t("sequence.start_of", { name }));
+  stop.setAttribute("aria-label", catalog.t("sequence.stop_of", { name }));
+  if (existing) return existing;
+  row.dataset.sequence = id;
+  start.textContent = catalog.t("sequence.start");
+  stop.textContent = catalog.t("sequence.stop");
+  start.addEventListener("click", () => command("POST", `sequences/${encodeURIComponent(id)}/start`));
+  stop.addEventListener("click", () => command("POST", `sequences/${encodeURIComponent(id)}/stop`));
+  page.sequences.append(row);
+  return row;
 }
 
 function inputRowFor({ id, name }) {
@@ -168,6 +216,7 @@ function nameRow(row, name) {
   const seconds = TEST_MS / 1000;
   row.querySelector(".test").setAttribute("aria-label", catalog.t("output.test_of", { name, seconds }));
   row.querySelector(".level-slider").setAttribute("aria-label", catalog.t("output.level_of", { name }));
+  row.querySelector(".release").setAttribute("aria-label", catalog.t("output.release_of", { name }));
 }
 
 function rowFor({ id, name }) {
@@ -183,6 +232,9 @@ function rowFor({ id, name }) {
   button.addEventListener("click", () => ask(id, button.getAttribute("aria-pressed") === "true" ? "off" : "on"));
   const test = row.querySelector(".test");
   test.textContent = catalog.t("output.test");
+  const release = row.querySelector(".release");
+  release.textContent = catalog.t("output.release");
+  release.addEventListener("click", () => command("DELETE", `outputs/${encodeURIComponent(id)}`));
   test.addEventListener("click", () => ask(id, "on", {}, TEST_MS));
   const slider = row.querySelector(".level-slider");
   // Moving the slider only shows the number; the level is asked for once, on letting go: of

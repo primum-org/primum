@@ -5,6 +5,7 @@ const ICONS = {
   "--icon-logo": "generated/logo/primum-mark-mono.svg",
   "--icon-led": "generated/icons/i-led.svg",
   "--icon-button": "generated/icons/i-button.svg",
+  "--icon-sequence": "generated/icons/u-seq.svg",
   "--icon-panic": "generated/icons/i-panic.svg",
   "--icon-warn": "generated/icons/s-warn.svg",
 };
