@@ -491,7 +491,7 @@ class Controller:
         asked = self._asked(key, now)
         if asked is None:
             return output.rest_level, None
-        return _level_at(asked, self._motion_of(key, asked), _ms(now)), asked
+        return _level_at(asked, self._motion_of(key, asked, now), _ms(now)), asked
 
     def _asked(self, key: str, now: float) -> Asked | None:
         """What the sequences ask of output ``key``, if anything."""
@@ -499,7 +499,7 @@ class Controller:
             return None
         return self._engine.asked(UUID(key), _ms(now))
 
-    def _motion_of(self, key: str, asked: Asked) -> _Motion:
+    def _motion_of(self, key: str, asked: Asked, now: float) -> _Motion:
         """What the command asks of its output, worked out the first time it commands it and
         kept: its variables are read then, and a fade without a ``from`` starts from the
         level the output has then."""
@@ -520,28 +520,36 @@ class Controller:
             if command.duration_ms > 0 and output.moves(command.action):
                 start = output.start_level_for(command.action, given)
                 if start is None:
-                    start = self._level_before(key, asked)
+                    start = self._level_before(key, asked, _ms(now))
             motion = self._motions[known] = _Motion(end, start)
         return motion
 
-    def _level_before(self, key: str, asked: Asked) -> float:
-        """The level output ``key`` has when ``asked`` starts: where a fade without a
-        ``from`` starts from.
+    def _level_before(self, key: str, asked: Asked, now_ms: int) -> float:
+        """The level output ``key`` has when ``asked`` first commands it: where a fade
+        without a ``from`` starts from.
 
-        If a command of a sequence was the last to take it anywhere, and was still in force
-        when this one starts, it is where that command had it at that very instant: its end
+        If a command of a sequence was the last to take it anywhere, it is where that
+        command had it, by its own time, at the instant it handed the output over: its end
         if its action was over, however long ago its last step was written. A fade written
         every 20 ms is rarely written at its last instant, and the one that follows must
-        start from where it ended, not from its last step. Otherwise it is the level the
-        output was last taken to; read from the hardware only if that is not known.
+        start from where it ended, not from its last step.
+
+        The handover is when the command before stopped being in force, never before
+        ``asked`` started and never after now: a command that starts under a higher
+        priority gets the output when that one ends, at the level it left it, not at the
+        one it had when this command started. A command that was no longer in force when
+        this one started handed the output to something else meanwhile; then, and when no
+        sequence had the output, it is the level it was last taken to, read from the
+        hardware only if that is not known.
         """
         last = self._last.get(key)
         if last is not None:
             before, motion = last
             until = before.command.until_ms
-            started = before.since_ms - before.command.at_ms  # its sequence
-            if until is None or started + until >= asked.since_ms:
-                return _level_at(before, motion, asked.since_ms)
+            ends = None if until is None else before.since_ms - before.command.at_ms + until
+            if ends is None or ends >= asked.since_ms:
+                handed_over = max(asked.since_ms, now_ms if ends is None else min(ends, now_ms))
+                return _level_at(before, motion, handed_over)
         known_level = self._at.get(key)
         return self._outputs[key].level if known_level is None else known_level
 
@@ -560,7 +568,7 @@ class Controller:
             # ``_settle`` finds the same, logs it, says so in the state and tries again: here
             # it must only not keep the other outputs from being settled.
             with contextlib.suppress(Exception):
-                self._motion_of(key, asked)
+                self._motion_of(key, asked, now)
         runs = {(run.sequence, run.started_ms) for run in self._engine.running(_ms(now))}
         self._motions = {
             known: motion
@@ -578,7 +586,7 @@ class Controller:
             if asked is None or asked.settled:
                 continue
             try:
-                motion = self._motion_of(key, asked)
+                motion = self._motion_of(key, asked, now)
             except Exception:  # noqa: S112 (an output that cannot be worked out moves nothing)
                 continue  # ``_settle`` says so; the timer must still be told when to come
             if motion.start is not None and motion.start != motion.end:
@@ -597,7 +605,7 @@ class Controller:
             try:
                 wanted, asked = self._wanted(key, now)
                 if retry_at is None and key in self._at and self._at[key] == wanted:
-                    self._taken_by(key, asked)
+                    self._taken_by(key, asked, now)
                     continue
                 tried.add(key)
                 output.go_to(wanted)
@@ -619,15 +627,15 @@ class Controller:
                     log.info("%s is where it should be after all", output.name)
                     del self._retry_at[key]
                 self._at[key] = wanted
-                self._taken_by(key, asked)
+                self._taken_by(key, asked, now)
         return frozenset(tried)
 
-    def _taken_by(self, key: str, asked: Asked | None) -> None:
+    def _taken_by(self, key: str, asked: Asked | None, now: float) -> None:
         """Remember which command of a sequence has output ``key`` where it is, if one has."""
         if asked is None:
             self._last.pop(key, None)
         else:
-            self._last[key] = (asked, self._motion_of(key, asked))
+            self._last[key] = (asked, self._motion_of(key, asked, now))
 
     def _controlled_by(self, key: str, now: float) -> str | None:
         if self._panic:

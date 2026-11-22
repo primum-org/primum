@@ -16,9 +16,11 @@ from show_service import (
     BRIGHTNESS,
     DOWN,
     GLOW,
+    HIGH,
     LAMP,
     LAMP_PIN,
     LED,
+    LOW,
     ON,
     PULSE,
     RISE,
@@ -374,3 +376,23 @@ def test_a_fade_that_cuts_another_starts_from_where_that_one_is_by_then(
     service.controller.start_sequence(DOWN)
 
     assert _lamp(service) == 42.5
+
+
+@pytest.mark.parametrize(("woken_at_s", "level"), [(10.0, 55.0), (10.3, 53.5)])
+def test_a_fade_that_starts_under_a_higher_priority_starts_from_what_it_is_handed(
+    service: Service, woken_at_s: float, level: float
+) -> None:
+    """*High* fades the lamp up for ten seconds. *Low*, a fade to 0 in twenty seconds from
+    where the lamp is, starts a second in and gets the lamp when *High* ends: at 100, where
+    *High* left it, not at the 10 it was at when *Low* started. By then nine of its twenty
+    seconds have gone: 55. Woken late, it is further along, still from 100."""
+    service.controller.start_sequence(HIGH)
+    service.after(1)
+    service.controller.start_sequence(LOW)
+    service.after(8.5)
+    under = (_lamp(service), service.running())
+
+    service.after(woken_at_s - 9.5)
+
+    assert under == (95, ["High", "Low"])
+    assert _lamp(service) == pytest.approx(level)

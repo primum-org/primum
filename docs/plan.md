@@ -830,7 +830,12 @@ per element, from a deployment package that can be rolled back. One pull request
   0 to 100 and straight down: 80 % with 100 ms a side and exact steps, 75 % with every step
   5 ms late, 98 % with a second a side, simulated; 88–89 % on the Pi, three times. The start
   is now where the command of a sequence that had the output had it at that instant by its
-  own time. The Pi was not tried again after the fix.
+  own time. The Pi was not tried again after the fix. That fix took "that instant" to be
+  when the new command started, which is wrong for one that starts under a higher priority
+  and gets the output later: with a fade up over 10 s on priority 5 and a fade to 0 over 20 s
+  started a second in, the lamp jumped from 99.8 % to 5.5 % at 10 s instead of going on from
+  100 (55 %), as the reviewer found on the simulated HAL. It is the instant the command
+  before hands the output over.
 - Left for 4.4: variables marked `persistent` are not kept across a restart; nothing but
   the API sets a variable. A command that starts under a higher priority reads its
   variables, and takes the start of its fade, when it gets its output, not when it starts.
