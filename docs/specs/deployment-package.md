@@ -159,14 +159,13 @@ drove its own (commands, test mode, panic); it starts no sequence yet.
 
 ## Not yet
 
-- Running the sequences of the package: block 4.3b. That an event's element is an input: 4.4.
+- That an event's element is an input: 4.4. How a board runs the sequences of a package, its
+  fades and its variables is in `engine-semantics.md`.
 - Activation, rollback and sending a package to a board: block 4.5. Until then the file is
   copied by hand and named in the service's configuration.
 - An automation's `if` is the text of the project, its names unresolved, and the constants it
   names are not in the package: the expression language (4.4) replaces it.
-- When the engine reads the variable of an argument: block 4.3. So is what it does with a
-  value that leaves a variable's limits while running (an increment, a value set from the
-  phone): the limits are in the package, and the engine must hold to them on every
-  assignment, since a clip that reads the variable counts on it.
+- An increment that would take a variable outside its limits: with the automations that
+  increment (4.4). A value set to one is already held to them (`engine-semantics.md`).
 - Audio and other files next to the package: phase 6.
 - A project on several boards.

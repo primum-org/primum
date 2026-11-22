@@ -22,6 +22,13 @@ class OutputCommand(_Body):
     durationMs: int | None = None  # noqa: N815 (the name in the JSON body)
 
 
+class VariableValue(_Body):
+    """The value to give a variable: ``{"value": 40}``. Of its type and within its limits,
+    which are the controller's to check, answered with their own codes."""
+
+    value: int | float | bool | str
+
+
 class OutputStateBody(_Body):
     id: str  # what the output is commanded by: PUT /api/outputs/{id}
     name: str
@@ -46,11 +53,22 @@ class SequenceStateBody(_Body):
     running: bool
 
 
+class VariableStateBody(_Body):
+    id: str  # what it is set by: PUT /api/variables/{id}
+    name: str
+    type: str
+    value: int | float | bool | str
+    min: float | None
+    max: float | None
+    setting: bool
+
+
 class StateBody(_Body):
     outputs: list[OutputStateBody]
     inputs: list[InputStateBody]
     panic: bool
     sequences: list[SequenceStateBody]  # of the package that is running; none without one
+    variables: list[VariableStateBody]  # of that package too, with the value each has now
 
     @classmethod
     def of(cls, state: State) -> "StateBody":
@@ -74,7 +92,25 @@ class StateBody(_Body):
             SequenceStateBody(id=item.id, name=item.name, running=item.running)
             for item in state.sequences
         ]
-        return cls(outputs=outputs, inputs=inputs, panic=state.panic, sequences=sequences)
+        variables = [
+            VariableStateBody(
+                id=item.id,
+                name=item.name,
+                type=item.type,
+                value=item.value,
+                min=item.min,
+                max=item.max,
+                setting=item.setting,
+            )
+            for item in state.variables
+        ]
+        return cls(
+            outputs=outputs,
+            inputs=inputs,
+            panic=state.panic,
+            sequences=sequences,
+            variables=variables,
+        )
 
 
 class ErrorBody(_Body):

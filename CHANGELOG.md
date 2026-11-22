@@ -62,7 +62,9 @@ All notable changes to this project are documented here. The format follows
   `POST /api/sequences/{id}/start` and `/stop`. A command on an output is now manual control
   over the sequences until it is released (`DELETE /api/outputs/{id}`, *Release* on the
   page); a test that expires gives the output back to the sequences. Panic stops every
-  sequence. Fades are not moved in time yet.
+  sequence. A fade moves its light smoothly over its clip, and a fade without `from` starts
+  from where the light is. The variables of the package are in the state and can be set
+  with `PUT /api/variables/{id}`; a value outside a variable's limits is refused.
 - A file with half a character (an escape like `\ud83d` without its pair) is reported as a
   problem of the file; it used to pass validation and crash the build.
 - `primum build <folder>` compiles a project into its deployment package, one JSON file with

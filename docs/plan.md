@@ -788,18 +788,69 @@ per element, from a deployment package that can be rolled back. One pull request
   `restFailed` still speaks of a test. Exclusive elements wait for a driver that is one.
   The randomized test for `block.hold_ignored` is still to write.
 
-**4.3c · Fades and variables**
-- **First, before any fade**: index the engine's commands. `Engine.asked` walks every command
-  of every running sequence, and the controller calls it for each output twice per change
-  (`_settle` and `state()`), besides `next_change_ms`. Measured on the Pi 4 by its owner,
-  with an equivalent loop over the engine, per change: 7 ms for 8 outputs × 100 clips, 135 ms
-  for 16 × 500, 539 ms for 16 × 2000. That time blocks the event loop: the next edge and the
-  API, panic included. A long show with many channels reaches thousands of commands, and a
-  fade stepped every 20 ms would spend a third of the processor on the small case. The cure
-  is local to the engine: commands by element, sorted by `atMs`, when the package is loaded;
-  the randomized test against `command_at` already guards the change.
-- Levels that move in time, `fade` without `from`, arguments read from a variable, and every
-  assignment of a variable held to its limits.
+**4.3c · Fades and variables** · **code done; not tried on `primum-dev`** (decision 0027,
+`specs/engine-semantics.md`)
+- The engine's commands are indexed. `Engine.asked` walked every command of every running
+  sequence, and the controller calls it for each output twice per change, besides
+  `next_change_ms`: measured on the Pi 4 by its owner, with an equivalent loop over the
+  engine, 7 ms per change for 8 outputs × 100 clips, 135 ms for 16 × 500 and 539 ms for 16 ×
+  2000, all on the event loop, panic included. What a sequence asks of each element is now
+  worked out when the package is loaded (a sweep with a heap), and asking is a search. On
+  the machine it was written on, the same loop: 3.1 ms → 0.05 ms, 59 ms → 0.12 ms, 149 ms →
+  0.10 ms per change; the largest package loads in 58 ms. Not measured on the Pi.
+- A `fade` moves its output in a straight line over its clip, worked out from the clock,
+  written every 20 ms while a sequence moves something and not otherwise. Listeners are told
+  four times a second during a fade. Without a `from` it starts from the level the output
+  has when the command first commands it, and goes on unseen under a person's hand.
+- Variables: at their initial values when the service starts, in the state, set with `PUT
+  /api/variables/{id}`. A value of another type or outside the variable's limits is refused
+  and changes nothing, which is what the limits check of a clip's argument counted on
+  (decision 0024). An argument reads its variable when its command first commands its
+  output and keeps the value while the command lasts.
+- Tried here on the simulated HAL with a clock moved by hand, and once with the real timer
+  of a simulated service running `examples/shop-window`: the LED rose from 0 to `brightness`
+  (set to 60) between 0.5 s and 2 s and fell back to 0 by 3.5 s, sampled over the API
+  (after the fix below: it reaches 60.0 at 2.006 s; before it, the "59–60" first written
+  here was the fault showing). On
+  the board: nothing was run. To see there: whether 50 steps a second look smooth on a real
+  LED, what a step costs (each is a write and a read-back through sysfs), and the cost per
+  change after indexing.
+- From review, reproduced there with the simulated service and its real timer: `NaN` set to
+  a variable passed its limits (it is neither under a minimum nor over a maximum), and every
+  command that then read it failed outside the `try` that protects the other outputs: the
+  error left `expire` and `next_expiry_s`, the timer was not armed again, a test of another
+  output never expired and could not be released. A value that is no number is refused
+  (`Infinity` was refused before, with a 500: its own value could not be written in the
+  answer); what cannot be worked out for one output is contained to it; and a wake that
+  fails, which is not meant to happen, is tried again a second later instead of ending the
+  timer.
+- From review, measured by the reviewer: a fade that ends where a fade without `from`
+  starts never reached its top, since the second started from the last step written of the
+  first, and at the instant of the change the engine already asks for the new clip. Up from
+  0 to 100 and straight down: 80 % with 100 ms a side and exact steps, 75 % with every step
+  5 ms late, 98 % with a second a side, simulated; 88–89 % on the Pi, three times. The start
+  is now where the command of a sequence that had the output had it at that instant by its
+  own time. The Pi was not tried again after the fix. That fix took "that instant" to be
+  when the new command started, which is wrong for one that starts under a higher priority
+  and gets the output later: with a fade up over 10 s on priority 5 and a fade to 0 over 20 s
+  started a second in, the lamp jumped from 99.8 % to 5.5 % at 10 s instead of going on from
+  100 (55 %), as the reviewer found on the simulated HAL. It is the instant the command
+  before hands the output over.
+- From review, seen by the reviewer on the simulated service with its real timer and on
+  `primum-dev`, the same on both: the next step of a fade was due "now + 20 ms", asked at
+  every change of state, and every change arms the timer again, so each notification put
+  the step off another 20 ms. With a fade from 0 to 100 in 10 s and `PUT`s of a variable or
+  of another output one after another, the lamp was written once in 3 s instead of 150
+  times, and jumped 30 points when they stopped; `GET /api/status` did not do it (141 of
+  150). Inputs and automations (4.4) will notify too, and one every 20 ms would stop a fade
+  altogether. The step is due 20 ms after the outputs were last settled, absolute like every
+  other deadline. After the fix, on the simulated service with the real timer: 1746 `PUT`s
+  in 3 s, 145 distinct levels seen, never more than 0.84 points off the fade's line. Not
+  tried again on the Pi.
+- Left for 4.4: variables marked `persistent` are not kept across a restart; nothing but
+  the API sets a variable. A command that starts under a higher priority reads its
+  variables, and takes the start of its fade, when it gets its output, not when it starts.
+  The page shows no variables (settings are the UI's, phase 5).
 
 **4.4 · Events, schedules, automations and variables**
 - `.evt` from inputs (lost input events are told to the user), `.sched` times and windows

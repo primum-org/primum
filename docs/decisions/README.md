@@ -34,6 +34,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0024](0024-the-deployment-package-and-values-by-name.md) | The deployment package is flat JSON with its hash; a value may come from a name | Accepted |
 | [0025](0025-the-service-runs-a-package-and-asks-elements-by-id.md) | The service runs a package, checked against its drivers; elements are asked for by id | Accepted |
 | [0026](0026-the-controller-arbitrates-the-engine-only-says.md) | The controller arbitrates each output; the engine only says what the sequences ask | Accepted |
+| [0027](0027-fades-in-steps-and-variables-read-when-a-command-starts.md) | A fade moves in steps of the clock; a variable is read when its command starts | Accepted |
 
 ## Template
 

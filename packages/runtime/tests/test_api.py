@@ -45,6 +45,7 @@ OFF = {
     "inputs": [],
     "panic": False,
     "sequences": [],
+    "variables": [],
 }
 ON = {
     "outputs": [
@@ -62,6 +63,7 @@ ON = {
     "inputs": [],
     "panic": False,
     "sequences": [],
+    "variables": [],
 }
 
 

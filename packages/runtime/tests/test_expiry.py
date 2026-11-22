@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 import pytest
 
-from primum_runtime.api.expiry import ExpiryTimer
+from primum_runtime.api.expiry import RETRY_S, ExpiryTimer
 from primum_runtime.board import load_board, load_profile, option_limits
 from primum_runtime.control import Controller
 from primum_runtime.drivers import ElementConfig, load_manifests
@@ -138,4 +138,25 @@ def test_closing_it_cancels_what_was_scheduled(hal: SimulatedHal, loop: Loop) ->
     timer.close()
     controller.command("lamp", "on", duration_ms=10_000)
 
+    assert loop.pending() == []
+
+
+def test_a_wake_that_fails_is_tried_again_and_does_not_end_the_timer(
+    controller: Controller, loop: Loop, hal: SimulatedHal, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``expire`` is not meant to raise; if it ever does, a test must still expire."""
+    controller.command("led", "on", duration_ms=10_000)
+    expire = controller.expire
+
+    def failing() -> None:
+        raise RuntimeError("a bug")
+
+    monkeypatch.setattr(controller, "expire", failing)
+    loop.run(after_s=10)
+    again = [call.delay_s for call in loop.pending()]
+    monkeypatch.setattr(controller, "expire", expire)
+    loop.run(after_s=RETRY_S)
+
+    assert again == [RETRY_S]  # not at once: a failure that stays must not spin the loop
+    assert not hal.lines[17].active
     assert loop.pending() == []
