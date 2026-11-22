@@ -224,6 +224,7 @@ class Controller:
         self._last: dict[str, tuple[Asked, _Motion]] = {}
         self._ran: tuple[UUID, ...] = ()  # the sequences running when listeners were last told
         self._told_at = clock()  # when listeners were last told
+        self._settled_at = clock()  # when the outputs were last taken where they should be
 
     def state(self) -> State:
         # One reading per output: its level may come from the hardware, and change.
@@ -386,7 +387,10 @@ class Controller:
             if change is not None:
                 due.append(change / MS_PER_S)
             if self._moving(now):
-                due.append(now + FADE_STEP_S)
+                # From the last time the outputs were settled, not from now: this is asked
+                # at every change of state, and a step counted from whoever asked last
+                # would never come while the state keeps changing for other reasons.
+                due.append(self._settled_at + FADE_STEP_S)
         return max(0.0, min(due) - now) if due else None
 
     def expire(self) -> None:
@@ -597,6 +601,7 @@ class Controller:
         """Take each output to the level it should be at, if it is not known to be there, or
         if it failed to get there and is due to be tried again. The outputs it tried."""
         self._note(now)
+        self._settled_at = now
         tried: set[str] = set()
         for key, output in self._outputs.items():
             retry_at = self._retry_at.get(key)

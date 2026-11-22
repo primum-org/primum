@@ -1,13 +1,14 @@
 """Fades moved in time and variables read while running, on the show of ``show_service``: the
 simulated board, a clock moved by hand."""
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from primum_core.values import Value
+from primum_runtime.api.expiry import ExpiryTimer
 from primum_runtime.control import FADE_STEP_S, FADE_TOLD_S, RETRY_REST_S
 from primum_runtime.drivers import PwmOutputDriver
 from primum_runtime.errors import ErrorCode, PrimumError
@@ -396,3 +397,46 @@ def test_a_fade_that_starts_under_a_higher_priority_starts_from_what_it_is_hande
 
     assert under == (95, ["High", "Low"])
     assert _lamp(service) == pytest.approx(level)
+
+
+class Scheduler:
+    """Stands in for the event loop under ``ExpiryTimer``: one call later, by the clock of the
+    service, run when a test lets that much time pass."""
+
+    def __init__(self, service: Service) -> None:
+        self._service = service
+        self._due: tuple[float, Callable[[], None]] | None = None
+
+    def call_later(self, delay_s: float, callback: Callable[[], None]) -> "Scheduler":
+        self._due = (self._service.clock.now + delay_s, callback)
+        return self
+
+    def cancel(self) -> None:
+        self._due = None
+
+    def let_pass(self, seconds: float) -> None:
+        self._service.clock.now += seconds
+        # A whisker of slack: the clock is a float, and a step is not due "almost".
+        if self._due is not None and self._due[0] <= self._service.clock.now + 1e-9:
+            _, callback = self._due
+            self._due = None
+            callback()
+
+
+def test_a_fade_keeps_its_steps_while_the_state_changes_for_other_reasons(
+    service: Service,
+) -> None:
+    """Something tells the listeners every 5 ms (a variable set, here; inputs and automations
+    later), and each time the timer is armed again. The next step is due 20 ms after the
+    last one, not 20 ms after whoever asked last: the fade must not wait for silence."""
+    scheduler = Scheduler(service)
+    ExpiryTimer(service.controller, scheduler.call_later)
+    service.controller.start_sequence(GLOW)
+
+    for tick in range(200):  # a second, 5 ms at a time
+        scheduler.let_pass(0.005)
+        service.controller.set_variable(BRIGHTNESS, tick % 100)
+
+    written = service.hal.pwm_lines[LAMP_PIN].history
+    assert len(written) >= STEPS_PER_S  # one per step, give or take the first
+    assert _lamp(service) == pytest.approx(50, abs=0.5)

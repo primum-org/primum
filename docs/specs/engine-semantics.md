@@ -90,6 +90,8 @@ command is in force.
   where the fade is by then.
 - While a sequence is moving an output the runtime wakes every 20 ms and writes it; the
   rest of the time it wakes only at changes. A fade under a person's hand is not stepped.
+  The 20 ms count from the last time the outputs were settled, so a state that keeps
+  changing for other reasons (requests, inputs) does not put a step off.
 - Without a `from`, the fade starts from the level the output has when the command first
   commands it, whatever took it there. After a command of a sequence, that is where that
   command had the output, by its own time, at the instant it handed it over (where a fade

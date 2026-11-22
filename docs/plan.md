@@ -836,6 +836,17 @@ per element, from a deployment package that can be rolled back. One pull request
   started a second in, the lamp jumped from 99.8 % to 5.5 % at 10 s instead of going on from
   100 (55 %), as the reviewer found on the simulated HAL. It is the instant the command
   before hands the output over.
+- From review, seen by the reviewer on the simulated service with its real timer and on
+  `primum-dev`, the same on both: the next step of a fade was due "now + 20 ms", asked at
+  every change of state, and every change arms the timer again, so each notification put
+  the step off another 20 ms. With a fade from 0 to 100 in 10 s and `PUT`s of a variable or
+  of another output one after another, the lamp was written once in 3 s instead of 150
+  times, and jumped 30 points when they stopped; `GET /api/status` did not do it (141 of
+  150). Inputs and automations (4.4) will notify too, and one every 20 ms would stop a fade
+  altogether. The step is due 20 ms after the outputs were last settled, absolute like every
+  other deadline. After the fix, on the simulated service with the real timer: 1746 `PUT`s
+  in 3 s, 145 distinct levels seen, never more than 0.84 points off the fade's line. Not
+  tried again on the Pi.
 - Left for 4.4: variables marked `persistent` are not kept across a restart; nothing but
   the API sets a variable. A command that starts under a higher priority reads its
   variables, and takes the start of its fade, when it gets its output, not when it starts.
