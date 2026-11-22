@@ -2,7 +2,7 @@
 on the simulated HAL with a clock moved by hand, and the service with its API."""
 
 import json
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 from uuid import UUID
@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from primum_core.compiler import compile_package
 from primum_core.generated.model import Package
 from primum_core.package import read_package
+from primum_core.values import Value
 from primum_core.workspace import load_workspace
 from primum_runtime.api import create_app
 from primum_runtime.board import load_board, load_profile, option_limits
@@ -164,7 +165,12 @@ class Clock:
 class Service:
     """A controller running the package on a simulated board, its clock in the test's hand."""
 
-    def __init__(self, loaded: Package | None = None, wall: Wall = lambda: None) -> None:
+    def __init__(
+        self,
+        loaded: Package | None = None,
+        wall: Wall = lambda: None,
+        kept: Mapping[UUID, Value] | None = None,
+    ) -> None:
         loaded = package() if loaded is None else loaded
         self.hal = SimulatedHal(load_board("rpi4b"))
         self.clock = Clock()
@@ -176,6 +182,7 @@ class Service:
             clock=self.clock,
             package=loaded,
             wall=wall,
+            kept=kept,
         )
         self.states: list[State] = []
         self.controller.subscribe(self.states.append)
@@ -203,13 +210,17 @@ class Service:
 
 @contextmanager
 def running(
-    tmp_path: Path, of: dict[str, object] | None = None, wall: Wall | None = None
+    tmp_path: Path,
+    of: dict[str, object] | None = None,
+    wall: Wall | None = None,
+    data_dir: Path | None = None,
 ) -> Generator[tuple[TestClient, SimulatedHal]]:
     """The service running the package (of the show, or ``of``), with its API, on a
-    simulated board."""
+    simulated board; ``data_dir`` is where it keeps what it keeps."""
     path = tmp_path / "show.package.json"
     path.write_text(json.dumps(document() if of is None else of), encoding="utf-8")
-    config = parse_config(["--simulate", "--package", str(path)], {})
+    options = [] if data_dir is None else ["--data-dir", str(data_dir)]
+    config = parse_config(["--simulate", "--package", str(path), *options], {})
     hal = SimulatedHal(load_board("rpi4b"))
     with TestClient(create_app(config, open_hal=lambda: hal, wall=wall)) as client:
         yield client, hal

@@ -899,7 +899,8 @@ per element, from a deployment package that can be rolled back. One pull request
   - Left out: the page shows neither events nor automations; an automation cannot be
     enabled or disabled while the package runs; nothing is traced beyond the log (4.5).
 
-- **4.4c · Schedules and the trusted clock: code done; not tried on `primum-dev`**
+- **4.4c · Schedules and the trusted clock: code done; seen in part on `primum-dev` by
+  its owner, before the fixes listed below**
   (decision 0030, `specs/events.md`). A time of day and a window that opens start their
   automations; so does a window that is open when the service starts or when the time
   first comes to be known. Times are in the project's time zone (`timeZone` in
@@ -925,6 +926,19 @@ per element, from a deployment package that can be rolled back. One pull request
     day.
   - Left out: the time from a client for a board that never has Internet; once per window
     across restarts; a window that opened during panic is not caught up with.
+
+- **4.4d · Persistent variables: code done; not tried on `primum-dev`** (decision 0031,
+  `specs/engine-semantics.md`). The values of variables marked `persistent` are kept in
+  `variables.json` in the data directory, for the project, and found when the service
+  starts. A kept value its variable no longer takes gives way to the initial one. A change
+  is written a second later, off the event loop, and on shutdown; a write that fails is
+  told in the state (`variablesUnsaved`) and tried again.
+  - Tried with a temporary directory: the file, the controller, the saver with timers in
+    the test's hand, and a real service stopped and started again on the same directory.
+  - To try on a Pi: a real restart of the service, and a power cut a moment after a change
+    (the last second may be lost; the file must be whole).
+  - Left out: a way to reset the variables other than removing the file; "once per window"
+    across restarts, which could use the same file.
 
 **4.5 · Trace, activation and rollback**
 - Execution trace; a package is activated atomically and the previous one can be brought

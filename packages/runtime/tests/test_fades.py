@@ -239,6 +239,7 @@ def test_a_variable_is_set_over_the_api(client: tuple[TestClient, SimulatedHal])
             "min": 0,
             "max": 100,
             "setting": True,
+            "persistent": False,
         }
     ]
 

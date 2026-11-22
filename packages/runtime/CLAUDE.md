@@ -26,6 +26,10 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   (`wall`) that tells the time only when it can be trusted, looks once a minute from
   `expire`, and asks `primum_core.schedules` what happened since. Nothing else reads the
   time of day, and no duration uses it.
+- Persistent variables (decision 0031): `stored` reads and writes their values in the data
+  directory, for one project. The controller starts from them (`kept`) and never touches the
+  disk; `api.saving.VariableSaver` writes a second after a change, off the event loop, and
+  on shutdown.
 - Elements are driven through drivers (`primum_runtime.drivers`, decision 0019): one per
   element type, made from the element, its manifest (`drivers/`) and the limits of its board.
   The HAL's specs have no defaults: a driver gives every option. A new driver comes with its

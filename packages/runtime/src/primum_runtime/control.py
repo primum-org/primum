@@ -22,9 +22,12 @@ from where the clip starts to where it ends, in proportion to the time gone by, 
 first commanded it. An argument read from a variable takes the variable's value at that
 same moment, and keeps it while the command lasts.
 
-Variables are the package's, at their initial values when the service starts. A value set
-to one (``set_variable``) is of its type and within its limits, or it is refused: commands
-that read a variable count on that.
+Variables are the package's, at their initial values when the service starts; one marked
+``persistent`` starts at the value it was kept at (``kept``), if that still fits it
+(decision 0031). A value set to one (``set_variable``) is of its type and within its limits,
+or it is refused: commands that read a variable count on that. The controller keeps nothing
+on disk: whoever does asks it for ``persistent_values`` and tells it how that went
+(``values_kept``), which the state repeats.
 
 An output is only written when what it should be at changes. One that cannot be taken
 there, or whose command cannot even be worked out (a value its driver refuses), does not
@@ -174,6 +177,7 @@ class VariableState:
     min: float | None = None
     max: float | None = None
     setting: bool = False
+    persistent: bool = False  # kept across a restart
 
 
 @dataclass(frozen=True)
@@ -226,6 +230,9 @@ class State:
     automations: tuple[AutomationState, ...] = ()
     schedules: tuple[ScheduleState, ...] = ()
     time_known: bool = False
+    # The values of persistent variables could not be kept the last time it was tried: a
+    # restart now would lose what changed since they last were.
+    variables_unsaved: bool = False
 
 
 @dataclass(frozen=True)
@@ -258,6 +265,7 @@ class Controller:
         clock: Clock = time.monotonic,
         package: Package | None = None,
         wall: Wall = lambda: None,
+        kept: Mapping[UUID, Value] | None = None,
     ) -> None:
         """Make the driver of every element and claim them all at once. Outputs start in
         their safe state, and no sequence of ``package`` is running.
@@ -300,6 +308,9 @@ class Controller:
         variables = () if package is None else package.variables
         self._variables: Mapping[UUID, PackageVariable] = {v.id: v for v in variables}
         self._values: dict[UUID, Value] = {v.id: v.initial for v in variables}
+        for variable in variables:
+            self._restore(variable, kept or {})
+        self._unsaved = False
         self._events: Mapping[UUID, PackageEvent] = (
             {} if package is None else {event.id: event for event in package.events}
         )
@@ -376,6 +387,7 @@ class Controller:
                 variable.min,
                 variable.max,
                 variable.setting,
+                variable.persistent,
             )
             for variable in self._variables.values()
         )
@@ -397,6 +409,7 @@ class Controller:
             automations,
             schedules,
             self._open is not None,
+            self._unsaved,
         )
 
     def command(
@@ -497,21 +510,45 @@ class Controller:
             found = None
         if found is None:
             raise PrimumError(ErrorCode.VARIABLE_UNKNOWN, {"id": variable})
-        # NaN and the infinities are no values: NaN is neither under a minimum nor over a
-        # maximum, so it would pass the limits and fail every command that read it.
-        finite = not isinstance(value, float) or math.isfinite(value)
-        if not fits(value, found.type) or not finite:
-            params = {"name": found.name, "type": found.type}
-            raise PrimumError(ErrorCode.VARIABLE_VALUE_INVALID, params)
-        if found.type in NUMERIC and not isinstance(value, bool | str):
-            below = found.min is not None and value < found.min
-            if below or (found.max is not None and value > found.max):
-                limits = {"min": found.min, "max": found.max}
-                given = {key: limit for key, limit in limits.items() if limit is not None}
-                params = {"name": found.name, "value": value, **given}
-                raise PrimumError(ErrorCode.VARIABLE_VALUE_OUT_OF_RANGE, params)
+        refused = _refusal(found, value)
+        if refused is not None:
+            raise refused
         self._values[found.id] = value
         self._notify()
+
+    def persistent_values(self) -> dict[UUID, Value]:
+        """The value each persistent variable has now, by its id: what is worth keeping."""
+        return {
+            variable.id: self._values[variable.id]
+            for variable in self._variables.values()
+            if variable.persistent
+        }
+
+    def values_kept(self, kept: bool) -> None:
+        """Whoever keeps the persistent values says how the last try went. Listeners are told
+        if that changed: the state says while they are not kept (``variables_unsaved``)."""
+        if self._unsaved == kept:
+            self._unsaved = not kept
+            self._notify()
+
+    def _restore(self, variable: PackageVariable, kept: Mapping[UUID, Value]) -> None:
+        """Start a persistent variable at the value it was kept at, if it still fits: a new
+        package may have changed its type or its limits, and then it starts at its initial
+        value, as the project says it does when nothing else is known."""
+        if not variable.persistent or variable.id not in kept:
+            return
+        value = kept[variable.id]
+        refused = _refusal(variable, value)
+        if refused is None:
+            self._values[variable.id] = value
+        else:
+            log.warning(
+                "%s was kept at %r, which it no longer takes (%s): it starts at %r",
+                variable.name,
+                value,
+                refused.code,
+                variable.initial,
+            )
 
     def next_expiry_s(self) -> float | None:
         """In how many seconds ``expire`` next has something to do (0 if it already has): a
@@ -1033,6 +1070,27 @@ def _level_at(asked: Asked, motion: _Motion, at_ms: int) -> float:
         return motion.end
     gone = min(1.0, max(0.0, (at_ms - asked.since_ms) / length))
     return motion.start + (motion.end - motion.start) * gone
+
+
+def _refusal(variable: PackageVariable, value: Value) -> PrimumError | None:
+    """Why a variable does not take a value, if it does not: ``variable.value_invalid``
+    (``name``, ``type``) for one of another type or that is no number (NaN, an infinity),
+    ``variable.value_out_of_range`` (``name``, ``value``, and the ``min`` and ``max`` it
+    has) for a number outside its limits."""
+    # NaN and the infinities are no values: NaN is neither under a minimum nor over a
+    # maximum, so it would pass the limits and fail every command that read it.
+    finite = not isinstance(value, float) or math.isfinite(value)
+    if not fits(value, variable.type) or not finite:
+        params = {"name": variable.name, "type": variable.type}
+        return PrimumError(ErrorCode.VARIABLE_VALUE_INVALID, params)
+    if variable.type in NUMERIC and not isinstance(value, bool | str):
+        below = variable.min is not None and value < variable.min
+        if below or (variable.max is not None and value > variable.max):
+            limits = {"min": variable.min, "max": variable.max}
+            given = {key: limit for key, limit in limits.items() if limit is not None}
+            params = {"name": variable.name, "value": value, **given}
+            return PrimumError(ErrorCode.VARIABLE_VALUE_OUT_OF_RANGE, params)
+    return None
 
 
 def _amount(value: Value | None) -> float | None:

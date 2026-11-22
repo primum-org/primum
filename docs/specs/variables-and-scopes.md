@@ -29,7 +29,7 @@ A `.vars` file holds constants and variables for the folder it is in.
 - Only a numeric variable is incremented (`variable.not_numeric`); the amount, when given, is
   of the variable's type.
 - `setting: true` exposes a variable in the phone UI. `persistent: true` keeps its value across
-  restarts.
+  restarts and power cuts, on the board, for the project (`engine-semantics.md`).
 
 ## Scopes
 

@@ -224,6 +224,10 @@
       "message": "{value} is outside the limits of {name}.",
       "hint": "Give it a value between its minimum and its maximum."
     },
+    "variables.unwritable": {
+      "message": "The values of the variables could not be saved on the board.",
+      "hint": "Check that the data folder exists and can be written. Until then, a restart loses the latest changes."
+    },
     "event.unknown": {
       "message": "There is no event with the id {id}.",
       "hint": "Use the id of one of the events the status lists."

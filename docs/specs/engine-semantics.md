@@ -106,8 +106,9 @@ command is in force.
 
 ### Variables (decision 0027)
 
-The variables of the package start at their initial values when the service starts. The
-state gives them (`variables`: `id`, `name`, `type`, `value`, `min`, `max`, `setting`).
+The variables of the package start at their initial values when the service starts; a
+persistent one, at the value it was kept at (below). The state gives them (`variables`:
+`id`, `name`, `type`, `value`, `min`, `max`, `setting`, `persistent`).
 
 | Request | Does | Refused |
 |---|---|---|
@@ -121,7 +122,34 @@ variables when it gets the output.
 An automation sets and increments variables too (`events.md`): an increment stays within
 the variable's limits.
 
-Not yet: variables marked `persistent` are not kept across a restart (4.4d).
+### Persistent variables (decision 0031)
+
+A variable marked `persistent` keeps its value across a restart of the service and a power
+cut.
+
+- **Where**: `variables.json` in the data directory (`/data`; `--data-dir`,
+  `PRIMUM_DATA_DIR`), with the id of the project and the value of each persistent variable,
+  by its id.
+- **Whose**: the project's. A new package of the same project finds the values; a package
+  of another project does not use them, and when it keeps its own they are replaced.
+- **When the service starts**, each persistent variable takes the value kept for it, if it
+  still takes it: of its type and within its limits, as a value set through the API. One it
+  no longer takes (a new package changed the variable) gives way to the initial value, and
+  the log says so. A variable never kept, or no longer persistent, starts at its initial
+  value.
+- **When a value changes** (the API, an automation), it is written a second later, with
+  whatever changed meanwhile: one write a second at most, however often a counter counts.
+  A power cut loses at most that last second. When the service stops, what is pending is
+  written first.
+- **The file is never half written**: written whole beside it, synced, renamed into place.
+  The write does not hold up the service: outputs, inputs and panic go on meanwhile.
+- **If it cannot be read** (not there, damaged, of another version), the variables start at
+  their initial values and the service runs. **If it cannot be written**, the service runs
+  all the same: the log says so once, the state says so while it lasts
+  (`variablesUnsaved`), and it is tried again every 30 s.
+- Panic does not change any variable.
+
+To start the variables of a project again: stop the service and remove the file.
 
 ## Schedules and restarts (decision 0023)
 

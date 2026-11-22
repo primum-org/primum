@@ -25,6 +25,10 @@ remove `PRIMUM_PIN` and the other options of elements (the service refuses both 
 `journalctl -u primum` says why. Wire only what the package says, on the pins it says: its
 project is what was checked against the board.
 
+Variables marked persistent are kept in `variables.json` in the data directory (`/data`),
+for the project: a new package of the same project finds them. To start them again, stop
+the service and remove that file.
+
 A package with schedules needs the board to know the time: the Pi sets its clock from the
 network, and until it has, no schedule happens (`timeKnown` in `/api/status`). A board with
 a clock of its own and no network: `PRIMUM_TRUST_CLOCK=1` in `runtime.env`.

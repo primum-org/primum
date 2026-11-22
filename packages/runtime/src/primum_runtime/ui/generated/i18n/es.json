@@ -224,6 +224,10 @@
       "message": "{value} está fuera de los límites de {name}.",
       "hint": "Dale un valor entre su mínimo y su máximo."
     },
+    "variables.unwritable": {
+      "message": "No se pudieron guardar los valores de las variables en la placa.",
+      "hint": "Comprueba que la carpeta de datos existe y se puede escribir. Hasta entonces, un reinicio pierde los últimos cambios."
+    },
     "event.unknown": {
       "message": "No hay ningún evento con el id {id}.",
       "hint": "Usa el id de uno de los eventos que lista el estado."
