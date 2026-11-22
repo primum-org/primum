@@ -942,6 +942,10 @@ per element, from a deployment package that can be rolled back. One pull request
     Found too with the tests' fake loop, not seen on the board: a write under way could
     land over the one made on closing. Both fixed; the fixes have not been reported as run
     on the Pi.
+  - Then, also by its owner on the Pi: a `variables.json` of binary garbage kept the
+    service from starting (only texts that were not what they should had been tried). And
+    with the fake loop: a write under way could leave an old value when the variable went
+    back to the kept one and the service stopped. Both fixed; not reported as run again.
   - For 4.5: what was kept is copied to `variables.json.bak` before values that drop some
     of it replace it; nothing reads the copy yet, and putting a package back must say how
     its values come back.

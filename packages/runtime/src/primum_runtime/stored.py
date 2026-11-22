@@ -92,21 +92,23 @@ def read(directory: Path, project: UUID) -> dict[UUID, Value]:
     when nothing is kept for it. Never fails: what cannot be used is logged and left."""
     path = directory / FILE_NAME
     try:
-        text = path.read_text(encoding="utf-8")
+        content = path.read_bytes()
     except FileNotFoundError:
         return {}
     except OSError as error:
         log.warning("the kept variables (%s) cannot be read: %s", path, error)
         return {}
     try:
-        fields = as_object(json.loads(text))
+        # Whatever the bytes are: not text (that is a ValueError too), not JSON, nested
+        # past what the reader takes, or JSON that says something else.
+        fields = as_object(json.loads(content.decode("utf-8")))
         if fields["version"] != VERSION:
             raise ValueError(f"not of version {VERSION}")
         kept_for = UUID(as_str(fields["project"]))
         values = {
             UUID(variable): _value(value) for variable, value in as_object(fields["values"]).items()
         }
-    except (ValueError, KeyError, TypeError) as error:
+    except (ValueError, KeyError, TypeError, RecursionError) as error:
         log.warning("the kept variables (%s) do not say what they should: %s", path, error)
         return {}
     if kept_for != project:

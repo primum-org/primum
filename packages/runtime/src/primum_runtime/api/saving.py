@@ -73,7 +73,9 @@ class VariableSaver:
             self._timer.cancel()
             self._timer = None
         values = self._controller.persistent_values()
-        if values == self._kept:
+        # With a write under way the last word is still to be had, also when the values
+        # are back to the ones kept: what that write carries is not what they are now.
+        if values == self._kept and not self._writing:
             return
         try:
             self._write_in_turn(self._next_turn(), values)

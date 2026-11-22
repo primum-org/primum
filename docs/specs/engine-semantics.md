@@ -149,8 +149,8 @@ cut.
   variable is gone), the file is copied to `variables.json.bak` before the new values
   replace it. Only the last copy is there. Nothing reads it yet: putting a package back
   (block 4.5) will say how its values come back.
-- **If it cannot be read** (not there, damaged, of another version), the variables start at
-  their initial values and the service runs. **If it cannot be written**, the service runs
+- **If it cannot be read** (not there, damaged, not even text, of another version), the
+  variables start at their initial values and the service runs. **If it cannot be written**, the service runs
   all the same: the log says so once, the state says so while it lasts
   (`variablesUnsaved`), and it is tried again every 30 s. It stops saying so as soon as
   what is on the board is what the variables are worth, written or not: a value that went

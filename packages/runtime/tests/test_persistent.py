@@ -107,6 +107,23 @@ def test_a_file_that_does_not_say_what_it_should_gives_no_values_and_does_not_fa
     assert "kept variables" in caplog.text
 
 
+@pytest.mark.parametrize(
+    "content",
+    [
+        b"\xff\xfe\x00\x9c\x80garbage",  # not text at all
+        b'{"version": 1, "project": "\xc3\x28"}',  # text cut in the middle of a letter
+        b"[" * 100_000,  # nested deeper than anything reads
+    ],
+)
+def test_a_file_that_is_not_even_text_gives_no_values_and_does_not_fail(
+    tmp_path: Path, content: bytes, caplog: pytest.LogCaptureFixture
+) -> None:
+    (tmp_path / stored.FILE_NAME).write_bytes(content)
+
+    assert stored.read(tmp_path, PROJECT) == {}
+    assert "kept variables" in caplog.text
+
+
 def test_a_write_replaces_the_file_whole_and_leaves_nothing_else(tmp_path: Path) -> None:
     stored.write(tmp_path, PROJECT, {UUID(VISITS): 3})
 
@@ -388,6 +405,23 @@ def test_a_write_under_way_never_lands_over_the_one_made_on_closing() -> None:
     assert loop.timers == []  # and nothing is armed after closing
 
 
+def test_closing_while_a_write_is_under_way_has_the_last_word() -> None:
+    """A write of 4 is in its thread; the variable goes back to the 0 that is on the board
+    and the service stops. Nothing looks pending, but the thread would leave a 4 that the
+    variable no longer has."""
+    service = _service({})
+    loop, saver = _saving(service)
+    service.controller.set_variable(VISITS, 4)
+    loop.hold = True
+    loop.fire()  # the write of 4 is handed over, and has not run
+    service.controller.set_variable(VISITS, 0)
+
+    saver.close()
+    loop.held.pop()()  # the thread gets there after
+
+    assert [values[UUID(VISITS)] for values in loop.written] == [0]
+
+
 def test_closing_writes_what_is_pending_at_once() -> None:
     service = _service({})
     loop, saver = _saving(service)
@@ -461,13 +495,16 @@ def test_a_new_package_whose_variable_no_longer_takes_the_value_starts_it_again(
     assert (found[VISITS], again[VISITS]) == (0, 0)
 
 
-def test_a_service_whose_values_cannot_be_read_starts_at_the_initial_ones(tmp_path: Path) -> None:
-    (tmp_path / stored.FILE_NAME).write_text("{", encoding="utf-8")
+@pytest.mark.parametrize("content", [b"{", b"\xff\xfe\x00\x9c\x80garbage"])
+def test_a_service_whose_values_cannot_be_read_starts_at_the_initial_ones(
+    tmp_path: Path, content: bytes
+) -> None:
+    (tmp_path / stored.FILE_NAME).write_bytes(content)
 
     found = _run(tmp_path, DOCUMENT)
 
     assert found[VISITS] == 0
-    assert (tmp_path / stored.ASIDE_NAME).read_text(encoding="utf-8") == "{"  # set aside
+    assert (tmp_path / stored.ASIDE_NAME).read_bytes() == content  # set aside
 
 
 def _aside(tmp_path: Path) -> dict[str, object] | None:
