@@ -67,6 +67,10 @@ All notable changes to this project are documented here. The format follows
   with `PUT /api/variables/{id}`; a value outside a variable's limits is refused.
 - A file with half a character (an escape like `\ud83d` without its pair) is reported as a
   problem of the file; it used to pass validation and crash the build.
+- Conditions of automations (`if`) are now a real language, checked by `primum validate`:
+  `visits < max_visits and not paused`, with `and`, `or`, `not`, comparisons, arithmetic and
+  parentheses. A condition that cannot be read, uses a name it does not see or mixes types
+  is explained before deploying. The deployment package carries each condition compiled.
 - `primum build <folder>` compiles a project into its deployment package, one JSON file with
   its own hash: what a board will run. A project with errors is not built.
 - A clip can take a value from a name instead of writing it (`valueOf`): a constant, a

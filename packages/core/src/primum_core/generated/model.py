@@ -26,6 +26,7 @@ _PACKAGE_EVENT_SOURCE: Final[tuple[Literal["element", "ui", "api"], ...]] = ("el
 _PACKAGE_EVENT_TRIGGER: Final[tuple[Literal["on", "off"], ...]] = ("on", "off")
 _PACKAGE_TIME_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 _PACKAGE_WINDOW_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+_CONDITION_STEP_OP: Final[tuple[Literal["or", "and", "not", "==", "!=", "<", "<=", ">", ">=", "+", "-", "*", "/", "%", "neg"], ...]] = ("or", "and", "not", "==", "!=", "<", "<=", ">", ">=", "+", "-", "*", "/", "%", "neg")
 _PACKAGE_ACTION_ACTION: Final[tuple[Literal["start_sequence", "stop_sequence", "set_variable", "increment_variable"], ...]] = ("start_sequence", "stop_sequence", "set_variable", "increment_variable")
 _SCHEDULE_TIME_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 _SCHEDULE_WINDOW_DAYS: Final[tuple[Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"], ...]] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -379,8 +380,17 @@ class PackageAutomation:
     name: str
     enabled: bool
     when: tuple[UUID, ...]
-    if_: str | None = None
+    if_: tuple[ConditionStep, ...] = ()
     do: tuple[PackageAction, ...]
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class ConditionStep:
+    """One step of a condition: push a value, push the value a variable has, or apply an operator to what is on the stack. Exactly one of the three."""
+
+    value: float | bool | str | None = None
+    variable: UUID | None = None
+    op: Literal["or", "and", "not", "==", "!=", "<", "<=", ">", ">=", "+", "-", "*", "/", "%", "neg"] | None = None
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -891,8 +901,17 @@ def parse_package_automation(data: JsonObject) -> PackageAutomation:
         name=as_str(data["name"]),
         enabled=as_bool(data["enabled"]),
         when=tuple(as_uuid(item) for item in as_list(data["when"])),
-        if_=as_str(data["if"]) if "if" in data else None,
+        if_=tuple(parse_condition_step(as_object(item)) for item in as_list(data["if"])) if "if" in data else (),
         do=tuple(parse_package_action(as_object(item)) for item in as_list(data["do"])),
+    )
+
+
+def parse_condition_step(data: JsonObject) -> ConditionStep:
+    """Build a ``ConditionStep`` from a document that passed its schema."""
+    return ConditionStep(
+        value=as_scalar(data["value"]) if "value" in data else None,
+        variable=as_uuid(data["variable"]) if "variable" in data else None,
+        op=as_choice(data["op"], _CONDITION_STEP_OP) if "op" in data else None,
     )
 
 

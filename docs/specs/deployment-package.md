@@ -40,7 +40,7 @@ Both are reported at `project.json`.
 | `variables` | Every variable: `id`, `name`, `type`, `initial`, `min`, `max`, `persistent`, `setting` |
 | `sequences` | Every sequence without parameters (below) |
 | `events`, `schedules` | As the project has them, references by id |
-| `automations` | `id`, `name`, `enabled`, `when`, `if`, `do`; an action names its `sequence` and its `variable` by **id** |
+| `automations` | `id`, `name`, `enabled`, `when`, `if`, `do`; an action names its `sequence` and its `variable` by **id**; `if` is the condition compiled to a program (`expressions.md`): constants are values, variables go by id |
 
 Not in it: folders, scopes, imports and exports, components, constants, descriptions.
 
@@ -163,8 +163,6 @@ drove its own (commands, test mode, panic); it starts no sequence yet.
   fades and its variables is in `engine-semantics.md`.
 - Activation, rollback and sending a package to a board: block 4.5. Until then the file is
   copied by hand and named in the service's configuration.
-- An automation's `if` is the text of the project, its names unresolved, and the constants it
-  names are not in the package: the expression language (4.4) replaces it.
 - An increment that would take a variable outside its limits: with the automations that
   increment (4.4). A value set to one is already held to them (`engine-semantics.md`).
 - Audio and other files next to the package: phase 6.

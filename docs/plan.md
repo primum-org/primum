@@ -295,8 +295,7 @@ MCP server in phase 8).
 **Left for later phases, found in phase 2**
 - Phase 3: the elements' `action` strings (`on`, `fade_in`) are free text until the drivers
   declare their actions; a `.hw` element type maps to a driver.
-- Phase 4: the expression language of `if` (today a word in a condition counts as a use of a
-  name, even inside a text literal); which board owns a variable; the re-trigger policy of a
+- Phase 4: the expression language of `if` (done in 4.4a); which board owns a variable; the re-trigger policy of a
   sequence (decision 0006); the engine's real arbitration, which `sequence.may_overlap` only
   approximates; an automation starting a component (it would need arguments). Once drivers
   declare exclusive elements (motors, servos; phase 3), `sequence.may_overlap` on one of them
@@ -856,6 +855,17 @@ per element, from a deployment package that can be rolled back. One pull request
 - `.evt` from inputs (lost input events are told to the user), `.sched` times and windows
   with the reliable-clock flag, `.auto` with the expression language of `if`
   (`specs/expressions.md`, `specs/events.md`), runtime variables with atomic operations.
+  In four blocks: 4.4a expressions, 4.4b events and automations, 4.4c schedules and the
+  reliable clock, 4.4d persistent variables.
+- **4.4a · Expressions: done** (`core` only, nothing to try on a board). The language of
+  `if` (decision 0028, `specs/expressions.md`): `and`/`or`/`not`, comparisons, arithmetic,
+  the four types, checked by `primum validate` with the names the automation sees. `primum
+  build` compiles a condition to a program without jumps (constants inlined, variables by
+  id) and reading a package checks it. `evaluate` exists and is tested (against Python's
+  own evaluation of 3000 random conditions, among others) but nothing in the runtime calls
+  it yet: that is 4.4b, with what a condition that fails to evaluate does (it does not
+  hold, and it is told). Windows of time are not in the language: a field of the
+  automation, in 4.4c.
 
 **4.5 · Trace, activation and rollback**
 - Execution trace; a package is activated atomically and the previous one can be brought

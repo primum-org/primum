@@ -228,11 +228,13 @@ def test_an_automation_names_its_variable_by_id(project: Project, ids: Ids) -> N
     package = _package(project)
     [go] = package.automations
 
-    assert (go.enabled, go.if_, [str(event) for event in go.when]) == (
-        True,
-        "brightness < peak",
-        [ids(70)],
-    )
+    assert (go.enabled, [str(event) for event in go.when]) == (True, [ids(70)])
+    # The condition, compiled: the variable by id, the constant already a value.
+    assert [(step.variable, step.value, step.op) for step in go.if_] == [
+        (package.variables[0].id, None, None),
+        (None, 80, None),
+        (None, None, "<"),
+    ]
     assert [(step.action, step.sequence, step.variable, step.value) for step in go.do] == [
         ("start_sequence", package.sequences[0].id, None, None),
         ("set_variable", None, package.variables[0].id, 30),
@@ -347,7 +349,8 @@ def _full(project: Project, ids: Ids) -> dict[str, object]:
         {"action": "start_sequence", "sequence": ids(SHOW)},
         {"action": "set_variable", "variable": "brightness", "value": 30},
     ]
-    project.add("go.auto", "automation", ids(71), name="Go", when=[ids(70)], do=do)
+    automation = {"name": "Go", "when": [ids(70)], "if": "brightness < peak", "do": do}
+    project.add("go.auto", "automation", ids(71), **automation)
     return _document(project)
 
 
@@ -448,6 +451,26 @@ def test_a_package_that_does_not_hold_together_is_refused_whatever_its_hash(
     assert read.value is None
     found = [(issue.code, issue.location and issue.location.pointer) for issue in read.issues]
     assert (code, pointer) in found
+
+
+def test_a_condition_that_does_not_hold_together_is_refused_whatever_its_hash(
+    project: Project, ids: Ids
+) -> None:
+    document = _full(project, ids)
+    for condition in (
+        [{"value": 1}, {"op": "<"}],  # an operator without its operands
+        [{"value": 1}, {"value": 2}, {"op": "+"}],  # a number, not a yes or a no
+        [{"variable": ids(999)}, {"value": 2}, {"op": "<"}],  # a variable it does not have
+        [{"value": 1, "op": "neg"}, {"value": 2}, {"op": "<"}],  # two things in one step
+    ):
+        _first(document, "automations", 0)["if"] = condition
+
+        read = read_package(PATH, _rehashed(document))
+
+        assert read.value is None
+        assert [
+            (issue.code, issue.location and issue.location.pointer) for issue in read.issues
+        ] == [(CoreErrorCode.EXPRESSION_PROGRAM_INVALID, "/automations/0/if")]
 
 
 @pytest.mark.parametrize(
@@ -556,6 +579,7 @@ def test_a_package_that_increments_a_text_is_refused(project: Project, ids: Ids)
     del step["value"]
     del _first(document, *ARGUMENT)["variable"]
     _first(document, *ARGUMENT)["value"] = 1
+    del _first(document, "automations", 0)["if"]  # it compares the variable as a number
 
     read = read_package(PATH, _rehashed(document))
 

@@ -50,7 +50,7 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
       "uniqueItems": true
     },
     "if": {
-      "description": "Condition, in the expression language of phase 4: stored, not interpreted yet.",
+      "description": "The condition that must hold, in the expression language (docs/specs/expressions.md): visits < limit and not paused. Without it, the actions always run.",
       "type": "string",
       "maxLength": 500
     },
@@ -1287,9 +1287,13 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
           "uniqueItems": true
         },
         "if": {
-          "description": "The condition as the project writes it: its names are not resolved until the expression language exists.",
-          "type": "string",
-          "maxLength": 500
+          "description": "The condition, compiled (docs/specs/expressions.md): its steps in postfix order, for a stack. Constants are already values; variables go by id.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/conditionStep"
+          },
+          "minItems": 1,
+          "maxItems": 500
         },
         "do": {
           "type": "array",
@@ -1297,6 +1301,39 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
             "$ref": "#/$defs/packageAction"
           },
           "minItems": 1
+        }
+      }
+    },
+    "conditionStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One step of a condition: push a value, push the value a variable has, or apply an operator to what is on the stack. Exactly one of the three.",
+      "properties": {
+        "value": {
+          "$ref": "common.schema.json#/$defs/value"
+        },
+        "variable": {
+          "$ref": "common.schema.json#/$defs/reference"
+        },
+        "op": {
+          "description": "neg is the minus of one operand (-x).",
+          "enum": [
+            "or",
+            "and",
+            "not",
+            "==",
+            "!=",
+            "<",
+            "<=",
+            ">",
+            ">=",
+            "+",
+            "-",
+            "*",
+            "/",
+            "%",
+            "neg"
+          ]
         }
       }
     },

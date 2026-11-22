@@ -332,6 +332,38 @@
       "message": "{value} está fuera de los límites de {name}.",
       "hint": "Asigna un valor entre su mínimo y su máximo, o cámbialos."
     },
+    "expression.syntax": {
+      "message": "La condición no se puede leer: «{found}» en la posición {position} no se espera ahí.",
+      "hint": "Escribe comparaciones unidas con and, or y not, por ejemplo: visits < limit and not paused."
+    },
+    "expression.too_deep": {
+      "message": "La condición anida más de {max} niveles.",
+      "hint": "Simplifícala o repártela entre varias automatizaciones."
+    },
+    "expression.expected_number": {
+      "message": "En la condición, {operator} necesita números a ambos lados.",
+      "hint": "Úsalo con números o con nombres de constantes y variables que sean números."
+    },
+    "expression.expected_boolean": {
+      "message": "En la condición, {operator} necesita algo que sea verdadero o falso.",
+      "hint": "Une con él comparaciones o variables de verdadero/falso, por ejemplo: visits > 3 and not paused."
+    },
+    "expression.not_comparable": {
+      "message": "En la condición, {operator} compara dos cosas de distinto tipo.",
+      "hint": "Compara un número con un número, un texto con un texto o un verdadero/falso con otro."
+    },
+    "expression.division_by_zero": {
+      "message": "La condición divide entre cero ({operator}).",
+      "hint": "Divide entre un valor que no sea cero."
+    },
+    "expression.not_a_condition": {
+      "message": "La condición da un número o un texto, no un sí o un no.",
+      "hint": "Compáralo con algo, por ejemplo: visits > 3."
+    },
+    "expression.program_invalid": {
+      "message": "La condición de una automatización de este paquete no es coherente.",
+      "hint": "Vuelve a generar el paquete con primum build."
+    },
     "argument.missing": {
       "message": "La secuencia incluida necesita un valor para su parámetro {parameter}.",
       "hint": "Añade al bloque un argumento para {parameter}."

@@ -332,6 +332,38 @@
       "message": "{value} is outside the limits of {name}.",
       "hint": "Set a value between its minimum and its maximum, or change them."
     },
+    "expression.syntax": {
+      "message": "The condition cannot be read: \"{found}\" at position {position} is not expected there.",
+      "hint": "Write comparisons joined with and, or and not, such as: visits < limit and not paused."
+    },
+    "expression.too_deep": {
+      "message": "The condition nests more than {max} levels deep.",
+      "hint": "Simplify it, or split it between several automations."
+    },
+    "expression.expected_number": {
+      "message": "In the condition, {operator} needs numbers on both sides.",
+      "hint": "Use it with numbers, or with names of constants and variables that are numbers."
+    },
+    "expression.expected_boolean": {
+      "message": "In the condition, {operator} needs something that is true or false.",
+      "hint": "Join comparisons or true/false variables with it, such as: visits > 3 and not paused."
+    },
+    "expression.not_comparable": {
+      "message": "In the condition, {operator} compares two things of different kinds.",
+      "hint": "Compare a number with a number, a text with a text, or a true/false with a true/false."
+    },
+    "expression.division_by_zero": {
+      "message": "The condition divides by zero ({operator}).",
+      "hint": "Divide by a value that is not zero."
+    },
+    "expression.not_a_condition": {
+      "message": "The condition gives a number or a text, not a yes or a no.",
+      "hint": "Compare it with something, such as: visits > 3."
+    },
+    "expression.program_invalid": {
+      "message": "The condition of an automation in this package does not hold together.",
+      "hint": "Build the package again with primum build."
+    },
     "argument.missing": {
       "message": "The included sequence needs a value for its parameter {parameter}.",
       "hint": "Add an argument for {parameter} to the block."
