@@ -280,6 +280,10 @@
       "message": "The name {name} is already defined in {other}.",
       "hint": "Names are visible in the folders below the one that defines them: use a different name here, or remove this one."
     },
+    "name.reserved": {
+      "message": "{name} is a word of conditions and cannot be a name.",
+      "hint": "Choose another name: and, or, not, true and false are reserved."
+    },
     "name.unknown": {
       "message": "No constant or variable named {name} is visible here.",
       "hint": "Define it in a .vars file of this folder or of one above, or import it from the folder that exports it."
@@ -349,7 +353,7 @@
       "hint": "Simplify it, or split it between several automations."
     },
     "expression.expected_number": {
-      "message": "In the condition, {operator} needs numbers on both sides.",
+      "message": "In the condition, {operator} needs numbers.",
       "hint": "Use it with numbers, or with names of constants and variables that are numbers."
     },
     "expression.expected_boolean": {
@@ -363,6 +367,10 @@
     "expression.division_by_zero": {
       "message": "The condition divides by zero ({operator}).",
       "hint": "Divide by a value that is not zero."
+    },
+    "expression.constant_too_large": {
+      "message": "The constant {name} is too large to use in a condition.",
+      "hint": "Conditions work with numbers up to 9007199254740992: use a smaller value."
     },
     "expression.not_a_condition": {
       "message": "The condition gives a number or a text, not a yes or a no.",

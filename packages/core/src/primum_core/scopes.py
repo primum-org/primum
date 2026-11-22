@@ -179,6 +179,10 @@ def _define(content: Variables, location: Location, scopes: _Scopes) -> dict[str
     ]
     defined: dict[str, Definition] = {}
     for definition in definitions:
+        if definition.name in expressions.KEYWORDS:
+            # In a condition the word would win, and the name would never be read.
+            at = replace(definition.location, pointer=f"{definition.location.pointer}/name")
+            scopes.issues.append(Issue(CoreErrorCode.NAME_RESERVED, {"name": definition.name}, at))
         entry = _Entry(definition, definition.location)
         existing = defined.get(definition.name)
         if existing is not None:  # twice in the same file: not entered in the folder again

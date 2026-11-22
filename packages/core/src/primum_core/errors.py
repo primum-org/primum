@@ -31,6 +31,7 @@ class CoreErrorCode(StrEnum):
     REF_WRONG_KIND = "ref.wrong_kind"  # field, id
     # Constants, variables and the scopes of their names (decision 0005).
     NAME_REDEFINED = "name.redefined"  # name, other (the path that already defines it)
+    NAME_RESERVED = "name.reserved"  # name (a word of the condition language)
     NAME_UNKNOWN = "name.unknown"  # name
     NAME_NOT_EXPORTED = "name.not_exported"  # name
     NAME_NOT_A_VARIABLE = "name.not_a_variable"  # name
@@ -53,6 +54,7 @@ class CoreErrorCode(StrEnum):
     EXPRESSION_EXPECTED_BOOLEAN = "expression.expected_boolean"  # operator
     EXPRESSION_NOT_COMPARABLE = "expression.not_comparable"  # operator
     EXPRESSION_DIVISION_BY_ZERO = "expression.division_by_zero"  # operator
+    EXPRESSION_CONSTANT_TOO_LARGE = "expression.constant_too_large"  # name
     EXPRESSION_NOT_A_CONDITION = "expression.not_a_condition"
     EXPRESSION_PROGRAM_INVALID = "expression.program_invalid"  # in a package
     # Components: sequences with parameters, included with arguments.

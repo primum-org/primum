@@ -23,6 +23,7 @@ import math
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from fractions import Fraction
 from typing import Protocol
 from uuid import UUID
 
@@ -305,10 +306,10 @@ class _Parser:
         raise self._unexpected()
 
     def _number(self, token: _Token) -> float:
-        number = float(token.text) if "." in token.text else int(token.text)
-        if number > MAX_EXACT:  # no runtime holds it exactly, written with decimals or not
+        # Judged as written: beyond the limit a double would round it, in silence.
+        if Fraction(token.text) > MAX_EXACT:
             raise _UnreadableError(_syntax(token.position, token.text))
-        return number
+        return float(token.text) if "." in token.text else int(token.text)
 
 
 # --- checking --------------------------------------------------------------------------------
@@ -324,9 +325,11 @@ def check(
     - ``expression.expected_boolean``: ``and``, ``or`` or ``not`` on what is not a boolean;
     - ``expression.not_comparable``: ``==`` or ``!=`` between things of different kinds;
     - ``expression.division_by_zero``: ``/`` or ``%`` by a zero that is written, or by a
-      constant that is one (``constants``: the value of each name that is a constant).
+      constant that is one (``constants``: the value of each name that is a constant);
+    - ``expression.constant_too_large``: a constant beyond 2^53, which could not be written
+      as a number either (with its ``name``).
 
-    Each with the ``operator``. Every name must be in ``types``: one that is not is the
+    The others with the ``operator``. Every name must be in ``types``: one that is not is the
     caller's to report, before asking.
     """
     try:
@@ -345,6 +348,9 @@ def _type_of(node: Node, types: Mapping[str, str], constants: Mapping[str, Value
         case Literal(value):
             return _type_of_value(value)
         case Name(name):
+            if _too_large(constants.get(name)):
+                params = {"name": name}
+                raise _UnreadableError(Problem(CoreErrorCode.EXPRESSION_CONSTANT_TOO_LARGE, params))
             return types[name]
         case Unary(operator, operand):
             inner = _type_of(operand, types, constants)
@@ -370,6 +376,11 @@ def _type_of_value(value: Value) -> str:
     if isinstance(value, str):
         return TEXT
     return INTEGER if isinstance(value, int) else NUMBER
+
+
+def _too_large(value: Value | None) -> bool:
+    """Whether a constant is a number that could not be written in a condition."""
+    return value is not None and not isinstance(value, bool | str) and abs(value) > MAX_EXACT
 
 
 def _is_zero(node: Node, constants: Mapping[str, Value]) -> bool:

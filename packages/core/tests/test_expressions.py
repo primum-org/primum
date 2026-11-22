@@ -304,10 +304,34 @@ def test_a_value_no_number_can_hold_is_a_failure_wherever_it_is_used() -> None:
     assert _value("ratio > 5", {**VALUES, RATIO: 10**400}) == Failure("overflow")
 
 
-def test_a_decimal_written_beyond_the_limit_is_refused_like_a_whole_one() -> None:
-    assert expressions.parse("ratio < 9007199254740994.0") == Problem(
-        CoreErrorCode.EXPRESSION_SYNTAX, {"position": 9, "found": "9007199254740994.0"}
+@pytest.mark.parametrize(
+    "number", ["9007199254740994.0", "9007199254740993.0", "9007199254740992.5"]
+)
+def test_a_decimal_written_beyond_the_limit_is_refused_like_a_whole_one(number: str) -> None:
+    """Judged as written, not after rounding to the nearest double."""
+    assert expressions.parse(f"ratio < {number}") == Problem(
+        CoreErrorCode.EXPRESSION_SYNTAX, {"position": 9, "found": number}
     )
+
+
+def test_the_limit_itself_can_be_written() -> None:
+    assert _tree("ratio < 9007199254740992.0") == Binary("<", Name("ratio"), Literal(float(2**53)))
+
+
+@pytest.mark.parametrize("text", ["visits + huge > 1", "visits < huge", "huge == visits"])
+@pytest.mark.parametrize("value", [10**30, 1e30, -(2**53) - 2])
+def test_a_constant_too_large_to_write_is_refused_like_the_number(text: str, value: float) -> None:
+    types = {**TYPES, "huge": "number"}
+
+    assert expressions.check(_tree(text), types, {"huge": value}) == Problem(
+        CoreErrorCode.EXPRESSION_CONSTANT_TOO_LARGE, {"name": "huge"}
+    )
+
+
+def test_a_constant_at_the_limit_is_taken() -> None:
+    types = {**TYPES, "huge": "integer"}
+
+    assert expressions.check(_tree("visits < huge"), types, {"huge": 2**53}) == "boolean"
 
 
 def test_decimals_that_overflow_are_a_failure() -> None:

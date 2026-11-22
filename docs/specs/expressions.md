@@ -23,7 +23,9 @@ mode == "night" or brightness / 2 > 30
 | Grouping | `(` `)` |
 
 The words are English and lower case in every language of the UI, like the file formats.
-`and`, `or`, `not`, `true` and `false` are not names.
+`and`, `or`, `not`, `true` and `false` are not names: a constant or a variable cannot be
+called one of them (`name.reserved`, at its `name` in the `.vars` file). `True` and `order`
+are fine.
 
 What binds tighter comes first; each line binds its operands left to right:
 
@@ -81,10 +83,12 @@ unknown names, which are all reported.
 | `expression.expected_boolean` | `and`, `or` or `not` on what is not a boolean | `operator` |
 | `expression.not_comparable` | `==` or `!=` between different kinds | `operator` |
 | `expression.division_by_zero` | `/` or `%` by a written `0`, or by a constant that is `0` | `operator` |
+| `expression.constant_too_large` | A constant beyond 2^53 in size: it could not be written as a number either | `name` |
 | `expression.not_a_condition` | The whole gives a number or a text | |
 
 A number written beyond 2^53 is `expression.syntax` at the number: no runtime holds it
-exactly. Every name of a condition that exists counts as a use of it, also when the condition
+exactly. It is judged as written, before any rounding: `9007199254740992.5` is refused,
+`9007199254740992` is the last one taken. Every name of a condition that exists counts as a use of it, also when the condition
 has something else wrong (another name that does not exist, or it cannot be read); a word
 inside a text does not.
 

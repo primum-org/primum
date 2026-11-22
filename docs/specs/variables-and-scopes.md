@@ -66,6 +66,10 @@ An automation resolves names in the scope of its own folder:
   and the condition must fit the types they have. A word inside a text (`mode == "night"`) is
   not a name.
 
+A constant or a variable cannot be called `and`, `or`, `not`, `true` or `false`, the words of
+the condition language (`name.reserved`, at its `name`): in a condition the word would win
+and the name would never be read.
+
 A sequence uses names too (decision 0024): an argument of a clip or of a block may take its
 value from one (`valueOf`) instead of writing it. The name is a parameter of the sequence that
 is not an element (`name.not_a_value` for an element one), or a constant or a variable its

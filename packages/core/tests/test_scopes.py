@@ -310,6 +310,33 @@ def test_every_unknown_name_of_a_condition_is_reported(project: Project, ids: Id
     ]
 
 
+@pytest.mark.parametrize("word", ["true", "false", "and", "or", "not"])
+def test_a_word_of_the_condition_language_cannot_be_a_name(
+    project: Project, ids: Ids, word: str
+) -> None:
+    constant = {"id": ids(13), "name": word, "type": "boolean", "value": False}
+    variable = {"id": ids(11), "name": word, "type": "boolean", "initial": False}
+    project.add("a/shop.vars", "variables", ids(10), constants=[constant], variables=[])
+    project.add("b/shop.vars", "variables", ids(12), constants=[], variables=[variable])
+
+    assert project.found(severity=Severity.ERROR) == [
+        (CoreErrorCode.NAME_RESERVED, {"name": word}, "a/shop.vars", "/constants/0/name"),
+        (CoreErrorCode.NAME_RESERVED, {"name": word}, "b/shop.vars", "/variables/0/name"),
+    ]
+
+
+def test_a_name_that_only_starts_like_a_word_of_the_language_is_fine(
+    project: Project, ids: Ids
+) -> None:
+    variables = [
+        _variable(ids, 11, "order", setting=True),
+        _variable(ids, 12, "True", setting=True),
+    ]
+    project.add("shop.vars", "variables", ids(10), constants=[], variables=variables)
+
+    assert project.found() == []
+
+
 def test_an_unknown_name_in_a_condition_does_not_make_the_known_ones_unused(
     project: Project, ids: Ids
 ) -> None:
