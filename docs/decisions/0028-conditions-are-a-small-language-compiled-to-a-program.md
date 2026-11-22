@@ -24,8 +24,11 @@ run without parsing anything.
   constants inlined, variables by id. No jumps: each step runs once. Reading a package
   checks every program (stack, types, variables), since a hash is not a check
   (decision 0024).
+- **One kind of number when evaluating: a double.** `integer` and `number` only matter to
+  the checks; the package does not tell `3` from `3.0`.
 - **What cannot be worked out is a failure, not an exception**: a division by zero, or a
-  result no runtime holds exactly (not finite, or a whole number beyond 2^53). `and` and
+  result of arithmetic that is not below 2^53 in size. The limit is on the value, not on
+  how it is held or declared, so any runtime that works in doubles gives the same answer. `and` and
   `or` ignore a failed side when the other side settles the answer, whichever side it is.
 - **One comparison, not a chain**: `1 < x < 5` is refused rather than read in a way a
   person does not expect.
@@ -45,6 +48,10 @@ run without parsing anything.
 - **Short-circuit by jumps**: guards would work only written on the left, and the program
   would need jump targets to check. Deciding `and`/`or` from both sides costs working out a
   side that is not needed, which in a language without calls costs nothing that matters.
+- **Overflow by the declared type** (only integers have the limit): every step of the
+  package would have to carry its type, and a constant `3.0` is already written `3`.
+- **Overflow only when not finite**: whole numbers past 2^53 would round in silence and a
+  counter compared with `==` would lie.
 - **Raising on a division by zero**: every caller would have to catch it; a value that says
   why is harder to forget.
 

@@ -336,6 +336,14 @@
       "message": "La condición no se puede leer: «{found}» en la posición {position} no se espera ahí.",
       "hint": "Escribe comparaciones unidas con and, or y not, por ejemplo: visits < limit and not paused."
     },
+    "expression.single_equals": {
+      "message": "La condición tiene un = suelto en la posición {position}, que no compara.",
+      "hint": "Para comparar dos cosas escribe ==, por ejemplo: visits == 3."
+    },
+    "expression.too_long": {
+      "message": "La condición tiene más de {max} caracteres.",
+      "hint": "Acórtala o repártela entre varias automatizaciones."
+    },
     "expression.too_deep": {
       "message": "La condición anida más de {max} niveles.",
       "hint": "Simplifícala o repártela entre varias automatizaciones."

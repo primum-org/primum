@@ -266,10 +266,10 @@ def _use_in_condition(
     names = expressions.names_in(tree)
     unknown = [name for name in names if name not in visible]
     scopes.issues += (Issue(CoreErrorCode.NAME_UNKNOWN, {"name": name}, at) for name in unknown)
+    definitions = [visible[name].definition for name in names if name in visible]
+    scopes.used.update(definition.id for definition in definitions)
     if unknown:
         return
-    definitions = [visible[name].definition for name in names]
-    scopes.used.update(definition.id for definition in definitions)
     result = expressions.check(
         tree,
         {definition.name: definition.value_type for definition in definitions},

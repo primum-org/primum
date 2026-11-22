@@ -864,7 +864,8 @@ per element, from a deployment package that can be rolled back. One pull request
   id) and reading a package checks it. `evaluate` exists and is tested (against Python's
   own evaluation of 3000 random conditions, among others) but nothing in the runtime calls
   it yet: that is 4.4b, with what a condition that fails to evaluate does (it does not
-  hold, and it is told). Windows of time are not in the language: a field of the
+  hold, and it is told). Numbers are doubles when evaluating and a result of arithmetic
+  must stay below 2^53: a rule on the value, for runtimes that are not Python. Windows of time are not in the language: a field of the
   automation, in 4.4c.
 
 **4.5 · Trace, activation and rollback**

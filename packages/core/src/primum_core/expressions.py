@@ -32,7 +32,9 @@ from primum_core.values import NUMERIC, Value
 # How deep parentheses, ``not`` and ``-`` may nest: enough for anything a person writes, and
 # a bound on what reading and checking an expression costs.
 MAX_DEPTH = 32
-# Beyond this a whole number is no longer exact as the number every runtime can hold.
+MAX_LENGTH = 500  # characters, as the schema of an automation says
+# Numbers are doubles. Up to this size whole numbers are exact; a result of arithmetic that
+# reaches it is a failure, and a number written beyond it is refused.
 MAX_EXACT = 2**53
 
 KEYWORDS = frozenset({"and", "or", "not", "true", "false"})
@@ -45,7 +47,7 @@ BOOLEAN, TEXT, INTEGER, NUMBER = "boolean", "text", "integer", "number"
 
 _TOKEN = re.compile(
     r"""\s*(?:
-        (?P<number>\d+(?:\.\d+)?)
+        (?P<number>[0-9]+(?:\.[0-9]+)?)
       | (?P<text>"(?:[^"\\]|\\["\\])*")
       | (?P<name>[A-Za-z_][A-Za-z0-9_]*)
       | (?P<symbol>==|!=|<=|>=|[<>+\-*/%()])
@@ -126,8 +128,12 @@ class _UnreadableError(Exception):
 
 def parse(text: str) -> Node | Problem:
     """The tree of an expression, or the first thing in it that makes no sense
-    (``expression.syntax``, with its ``position`` and what was ``found`` there; or
-    ``expression.too_deep``)."""
+    (``expression.syntax``, with its ``position`` and what was ``found`` there;
+    ``expression.single_equals`` for an ``=`` that should be ``==``; ``expression.too_long``;
+    or ``expression.too_deep``). Bounded whatever the text: nothing longer than ``MAX_LENGTH``
+    is read."""
+    if len(text) > MAX_LENGTH:
+        return Problem(CoreErrorCode.EXPRESSION_TOO_LONG, {"max": MAX_LENGTH})
     try:
         return _Parser(_tokens(text)).expression()
     except _UnreadableError as unreadable:
@@ -167,6 +173,9 @@ def _tokens(text: str) -> list[_Token]:
         match = _TOKEN.match(text, position)
         if match is None or match.end() == position:
             at = position + len(text[position:]) - len(text[position:].lstrip())
+            if text[at] == "=":  # the likeliest slip: to compare is ==
+                params = {"position": at + 1}
+                raise _UnreadableError(Problem(CoreErrorCode.EXPRESSION_SINGLE_EQUALS, params))
             raise _UnreadableError(_syntax(at + 1, text[at]))
         kind = match.lastgroup or ""
         tokens.append(_Token(kind, match.group(kind), match.start(kind) + 1))
@@ -297,7 +306,7 @@ class _Parser:
 
     def _number(self, token: _Token) -> float:
         number = float(token.text) if "." in token.text else int(token.text)
-        if not math.isfinite(number) or (isinstance(number, int) and number > MAX_EXACT):
+        if number > MAX_EXACT:  # no runtime holds it exactly, written with decimals or not
             raise _UnreadableError(_syntax(token.position, token.text))
         return number
 
@@ -476,15 +485,27 @@ def evaluate(items: Sequence[Item], values: Mapping[UUID, Value]) -> Value | Fai
     stack: list[Value | Failure] = []
     for item in items:
         if item.value is not None:
-            stack.append(item.value)
+            stack.append(_held(item.value))
         elif item.variable is not None:
-            stack.append(values[item.variable])
+            stack.append(_held(values[item.variable]))
         elif item.op in {"not", NEGATE}:
             stack.append(_unary(item.op, stack.pop()))
         else:
             right, left = stack.pop(), stack.pop()
             stack.append(_binary(item.op or "", left, right))
     return stack[0]
+
+
+def _held(value: Value) -> Value | Failure:
+    """A value as it is worked with: every number the same kind (a double), whether it was
+    held as a whole one or not. One that no double holds is a failure."""
+    if isinstance(value, bool | str):
+        return value
+    try:
+        held = float(value)
+    except OverflowError:
+        return Failure("overflow")
+    return held if math.isfinite(held) else Failure("overflow")
 
 
 def _unary(operator: str, operand: Value | Failure) -> Value | Failure:
@@ -552,10 +573,9 @@ def _as_number(value: Value) -> float:
 
 
 def _number(result: float) -> float | Failure:
-    """A result that every runtime can hold exactly, or a failure: a number that is not
-    finite, or a whole one beyond 2^53."""
-    if isinstance(result, float) and not math.isfinite(result):
-        return Failure("overflow")
-    if isinstance(result, int) and abs(result) > MAX_EXACT:
+    """A result of arithmetic, or a failure when it is not below 2^53 in size (or not a
+    number at all). The rule looks at the value alone, so it is the same in any runtime that
+    works in doubles; and below that limit, arithmetic on whole numbers is exact."""
+    if not abs(result) < MAX_EXACT:
         return Failure("overflow")
     return result

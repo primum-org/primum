@@ -92,7 +92,6 @@ def test_an_expression_is_read_with_the_usual_precedence(text: str, tree: Node) 
         ("   ", 4, "end"),
         ("visits <", 9, "end"),
         ("visits < < 3", 10, "<"),
-        ("visits = 3", 8, "="),
         ("(visits < 3", 12, "end"),
         ("visits < 3)", 11, ")"),
         ("1 < 2 < 3", 7, "<"),
@@ -105,11 +104,30 @@ def test_an_expression_is_read_with_the_usual_precedence(text: str, tree: Node) 
         ("1.", 2, "."),
         ("9007199254740993 > 1", 1, "9007199254740993"),
         ("f(1)", 2, "("),
+        ("visits < \u0663", 10, "\u0663"),  # an Arabic three is not a digit of the language
+        ("visits < 1\u0663", 11, "\u0663"),
     ],
 )
 def test_what_cannot_be_read_says_where(text: str, position: int, found: str) -> None:
     assert expressions.parse(text) == Problem(
         CoreErrorCode.EXPRESSION_SYNTAX, {"position": position, "found": found}
+    )
+
+
+@pytest.mark.parametrize(("text", "position"), [("visits = 3", 8), ("3=visits", 2)])
+def test_a_single_equals_sign_has_its_own_code(text: str, position: int) -> None:
+    assert expressions.parse(text) == Problem(
+        CoreErrorCode.EXPRESSION_SINGLE_EQUALS, {"position": position}
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["9" * 5000 + " > 1", " + ".join(["1"] * 3000) + " > 1", "visits < 3" + " " * 500],
+)
+def test_an_expression_longer_than_the_limit_is_refused_before_reading_it(text: str) -> None:
+    assert expressions.parse(text) == Problem(
+        CoreErrorCode.EXPRESSION_TOO_LONG, {"max": expressions.MAX_LENGTH}
     )
 
 
@@ -129,7 +147,7 @@ def test_an_expression_nested_too_deep_is_refused(text: str) -> None:
 
 
 def test_a_long_flat_expression_is_not_deep() -> None:
-    text = " and ".join(["visits < 3"] * 40)
+    text = " and ".join(["paused"] * 40)
 
     assert expressions.check(_tree(text), TYPES) == "boolean"
 
@@ -229,10 +247,7 @@ def test_a_minus_of_one_operand_has_its_own_name_in_a_program() -> None:
     ],
 )
 def test_a_program_gives_the_value_of_its_expression(text: str, value: Value) -> None:
-    result = _value(text)
-
-    assert result == value
-    assert type(result) is type(value)
+    assert _value(text) == value
 
 
 @pytest.mark.parametrize(
@@ -243,6 +258,8 @@ def test_a_program_gives_the_value_of_its_expression(text: str, value: Value) ->
         ("not (limit / (visits - 7) > 1)", Failure("division_by_zero")),
         ("9007199254740992 + visits > 0", Failure("overflow")),
         ("9007199254740992 * 9007199254740992 > 0", Failure("overflow")),
+        ("9007199254740991 + 1 > 0", Failure("overflow")),
+        ("9007199254740990 + 1 > 0", True),
         # A guard works whichever side it is written on.
         ("visits != 7 and limit / (visits - 7) > 1", False),
         ("limit / (visits - 7) > 1 and visits != 7", False),
@@ -257,6 +274,40 @@ def test_what_cannot_be_worked_out_is_a_failure_unless_a_side_settles_it(
     text: str, result: Value | Failure
 ) -> None:
     assert _value(text) == result
+
+
+@pytest.mark.parametrize("text", ["ratio + 1 > 0", "ratio * 1 > 0", "-ratio < 0"])
+@pytest.mark.parametrize("held", [2**53, float(2**53)])
+def test_a_result_too_large_fails_however_the_value_is_held(text: str, held: float) -> None:
+    """The limit is on the value: the same number as a whole one or with decimals behaves
+    the same (a package does not tell 3 from 3.0)."""
+    assert _value(text, {**VALUES, RATIO: held}) == Failure("overflow")
+
+
+@pytest.mark.parametrize("held", [2**53 - 2, float(2**53 - 2)])
+def test_a_result_below_the_limit_is_exact_however_the_value_is_held(held: float) -> None:
+    values = {**VALUES, RATIO: held}
+
+    assert _value("ratio + 1 == 9007199254740991", values) is True
+    assert _value("ratio + 1 == 9007199254740990", values) is False
+
+
+@pytest.mark.parametrize("held", [2**54, float(2**54), 1e300])
+def test_a_value_beyond_the_limit_compares_but_does_not_count(held: float) -> None:
+    values = {**VALUES, RATIO: held}
+
+    assert _value("ratio > 5", values) is True
+    assert _value("ratio / 2 > 5", values) == Failure("overflow")
+
+
+def test_a_value_no_number_can_hold_is_a_failure_wherever_it_is_used() -> None:
+    assert _value("ratio > 5", {**VALUES, RATIO: 10**400}) == Failure("overflow")
+
+
+def test_a_decimal_written_beyond_the_limit_is_refused_like_a_whole_one() -> None:
+    assert expressions.parse("ratio < 9007199254740994.0") == Problem(
+        CoreErrorCode.EXPRESSION_SYNTAX, {"position": 9, "found": "9007199254740994.0"}
+    )
 
 
 def test_decimals_that_overflow_are_a_failure() -> None:

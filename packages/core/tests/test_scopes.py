@@ -310,6 +310,21 @@ def test_every_unknown_name_of_a_condition_is_reported(project: Project, ids: Id
     ]
 
 
+def test_an_unknown_name_in_a_condition_does_not_make_the_known_ones_unused(
+    project: Project, ids: Ids
+) -> None:
+    project.add(
+        "shop.vars",
+        "variables",
+        ids(10),
+        constants=[{"id": ids(13), "name": "limit", "type": "integer", "value": 100}],
+        variables=[_variable(ids, 11, "visits")],
+    )
+    _automation(project, ids, "count.auto", **{"if": "visits < limit and nope"})
+
+    assert project.found() == [(CoreErrorCode.NAME_UNKNOWN, {"name": "nope"}, "count.auto", "/if")]
+
+
 def test_a_condition_that_cannot_be_read_still_uses_the_names_in_it(
     project: Project, ids: Ids
 ) -> None:

@@ -336,6 +336,14 @@
       "message": "The condition cannot be read: \"{found}\" at position {position} is not expected there.",
       "hint": "Write comparisons joined with and, or and not, such as: visits < limit and not paused."
     },
+    "expression.single_equals": {
+      "message": "The condition has a single = at position {position}, which does not compare.",
+      "hint": "To compare two things write ==, such as: visits == 3."
+    },
+    "expression.too_long": {
+      "message": "The condition is longer than {max} characters.",
+      "hint": "Shorten it, or split it between several automations."
+    },
     "expression.too_deep": {
       "message": "The condition nests more than {max} levels deep.",
       "hint": "Simplify it, or split it between several automations."

@@ -46,6 +46,8 @@ class CoreErrorCode(StrEnum):
     VARIABLE_SET_OUT_OF_RANGE = "variable.set_out_of_range"  # name, value
     # A condition (decision 0028): what cannot be read, and what does not fit.
     EXPRESSION_SYNTAX = "expression.syntax"  # position, found
+    EXPRESSION_SINGLE_EQUALS = "expression.single_equals"  # position
+    EXPRESSION_TOO_LONG = "expression.too_long"  # max
     EXPRESSION_TOO_DEEP = "expression.too_deep"  # max
     EXPRESSION_EXPECTED_NUMBER = "expression.expected_number"  # operator
     EXPRESSION_EXPECTED_BOOLEAN = "expression.expected_boolean"  # operator

@@ -49,6 +49,7 @@ INVALID_CODES = {
     "config-out-of-range": "config.out_of_range",
     "config-out-of-board-range": "config.out_of_board_range",
     "config-not-allowed": "config.not_allowed",
+    "expression-single-equals": "expression.single_equals",
 }
 
 
