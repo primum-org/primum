@@ -202,6 +202,7 @@ def test_an_increment_stops_at_the_limit_of_its_variable(shop: _Shop) -> None:
         counted.append(shop.value())
 
     assert counted == [2, MAX_VISITS, MAX_VISITS]
+    assert [type(count) for count in counted] == [int, int, int]  # 3, never 3.0
 
 
 def test_an_action_sets_a_variable(shop: _Shop) -> None:
@@ -424,7 +425,9 @@ def test_the_api_fires_an_event_and_answers_with_the_new_state(tmp_path: Path) -
         answer = client.post(f"/api/events/{CALL}/fire")
 
     assert answer.status_code == 200
-    assert next(v["value"] for v in answer.json()["variables"] if v["id"] == VISITS) == 3
+    visits = next(v["value"] for v in answer.json()["variables"] if v["id"] == VISITS)
+    assert (visits, type(visits)) == (3, int)  # at its limit, and still a whole number
+    assert '"value":3,' in answer.text.replace(" ", "")
 
 
 def test_the_status_lists_the_events_and_the_automations(tmp_path: Path) -> None:

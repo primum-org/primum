@@ -80,8 +80,11 @@ Two events never mix: one is dealt with whole, conditions and actions, before th
 | `increment_variable` | Adds `value` to it, or 1 when the action has none; a negative value takes away |
 
 **An increment stays within the limits of its variable**: one that would pass a limit leaves
-the variable at that limit. A counter with a maximum of 100 stays at 100. Without a limit on
-that side, it stays the largest number there is.
+the variable at that limit. A counter with a maximum of 100 stays at 100. The result is of
+the variable's type: an `integer` stays a whole number at its limit (`3`, never `3.0`), and
+within limits that are not whole (`3` for a maximum of 3.5). Without a limit on that side,
+an `integer` stops at `9007199254740991`, the largest a condition can read
+(`expressions.md`), and a `number` at the largest there is.
 
 An increment is one operation on the value the variable has: never a value read at one
 moment and written at another. Two events cannot lose a count.

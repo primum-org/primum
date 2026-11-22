@@ -868,7 +868,8 @@ per element, from a deployment package that can be rolled back. One pull request
   condition must be below 2^53: a rule on the value, for runtimes that are not Python.
   Windows of time are not in the language: a field of the automation, in 4.4c. Not done:
   a variable whose limits allow 2^53 or more is not warned about when a condition reads it.
-- **4.4b · Events and automations: code done; not tried on `primum-dev`** (decision 0029,
+- **4.4b · Events and automations: code done; tried in part on `primum-dev` by its owner**
+  (see below what; decision 0029,
   `specs/events.md`). An input that turns on or off, or an event fired through the API
   (`POST /api/events/{id}/fire`, only `ui` and `api` events), makes the automations of the
   package act: conditions worked out first, all on the same values, then actions in the
@@ -888,6 +889,11 @@ per element, from a deployment package that can be rolled back. One pull request
     the service stopped with `SIGSTOP`, 300 changes all arrived when it went on,
     `lostEvents` at 0, each dealt with at that same instant. So losing events is checked
     only on the simulated HAL.
+  - Also seen there by its owner: a counter incremented to its maximum became `3.0`, not
+    `3` (the limits of a package are written with decimals, and the limit itself was
+    returned). Fixed: an increment gives a value of the variable's type. Deduced from the
+    code and not run: such a value would have been refused by a command reading it for an
+    integer parameter.
   - Debounce needed nothing new: it is the `debounceMs` of the input's driver, in the
     kernel, since phase 3.
   - Left out: the page shows neither events nor automations; an automation cannot be

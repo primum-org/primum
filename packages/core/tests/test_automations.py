@@ -144,6 +144,37 @@ def test_an_increment_of_a_whole_number_stays_whole() -> None:
 
 
 @pytest.mark.parametrize(
+    ("value", "by", "result"),
+    [(2, 2, 3), (3, 1, 3), (1, -5, 0), (0, -1, 0)],
+)
+def test_a_whole_number_that_meets_its_limit_stays_whole(value: int, by: int, result: int) -> None:
+    """The limits of a package are numbers with decimals (0.0, 3.0), whatever the type of
+    the variable: 3.0 is not a value an integer takes."""
+    limited = _variable("integer", 0.0, 3.0)
+
+    left = incremented(limited, value, by)
+
+    assert (left, type(left)) == (result, int)
+
+
+def test_a_whole_number_stays_within_limits_that_are_not_whole() -> None:
+    limited = _variable("integer", 0.5, 3.5)
+
+    assert incremented(limited, 3, 5) == 3
+    assert incremented(limited, 1, -5) == 1
+
+
+@pytest.mark.parametrize("by", [1, 10**30])
+def test_a_whole_number_without_a_limit_stops_where_conditions_can_still_read_it(by: int) -> None:
+    largest = 2**53 - 1
+
+    up = incremented(_variable(), largest - 1, by)
+    down = incremented(_variable(), -largest + 1, -by)
+
+    assert (up, type(up), down, type(down)) == (largest, int, -largest, int)
+
+
+@pytest.mark.parametrize(
     ("value", "by"), [(sys.float_info.max, sys.float_info.max), (10**400, 0.5)]
 )
 def test_an_increment_without_limits_never_leaves_the_numbers(value: float, by: float) -> None:

@@ -14,17 +14,20 @@ does the rest: starts and stops the sequences, keeps the values.
   reported, with why, for whoever runs the package to tell.
 """
 
+import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from uuid import UUID
 
-from primum_core.expressions import Failure, evaluate
+from primum_core.expressions import MAX_EXACT, Failure, evaluate
 from primum_core.generated.model import PackageAutomation, PackageVariable
 from primum_core.values import Value
 
 DEFAULT_INCREMENT = 1
-# The largest number a double holds: where a variable without a limit stops.
+# Where a variable without a limit stops: the largest number a double holds, and for a
+# whole number the largest a condition can read (``expressions.MAX_EXACT`` is out).
 LARGEST = 1.7976931348623157e308
+LARGEST_WHOLE = MAX_EXACT - 1
 
 
 @dataclass(frozen=True)
@@ -59,10 +62,18 @@ def verdicts(
 def incremented(variable: PackageVariable, value: Value, by: float | None) -> Value:
     """What ``increment_variable`` leaves a numeric variable at: ``value`` plus ``by`` (1 when
     absent), held to the limits the variable has. One that would pass a limit stays at it.
-    Without a limit on that side it stays a number every runtime holds."""
+
+    The result is of the variable's type: a whole number stays whole at its limit, though a
+    package writes limits as numbers with decimals. Without a limit on a side, a whole
+    number stops at the largest a condition can read (below 2^53) and a number with
+    decimals at the largest there is."""
     if isinstance(value, bool | str):  # a package that holds together never increments one
         raise TypeError(f"{variable.name} is not a number: {value!r}")
     amount = DEFAULT_INCREMENT if by is None else by
+    if variable.type == "integer":
+        low = -LARGEST_WHOLE if variable.min is None else math.ceil(variable.min)
+        high = LARGEST_WHOLE if variable.max is None else math.floor(variable.max)
+        return min(max(int(value) + int(amount), low), high)
     try:
         result = value + amount
     except OverflowError:  # a whole number no double holds, plus one with decimals
