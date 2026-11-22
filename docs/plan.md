@@ -789,6 +789,15 @@ per element, from a deployment package that can be rolled back. One pull request
   The randomized test for `block.hold_ignored` is still to write.
 
 **4.3c · Fades and variables**
+- **First, before any fade**: index the engine's commands. `Engine.asked` walks every command
+  of every running sequence, and the controller calls it for each output twice per change
+  (`_settle` and `state()`), besides `next_change_ms`. Measured on the Pi 4 by its owner,
+  with an equivalent loop over the engine, per change: 7 ms for 8 outputs × 100 clips, 135 ms
+  for 16 × 500, 539 ms for 16 × 2000. That time blocks the event loop: the next edge and the
+  API, panic included. A long show with many channels reaches thousands of commands, and a
+  fade stepped every 20 ms would spend a third of the processor on the small case. The cure
+  is local to the engine: commands by element, sorted by `atMs`, when the package is loaded;
+  the randomized test against `command_at` already guards the change.
 - Levels that move in time, `fade` without `from`, arguments read from a variable, and every
   assignment of a variable held to its limits.
 
