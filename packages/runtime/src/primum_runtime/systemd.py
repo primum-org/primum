@@ -10,6 +10,7 @@ Outside systemd (a laptop, the tests) there is no socket: nothing is sent, and n
 
 import socket
 from collections.abc import Awaitable, Callable, Mapping
+from datetime import UTC, datetime
 from pathlib import Path
 
 READY = "READY=1"
@@ -20,17 +21,31 @@ USEC_PER_S = 1_000_000
 BEATS_PER_TIMEOUT = 2
 
 # systemd-timesyncd touches this file each time it sets the clock from the network
-# (systemd-timesyncd.service(8)): while it is there, the clock has been set since boot.
+# (systemd-timesyncd.service(8)): once it is there, the clock has been set since boot.
 CLOCK_SYNCHRONIZED = Path("/run/systemd/timesync/synchronized")
 
 type Notify = Callable[[str], bool]
 
 
-def clock_synchronized(marker: Path = CLOCK_SYNCHRONIZED) -> bool:
-    """Whether the system's clock has been set from the network since it booted. A board
-    without a clock of its own (the Pi 4 has no battery) starts at some old time, and only
-    this says when the time it tells can be trusted."""
-    return marker.exists()
+def trusted_time(
+    *, trust: bool, marker: Path = CLOCK_SYNCHRONIZED
+) -> Callable[[], datetime | None]:
+    """What tells the time of the system once it can be trusted, and ``None`` until then.
+
+    A board without a clock of its own (the Pi 4 has no battery) starts at some old time,
+    and is right only once it has been set from the network: when ``marker`` is there. Once
+    set it stays trusted for as long as this service runs, also if the file goes (restarting
+    systemd-timesyncd removes it until it next sets the clock, and the clock is no worse
+    for that). ``trust`` takes the clock as right from the start: a board with its own.
+    """
+    known = trust
+
+    def now() -> datetime | None:
+        nonlocal known
+        known = known or marker.exists()
+        return datetime.now(UTC) if known else None
+
+    return now
 
 
 def notifier(env: Mapping[str, str]) -> Notify:

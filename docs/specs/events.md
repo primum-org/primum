@@ -86,7 +86,14 @@ happens**.
   (systemd-timesyncd leaves `/run/systemd/timesync/synchronized`), or at once when the
   service is told to trust the clock: `--trust-clock`, `PRIMUM_TRUST_CLOCK=1`, for a board
   with a clock of its own.
-- The state says so: `timeKnown`, and `open` of each schedule is `null` until then.
+- Once known, it stays known for as long as the service runs, also if that file goes:
+  restarting systemd-timesyncd removes it until it next sets the clock, and the clock is no
+  worse for that.
+- The state says so: `timeKnown`, and `open` of each schedule is `null` until then. Both are
+  as the service last looked, so the state never says more than the service has acted on:
+  the time may be set up to 10 s before `timeKnown` says so, and then what is due happens
+  in that same look. Listeners are told when the time comes to be known and when a window
+  opens or closes, also when nothing happens for it.
 - While it is not known the service asks again every 10 s. Once it is, it looks at the
   schedules as each minute turns: their times are whole minutes.
 
@@ -94,7 +101,7 @@ happens**.
 |---|---|
 | The time comes to be known late (no network at 19:00, set at 19:40) | Windows that are open happen. Times that passed meanwhile are lost, as if the board had been off |
 | It jumps forward, or the service did not look for more than 90 s | The times jumped over are lost. A window that opened meanwhile and is still open happens |
-| Summer time starts (02:00 becomes 03:00) | A time in the hour that does not exist is lost |
+| Summer time starts (02:00 becomes 03:00) | A time in the hour that does not exist (02:30) is lost. One right after it (03:00) happens: the gap is counted in the time that really went by, a minute, not in what the clock on the wall jumped |
 | Summer time ends (03:00 becomes 02:00 again), or the clock is set back up to two hours | Nothing happens again until the clock is past where it was: a time happens once |
 | It is set back further | The time is taken as newly known: windows that are open happen |
 

@@ -11,7 +11,6 @@ import logging
 import os
 from collections.abc import AsyncGenerator, Callable, Mapping
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -73,7 +72,7 @@ def create_app(
                     config.limits,
                     before_claim,
                     package=config.package,
-                    wall=wall or _system_time(config),
+                    wall=wall or systemd.trusted_time(trust=config.trust_clock),
                 )
             except Exception:
                 # A claim that fails leaves nothing claimed: what was declared for it names
@@ -129,18 +128,6 @@ def create_app(
     app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")
     install_error_handlers(app)
     return app
-
-
-def _system_time(config: RuntimeConfig) -> Wall:
-    """The time the system tells, once it can be trusted: set from the network since boot,
-    or taken as right because the configuration says so."""
-
-    def now() -> datetime | None:
-        if config.trust_clock or systemd.clock_synchronized():
-            return datetime.now(UTC)
-        return None
-
-    return now
 
 
 def _read_inputs(loop: asyncio.AbstractEventLoop, events_fd: int, controller: Controller) -> None:

@@ -34,6 +34,7 @@ LED = make_id(4)
 ON = make_id(30)
 VISITS = make_id(61)
 OPEN, CLOSE, SMALL_HOURS = make_id(80), make_id(81), make_id(82)
+DAWN, LUNCH = make_id(83), make_id(84)
 GO = make_id(202)
 GREET = make_id(303)
 EVERY_DAY = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
@@ -51,6 +52,8 @@ def _document() -> dict[str, object]:
     - *Open*: a window, Monday 10:00 to 20:30. *Lights on* starts *On* when it opens;
     - *Close*: Monday at 20:30. *Lights off* stops *On*;
     - *Small hours*: Sunday at 02:30. *Count* counts a visit;
+    - *Dawn*: Sunday at 03:00. *Early* starts *On*;
+    - *Lunch*: a window, Monday 13:00 to 14:00, that nothing waits for;
     - *Greet*: the event *Go*, only during *Open*: counts a visit.
     """
     board = {"id": make_id(3), "name": "Pi", "model": "rpi4b"}
@@ -72,6 +75,16 @@ def _document() -> dict[str, object]:
         "small.sched": make_file(
             "schedule", 82, name="Small hours", times=[{"days": ["sun"], "at": "02:30"}]
         ),
+        "dawn.sched": make_file(
+            "schedule", 83, name="Dawn", times=[{"days": ["sun"], "at": "03:00"}]
+        ),
+        "lunch.sched": make_file(
+            "schedule",
+            84,
+            name="Lunch",
+            windows=[{"days": ["mon"], "from": "13:00", "to": "14:00"}],
+        ),
+        "early.auto": _automation(304, "Early", DAWN, {"action": "start_sequence", "sequence": ON}),
         "go.evt": make_file("event", 202, name="Go", source="ui"),
         "lights-on.auto": _automation(
             300, "Lights on", OPEN, {"action": "start_sequence", "sequence": ON}
@@ -225,6 +238,40 @@ def test_a_time_in_the_hour_that_summer_time_skips_is_lost(shop: _Shop) -> None:
     assert shop.visits() == 0
 
 
+def test_a_time_right_after_the_hour_summer_time_skips_still_happens(shop: _Shop) -> None:
+    """03:00 exists on 2026-03-29: it is the minute after 01:59. Only a minute of real time
+    went by, whatever the clock on the wall says."""
+    shop.at_utc("2026-03-29 00:59:30")  # 01:59:30
+    before = shop.running()
+
+    shop.at_utc("2026-03-29 01:00:10")  # 03:00:10
+
+    assert (before, shop.running()) == ([], ["On"])
+
+
+def test_a_time_right_after_the_hour_lived_twice_happens_once(shop: _Shop) -> None:
+    shop.at_utc("2026-10-25 00:59:30")  # 02:59:30, summer time
+    shop.at_utc("2026-10-25 01:00:10")  # 02:00:10, winter time: the hour starts again
+    shop.at_utc("2026-10-25 01:59:30")  # 02:59:30 again
+    first_pass = shop.running()
+
+    shop.at_utc("2026-10-25 02:00:10")  # 03:00:10
+    started = shop.running()
+    shop.controller.stop_sequence(ON)
+    shop.at_utc("2026-10-25 02:01:10")
+
+    assert (first_pass, started, shop.running()) == ([], ["On"], [])
+
+
+def test_a_clock_corrected_forward_loses_the_times_it_jumps_over(shop: _Shop) -> None:
+    """Not summer time: an hour of real time is missing, by the clock's own count."""
+    shop.at_utc("2026-03-22 00:59:30")  # a Sunday, 01:59:30
+
+    shop.at_utc("2026-03-22 02:30:10")  # 03:30:10: set forward
+
+    assert shop.running() == []
+
+
 def test_a_clock_set_far_back_is_taken_as_newly_known(shop: _Shop) -> None:
     shop.at("21:00")  # after closing
     shop.controller.stop_sequence(ON)
@@ -301,6 +348,30 @@ def test_a_minute_in_which_nothing_happens_tells_nobody(shop: _Shop) -> None:
     assert shop.states == []
 
 
+def test_listeners_are_told_when_a_window_closes(shop: _Shop) -> None:
+    """Nothing happens when a window closes, but what the state says of it changed."""
+    shop.at("13:59")
+    shop.states.clear()
+
+    shop.at("14:00")
+
+    [state] = shop.states
+    assert next(s.open for s in state.schedules if s.id == LUNCH) is False
+
+
+def test_the_state_says_what_the_controller_last_saw_of_the_time(shop: _Shop) -> None:
+    """The time may come to be known between two looks: until the controller looks, and
+    acts on it, the state does not run ahead of it."""
+    shop.controller.expire()
+    shop.wall.now = datetime.fromisoformat(f"{MONDAY} 15:00").replace(tzinfo=MADRID)
+    ahead = shop.controller.state()
+
+    shop.controller.expire()
+
+    assert (ahead.time_known, [s.open for s in ahead.schedules if s.id == OPEN]) == (False, [None])
+    assert (shop.controller.state().time_known, shop.is_open(), shop.led) == (True, True, True)
+
+
 def test_a_package_in_a_time_zone_this_board_does_not_know_is_refused() -> None:
     elsewhere = replace(package(DOCUMENT), time_zone="Mars/Olympus_Mons")
 
@@ -318,11 +389,32 @@ def test_a_package_in_a_time_zone_this_board_does_not_know_is_refused() -> None:
 
 def test_the_clock_is_trusted_once_the_system_has_set_it_from_the_network(tmp_path: Path) -> None:
     marker = tmp_path / "synchronized"
-    before = systemd.clock_synchronized(marker)
+    now = systemd.trusted_time(trust=False, marker=marker)
+    before = now()
 
     marker.touch()
 
-    assert (before, systemd.clock_synchronized(marker)) == (False, True)
+    assert before is None
+    assert isinstance(now(), datetime)
+
+
+def test_a_clock_once_set_stays_trusted_while_the_service_runs(tmp_path: Path) -> None:
+    """Restarting systemd-timesyncd removes its file until it next sets the clock: the
+    clock is no worse for that."""
+    marker = tmp_path / "synchronized"
+    marker.touch()
+    now = systemd.trusted_time(trust=False, marker=marker)
+    now()
+
+    marker.unlink()
+
+    assert isinstance(now(), datetime)
+
+
+def test_a_clock_taken_as_right_needs_no_file(tmp_path: Path) -> None:
+    now = systemd.trusted_time(trust=True, marker=tmp_path / "synchronized")
+
+    assert isinstance(now(), datetime)
 
 
 @pytest.mark.parametrize(
@@ -371,4 +463,6 @@ def test_a_running_service_starts_inside_a_window_without_anyone_asking(tmp_path
         "Open": True,
         "Close": False,
         "Small hours": False,
+        "Dawn": False,
+        "Lunch": False,
     }

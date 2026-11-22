@@ -214,7 +214,8 @@ class State:
     """What the controller reports: every output and every input, in configuration order,
     panic, and the sequences, the variables, the events, the schedules and the automations
     of the package, if it runs one. ``time_known`` says whether the board knows the time:
-    until it does, no schedule happens."""
+    until it does, no schedule happens. Both that and ``open`` of each schedule are as the
+    controller last looked (each minute), so the state never says more than it acted on."""
 
     outputs: tuple[OutputState, ...]
     inputs: tuple[InputState, ...]
@@ -314,9 +315,12 @@ class Controller:
         self._wall = wall
         # The local time the schedules were last looked at, while the time is known; and
         # whether they have been looked at at all (the service has just started).
-        self._looked_at: datetime | None = None
+        self._looked_at: datetime | None = None  # the latest: it never goes back
+        self._instant: datetime | None = None  # when they were last looked at, as an instant
         self._looked = False
-        self._time_known = False  # as listeners were last told
+        # The schedules with a window open at that look; ``None``: the time was not known.
+        # What the state says, so that it never runs ahead of what the controller acted on.
+        self._open: frozenset[UUID] | None = None
         # What each command that has commanded an output asks of it: by its sequence, when
         # it started, and the command.
         self._motions: dict[tuple[UUID, int, Command], _Motion] = {}
@@ -372,12 +376,11 @@ class Controller:
             )
             for variable in self._variables.values()
         )
-        local = self._local()
         schedules = tuple(
             ScheduleState(
                 str(schedule.id),
                 schedule.name,
-                None if local is None else is_open(schedule, local),
+                None if self._open is None else schedule.id in self._open,
             )
             for schedule in self._schedules
         )
@@ -390,7 +393,7 @@ class Controller:
             events,
             automations,
             schedules,
-            local is not None,
+            self._open is not None,
         )
 
     def command(
@@ -543,7 +546,7 @@ class Controller:
         expired = [key for key, held in self._held.items() if _over(held, now)]
         for key in expired:
             del self._held[key]
-        known_before = self._time_known
+        open_before = self._open
         happened = self._due_schedules()
         if happened and self._panic:
             log.info("%d schedules ignored: panic is on", len(happened))
@@ -555,7 +558,9 @@ class Controller:
         # Nothing written but the steps of fades is told now and then, not at every step.
         only_steps = bool(written) and written <= moving
         told_lately = now - self._told_at < FADE_TOLD_S
-        told = bool(happened) or known_before != (self._local() is not None)
+        # A window that opens or closes, or the time coming to be known, changes what the
+        # state says even when nothing happens for it.
+        told = bool(happened) or open_before != self._open
         changed = self._running(now) != self._ran or (written and not only_steps)
         other = expired or told or changed
         if other or (only_steps and not told_lately):
@@ -689,18 +694,32 @@ class Controller:
     def _due_schedules(self) -> list[UUID]:
         """The schedules that happen since they were last looked at (``core`` says which),
         and remember that they were. While the time is not known, none: and when it comes
-        to be, those with a window open."""
+        to be, those with a window open.
+
+        ``core`` is told the local time now and the local time of the look before. That one
+        is counted back from now by the time that really went by (instants, not what the
+        clock on the wall said then): when summer time starts the wall goes from 01:59 to
+        03:00 in a minute, and a time at 03:00 was passed a minute ago, not an hour.
+        """
         self._looked = True
-        local = self._local()
-        self._time_known = local is not None
-        if local is None:
-            self._looked_at = None
+        trusted = None if self._zone is None else self._wall()
+        if trusted is None:
+            self._looked_at = self._instant = None
+            self._open = None
             return []
-        since = self._looked_at
-        if since is not None and local < since:
-            if since - local <= CLOCK_BACK:
-                return []  # an hour lived twice: nothing happens again until it is past
-            since = None
+        local = trusted.astimezone(self._zone).replace(tzinfo=None)
+        latest, before = self._looked_at, self._instant
+        self._instant = trusted
+        self._open = frozenset(s.id for s in self._schedules if is_open(s, local))
+        since = None
+        if latest is not None and before is not None:
+            if local < latest:
+                if latest - local <= CLOCK_BACK:
+                    return []  # an hour lived twice: nothing happens again until it is past
+            else:
+                # Never before the latest time already looked at: what happened up to it
+                # has happened.
+                since = max(local - (trusted - before), latest)
         self._looked_at = local
         return [schedule.id for schedule in self._schedules if happens(schedule, since, local)]
 

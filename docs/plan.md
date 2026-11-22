@@ -911,9 +911,15 @@ per element, from a deployment package that can be rolled back. One pull request
   are open.
   - Tried only with a clock set by hand in the tests, the two changes of summer time of
     Madrid in 2026 among them, and a real service that starts inside a window.
-  - To try on a Pi: that `/run/systemd/timesync/synchronized` is there once the clock is
-    set and not before (assumed from systemd's documentation, not seen); starting without
-    network and getting it later; a real time of day.
+  - On the Pi, by its owner, before the fixes below: restarting systemd-timesyncd removes
+    its whole directory until the next synchronization; and the state said `timeKnown` 9 s
+    before the LED of an open window went on. Found too, with the controller and the test
+    harness: a time at 03:00 was lost the day summer time starts, and a window closing told
+    no listener. All four fixed: the clock stays trusted once set, the state says what the
+    service last looked at, the gap between looks is counted in real time, and a window
+    that opens or closes is told. The fixes have not been reported as run on the Pi.
+  - Still to try on a Pi: starting without network and getting it later; a real time of
+    day.
   - Left out: the time from a client for a board that never has Internet; once per window
     across restarts; a window that opened during panic is not caught up with.
 

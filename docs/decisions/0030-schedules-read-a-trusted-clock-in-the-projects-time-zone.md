@@ -17,14 +17,16 @@ correction.
 - **The time is known when the system has set its clock from the network since boot**
   (systemd-timesyncd's `/run/systemd/timesync/synchronized`), or when the service is told
   to trust the clock (`--trust-clock`). Until then no schedule happens, and an automation
-  that only acts during a window does not act.
+  that only acts during a window does not act. Once known it stays known while the service
+  runs: the file goes when timesyncd restarts, and the clock is no worse for it.
 - **`core` says whether a schedule happens between two looks** (`primum_core.schedules`):
   a time that was passed, a window that is open now and was not before, or, the first time
   the time is known, a window that is open.
 - **The runtime looks as each minute turns**, and every 10 s while the time is not known.
   One timer, the one the controller already had.
 - **A time is lost in any gap longer than 90 s**: the board off, the time not known, the
-  clock jumped forward, the hour summer time skips.
+  clock jumped forward, the hour summer time skips. The gap is the time that really went
+  by between two looks (instants), so the minute after the skipped hour is a minute away.
 - **A clock that goes back is waited for** (up to two hours: the hour summer time repeats):
   nothing happens again until it is past where it was. Further back, the time is taken as
   newly known.
