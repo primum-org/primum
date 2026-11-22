@@ -257,6 +257,34 @@ def test_schedules_keep_their_times_and_windows(project: Project, ids: Ids) -> N
     ]
 
 
+def test_a_package_carries_the_time_zone_and_what_an_automation_acts_during(
+    project: Project, ids: Ids
+) -> None:
+    _names(_show(_lamp(project, ids), ids, _clip(ids, 21, 0, 1000, "on")), ids)
+    windows = [{"days": ["sat"], "from": "19:00", "to": "23:00"}]
+    project.add("open.sched", "schedule", ids(80), name="Open", windows=windows)
+    do = [{"action": "start_sequence", "sequence": ids(SHOW)}]
+    automation = {"name": "Go", "when": [ids(80)], "during": [ids(80)], "do": do}
+    project.add("go.auto", "automation", ids(71), **automation)
+
+    package = _package(project)
+
+    assert package.time_zone == "Europe/Madrid"
+    assert [str(schedule) for schedule in package.automations[0].during] == [ids(80)]
+
+
+def test_a_package_with_schedules_and_no_time_zone_is_refused(project: Project, ids: Ids) -> None:
+    project.add("open.sched", "schedule", ids(80), name="Open", times=[], windows=[])
+    document = _document(project)
+    del document["timeZone"]
+
+    read = read_package(PATH, _rehashed(document))
+
+    assert [(issue.code, issue.location and issue.location.pointer) for issue in read.issues] == [
+        (CoreErrorCode.PROJECT_TIME_ZONE_MISSING, "/timeZone")
+    ]
+
+
 def test_the_same_project_gives_the_same_package_whatever_the_order_of_its_files(
     project: Project, ids: Ids
 ) -> None:

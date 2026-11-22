@@ -37,6 +37,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0027](0027-fades-in-steps-and-variables-read-when-a-command-starts.md) | A fade moves in steps of the clock; a variable is read when its command starts | Accepted |
 | [0028](0028-conditions-are-a-small-language-compiled-to-a-program.md) | Conditions are a small language, compiled to a program without jumps | Accepted |
 | [0029](0029-automations-judge-on-one-set-of-values-then-act.md) | Automations judge on one set of values, then act; inputs declare what they tell | Accepted |
+| [0030](0030-schedules-read-a-trusted-clock-in-the-projects-time-zone.md) | Schedules read a trusted clock, in the project's time zone, once a minute | Accepted |
 
 ## Template
 

@@ -18,7 +18,7 @@ then the scopes of names, the components, the actions of the clips, the clips an
 that overlap, the resources of each board and the limits it puts on its elements' options.
 """
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
@@ -40,6 +40,7 @@ from primum_core.generated.model import Project
 from primum_core.overlaps import check_overlaps
 from primum_core.references import LocatedContent, check_references
 from primum_core.resources import Profiles, check_resources
+from primum_core.schedules import check_schedules
 from primum_core.scopes import check_scopes
 from primum_core.states import check_returns
 from primum_core.variants import check_variants
@@ -67,10 +68,14 @@ class Workspace:
 
 
 def load_workspace(
-    files: Mapping[PurePosixPath, bytes], profiles: Profiles, drivers: Drivers
+    files: Mapping[PurePosixPath, bytes],
+    profiles: Profiles,
+    drivers: Drivers,
+    time_zones: Iterable[str] | None = None,
 ) -> Parsed[Workspace]:
     """Read and check a project from its files (path relative to the project folder → content),
-    the board profiles it may use (by model) and the driver manifests (by element type).
+    the board profiles it may use (by model), the driver manifests (by element type) and
+    the names of the time zones there are (``None``: the project's is not checked).
 
     The workspace comes back when no issue is an error; warnings come with it.
     """
@@ -101,6 +106,8 @@ def load_workspace(
         issues += check_components(located)
         issues += check_actions(located, drivers)
         issues += check_events(located, drivers)
+        at = Location(MANIFEST, file_id=manifest.id)
+        issues += check_schedules(located, (manifest, at), time_zones)
         issues += check_overlaps(located, drivers)
         issues += check_returns(located, drivers)
         issues += check_resources(located, profiles)

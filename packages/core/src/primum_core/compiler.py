@@ -68,6 +68,11 @@ def compile_package(workspace: Workspace) -> Parsed[Document]:
         "schemaVersion": SCHEMA_VERSION,
         "project": {"id": str(workspace.manifest.id), "name": workspace.manifest.name},
         "board": {"id": str(boards[0].id), "name": boards[0].name, "model": boards[0].model},
+        **(
+            {}
+            if workspace.manifest.time_zone is None
+            else {"timeZone": workspace.manifest.time_zone}
+        ),
         "elements": [_element(element, drivers) for element in elements],
         "variables": [v for c in contents if isinstance(c, Variables) for v in _variables(c)],
         "sequences": list(
@@ -248,6 +253,8 @@ def _automation(automation: Automation, visible: Mapping[str, Definition]) -> Do
         "enabled": automation.enabled,
         "when": [str(source) for source in automation.when],
     }
+    if automation.during:
+        compiled["during"] = [str(schedule) for schedule in automation.during]
     if automation.if_ is not None:
         compiled["if"] = _condition(automation.if_, visible)
     do: list[Document] = []

@@ -33,6 +33,12 @@
     "project": {
       "$ref": "#/$defs/packageProject"
     },
+    "timeZone": {
+      "description": "The time zone of the project's schedules, by its IANA name. Present when it has schedules.",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$",
+      "maxLength": 64
+    },
     "board": {
       "$ref": "#/$defs/packageBoard"
     },
@@ -450,6 +456,15 @@
           "type": "boolean"
         },
         "when": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/reference"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "during": {
+          "description": "Schedules whose windows must all be open for it to act, each by its id.",
           "type": "array",
           "items": {
             "$ref": "common.schema.json#/$defs/reference"

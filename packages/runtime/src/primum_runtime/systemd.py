@@ -10,6 +10,7 @@ Outside systemd (a laptop, the tests) there is no socket: nothing is sent, and n
 
 import socket
 from collections.abc import Awaitable, Callable, Mapping
+from pathlib import Path
 
 READY = "READY=1"
 STOPPING = "STOPPING=1"
@@ -18,7 +19,18 @@ USEC_PER_S = 1_000_000
 # Heard from twice in each period systemd allows, so that one late beat is not a death.
 BEATS_PER_TIMEOUT = 2
 
+# systemd-timesyncd touches this file each time it sets the clock from the network
+# (systemd-timesyncd.service(8)): while it is there, the clock has been set since boot.
+CLOCK_SYNCHRONIZED = Path("/run/systemd/timesync/synchronized")
+
 type Notify = Callable[[str], bool]
+
+
+def clock_synchronized(marker: Path = CLOCK_SYNCHRONIZED) -> bool:
+    """Whether the system's clock has been set from the network since it booted. A board
+    without a clock of its own (the Pi 4 has no battery) starts at some old time, and only
+    this says when the time it tells can be trusted."""
+    return marker.exists()
 
 
 def notifier(env: Mapping[str, str]) -> Notify:

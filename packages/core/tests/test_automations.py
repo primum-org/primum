@@ -30,13 +30,19 @@ def _condition(text: str) -> tuple[ConditionStep, ...]:
 
 
 def _automation(
-    number: int, *, when: tuple[UUID, ...] = (PRESSED,), condition: str = "", enabled: bool = True
+    number: int,
+    *,
+    when: tuple[UUID, ...] = (PRESSED,),
+    condition: str = "",
+    enabled: bool = True,
+    during: tuple[UUID, ...] = (),
 ) -> PackageAutomation:
     return PackageAutomation(
         id=UUID(int=number),
         name=f"Automation {number}",
         enabled=enabled,
         when=when,
+        during=during,
         if_=_condition(condition) if condition else (),
         do=(),
     )
@@ -92,6 +98,42 @@ def test_a_condition_that_cannot_be_worked_out_does_not_hold_and_says_why() -> N
 
     assert (failed.acts, failed.failure) == (False, Failure("division_by_zero"))
     assert (acted.acts, acted.failure) == (True, None)
+
+
+SHOP, NIGHT = UUID(int=21), UUID(int=22)
+
+
+def test_an_automation_acts_only_while_every_schedule_it_names_is_open() -> None:
+    automations = [
+        _automation(1, during=(SHOP,)),
+        _automation(2, during=(SHOP, NIGHT)),
+        _automation(3),
+    ]
+
+    def acting(open_schedules: set[UUID]) -> list[int]:
+        found = verdicts(automations, PRESSED, {}, open_schedules)
+        return [v.automation.id.int for v in found if v.acts]
+
+    assert acting({SHOP}) == [1, 3]
+    assert acting({SHOP, NIGHT}) == [1, 2, 3]
+    assert acting(set()) == [3]
+
+
+def test_an_automation_that_waits_for_a_window_cannot_be_judged_without_the_time() -> None:
+    automations = [_automation(1, during=(SHOP,)), _automation(2)]
+
+    [waiting, free] = verdicts(automations, PRESSED, {}, None)
+
+    assert (waiting.acts, waiting.failure) == (False, Failure("time_unknown"))
+    assert (free.acts, free.failure) == (True, None)  # the time does not matter to it
+
+
+def test_a_closed_window_is_not_a_failure_and_the_condition_is_not_worked_out() -> None:
+    automations = [_automation(1, during=(SHOP,), condition="10 / visits > 1")]
+
+    [verdict] = verdicts(automations, PRESSED, {VISITS: 0, PAUSED: False}, set())
+
+    assert (verdict.acts, verdict.failure) == (False, None)
 
 
 def test_the_order_given_is_the_order_they_act_in() -> None:

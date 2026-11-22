@@ -11,6 +11,7 @@ import logging
 import os
 from collections.abc import AsyncGenerator, Callable, Mapping
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -22,7 +23,7 @@ from primum_runtime.api.errors import install_error_handlers
 from primum_runtime.api.expiry import ExpiryTimer
 from primum_runtime.api.routes import router
 from primum_runtime.config import RuntimeConfig
-from primum_runtime.control import Controller
+from primum_runtime.control import Controller, Wall
 from primum_runtime.drivers import load_manifests
 from primum_runtime.hal import Claim, Hal, create_hal
 
@@ -38,9 +39,11 @@ def create_app(
     config: RuntimeConfig,
     open_hal: HalFactory | None = None,
     env: Mapping[str, str] | None = None,
+    wall: Wall | None = None,
 ) -> FastAPI:
     """The API for ``config``. ``open_hal`` replaces the HAL ``config`` asks for (tests);
-    ``env`` is where systemd says how to reach it (the process's environment unless given).
+    ``env`` is where systemd says how to reach it (the process's environment unless given);
+    ``wall`` replaces the system's clock, for the schedules (tests).
 
     ``app.state.stopped_safely`` becomes true once the HAL has closed without errors.
     """
@@ -70,6 +73,7 @@ def create_app(
                     config.limits,
                     before_claim,
                     package=config.package,
+                    wall=wall or _system_time(config),
                 )
             except Exception:
                 # A claim that fails leaves nothing claimed: what was declared for it names
@@ -125,6 +129,18 @@ def create_app(
     app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")
     install_error_handlers(app)
     return app
+
+
+def _system_time(config: RuntimeConfig) -> Wall:
+    """The time the system tells, once it can be trusted: set from the network since boot,
+    or taken as right because the configuration says so."""
+
+    def now() -> datetime | None:
+        if config.trust_clock or systemd.clock_synchronized():
+            return datetime.now(UTC)
+        return None
+
+    return now
 
 
 def _read_inputs(loop: asyncio.AbstractEventLoop, events_fd: int, controller: Controller) -> None:

@@ -16,7 +16,7 @@ from primum_core.workspace import load_workspace
 from primum_runtime.api import create_app
 from primum_runtime.board import load_board, load_profile, option_limits
 from primum_runtime.config import parse_config
-from primum_runtime.control import Controller, State
+from primum_runtime.control import Controller, State, Wall
 from primum_runtime.drivers import load_manifests
 from primum_runtime.hal import SimulatedHal
 from primum_runtime.package import check_against_board
@@ -164,7 +164,7 @@ class Clock:
 class Service:
     """A controller running the package on a simulated board, its clock in the test's hand."""
 
-    def __init__(self, loaded: Package | None = None) -> None:
+    def __init__(self, loaded: Package | None = None, wall: Wall = lambda: None) -> None:
         loaded = package() if loaded is None else loaded
         self.hal = SimulatedHal(load_board("rpi4b"))
         self.clock = Clock()
@@ -175,6 +175,7 @@ class Service:
             option_limits(PROFILE),
             clock=self.clock,
             package=loaded,
+            wall=wall,
         )
         self.states: list[State] = []
         self.controller.subscribe(self.states.append)
@@ -202,7 +203,7 @@ class Service:
 
 @contextmanager
 def running(
-    tmp_path: Path, of: dict[str, object] | None = None
+    tmp_path: Path, of: dict[str, object] | None = None, wall: Wall | None = None
 ) -> Generator[tuple[TestClient, SimulatedHal]]:
     """The service running the package (of the show, or ``of``), with its API, on a
     simulated board."""
@@ -210,5 +211,5 @@ def running(
     path.write_text(json.dumps(document() if of is None else of), encoding="utf-8")
     config = parse_config(["--simulate", "--package", str(path)], {})
     hal = SimulatedHal(load_board("rpi4b"))
-    with TestClient(create_app(config, open_hal=lambda: hal)) as client:
+    with TestClient(create_app(config, open_hal=lambda: hal, wall=wall)) as client:
         yield client, hal

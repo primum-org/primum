@@ -1,5 +1,6 @@
 """Waking the controller when it next has something to do: a test is due to expire, a command
-of a running sequence starts or ends, an output is due to be tried again.
+of a running sequence starts or ends, an output is due to be tried again, the minute turns
+and a schedule may be due.
 
 The controller keeps the deadlines; the event loop keeps the time. After every change of
 state this arms one timer for the next deadline, replacing the one before: a timer that
@@ -34,6 +35,9 @@ class ExpiryTimer:
         self._call_later = call_later
         self._timer: Timer | None = None
         self._unsubscribe = controller.subscribe(self._arm)
+        # Armed from the start, not from the first change of state: a package with schedules
+        # has something to do before anyone asks anything.
+        self._arm(controller.state())
 
     def close(self) -> None:
         self._unsubscribe()

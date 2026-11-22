@@ -11,6 +11,12 @@
     "kind": { "const": "project" },
     "schemaVersion": { "const": 1 },
     "name": { "$ref": "common.schema.json#/$defs/name" },
-    "description": { "$ref": "common.schema.json#/$defs/description" }
+    "description": { "$ref": "common.schema.json#/$defs/description" },
+    "timeZone": {
+      "description": "The time zone the times of its schedules are in, by its IANA name (Europe/Madrid). Needed by a project with schedules.",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$",
+      "maxLength": 64
+    }
   }
 }

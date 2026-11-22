@@ -48,6 +48,8 @@ OFF = {
     "variables": [],
     "events": [],
     "automations": [],
+    "schedules": [],
+    "timeKnown": False,
 }
 ON = {
     "outputs": [
@@ -68,6 +70,8 @@ ON = {
     "variables": [],
     "events": [],
     "automations": [],
+    "schedules": [],
+    "timeKnown": False,
 }
 
 

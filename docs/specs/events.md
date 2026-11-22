@@ -1,7 +1,7 @@
 # Events and automations
 
-How something that happens outside starts what a project says (decision 0029). Schedules,
-their windows and the clock they need come in block 4.4c and will be written here too.
+How something that happens outside starts what a project says: an input, a request, or the
+time of day (decisions 0029 and 0030).
 
 ## Events
 
@@ -42,15 +42,87 @@ in the driver's manifest (`drivers.md`), `on` and `off` for a `digital_input`.
 - When the service starts, the state an input is in is read and starts nothing: only a
   change is an event.
 
+## Schedules
+
+A schedule (`.sched`) is the time of day making something happen. An automation waits for
+one in its `when`, as for an event.
+
+- A **time** (`times`: days and `at`) is an instant: every listed day at that time.
+- A **window** (`windows`: days, `from`, `to`) is open from its start until its end, the end
+  not included. One whose end is before its start crosses midnight and belongs to the day
+  it opens: Friday 22:00 to 02:00 is open until 02:00 on Saturday. One that starts and ends
+  at the same time is refused (`schedule.window_empty`).
+
+A schedule **happens**, and its automations act:
+
+| When | |
+|---|---|
+| The clock passes one of its times | Once |
+| One of its windows opens | Once: it had no window open and now it has |
+| The board comes to know the time inside one of its windows | When the service starts there, or when the clock is first set there. How a light comes back after a power cut (decision 0023) |
+
+A service that restarts inside a window starts its automations again each time: nothing is
+remembered across a restart.
+
+### The time zone
+
+The times of a project are in the project's time zone: `timeZone` in `project.json`, by its
+IANA name (`Europe/Madrid`), carried in the package. The same package does the same on any
+board, however its system is set up.
+
+| Checked | Code |
+|---|---|
+| A project with schedules says its time zone | `project.time_zone_missing`, at `/timeZone` of `project.json` |
+| `primum validate`: the zone is one the system it runs on knows (not checked on a system without the time zone database) | `project.time_zone_unknown` (`timeZone`) |
+| The runtime, before it runs a package: its own system knows the zone | `package.time_zone_unknown` (`timeZone`); the package is refused whole |
+
+### A clock that can be trusted
+
+A Raspberry Pi 4 has no clock with a battery: it starts at some old time and is right only
+once it has been set from the network. Until the board knows the time, **no schedule
+happens**.
+
+- The time is known once the system has set its clock from the network since it booted
+  (systemd-timesyncd leaves `/run/systemd/timesync/synchronized`), or at once when the
+  service is told to trust the clock: `--trust-clock`, `PRIMUM_TRUST_CLOCK=1`, for a board
+  with a clock of its own.
+- The state says so: `timeKnown`, and `open` of each schedule is `null` until then.
+- While it is not known the service asks again every 10 s. Once it is, it looks at the
+  schedules as each minute turns: their times are whole minutes.
+
+| What the clock does | Then |
+|---|---|
+| The time comes to be known late (no network at 19:00, set at 19:40) | Windows that are open happen. Times that passed meanwhile are lost, as if the board had been off |
+| It jumps forward, or the service did not look for more than 90 s | The times jumped over are lost. A window that opened meanwhile and is still open happens |
+| Summer time starts (02:00 becomes 03:00) | A time in the hour that does not exist is lost |
+| Summer time ends (03:00 becomes 02:00 again), or the clock is set back up to two hours | Nothing happens again until the clock is past where it was: a time happens once |
+| It is set back further | The time is taken as newly known: windows that are open happen |
+
+Durations (clips, fades, tests) never use this clock: they count on a monotonic one, and a
+jump of the time of day does not touch a sequence that is running.
+
+### Windows as a condition
+
+An automation may name schedules in `during`: it only acts while **every one of them has a
+window open**. "When the sensor sees someone, during opening hours, start the welcome."
+
+- `during` names schedules, each with at least one window (`ref.wrong_kind`,
+  `automation.during_without_windows`).
+- It is judged before the condition: with a window closed, the `if` is not worked out.
+- While the time is not known nobody can say whether it should act: it does not, and that is
+  told as a condition that failed (`automation.condition_failed`, `reason`: `time_unknown`).
+
 ## Automations
 
-An automation (`.auto`): **when** one of its events happens, **if** its condition holds,
-**do** its actions.
+An automation (`.auto`): **when** one of its events or schedules happens, **during** the
+windows it names, **if** its condition holds, **do** its actions.
 
-1. It must be `enabled`, and the event one of its `when`.
-2. Its condition (`if`, `expressions.md`) is worked out on the values the variables have.
+1. It must be `enabled`, and the event or the schedule one of its `when`.
+2. Every schedule of its `during` has a window open (above). Without `during`, the time
+   does not matter.
+3. Its condition (`if`, `expressions.md`) is worked out on the values the variables have.
    Without a condition it always holds.
-3. Its actions (`do`) are done, in the order it lists them.
+4. Its actions (`do`) are done, in the order it lists them.
 
 ### Several automations on one event
 
@@ -113,6 +185,8 @@ next one is dealt with as any, and the inputs go on being listened to.
 While panic is on (`safety.md`), what happens starts nothing:
 
 - the inputs are still read, and their state is still told, but no automation acts;
+- a schedule that happens meanwhile starts nothing either, and a window that opened during
+  panic does not happen when panic is released;
 - firing an event by hand is refused (`panic.active`, 409);
 - nothing is kept for later: releasing panic does not replay what happened meanwhile.
 
@@ -125,6 +199,8 @@ running:
 |---|---|
 | `events` | `id`, `name`, `source` |
 | `automations` | `id`, `name`, `enabled`, `problem` (`null`, or `{code, params}`) |
+| `schedules` | `id`, `name`, `open` (a window of it is open now; `null` while the time is not known) |
+| `timeKnown` | Whether the board knows the time |
 | `inputs` | also `lostEvents` |
 
 | Request | Does | Refused |
@@ -133,7 +209,10 @@ running:
 
 ## Not yet
 
-- Schedules (`.sched`), their windows as a condition, and the reliable clock: block 4.4c.
+- The time given by a client (a phone on the local network) for a board that never has
+  Internet: today such a board needs `--trust-clock` and a clock of its own.
+- Once per window across restarts: it would need something kept on disk.
+- A window that opened during panic is not caught up with when panic is released.
 - Variables marked `persistent` kept across a restart: block 4.4d.
 - An execution trace of what each event started: block 4.5. Until then, the log.
 - The page of the runtime shows neither events nor automations (the UI of phase 5).

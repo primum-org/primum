@@ -60,6 +60,9 @@ class RuntimeConfig:
     host: str
     port: int
     package: Package | None = None  # the one the elements come from, if they do
+    # Take the system's clock as right without waiting for it to be set from the network:
+    # a board with a clock of its own, or a laptop.
+    trust_clock: bool = False
 
 
 def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
@@ -168,6 +171,7 @@ def _from_package(
         host=host,
         port=port,
         package=loaded.package,
+        trust_clock=args.trust_clock,
     )
 
 
@@ -247,6 +251,13 @@ def _parser(env: Mapping[str, str]) -> argparse.ArgumentParser:
         default=_int(env, "PRIMUM_PWM_FREQUENCY_HZ"),
         help="frequency of the PWM output; its driver's default if not given "
         "(PRIMUM_PWM_FREQUENCY_HZ)",
+    )
+    parser.add_argument(
+        "--trust-clock",
+        action=argparse.BooleanOptionalAction,
+        default=_flag(env, "PRIMUM_TRUST_CLOCK"),
+        help="take the system's time as right without waiting for it to be set from the "
+        "network: for a board with a clock of its own (PRIMUM_TRUST_CLOCK=1)",
     )
     parser.add_argument(
         "--data-dir",

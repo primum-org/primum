@@ -48,6 +48,7 @@ class Automation:
     name: str
     enabled: bool = True
     when: tuple[UUID, ...]
+    during: tuple[UUID, ...] = ()
     if_: str | None = None
     do: tuple[AutomationAction, ...]
 
@@ -246,6 +247,7 @@ class Package:
     schema_version: Literal[1] = 1
     hash: str
     project: PackageProject
+    time_zone: str | None = None
     board: PackageBoard
     elements: tuple[PackageElement, ...]
     variables: tuple[PackageVariable, ...]
@@ -382,6 +384,7 @@ class PackageAutomation:
     name: str
     enabled: bool
     when: tuple[UUID, ...]
+    during: tuple[UUID, ...] = ()
     if_: tuple[ConditionStep, ...] = ()
     do: tuple[PackageAction, ...]
 
@@ -414,6 +417,7 @@ class Project:
     schema_version: Literal[1] = 1
     name: str
     description: str | None = None
+    time_zone: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -572,6 +576,7 @@ def parse_automation(data: JsonObject) -> Automation:
         name=as_str(data["name"]),
         enabled=as_bool(data["enabled"]) if "enabled" in data else True,
         when=tuple(as_uuid(item) for item in as_list(data["when"])),
+        during=tuple(as_uuid(item) for item in as_list(data["during"])) if "during" in data else (),
         if_=as_str(data["if"]) if "if" in data else None,
         do=tuple(parse_automation_action(as_object(item)) for item in as_list(data["do"])),
     )
@@ -768,6 +773,7 @@ def parse_package(data: JsonObject) -> Package:
     return Package(
         hash=as_str(data["hash"]),
         project=parse_package_project(as_object(data["project"])),
+        time_zone=as_str(data["timeZone"]) if "timeZone" in data else None,
         board=parse_package_board(as_object(data["board"])),
         elements=tuple(parse_package_element(as_object(item)) for item in as_list(data["elements"])),
         variables=tuple(parse_package_variable(as_object(item)) for item in as_list(data["variables"])),
@@ -904,6 +910,7 @@ def parse_package_automation(data: JsonObject) -> PackageAutomation:
         name=as_str(data["name"]),
         enabled=as_bool(data["enabled"]),
         when=tuple(as_uuid(item) for item in as_list(data["when"])),
+        during=tuple(as_uuid(item) for item in as_list(data["during"])) if "during" in data else (),
         if_=tuple(parse_condition_step(as_object(item)) for item in as_list(data["if"])) if "if" in data else (),
         do=tuple(parse_package_action(as_object(item)) for item in as_list(data["do"])),
     )
@@ -934,6 +941,7 @@ def parse_project(data: JsonObject) -> Project:
         id=as_uuid(data["id"]),
         name=as_str(data["name"]),
         description=as_str(data["description"]) if "description" in data else None,
+        time_zone=as_str(data["timeZone"]) if "timeZone" in data else None,
     )
 
 

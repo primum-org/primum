@@ -30,7 +30,7 @@ def _file(kind: str, id_: str, **fields: object) -> bytes:
 def _project(**changes: Mapping[str, object]) -> Files:
     """A small valid project; ``changes`` replaces a file's fields by its path."""
     contents: dict[str, tuple[str, str, dict[str, object]]] = {
-        "project.json": ("project", PROJECT, {"name": "Shop window"}),
+        "project.json": ("project", PROJECT, {"name": "Shop window", "timeZone": "Europe/Madrid"}),
         "hardware.hw": (
             "hardware",
             HARDWARE,

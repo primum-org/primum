@@ -131,5 +131,5 @@ Not yet: variables marked `persistent` are not kept across a restart (4.4d).
   engine starts inside it. It is how a light comes back after a power cut.
 - Neither fires until the board knows the time.
 
-Decided, not built: schedules come with events and automations, and `events.md` will say the
-rest (a clock that becomes reliable late, windows across midnight).
+`events.md` says the rest: the time zone, when the time is known, what a clock that jumps
+does, windows across midnight and windows as a condition.

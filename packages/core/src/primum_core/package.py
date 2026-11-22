@@ -138,7 +138,8 @@ def check_package(package: Package, location: Location) -> Iterator[Issue]:
     """What a package that fits its schema may still have wrong inside: an id twice, a
     reference to nothing, a field missing for its case or one that does not belong, an
     argument or an option twice, a command outside the time of its sequence, a variable that
-    starts outside its limits or is set outside them."""
+    starts outside its limits or is set outside them, schedules without a time zone to read
+    them in, a window that starts and ends at the same time."""
     check = _Check(location)
     elements = check.ids("elements", (element.id for element in package.elements))
     check.ids("variables", (variable.id for variable in package.variables))
@@ -148,6 +149,13 @@ def check_package(package: Package, location: Location) -> Iterator[Issue]:
     schedules = check.ids("schedules", (schedule.id for schedule in package.schedules))
     check.ids("automations", (automation.id for automation in package.automations))
     yield from check.issues
+    if package.schedules and package.time_zone is None:
+        yield Issue(CoreErrorCode.PROJECT_TIME_ZONE_MISSING, {}, check.at("timeZone"))
+    for index, schedule in enumerate(package.schedules):
+        for number, window in enumerate(schedule.windows):
+            if window.from_ == window.to:
+                at = check.at("schedules", index, "windows", number)
+                yield Issue(CoreErrorCode.SCHEDULE_WINDOW_EMPTY, {"from": window.from_}, at)
     for index, element in enumerate(package.elements):
         yield from _wiring_issues(element, ("elements", index), check)
         options = [option.name for option in element.config]
@@ -176,7 +184,7 @@ def check_package(package: Package, location: Location) -> Iterator[Issue]:
         yield from _event_issues(event, ("events", index), elements, check)
     for index, automation in enumerate(package.automations):
         steps = ("automations", index)
-        yield from _automation_issues(automation, steps, events | schedules, check)
+        yield from _automation_issues(automation, steps, events | schedules, schedules, check)
         yield from _condition_issues(automation, steps, variables, check)
         for number, action in enumerate(automation.do):
             at = (*steps, "do", number)
@@ -353,10 +361,16 @@ def _event_issues(
 
 
 def _automation_issues(
-    automation: PackageAutomation, steps: tuple[Step, ...], sources: frozenset[UUID], check: _Check
+    automation: PackageAutomation,
+    steps: tuple[Step, ...],
+    sources: frozenset[UUID],
+    schedules: frozenset[UUID],
+    check: _Check,
 ) -> Iterator[Issue]:
     for index, source in enumerate(automation.when):
         yield from check.reference(source, sources, (*steps, "when", index))
+    for index, schedule in enumerate(automation.during):
+        yield from check.reference(schedule, schedules, (*steps, "during", index))
 
 
 def _condition_issues(

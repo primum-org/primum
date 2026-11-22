@@ -39,6 +39,15 @@
       "minItems": 1,
       "uniqueItems": true
     },
+    "during": {
+      "description": "Schedules whose windows must be open for it to act: all of them. Without it, the time does not matter.",
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/reference"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
     "if": {
       "description": "The condition that must hold, in the expression language (docs/specs/expressions.md): visits < limit and not paused. Without it, the actions always run.",
       "type": "string",

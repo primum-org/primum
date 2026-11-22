@@ -899,6 +899,24 @@ per element, from a deployment package that can be rolled back. One pull request
   - Left out: the page shows neither events nor automations; an automation cannot be
     enabled or disabled while the package runs; nothing is traced beyond the log (4.5).
 
+- **4.4c · Schedules and the trusted clock: code done; not tried on `primum-dev`**
+  (decision 0030, `specs/events.md`). A time of day and a window that opens start their
+  automations; so does a window that is open when the service starts or when the time
+  first comes to be known. Times are in the project's time zone (`timeZone` in
+  `project.json`, required with schedules). The time is known once systemd-timesyncd has
+  set the clock since boot, or with `--trust-clock`; until then nothing happens. The
+  runtime looks as each minute turns and asks `core` what happened since
+  (`primum_core.schedules`). A time in a gap longer than 90 s is lost; a clock that goes
+  back is waited for. `during` on an automation: it only acts while the windows it names
+  are open.
+  - Tried only with a clock set by hand in the tests, the two changes of summer time of
+    Madrid in 2026 among them, and a real service that starts inside a window.
+  - To try on a Pi: that `/run/systemd/timesync/synchronized` is there once the clock is
+    set and not before (assumed from systemd's documentation, not seen); starting without
+    network and getting it later; a real time of day.
+  - Left out: the time from a client for a board that never has Internet; once per window
+    across restarts; a window that opened during panic is not caught up with.
+
 **4.5 · Trace, activation and rollback**
 - Execution trace; a package is activated atomically and the previous one can be brought
   back.
