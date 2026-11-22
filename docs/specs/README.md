@@ -8,7 +8,7 @@ the spec in the same pull request. They are written from phase 2 on.
 | [`workspace.md`](workspace.md) | Project folder, manifest, file types, ids, references, `.primum` archive; what a clip does and who commands an element | 2 |
 | [`variables-and-scopes.md`](variables-and-scopes.md) | Constants, variables, scopes, export/import, settings, components | 2 |
 | [`expressions.md`](expressions.md) | The small, safe expression language used in conditions: what can be written, its types, its compiled form in the package, how it is evaluated | 4 |
-| `events.md` | Event sources, debounce, schedules and time windows | 4 |
+| [`events.md`](events.md) | Events and what makes them happen, automations: several on one event, actions, increments, failures, panic; later schedules and time windows | 4 |
 | [`engine-semantics.md`](engine-semantics.md) | Which sequences are running: starting, stopping, re-trigger, exclusive groups, restarts; later automations and arbitration | 4 |
 | [`safety.md`](safety.md) | Safe state, panic, the watchdog and `primum-safe` after a crash, test mode | 3 |
 | [`deployment-package.md`](deployment-package.md) | Package format, its commands and its hash, `primum build`; later activation and rollback | 4 |

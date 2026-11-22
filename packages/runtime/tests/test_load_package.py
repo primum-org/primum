@@ -302,7 +302,9 @@ def test_the_service_reports_the_elements_of_its_package_by_id_and_name(tmp_path
         (RELAY, "Sign relay", ["on", "off"]),
         (LED, "Window LED", ["on", "off", "set", "fade"]),
     ]
-    assert state["inputs"] == [{"id": SENSOR, "name": "Presence sensor", "active": False}]
+    assert state["inputs"] == [
+        {"id": SENSOR, "name": "Presence sensor", "active": False, "lostEvents": 0}
+    ]
 
 
 def test_an_output_of_a_package_is_commanded_by_its_id_on_its_pin(tmp_path: Path) -> None:

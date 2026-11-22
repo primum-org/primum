@@ -67,6 +67,14 @@ async def set_variable(
     return StateBody.of(controller.state())
 
 
+@router.post("/events/{event_id}/fire")
+async def fire_event(event_id: str, controller: ControllerDep) -> StateBody:
+    """Make an event of the package happen: one whose source is ``ui`` or ``api``. An event
+    that listens to an element only happens when the element says so."""
+    controller.fire_event(event_id)
+    return StateBody.of(controller.state())
+
+
 @router.post("/panic")
 async def panic(controller: ControllerDep) -> StateBody:
     controller.panic()

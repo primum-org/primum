@@ -102,6 +102,8 @@ def test_sigterm_stops_the_service_with_every_output_in_its_safe_state(
         "panic": False,
         "sequences": [],
         "variables": [],
+        "events": [],
+        "automations": [],
     }
 
     process.send_signal(signal.SIGTERM)

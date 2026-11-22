@@ -220,6 +220,26 @@
       "message": "{value} is outside the limits of {name}.",
       "hint": "Give it a value between its minimum and its maximum."
     },
+    "event.unknown": {
+      "message": "There is no event with the id {id}.",
+      "hint": "Use the id of one of the events the status lists."
+    },
+    "event.not_fireable": {
+      "message": "The event {name} waits for an element, and only happens when the element says so.",
+      "hint": "Only events whose source is the app or the API can be fired by hand."
+    },
+    "event.not_listenable": {
+      "message": "The event {event} of this package waits for {element} to turn {trigger}, and {element} does not tell that.",
+      "hint": "Build the package again with primum build: primum validate explains what to change."
+    },
+    "automation.condition_failed": {
+      "message": "The condition of the automation {automation} could not be worked out ({reason}), so it did nothing.",
+      "hint": "Check that the condition never divides by zero and that its numbers stay below 9007199254740992."
+    },
+    "automation.action_failed": {
+      "message": "An action of the automation {automation} failed ({action}); its other actions were still done.",
+      "hint": "Look at the log of the service for what went wrong."
+    },
     "panic.active": {
       "message": "Panic is active: outputs do not accept commands.",
       "hint": "Release panic when it is safe to continue."
@@ -447,6 +467,10 @@
     "track.element_without_actions": {
       "message": "{element} takes no actions, so it cannot have a track.",
       "hint": "A track is for an element that does something, like a light or a relay. To react to {element}, use an event."
+    },
+    "event.trigger_unavailable": {
+      "message": "{element} does not tell when it turns {trigger}, so no event can wait for it.",
+      "hint": "Choose an element that does, such as a digital input."
     },
     "track.element_without_driver": {
       "message": "{element} is of a type Primum cannot command yet, so it cannot have a track.",

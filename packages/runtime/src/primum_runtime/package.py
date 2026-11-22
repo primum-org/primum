@@ -10,6 +10,8 @@ anything is claimed, and a package that fails any of it is refused whole:
 - the elements are wired as the board allows, by the rules ``core`` checks a project with:
   no pin the board lacks, reserves or gives to a bus, no two elements on one pin, PWM only
   where the board has it and one output per channel;
+- every event that listens to an element waits for something its driver says the element
+  tells (an input turning on or off; an output tells nothing);
 - every command asks its element for an action of its driver, with arguments the action
   takes: a value of the parameter's type and within its limits, or a variable that can only
   ever hold such a value.
@@ -128,6 +130,22 @@ def check_against_board(
                 _check_command(command, element, manifests[element.type], variables)
             except PrimumError as error:
                 problems.append(_of(error, command.element))
+    for event in package.events:
+        if event.element is None or event.trigger is None:
+            continue
+        listened = elements.get(event.element)
+        if listened is None:  # refused above
+            continue
+        available = tuple(manifests[listened.type].triggers)
+        if event.trigger not in available:
+            params: dict[str, ErrorParam] = {
+                "event": event.name,
+                "element": listened.name,
+                "trigger": event.trigger,
+                "available": available,
+            }
+            error = PrimumError(ErrorCode.EVENT_NOT_LISTENABLE, params)
+            problems.append(_of(error, event.element))
     refuse(problems)
     return tuple(elements.values())
 

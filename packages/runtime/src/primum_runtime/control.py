@@ -31,6 +31,15 @@ there, or whose command cannot even be worked out (a value its driver refuses), 
 stop the others, whatever it raises: it is logged once, its state says so
 (``rest_failed``), and it is tried again every ``RETRY_REST_S`` until it gets there.
 
+Automations act when something happens (decision 0029): an input of the package turns on
+or off (``read_inputs``), or the API fires an event (``fire_event``). Which act is ``core``'s
+to say (``primum_core.automations``); here their actions are done, in order: sequences
+started and stopped through the engine, variables set and incremented. An automation never
+writes an output. While panic is on, what happens is ignored: nothing acts, nothing is kept
+for later. An action that fails does not stop the ones after it; that, and a condition that
+could not be worked out, is logged and stays in the automation's state until it next acts
+cleanly.
+
 Time is a monotonic clock the controller is given. Whoever owns the event loop calls
 ``expire`` when ``next_expiry_s`` says: a test runs out, a command of a sequence starts or
 ends, a fade is due its next step, or an output is due to be tried again. Inputs are
@@ -46,7 +55,16 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
-from primum_core.generated.model import Command, Driver, Package, PackageVariable
+from primum_core.automations import incremented, verdicts
+from primum_core.generated.model import (
+    Command,
+    Driver,
+    Package,
+    PackageAction,
+    PackageAutomation,
+    PackageEvent,
+    PackageVariable,
+)
 from primum_core.values import NUMERIC, Value, fits
 from primum_runtime.drivers import (
     DigitalInputDriver,
@@ -102,9 +120,13 @@ class OutputState:
 
 @dataclass(frozen=True)
 class InputState:
+    """An input, and how many of its changes never arrived (the kernel drops the oldest of
+    a burst it cannot hold): events that started nothing."""
+
     name: str
     active: bool
     id: str = ""
+    lost_events: int = 0
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -134,15 +156,40 @@ class VariableState:
 
 
 @dataclass(frozen=True)
+class EventState:
+    """An event of the package that is running. One whose ``source`` is not ``element`` can
+    be fired by its id."""
+
+    id: str
+    name: str
+    source: str
+
+
+@dataclass(frozen=True)
+class AutomationState:
+    """An automation of the package that is running. ``problem`` is what went wrong the last
+    time something it waits for happened, if anything did: ``automation.condition_failed``
+    or ``automation.action_failed``."""
+
+    id: str
+    name: str
+    enabled: bool
+    problem: PrimumError | None = None
+
+
+@dataclass(frozen=True)
 class State:
     """What the controller reports: every output and every input, in configuration order,
-    panic, and the sequences and the variables of the package, if it runs one."""
+    panic, and the sequences, the variables, the events and the automations of the package,
+    if it runs one."""
 
     outputs: tuple[OutputState, ...]
     inputs: tuple[InputState, ...]
     panic: bool
     sequences: tuple[SequenceState, ...] = ()
     variables: tuple[VariableState, ...] = ()
+    events: tuple[EventState, ...] = ()
+    automations: tuple[AutomationState, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -216,6 +263,15 @@ class Controller:
         variables = () if package is None else package.variables
         self._variables: Mapping[UUID, PackageVariable] = {v.id: v for v in variables}
         self._values: dict[UUID, Value] = {v.id: v.initial for v in variables}
+        self._events: Mapping[UUID, PackageEvent] = (
+            {} if package is None else {event.id: event for event in package.events}
+        )
+        self._automations: tuple[PackageAutomation, ...] = (
+            () if package is None else package.automations
+        )
+        # What went wrong the last time each automation was concerned, while it has not
+        # acted cleanly since.
+        self._problems: dict[UUID, PrimumError] = {}
         # What each command that has commanded an output asks of it: by its sequence, when
         # it started, and the command.
         self._motions: dict[tuple[UUID, int, Command], _Motion] = {}
@@ -244,7 +300,20 @@ class Controller:
             for key, driver in self._outputs.items()
         )
         inputs = tuple(
-            InputState(driver.name, driver.active, driver.key) for driver in self._inputs.values()
+            InputState(driver.name, driver.active, driver.key, driver.lost_events)
+            for driver in self._inputs.values()
+        )
+        events = tuple(
+            EventState(str(event.id), event.name, event.source) for event in self._events.values()
+        )
+        automations = tuple(
+            AutomationState(
+                str(automation.id),
+                automation.name,
+                automation.enabled,
+                self._problems.get(automation.id),
+            )
+            for automation in self._automations
         )
         variables = tuple(
             VariableState(
@@ -258,7 +327,9 @@ class Controller:
             )
             for variable in self._variables.values()
         )
-        return State(outputs, inputs, self._panic, self._sequences(now), variables)
+        return State(
+            outputs, inputs, self._panic, self._sequences(now), variables, events, automations
+        )
 
     def command(
         self,
@@ -423,13 +494,60 @@ class Controller:
         return self._hal.events_fd()
 
     def read_inputs(self) -> None:
-        """Take the changes of the inputs since the last call; never blocks. Listeners are
-        told once, if any input changed."""
+        """Take the changes of the inputs since the last call; never blocks. Each change is
+        what the events of the package that listen to that input wait for: their
+        automations act, in the order the changes came. Listeners are told once, if any
+        input changed.
+
+        While panic is on the inputs are still read, and their changes start nothing.
+        """
+        happened: list[UUID] = []
         changed = False
-        for event in self._hal.read_events():
-            changed |= self._inputs[event.pin].handle(event)
-        if changed:
-            self._notify()
+        for change in self._hal.read_events():
+            driver = self._inputs[change.pin]
+            if not driver.handle(change):
+                continue
+            changed = True
+            trigger = "on" if driver.active else "off"
+            happened += (
+                event.id
+                for event in self._events.values()
+                if event.trigger == trigger and str(event.element) == driver.key
+            )
+        if not changed:
+            return
+        if self._panic:
+            if happened:
+                log.info("%d events ignored: panic is on", len(happened))
+        elif happened:
+            now = self._clock()
+            for event in happened:
+                self._act_on(event, now)
+            self._settle(now)
+        self._notify()
+
+    def fire_event(self, event: str) -> None:
+        """Make an event of the package happen, by its id: its automations act.
+
+        Only an event a person or a program is the source of (``ui``, ``api``). One that
+        listens to an element happens when the element says so, and never because someone
+        asked: ``event.not_fireable`` (``id``, ``name``). ``event.unknown`` (``id``) for one
+        the package does not have, or with no package; ``panic.active`` while panic is on.
+        """
+        try:
+            found = self._events.get(UUID(event))
+        except ValueError:
+            found = None
+        if found is None:
+            raise PrimumError(ErrorCode.EVENT_UNKNOWN, {"id": event})
+        if found.source == "element":
+            raise PrimumError(ErrorCode.EVENT_NOT_FIREABLE, {"id": event, "name": found.name})
+        if self._panic:
+            raise PrimumError(ErrorCode.PANIC_ACTIVE)
+        now = self._clock()
+        self._act_on(found.id, now)
+        self._settle(now)
+        self._notify()
 
     def panic(self) -> None:
         """Latch panic, stop every sequence and put every output in its safe state.
@@ -474,6 +592,54 @@ class Controller:
         """Call ``listener`` with the new state after every change; returns an unsubscribe."""
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
+
+    def _act_on(self, source: UUID, now: float) -> None:
+        """Something happened: the automations that wait for it act, each condition worked
+        out on the values the variables have now, before any of them acts."""
+        log.info("event %s (%s)", self._events[source].name, source)
+        for verdict in verdicts(self._automations, source, self._values):
+            automation = verdict.automation
+            problem: PrimumError | None = None
+            if verdict.failure is not None:
+                params = {"automation": automation.name, "reason": verdict.failure.reason}
+                problem = PrimumError(ErrorCode.AUTOMATION_CONDITION_FAILED, params)
+            else:
+                log.info("automation %s acts", automation.name)
+                for action in automation.do:
+                    try:
+                        self._do(action, now)
+                    except Exception as error:  # the actions after it are still done
+                        params = {"automation": automation.name, "action": action.action}
+                        if isinstance(error, PrimumError):
+                            params["problem"] = error.code.value
+                        log.exception("automation %s: %s failed", automation.name, action.action)
+                        problem = problem or PrimumError(ErrorCode.AUTOMATION_ACTION_FAILED, params)
+            if problem is None:
+                self._problems.pop(automation.id, None)
+            else:
+                log.warning("%s", problem)
+                self._problems[automation.id] = problem
+
+    def _do(self, action: PackageAction, now: float) -> None:
+        """One action of an automation. A package that holds together gives each what it
+        needs (``primum_core.package``): a sequence, or a variable and a value of its type."""
+        if self._engine is not None and action.sequence is not None:
+            if action.action == "start_sequence":
+                self._engine.start(action.sequence, _ms(now))
+            else:
+                self._engine.stop(action.sequence)
+            return
+        if action.variable is None:
+            raise ValueError(f"{action.action} names nothing to act on")
+        variable = self._variables[action.variable]
+        if action.action == "increment_variable":
+            # One operation on the value, never a read here and a write later (the event
+            # loop runs one thing at a time): two events cannot lose a count.
+            self._values[variable.id] = incremented(
+                variable, self._values[variable.id], _amount(action.value)
+            )
+        elif action.value is not None:
+            self._values[variable.id] = action.value
 
     def _not_safe(self, error: Exception) -> list[str]:
         """The outputs a failed safe state names (by the pins in its params); every output
@@ -697,6 +863,13 @@ def _level_at(asked: Asked, motion: _Motion, at_ms: int) -> float:
         return motion.end
     gone = min(1.0, max(0.0, (at_ms - asked.since_ms) / length))
     return motion.start + (motion.end - motion.start) * gone
+
+
+def _amount(value: Value | None) -> float | None:
+    """How much an increment adds: the number the action carries, if it carries one."""
+    if value is None or isinstance(value, bool | str):
+        return None
+    return value
 
 
 def _ms(seconds: float) -> int:

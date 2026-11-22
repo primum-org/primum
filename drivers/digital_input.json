@@ -21,5 +21,9 @@
       "default": 20
     }
   ],
-  "actions": []
+  "actions": [],
+  "triggers": [
+    "on",
+    "off"
+  ]
 }

@@ -46,6 +46,8 @@ OFF = {
     "panic": False,
     "sequences": [],
     "variables": [],
+    "events": [],
+    "automations": [],
 }
 ON = {
     "outputs": [
@@ -64,6 +66,8 @@ ON = {
     "panic": False,
     "sequences": [],
     "variables": [],
+    "events": [],
+    "automations": [],
 }
 
 
@@ -178,7 +182,7 @@ def _with_button(hal: SimulatedHal) -> TestClient:
 def test_status_reports_the_inputs_too(hal: SimulatedHal) -> None:
     with _with_button(hal) as client:
         assert client.get("/api/status").json()["inputs"] == [
-            {"id": BUTTON, "name": BUTTON, "active": False}
+            {"id": BUTTON, "name": BUTTON, "active": False, "lostEvents": 0}
         ]
 
 
@@ -194,8 +198,8 @@ def test_a_change_of_an_input_reaches_the_websocket_without_anyone_asking(
         hal.simulate_input(BUTTON_PIN, False)
         released = websocket.receive_json()
 
-    assert pressed["inputs"] == [{"id": BUTTON, "name": BUTTON, "active": True}]
-    assert released["inputs"] == [{"id": BUTTON, "name": BUTTON, "active": False}]
+    assert pressed["inputs"] == [{"id": BUTTON, "name": BUTTON, "active": True, "lostEvents": 0}]
+    assert released["inputs"] == [{"id": BUTTON, "name": BUTTON, "active": False, "lostEvents": 0}]
 
 
 def test_a_failure_reading_the_inputs_stops_the_watch_instead_of_spinning(
