@@ -83,6 +83,7 @@ class Project:
     files: dict[PurePosixPath, bytes] = field(default_factory=dict[PurePosixPath, bytes])
     drivers: dict[str, Driver] = field(default_factory=lambda: dict(DRIVERS))
     profiles: dict[str, BoardProfile] = field(default_factory=lambda: dict(PROFILES))
+    time_zones: frozenset[str] | None = None  # the zones there are; ``None``: not checked
 
     def add(self, path: str, kind: str, id_: str, **fields: object) -> "Project":
         document = {"id": id_, "kind": kind, "schemaVersion": 1, **fields}
@@ -98,15 +99,20 @@ class Project:
                 str(issue.location.path) if issue.location else "",
                 issue.location.pointer if issue.location else "",
             )
-            for issue in load_workspace(self.files, self.profiles, self.drivers).issues
+            for issue in load_workspace(
+                self.files, self.profiles, self.drivers, self.time_zones
+            ).issues
             if severity is None or issue.severity is severity
         ]
 
     def loaded(self) -> Workspace:
         """The project, which must be valid."""
-        parsed = load_workspace(self.files, self.profiles, self.drivers)
+        parsed = load_workspace(self.files, self.profiles, self.drivers, self.time_zones)
         assert parsed.value is not None, parsed.issues
         return parsed.value
 
     def is_valid(self) -> bool:
-        return load_workspace(self.files, self.profiles, self.drivers).value is not None
+        return (
+            load_workspace(self.files, self.profiles, self.drivers, self.time_zones).value
+            is not None
+        )

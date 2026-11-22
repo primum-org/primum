@@ -4,8 +4,9 @@ Pure: given what happened (an event, by its id) and the values the variables hav
 which automations act, and what an increment leaves a variable at. Whoever runs the package
 does the rest: starts and stops the sequences, keeps the values.
 
-- An automation acts when it is enabled, the event is one of its ``when``, and its condition
-  holds (``primum_core.expressions``). Without a condition it always holds.
+- An automation acts when it is enabled, the event (or the schedule) is one of its ``when``,
+  every schedule of its ``during`` has a window open, and its condition holds
+  (``primum_core.expressions``). Without a condition it always holds.
 - **Every condition is worked out on the same values**: those the variables had when the
   event came, before any automation acted. Which automations act never depends on the order
   they are in. Their actions then run in the order of the package, each automation's in the
@@ -15,7 +16,7 @@ does the rest: starts and stops the sequences, keeps the values.
 """
 
 import math
-from collections.abc import Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -24,6 +25,7 @@ from primum_core.generated.model import PackageAutomation, PackageVariable
 from primum_core.values import Value
 
 DEFAULT_INCREMENT = 1
+TIME_UNKNOWN = "time_unknown"  # why an automation that waits for a window could not be judged
 # Where a variable without a limit stops: the largest number a double holds, and for a
 # whole number the largest a condition can read (``expressions.MAX_EXACT`` is out).
 LARGEST = 1.7976931348623157e308
@@ -42,14 +44,28 @@ class Verdict:
 
 
 def verdicts(
-    automations: Iterable[PackageAutomation], source: UUID, values: Mapping[UUID, Value]
+    automations: Iterable[PackageAutomation],
+    source: UUID,
+    values: Mapping[UUID, Value],
+    open_schedules: Collection[UUID] | None = (),
 ) -> tuple[Verdict, ...]:
     """What each automation that ``source`` concerns does, in the order given: every one
     that is enabled and waits for it, whether its condition holds, is false or failed. One
-    that is disabled or does not wait for ``source`` is left out."""
+    that is disabled or does not wait for ``source`` is left out.
+
+    ``open_schedules`` are the schedules with a window open now, by id: an automation that
+    names some (``during``) acts only while all of them are. ``None`` says the time is not
+    known: such an automation then does not act, and that is a failure (``time_unknown``),
+    since nobody can say whether it should have."""
     found: list[Verdict] = []
     for automation in automations:
         if not automation.enabled or source not in automation.when:
+            continue
+        if automation.during and open_schedules is None:
+            found.append(Verdict(automation, acts=False, failure=Failure(TIME_UNKNOWN)))
+            continue
+        if not all(schedule in (open_schedules or ()) for schedule in automation.during):
+            found.append(Verdict(automation, acts=False))
             continue
         holds = evaluate(automation.if_, values) if automation.if_ else True
         if isinstance(holds, Failure):

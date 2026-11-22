@@ -12,6 +12,7 @@ Exit status: ``0`` valid (or built), ``1`` problems found, ``2`` the command cou
 import argparse
 import json
 import sys
+import zoneinfo
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 from typing import TextIO
@@ -43,6 +44,12 @@ def main(
     return validate(args.folder, catalog, as_json=args.json, strict=args.strict, out=to, err=errors)
 
 
+def _time_zones() -> frozenset[str] | None:
+    """The time zones this system knows, to check a project's against; ``None`` on a system
+    without the time zone database, where it cannot be checked."""
+    return frozenset(zoneinfo.available_timezones()) or None
+
+
 def validate(
     folder: Path, catalog: Catalog, *, as_json: bool, strict: bool, out: TextIO, err: TextIO
 ) -> int:
@@ -51,7 +58,7 @@ def validate(
     files = _read(folder, catalog, err)
     if files is None:
         return EXIT_FAILED
-    issues = load_workspace(files, load_profiles(), load_drivers()).issues
+    issues = load_workspace(files, load_profiles(), load_drivers(), _time_zones()).issues
     errors = sum(issue.severity is Severity.ERROR for issue in issues)
     warnings = len(issues) - errors
     valid = errors == 0 and not (strict and warnings)
@@ -68,7 +75,7 @@ def build(folder: Path, output: Path, catalog: Catalog, *, out: TextIO, err: Tex
     files = _read(folder, catalog, err)
     if files is None:
         return EXIT_FAILED
-    loaded = load_workspace(files, load_profiles(), load_drivers())
+    loaded = load_workspace(files, load_profiles(), load_drivers(), _time_zones())
     issues = list(loaded.issues)
     package = None
     if loaded.value is not None:

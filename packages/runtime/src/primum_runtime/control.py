@@ -40,6 +40,13 @@ for later. An action that fails does not stop the ones after it; that, and a con
 could not be worked out, is logged and stays in the automation's state until an event next
 concerns it and nothing goes wrong.
 
+Schedules happen by the time of day (decision 0030): the controller is given a second
+clock, ``wall``, that tells the time only when it can be trusted. Each minute, and when the
+service starts, ``expire`` asks ``core`` which schedules happen since it last looked
+(``primum_core.schedules``): a time that was passed, a window that opened, or a window that
+is open the first time the time is known. They are events as any other. Durations never use
+that clock.
+
 Time is a monotonic clock the controller is given. Whoever owns the event loop calls
 ``expire`` when ``next_expiry_s`` says: a test runs out, a command of a sequence starts or
 ends, a fade is due its next step, or an output is due to be tried again. Inputs are
@@ -53,7 +60,9 @@ import math
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from primum_core.automations import incremented, verdicts
 from primum_core.generated.model import (
@@ -63,8 +72,10 @@ from primum_core.generated.model import (
     PackageAction,
     PackageAutomation,
     PackageEvent,
+    PackageSchedule,
     PackageVariable,
 )
+from primum_core.schedules import happens, is_open
 from primum_core.values import NUMERIC, Value, fits
 from primum_runtime.drivers import (
     DigitalInputDriver,
@@ -81,6 +92,8 @@ log = logging.getLogger(__name__)
 
 type Listener = Callable[[State], None]
 type Clock = Callable[[], float]  # seconds of a monotonic clock
+# The time of day, with its zone, when it can be trusted; ``None`` while it cannot.
+type Wall = Callable[[], datetime | None]
 
 MS_PER_S = 1000
 # How long a test may last: long enough to look at a wire, never long enough to forget it.
@@ -93,6 +106,14 @@ RETRY_REST_S = 5.0
 # state every 20 ms would drown whoever listens.
 FADE_STEP_S = 0.02
 FADE_TOLD_S = 0.25
+SECONDS_PER_MINUTE = 60
+# Schedules are looked at as each minute turns, this long after, so as not to wake a moment
+# before it; and this often while the time is not known, to notice when it is.
+AFTER_THE_MINUTE_S = 0.05
+CLOCK_POLL_S = 10.0
+# A clock that goes back up to this far is waited for (the hour repeated when summer time
+# ends); further back, the time is taken as newly known.
+CLOCK_BACK = timedelta(hours=2)
 # Who commands an output, as its state says it.
 MANUAL, TEST, SEQUENCE = "manual", "test", "sequence"
 
@@ -179,10 +200,22 @@ class AutomationState:
 
 
 @dataclass(frozen=True)
+class ScheduleState:
+    """A schedule of the package that is running, and whether one of its windows is open
+    now; ``None`` while the time is not known."""
+
+    id: str
+    name: str
+    open: bool | None
+
+
+@dataclass(frozen=True)
 class State:
     """What the controller reports: every output and every input, in configuration order,
-    panic, and the sequences, the variables, the events and the automations of the package,
-    if it runs one."""
+    panic, and the sequences, the variables, the events, the schedules and the automations
+    of the package, if it runs one. ``time_known`` says whether the board knows the time:
+    until it does, no schedule happens. Both that and ``open`` of each schedule are as the
+    controller last looked (each minute), so the state never says more than it acted on."""
 
     outputs: tuple[OutputState, ...]
     inputs: tuple[InputState, ...]
@@ -191,6 +224,8 @@ class State:
     variables: tuple[VariableState, ...] = ()
     events: tuple[EventState, ...] = ()
     automations: tuple[AutomationState, ...] = ()
+    schedules: tuple[ScheduleState, ...] = ()
+    time_known: bool = False
 
 
 @dataclass(frozen=True)
@@ -222,6 +257,7 @@ class Controller:
         before_claim: Callable[[Claim], None] | None = None,
         clock: Clock = time.monotonic,
         package: Package | None = None,
+        wall: Wall = lambda: None,
     ) -> None:
         """Make the driver of every element and claim them all at once. Outputs start in
         their safe state, and no sequence of ``package`` is running.
@@ -273,6 +309,21 @@ class Controller:
         # What went wrong the last time each automation was concerned, while it has not
         # acted cleanly since.
         self._problems: dict[UUID, PrimumError] = {}
+        self._schedules: tuple[PackageSchedule, ...] = () if package is None else package.schedules
+        zone = None if package is None else package.time_zone
+        self._zone = None if zone is None else ZoneInfo(zone)
+        self._wall = wall
+        # The local time the schedules were last looked at, while the time is known; and
+        # whether they have been looked at at all (the service has just started).
+        self._looked_at: datetime | None = None  # the latest: it never goes back
+        self._instant: datetime | None = None  # when they were last looked at, as an instant
+        self._looked = False
+        # The schedules with a window open at that look; ``None``: the time was not known.
+        # What the state says, so that it never runs ahead of what the controller acted on.
+        self._open: frozenset[UUID] | None = None
+        # Those open at the latest time looked at (``_looked_at``): what a window opens
+        # against.
+        self._were_open: frozenset[UUID] = frozenset()
         # What each command that has commanded an output asks of it: by its sequence, when
         # it started, and the command.
         self._motions: dict[tuple[UUID, int, Command], _Motion] = {}
@@ -328,8 +379,24 @@ class Controller:
             )
             for variable in self._variables.values()
         )
+        schedules = tuple(
+            ScheduleState(
+                str(schedule.id),
+                schedule.name,
+                None if self._open is None else schedule.id in self._open,
+            )
+            for schedule in self._schedules
+        )
         return State(
-            outputs, inputs, self._panic, self._sequences(now), variables, events, automations
+            outputs,
+            inputs,
+            self._panic,
+            self._sequences(now),
+            variables,
+            events,
+            automations,
+            schedules,
+            self._open is not None,
         )
 
     def command(
@@ -463,6 +530,8 @@ class Controller:
                 # at every change of state, and a step counted from whoever asked last
                 # would never come while the state keeps changing for other reasons.
                 due.append(self._settled_at + FADE_STEP_S)
+        if self._schedules:
+            due.append(now + self._until_schedules_s())
         return max(0.0, min(due) - now) if due else None
 
     def expire(self) -> None:
@@ -480,12 +549,23 @@ class Controller:
         expired = [key for key, held in self._held.items() if _over(held, now)]
         for key in expired:
             del self._held[key]
+        open_before = self._open
+        happened = self._due_schedules()
+        if happened and self._panic:
+            log.info("%d schedules ignored: panic is on", len(happened))
+            happened = []
+        for schedule in happened:
+            self._act_on(schedule, now)
         moving = self._moving(now)
         written = self._settle(now)
         # Nothing written but the steps of fades is told now and then, not at every step.
         only_steps = bool(written) and written <= moving
         told_lately = now - self._told_at < FADE_TOLD_S
-        other = expired or self._running(now) != self._ran or (written and not only_steps)
+        # A window that opens or closes, or the time coming to be known, changes what the
+        # state says even when nothing happens for it.
+        told = bool(happened) or open_before != self._open
+        changed = self._running(now) != self._ran or (written and not only_steps)
+        other = expired or told or changed
         if other or (only_steps and not told_lately):
             self._notify()
 
@@ -594,6 +674,76 @@ class Controller:
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
 
+    def _local(self) -> datetime | None:
+        """The time now where the project is, without its zone: what ``core`` reads a
+        schedule against. ``None`` while the time is not known, or the package has no
+        schedules to read."""
+        if self._zone is None:
+            return None
+        trusted = self._wall()
+        return None if trusted is None else trusted.astimezone(self._zone).replace(tzinfo=None)
+
+    def _until_schedules_s(self) -> float:
+        """In how long the schedules are next due a look: at once the first time, then as
+        each minute turns, since their times are whole minutes."""
+        if not self._looked:
+            return 0.0
+        local = self._local()
+        if local is None:
+            return CLOCK_POLL_S
+        gone = local.second + local.microsecond / 1_000_000
+        return SECONDS_PER_MINUTE - gone + AFTER_THE_MINUTE_S
+
+    def _due_schedules(self) -> list[UUID]:
+        """The schedules that happen since they were last looked at (``core`` says which),
+        and remember that they were. While the time is not known, none: and when it comes
+        to be, those with a window open.
+
+        ``core`` is told the local time now and the local time of the look before. That one
+        is counted back from now by the time that really went by (instants, not what the
+        clock on the wall said then): when summer time starts the wall goes from 01:59 to
+        03:00 in a minute, and a time at 03:00 was passed a minute ago, not an hour.
+        """
+        self._looked = True
+        trusted = None if self._zone is None else self._wall()
+        if trusted is None:
+            self._looked_at = self._instant = None
+            self._open = None
+            return []
+        local = trusted.astimezone(self._zone).replace(tzinfo=None)
+        latest, before = self._looked_at, self._instant
+        self._instant = trusted
+        self._open = frozenset(s.id for s in self._schedules if is_open(s, local))
+        since = None
+        if latest is not None and before is not None:
+            if local < latest:
+                if latest - local <= CLOCK_BACK:
+                    return []  # an hour lived twice: nothing happens again until it is past
+            else:
+                # Never before the latest time already looked at: what happened up to it
+                # has happened.
+                since = max(local - (trusted - before), latest)
+        self._looked_at = local
+        # A window opens against what was open at the look before, as that look saw it;
+        # ``since`` may be a time of day that never was. With the time newly known, none was.
+        # Not against the look just before either, while the clock was being waited for:
+        # in the hour lived twice a window closes and opens again, and it opened once.
+        previously = self._were_open if since is not None else frozenset[UUID]()
+        self._were_open = self._open
+        return [
+            schedule.id
+            for schedule in self._schedules
+            if happens(schedule, schedule.id in previously, since, local)
+        ]
+
+    def _open_schedules(self) -> frozenset[UUID] | None:
+        """The schedules with a window open now, for the automations that only act during
+        some; ``None`` while the time is not known."""
+        local = self._local()
+        if local is None:
+            return None
+        return frozenset(s.id for s in self._schedules if is_open(s, local))
+
     def _act_on(self, source: UUID, now: float) -> None:
         """Something happened: the automations that wait for it act, each condition worked
         out on the values the variables have now, before any of them acts.
@@ -601,10 +751,11 @@ class Controller:
         Nothing gets out of here, whatever goes wrong: the next event must still be dealt
         with, and whoever reads the inputs stops listening to them on an error.
         """
-        name = self._events[source].name
+        named = self._events.get(source) or next(s for s in self._schedules if s.id == source)
+        name = named.name
         log.info("event %s (%s)", name, source)
         try:
-            concerned = verdicts(self._automations, source, self._values)
+            concerned = verdicts(self._automations, source, self._values, self._open_schedules())
         except Exception:
             log.exception("event %s could not be dealt with: its automations did nothing", name)
             return

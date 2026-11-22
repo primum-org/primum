@@ -188,6 +188,10 @@
       "message": "El paquete es para una placa {board}, y esta versión de Primum no tiene perfil para ella.",
       "hint": "Placas con perfil: {available}."
     },
+    "package.time_zone_unknown": {
+      "message": "Esta placa no conoce la zona horaria {timeZone} del paquete.",
+      "hint": "Revisa el nombre de la zona horaria en project.json y vuelve a generar el paquete."
+    },
     "safe.declaration_unwritable": {
       "message": "Primum no puede dejar anotadas las salidas que va a usar, así que no las usará.",
       "hint": "Comprueba que su directorio de datos existe y que Primum puede escribir en él."
@@ -471,6 +475,22 @@
     "event.trigger_unavailable": {
       "message": "{element} no avisa cuando pasa a {trigger}, así que ningún evento puede esperarlo.",
       "hint": "Elige un elemento que sí lo haga, como una entrada digital."
+    },
+    "schedule.window_empty": {
+      "message": "Una franja empieza y acaba a las {from}: nunca estaría abierta.",
+      "hint": "Ponle otro final. Una franja que acaba antes de empezar cruza la medianoche."
+    },
+    "automation.during_without_windows": {
+      "message": "Esta automatización solo actúa durante {schedule}, que no tiene franjas: nunca actuaría.",
+      "hint": "Añade una franja a {schedule} o quítalo de la automatización."
+    },
+    "project.time_zone_missing": {
+      "message": "El proyecto tiene horarios y no dice en qué zona horaria están sus horas.",
+      "hint": "Añade timeZone a project.json, por ejemplo Europe/Madrid."
+    },
+    "project.time_zone_unknown": {
+      "message": "{timeZone} no es una zona horaria.",
+      "hint": "Usa un nombre IANA, por ejemplo Europe/Madrid o America/Mexico_City."
     },
     "track.element_without_driver": {
       "message": "{element} es de un tipo que Primum todavía no sabe manejar, así que no puede tener una pista.",

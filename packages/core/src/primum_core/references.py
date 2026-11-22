@@ -157,6 +157,8 @@ def _references(file: LocatedContent) -> Iterator[_Reference]:
         case Automation():
             for index, trigger in enumerate(content.when):
                 yield _Reference(trigger, frozenset({"event", "schedule"}), ("when", index), at)
+            for index, schedule in enumerate(content.during):
+                yield _Reference(schedule, frozenset({"schedule"}), ("during", index), at)
             for index, action in enumerate(content.do):
                 if action.sequence is not None:
                     steps = ("do", index, "sequence")

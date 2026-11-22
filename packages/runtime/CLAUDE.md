@@ -22,6 +22,10 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   (`fire_event`, decision 0029): `primum_core.automations` says which, the controller does
   their actions (sequences through the engine, variables). An automation never writes an
   output, and nothing acts while panic is on.
+- Schedules happen by the time of day (decision 0030): the controller is given a clock
+  (`wall`) that tells the time only when it can be trusted, looks once a minute from
+  `expire`, and asks `primum_core.schedules` what happened since. Nothing else reads the
+  time of day, and no duration uses it.
 - Elements are driven through drivers (`primum_runtime.drivers`, decision 0019): one per
   element type, made from the element, its manifest (`drivers/`) and the limits of its board.
   The HAL's specs have no defaults: a driver gives every option. A new driver comes with its

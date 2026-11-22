@@ -54,6 +54,12 @@ class EventStateBody(_Body):
     source: str  # "element", "ui" or "api"
 
 
+class ScheduleStateBody(_Body):
+    id: str
+    name: str
+    open: bool | None  # whether one of its windows is open now; null while the time is not known
+
+
 class AutomationStateBody(_Body):
     id: str
     name: str
@@ -86,6 +92,8 @@ class StateBody(_Body):
     variables: list[VariableStateBody]  # of that package too, with the value each has now
     events: list[EventStateBody]
     automations: list[AutomationStateBody]
+    schedules: list[ScheduleStateBody]
+    timeKnown: bool  # noqa: N815 (until the board knows the time, no schedule happens)
 
     @classmethod
     def of(cls, state: State) -> "StateBody":
@@ -146,6 +154,11 @@ class StateBody(_Body):
             variables=variables,
             events=events,
             automations=automations,
+            schedules=[
+                ScheduleStateBody(id=item.id, name=item.name, open=item.open)
+                for item in state.schedules
+            ],
+            timeKnown=state.time_known,
         )
 
 

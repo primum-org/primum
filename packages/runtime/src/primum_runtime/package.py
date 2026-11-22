@@ -5,6 +5,7 @@ can run it, having neither its drivers nor its profile. That is checked here, al
 anything is claimed, and a package that fails any of it is refused whole:
 
 - its board is one this runtime has a profile for;
+- its time zone, if it has schedules, is one this system knows;
 - every element is of a type with a driver here, and its options are ones its driver and its
   board take (what making its driver checks);
 - the elements are wired as the board allows, by the rules ``core`` checks a project with:
@@ -25,6 +26,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from uuid import UUID
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from primum_core.errors import Location
 from primum_core.generated.model import (
@@ -113,6 +115,9 @@ def check_against_board(
         raise PrimumError(ErrorCode.PACKAGE_BOARD_UNSUPPORTED, params)
     limits = option_limits(load_profile(model))
     problems: list[PrimumError] = []
+    if package.time_zone is not None and not _is_time_zone(package.time_zone):
+        params = {"timeZone": package.time_zone}
+        problems.append(PrimumError(ErrorCode.PACKAGE_TIME_ZONE_UNKNOWN, params))
     elements: dict[UUID, ElementConfig] = {}
     for element in package.elements:
         try:
@@ -148,6 +153,15 @@ def check_against_board(
             problems.append(_of(error, event.element))
     refuse(problems)
     return tuple(elements.values())
+
+
+def _is_time_zone(name: str) -> bool:
+    """Whether this system knows the time zone: its schedules could not be read otherwise."""
+    try:
+        ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        return False
+    return True
 
 
 def refuse(problems: Sequence[PrimumError]) -> None:

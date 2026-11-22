@@ -25,6 +25,10 @@ remove `PRIMUM_PIN` and the other options of elements (the service refuses both 
 `journalctl -u primum` says why. Wire only what the package says, on the pins it says: its
 project is what was checked against the board.
 
+A package with schedules needs the board to know the time: the Pi sets its clock from the
+network, and until it has, no schedule happens (`timeKnown` in `/api/status`). A board with
+a clock of its own and no network: `PRIMUM_TRUST_CLOCK=1` in `runtime.env`.
+
 ## The development Pi
 
 A Raspberry Pi 4 (or an SD card) for Primum only, never one that runs other GPIO software.

@@ -22,7 +22,7 @@ from primum_runtime.api.errors import install_error_handlers
 from primum_runtime.api.expiry import ExpiryTimer
 from primum_runtime.api.routes import router
 from primum_runtime.config import RuntimeConfig
-from primum_runtime.control import Controller
+from primum_runtime.control import Controller, Wall
 from primum_runtime.drivers import load_manifests
 from primum_runtime.hal import Claim, Hal, create_hal
 
@@ -38,9 +38,11 @@ def create_app(
     config: RuntimeConfig,
     open_hal: HalFactory | None = None,
     env: Mapping[str, str] | None = None,
+    wall: Wall | None = None,
 ) -> FastAPI:
     """The API for ``config``. ``open_hal`` replaces the HAL ``config`` asks for (tests);
-    ``env`` is where systemd says how to reach it (the process's environment unless given).
+    ``env`` is where systemd says how to reach it (the process's environment unless given);
+    ``wall`` replaces the system's clock, for the schedules (tests).
 
     ``app.state.stopped_safely`` becomes true once the HAL has closed without errors.
     """
@@ -70,6 +72,7 @@ def create_app(
                     config.limits,
                     before_claim,
                     package=config.package,
+                    wall=wall or systemd.trusted_time(trust=config.trust_clock),
                 )
             except Exception:
                 # A claim that fails leaves nothing claimed: what was declared for it names

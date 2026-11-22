@@ -3,5 +3,6 @@
   "kind": "project",
   "schemaVersion": 1,
   "name": "Shop window",
-  "description": "A shop window: a presence sensor starts a welcome scene on the LED and the sign's relay; a schedule closes the shop in the evening. Variables count the visits and set the brightness from the phone."
+  "description": "A shop window: a presence sensor starts a welcome scene on the LED and the sign's relay; a schedule closes the shop in the evening. Variables count the visits and set the brightness from the phone.",
+  "timeZone": "Europe/Madrid"
 }

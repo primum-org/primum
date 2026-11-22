@@ -35,12 +35,13 @@ Both are reported at `project.json`.
 | `kind`, `schemaVersion` | `"package"`, `1` |
 | `hash` | `sha256:` and 64 hex digits (below) |
 | `project` | `id`, `name` |
+| `timeZone` | The time zone of the project's schedules, when it has any |
 | `board` | `id`, `name`, `model` |
 | `elements` | Every element: `id`, `name`, `type`, its wiring (`pin`, `activeLow`, `bus`, `address`) and `config` with **every** option of its driver, the defaults of the ones its file does not give |
 | `variables` | Every variable: `id`, `name`, `type`, `initial`, `min`, `max`, `persistent`, `setting` |
 | `sequences` | Every sequence without parameters (below) |
 | `events`, `schedules` | As the project has them, references by id |
-| `automations` | `id`, `name`, `enabled`, `when`, `if`, `do`; an action names its `sequence` and its `variable` by **id**; `if` is the condition compiled to a program (`expressions.md`): constants are values, variables go by id |
+| `automations` | `id`, `name`, `enabled`, `when`, `during` (schedules, by id), `if`, `do`; an action names its `sequence` and its `variable` by **id**; `if` is the condition compiled to a program (`expressions.md`): constants are values, variables go by id |
 
 Not in it: folders, scopes, imports and exports, components, constants, descriptions.
 

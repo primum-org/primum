@@ -49,6 +49,15 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
       "minItems": 1,
       "uniqueItems": true
     },
+    "during": {
+      "description": "Schedules whose windows must be open for it to act: all of them. Without it, the time does not matter.",
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/reference"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
     "if": {
       "description": "The condition that must hold, in the expression language (docs/specs/expressions.md): visits < limit and not paused. Without it, the actions always run.",
       "type": "string",
@@ -874,6 +883,12 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
     "project": {
       "$ref": "#/$defs/packageProject"
     },
+    "timeZone": {
+      "description": "The time zone of the project's schedules, by its IANA name. Present when it has schedules.",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$",
+      "maxLength": 64
+    },
     "board": {
       "$ref": "#/$defs/packageBoard"
     },
@@ -1298,6 +1313,15 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
           "minItems": 1,
           "uniqueItems": true
         },
+        "during": {
+          "description": "Schedules whose windows must all be open for it to act, each by its id.",
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/reference"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
         "if": {
           "description": "The condition, compiled (docs/specs/expressions.md): its steps in postfix order, for a stack. Constants are already values; variables go by id.",
           "type": "array",
@@ -1395,7 +1419,13 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
     "kind": { "const": "project" },
     "schemaVersion": { "const": 1 },
     "name": { "$ref": "common.schema.json#/$defs/name" },
-    "description": { "$ref": "common.schema.json#/$defs/description" }
+    "description": { "$ref": "common.schema.json#/$defs/description" },
+    "timeZone": {
+      "description": "The time zone the times of its schedules are in, by its IANA name (Europe/Madrid). Needed by a project with schedules.",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$",
+      "maxLength": 64
+    }
   }
 }
 """

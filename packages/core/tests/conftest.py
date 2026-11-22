@@ -16,7 +16,7 @@ def project(ids: Ids) -> Project:
     """A manifest, a Pi with an LED and a button, and nothing else."""
     return (
         Project()
-        .add("project.json", "project", ids(1), name="Shop window")
+        .add("project.json", "project", ids(1), name="Shop window", timeZone="Europe/Madrid")
         .add(
             "hardware.hw",
             "hardware",

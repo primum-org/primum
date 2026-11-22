@@ -79,6 +79,13 @@ All notable changes to this project are documented here. The format follows
   automations that wait for it check their condition and start or stop sequences and change
   variables. A counter that is incremented stays within its limits. Panic stops all of it.
   The state lists the events and the automations, with what went wrong in each, if anything.
+- Schedules run on the board: a time of day ("Monday at 20:30") and a window that opens
+  ("Monday to Saturday, 10:00 to 20:30") start their automations, and a board that comes
+  back inside a window starts them again. An automation can act only during the windows
+  it names (`during`). Nothing happens until the board knows the time (set from the
+  network, or `PRIMUM_TRUST_CLOCK=1`).
+- A project with schedules says its time zone: `timeZone` in `project.json`
+  (`Europe/Madrid`). Without it, it is no longer valid.
 - `primum validate` refuses an event that waits for an element that tells nothing.
 - `primum build <folder>` compiles a project into its deployment package, one JSON file with
   its own hash: what a board will run. A project with errors is not built.
