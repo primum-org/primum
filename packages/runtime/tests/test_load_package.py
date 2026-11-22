@@ -114,7 +114,11 @@ def test_a_package_that_core_refuses_is_refused_with_what_core_found(tmp_path: P
         load_package(path, MANIFESTS)
 
     assert refused.value.code is ErrorCode.PACKAGE_INVALID
-    assert refused.value.params == {"path": str(path), "problems": ("package.hash_mismatch /hash",)}
+    assert refused.value.params == {
+        "path": str(path),
+        "problems": ("package.hash_mismatch",),
+        "pointers": ("/hash",),
+    }
 
 
 def test_a_package_for_a_board_without_a_profile_is_refused(tmp_path: Path) -> None:
@@ -390,3 +394,24 @@ def test_a_variable_for_a_number_that_nothing_limits_is_refused_as_a_written_one
         (ErrorCode.ELEMENT_VALUE_UNLIMITED, "speed"),
         (ErrorCode.ELEMENT_VALUE_UNLIMITED, "speed"),
     ]
+
+
+def test_a_package_the_hal_refuses_ends_the_service_as_any_other_refusal_does(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Refused at the claim, inside the server's startup, where uvicorn exits on its own with
+    a status of its own (3): the service gives the same status as for a package refused
+    before it, so that whoever supervises it has one to tell "cannot run this" by."""
+
+    def same_channel(document: Document) -> None:
+        _inside(document, "elements", 0).update(type="pwm_output", pin=12, activeLow=False)
+        _inside(document, "elements", 0)["config"] = [{"name": "frequencyHz", "value": 500}]
+        for sequence in cast("list[Document]", document["sequences"]):
+            sequence["commands"] = []
+
+    path = _written(tmp_path, same_channel)
+
+    status = main(["--simulate", "--package", str(path), "--port", "0"])
+
+    assert status == EXIT_FAILED
+    assert "hal.pwm_channel_in_use" in caplog.text

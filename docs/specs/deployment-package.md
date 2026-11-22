@@ -130,12 +130,13 @@ The service takes its elements and its board from the package (decision 0025), i
 from `--pin` and the other options of elements: giving both, or a `--board` that is not the
 package's, is a mistake of the command line. `primum_runtime.package.load_package` reads the
 package and checks it before anything is claimed; any of these and the service does not start
-(exit 1, the reason in the log):
+(exit 1, the reason in the log; also when it is the HAL that refuses, inside the server's
+startup, where uvicorn would exit with a 3 of its own):
 
 | Problem | Code | Params |
 |---|---|---|
 | The file cannot be read | `package.unreadable` | `path`, `detail` |
-| `core` refuses it (*Reading one*) | `package.invalid` | `path`, `problems`: up to five, each a code and where; the log has them all |
+| `core` refuses it (*Reading one*) | `package.invalid` | `path`; `problems`, the codes of up to five, and `pointers`, where each is, in the same order; the log has them all |
 | No profile for its board | `package.board_unsupported` | `board`, `available` |
 | An element of a type without a driver here | `element.type_unsupported` | `element`, `type` |
 | An option its driver or its board does not take | `element.value_*` ([drivers](drivers.md)) | `element`, `name` |

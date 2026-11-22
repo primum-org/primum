@@ -56,8 +56,9 @@ class LoadedPackage:
 def load_package(path: Path, manifests: Mapping[str, Driver]) -> LoadedPackage:
     """Read the package at ``path`` and check it against the drivers and its board.
 
-    Fails with ``package.unreadable`` (``path``, ``detail``), ``package.invalid`` (``path``
-    and ``problems``: what ``core`` found, each a code and where), ``package.board_unsupported``
+    Fails with ``package.unreadable`` (``path``, ``detail``), ``package.invalid`` (``path``,
+    and what ``core`` found: ``problems``, its codes, and ``pointers``, where each is, in the
+    same order), ``package.board_unsupported``
     (``board``, ``available``), ``element.type_unsupported``, what making a driver reports
     for an element's options, ``package.pin_shared`` (``pin``, ``elements``: the names of the
     two), ``element.action_unknown``, what ``resolve`` reports for the
@@ -71,13 +72,19 @@ def load_package(path: Path, manifests: Mapping[str, Driver]) -> LoadedPackage:
         raise PrimumError(ErrorCode.PACKAGE_UNREADABLE, params) from error
     read = read_package(PurePosixPath(path.name), content)
     if read.value is None:
-        problems = tuple(
-            f"{issue.code} {issue.location.pointer if issue.location else ''}".strip()
+        problems = [
+            (str(issue.code), issue.location.pointer if issue.location else "")
             for issue in read.issues
-        )
-        for problem in problems:
-            log.error("package %s: %s", path, problem)
-        params = {"path": str(path), "problems": problems[:PROBLEMS_SHOWN]}
+        ]
+        for code, pointer in problems:
+            log.error("package %s: %s at %r", path, code, pointer)
+        shown = problems[:PROBLEMS_SHOWN]
+        # The code and the place of each, apart: nobody should have to split a text.
+        params = {
+            "path": str(path),
+            "problems": tuple(code for code, _ in shown),
+            "pointers": tuple(pointer for _, pointer in shown),
+        }
         raise PrimumError(ErrorCode.PACKAGE_INVALID, params)
     package = read.value
     return LoadedPackage(package, check_against_board(package, manifests))

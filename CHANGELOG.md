@@ -52,7 +52,7 @@ All notable changes to this project are documented here. The format follows
   with an instant command and does not hold gets a warning: it would not be seen.
 - The runtime can run a deployment package: `primum-runtime --package <file>` takes its
   elements and its board from it, and refuses to start with a package this board cannot run,
-  saying what is wrong. The API names elements by their id (`PUT /api/outputs/{id}`) and the
+  saying what is wrong, always with exit status 1. The API names elements by their id (`PUT /api/outputs/{id}`) and the
   state gives each its `id` and its `name`; with `--pin` the ids are `led`, `button` and
   `dimmer`, as before. Sequences are not run yet.
 - A file with half a character (an escape like `\ud83d` without its pair) is reported as a

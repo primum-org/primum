@@ -702,8 +702,8 @@ per element, from a deployment package that can be rolled back. One pull request
   `valueOf`, so `clip.returns_to_instant` does not see a constant or a parameter that is 0.
   No example in `examples/invalid/` for the new codes.
 
-**4.3a · The service runs a package** · **code done; not tried on `primum-dev`** (decision
-0025, `specs/deployment-package.md`)
+**4.3a · The service runs a package** · **done** (decision 0025,
+`specs/deployment-package.md`)
 - `primum-runtime --package <file>` (`PRIMUM_PACKAGE`): the elements and the board are the
   package's. The options of elements (`--pin` and the rest) stay, for one or the other, until
   4.5.
@@ -717,8 +717,23 @@ per element, from a deployment package that can be rolled back. One pull request
   `check_package` also checks that an element is wired as its type is.
 - The service starts no sequence yet: commands, test mode and panic, as before.
 - Tried here against the simulated HAL, the page in a browser by a script and not by a test
-  of the repository. On the board, with a package: nothing was run. `image/README.md` says
-  how to try it.
+  of the repository.
+- Tried on `primum-dev` by its owner, who reports it, with the branch installed by `just
+  pi-sync` and packages built from `examples/shop-window`. With options, as before: it
+  starts, and the state gains `id` (`led`, `dimmer`). With a package: it starts, logs the
+  hash and the project, and gives each element its `id` and `name`. The relay moved to GPIO
+  17 goes on and off by id, a test of 1.5 s expires on its own, and by name it is a 404.
+  Active low, with the package as it is (the relay on GPIO 27): the pin rests high, goes low
+  with `on` and back high when the service stops. PWM: `set` 40 on GPIO 18 gives the period
+  of 500 Hz the package asks for; sampling it gave 35/100 high, coarser than expected, which
+  with nothing wired cannot be told from sampling noise. The input on GPIO 22 changes
+  `active` when its pull changes. Panic leaves both pins at 0, and after `kill -9` with the
+  relay on and the LED at 70 % `primum-safe` leaves them at 0. Refused, none starting and
+  the journal giving the code with the names: an altered hash, two elements on one pin, an
+  action the driver does not have, a package next to `PRIMUM_PIN`. The page was not opened
+  on the board. `image/README.md` says how to run a package there.
+- Found there: when it is the HAL that refuses (two pins of one PWM channel), the process
+  exited with uvicorn's 3 and not with 1 as the spec said. It is 1 now, for every refusal.
 - From review: `--pin 0` next to a package passed for "not given" (0 equals `False` in
   Python); two elements on one pin are refused here, naming both, instead of by the HAL with
   the pin alone; a variable read for a number that nothing limits is refused as a written
@@ -730,7 +745,8 @@ per element, from a deployment package that can be rolled back. One pull request
   every turn; a bad configuration already did. An exit status of its own for "cannot run
   this" and `RestartPreventExitStatus=` in the unit would stop it; with activation, a
   refused package should never become the one that runs. And what the HAL refuses at the
-  claim reaches the journal as a traceback of uvicorn's, some 25 lines for one fact.
+  claim reaches the journal as a traceback of uvicorn's, some 25 lines for one fact. Seen
+  on the board too: the unit stays `activating`, the same error at every turn.
 
 **4.3b · Engine and arbiter**
 - The runtime runs the sequences of a package on a monotonic clock, through the drivers, and
