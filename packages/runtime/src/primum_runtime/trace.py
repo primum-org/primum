@@ -18,6 +18,7 @@ from collections import deque
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from types import MappingProxyType
 from uuid import uuid4
 
@@ -28,6 +29,36 @@ SIZE = 1000
 type Listener = Callable[[], None]
 
 
+class Kind(StrEnum):
+    """Every kind of entry the trace can have. Each one has its row in
+    ``docs/specs/trace.md`` (a test checks it). Kinds are a public contract, as error codes
+    are: adding one is free, renaming one breaks whoever reads the trace."""
+
+    SERVICE_STARTED = "service.started"
+    EVENT_HAPPENED = "event.happened"
+    EVENT_IGNORED = "event.ignored"
+    EVENT_FAILED = "event.failed"
+    AUTOMATION_ACTED = "automation.acted"
+    AUTOMATION_DID_NOT_ACT = "automation.did_not_act"
+    AUTOMATION_FAILED = "automation.failed"
+    SEQUENCE_STARTED = "sequence.started"
+    SEQUENCE_STOPPED = "sequence.stopped"
+    SEQUENCE_ENDED = "sequence.ended"
+    VARIABLE_CHANGED = "variable.changed"
+    VARIABLE_KEPT_VALUE_DROPPED = "variable.kept_value_dropped"
+    OUTPUT_COMMANDED = "output.commanded"
+    OUTPUT_RELEASED = "output.released"
+    OUTPUT_TEST_ENDED = "output.test_ended"
+    OUTPUT_FAILED = "output.failed"
+    OUTPUT_RECOVERED = "output.recovered"
+    PANIC_ON = "panic.on"
+    PANIC_RELEASED = "panic.released"
+    TIME_KNOWN = "time.known"
+    TIME_UNKNOWN = "time.unknown"
+    VARIABLES_UNSAVED = "variables.unsaved"
+    VARIABLES_SAVED = "variables.saved"
+
+
 @dataclass(frozen=True)
 class Entry:
     """One thing the board did. ``at_ms`` counts from when the service started, on the clock
@@ -35,7 +66,7 @@ class Entry:
 
     number: int
     at_ms: int
-    kind: str
+    kind: Kind
     params: Mapping[str, ErrorParam]
     cause: int | None = None
     time: datetime | None = None
@@ -54,7 +85,7 @@ class Trace:
 
     def add(
         self,
-        kind: str,
+        kind: Kind,
         params: Mapping[str, ErrorParam],
         at_ms: int,
         time: datetime | None = None,

@@ -1,5 +1,6 @@
 """The trace: what the board did, and why, as it happened (decision 0032)."""
 
+import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -11,7 +12,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from primum_runtime.engine import Engine
 from primum_runtime.errors import ErrorCode, PrimumError
-from primum_runtime.trace import Entry, Trace
+from primum_runtime.trace import Entry, Kind, Trace
 from show_service import (
     BLINK,
     BRIGHTNESS,
@@ -35,8 +36,8 @@ from show_service import (
 def test_entries_are_numbered_from_one_and_kept_in_order() -> None:
     trace = Trace()
 
-    first = trace.add("panic.on", {}, 10)
-    second = trace.add("panic.released", {}, 20, cause=first)
+    first = trace.add(Kind.PANIC_ON, {}, 10)
+    second = trace.add(Kind.PANIC_RELEASED, {}, 20, cause=first)
 
     assert (first, second) == (1, 2)
     assert [(e.number, e.kind, e.at_ms, e.cause) for e in trace.entries()] == [
@@ -48,7 +49,7 @@ def test_entries_are_numbered_from_one_and_kept_in_order() -> None:
 def test_entries_after_a_number_are_the_ones_that_followed_it() -> None:
     trace = Trace()
     for at in range(5):
-        trace.add("panic.on", {}, at)
+        trace.add(Kind.PANIC_ON, {}, at)
 
     assert [entry.number for entry in trace.entries(after=3)] == [4, 5]
     assert trace.entries(after=5) == ()
@@ -57,7 +58,7 @@ def test_entries_after_a_number_are_the_ones_that_followed_it() -> None:
 def test_only_the_last_entries_are_kept_and_the_numbers_go_on() -> None:
     trace = Trace(size=3)
     for at in range(5):
-        trace.add("panic.on", {}, at)
+        trace.add(Kind.PANIC_ON, {}, at)
 
     assert [entry.number for entry in trace.entries()] == [3, 4, 5]
     assert (trace.first, trace.last) == (3, 5)
@@ -74,9 +75,9 @@ def test_listeners_are_told_of_each_entry_until_they_leave() -> None:
     told: list[int] = []
     leave = trace.subscribe(lambda: told.append(trace.last))
 
-    trace.add("panic.on", {}, 0)
+    trace.add(Kind.PANIC_ON, {}, 0)
     leave()
-    trace.add("panic.released", {}, 1)
+    trace.add(Kind.PANIC_RELEASED, {}, 1)
 
     assert told == [1]
 
@@ -84,7 +85,7 @@ def test_listeners_are_told_of_each_entry_until_they_leave() -> None:
 def test_the_params_of_an_entry_cannot_be_changed_by_who_gave_them() -> None:
     trace = Trace()
     params: dict[str, str] = {"name": "LED"}
-    trace.add("output.released", params, 0)
+    trace.add(Kind.OUTPUT_RELEASED, params, 0)
 
     params["name"] = "changed"
 
@@ -291,6 +292,42 @@ def test_an_output_panic_cannot_make_safe_is_noted_once_however_often_panic_is_a
     assert _last(service, "output.failed").cause == _last(service, "panic.on").number
 
 
+def test_an_output_that_failed_and_panic_makes_safe_is_noted_as_recovered(
+    service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every ``output.failed`` gets its ``output.recovered``: whoever pairs them must not
+    show an output as broken for ever."""
+    with monkeypatch.context() as broken:
+        _stuck(service, broken)
+        service.controller.start_sequence(ON)  # the LED cannot be taken there
+
+    service.controller.panic()  # the line works again: panic makes it safe
+
+    kinds = _kinds(service)
+    assert kinds == [
+        "sequence.started",
+        "output.failed",
+        "panic.on",
+        "sequence.stopped",
+        "output.recovered",
+    ]
+    assert _last(service, "output.recovered").cause == _last(service, "panic.on").number
+
+
+def test_an_output_a_first_panic_could_not_make_safe_and_a_second_does_is_recovered(
+    service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service.controller.command(LED, "on")
+    with monkeypatch.context() as broken:
+        _stuck(service, broken)
+        with pytest.raises(PrimumError):
+            service.controller.panic()
+
+    service.controller.panic()  # already on, and this time it can
+
+    assert _kinds(service)[-3:] == ["panic.on", "output.failed", "output.recovered"]
+
+
 def test_a_command_that_fails_on_the_hardware_is_still_noted(
     service: Service, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -359,6 +396,16 @@ def test_a_kept_value_its_variable_no_longer_takes_is_noted() -> None:
     assert dropped.number == 2  # right after the service started
 
 
+def test_every_kind_is_in_the_spec_and_the_spec_names_no_other() -> None:
+    """The kinds are a contract, as error codes are: the code and the spec say the same."""
+    spec = (Path(__file__).parents[3] / "docs/specs/trace.md").read_text(encoding="utf-8")
+    table = spec.split("## Kinds")[1].split("\n## ")[0]
+    first_cells = [line.split("|")[1] for line in table.splitlines() if line.startswith("| `")]
+    named = {kind for cell in first_cells for kind in re.findall(r"`([a-z_.]+)`", cell)}
+
+    assert named == {kind.value for kind in Kind}
+
+
 def test_each_trace_has_an_id_of_its_own() -> None:
     assert Trace().run != Trace().run
 
@@ -370,7 +417,7 @@ VISITS, DIVISOR = make_id(61), make_id(63)
 LAMP_ON, LAMP_ALT = make_id(30), make_id(40)
 
 
-def _shop(swap: bool = False) -> Service:
+def _shop(swap: bool = False, chain: bool = False) -> Service:
     """An LED, two sequences of one exclusive group, a counter, and three automations on the
     event *Go*: *Count* (visits + 1, start *On*), *Never* (if visits > 100) and *Risky* (if
     10 / divisor > 1: start *Alt*)."""
@@ -425,6 +472,21 @@ def _shop(swap: bool = False) -> Service:
                 {"action": "start_sequence", "sequence": LAMP_ALT},
             ],
         )
+    if chain:
+        files["swap.evt"] = make_file("event", 204, name="Swap", source="ui")
+        steps = [
+            ("stop_sequence", LAMP_ON),
+            ("start_sequence", LAMP_ON),
+            ("start_sequence", LAMP_ALT),
+        ]
+        for number, (action, sequence) in enumerate(steps):
+            files[f"step{number}.auto"] = make_file(
+                "automation",
+                310 + number,
+                name=f"Step {number}",
+                when=[SWAP],
+                do=[{"action": action, "sequence": sequence}],
+            )
     return Service(package(compiled(files)))
 
 
@@ -485,6 +547,17 @@ def test_a_sequence_an_automation_stops_is_stopped_by_it_whatever_else_it_starts
 
     stopped = _last(shop, "sequence.stopped")
     assert (stopped.params["name"], stopped.params["by"]) == ("On", "automation")
+
+
+def test_a_sequence_asked_to_stop_while_it_did_not_run_is_later_stopped_by_its_group() -> None:
+    """One event, three automations: stop On (it is not running), start On, start Alt of
+    its group. The stop that did nothing must not be remembered: the group stopped On."""
+    shop = _shop(chain=True)
+
+    shop.controller.fire_event(SWAP)
+
+    stopped = _last(shop, "sequence.stopped")
+    assert (stopped.params["name"], stopped.params["by"]) == ("On", "exclusive_group")
 
 
 def test_a_condition_that_fails_is_noted_with_its_reason() -> None:
@@ -605,7 +678,26 @@ def test_the_websocket_always_answers_at_once_also_with_nothing_to_send(tmp_path
     finally:
         waiting.shutdown(wait=False)
 
-    assert (first["entries"], first["last"], first["run"]) == ([], 1, run)
+    # And it is sent that trace from its start: what it had was of another.
+    assert ([entry["number"] for entry in first["entries"]], first["last"], first["run"]) == (
+        [1],
+        1,
+        run,
+    )
+
+
+def test_the_websocket_answers_at_once_also_with_nothing_new(tmp_path: Path) -> None:
+    waiting = ThreadPoolExecutor(max_workers=1)
+    try:
+        with (
+            running(tmp_path) as (client, _),
+            client.websocket_connect("/api/trace/ws?after=1") as ws,
+        ):
+            first = waiting.submit(ws.receive_json).result(timeout=WAIT_S)
+    finally:
+        waiting.shutdown(wait=False)
+
+    assert (first["entries"], first["last"]) == ([], 1)
 
 
 def test_two_services_never_share_the_id_of_their_trace(tmp_path: Path) -> None:

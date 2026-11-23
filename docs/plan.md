@@ -973,7 +973,10 @@ per element, from a deployment package that can be rolled back. One pull request
     it could not make safe; a command the hardware refused was not noted, and its test
     then ended in the trace out of nowhere; a client of the WebSocket that came back after
     a restart with an `after` above the new trace waited in silence. Fixed, the last with
-    a first message that always goes and an id of the trace (`run`).
+    a first message that always goes and an id of the trace (`run`). In a second round:
+    an output that failed and that panic then made safe never got its `output.recovered`;
+    a stop that found nothing running was remembered for a later run. The kinds are now
+    an enumeration, held to the spec by a test.
   - Left for phase 5: texts for the kinds, and a page that shows it. Left out: a trace
     kept across restarts; a restart of a sequence in the very millisecond it started is
     not noted.

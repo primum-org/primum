@@ -136,7 +136,9 @@ async def _send_trace(
 ) -> None:
     """A slow client is never waited for by the controller: it is sent, when it can take
     it, whatever is kept above the last entry it has."""
-    sent = after
+    # Asked for what follows an entry this trace never reached: what the client has is of
+    # another trace (the service restarted). It is sent this one from its start.
+    sent = after if after <= controller.trace.last else 0
     first = True
     try:
         while True:

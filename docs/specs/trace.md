@@ -50,12 +50,18 @@ a sequence started by an automation names that automation's entry.
 - A request that is refused (an unknown output, an event fired during panic) notes nothing:
   nothing happened.
 - A sequence that ended while nobody was looking is noted, as ended, before whatever is
-  noted next.
+  noted next. The `atMs` of `sequence.ended` is when the service saw it, not when the
+  sequence reached its end: the two are the same in practice, since the end of a sequence
+  is one of the instants the service asks to be woken at.
+- Every `output.failed` is followed, sooner or later, by an `output.recovered` of the same
+  output: also when it is panic that makes it safe.
 - When an automation acts, what its actions did follows it, in order: variables changed,
   then the sequences that stopped and started.
 - A sequence restarted in the very millisecond it started is not noted again.
 
-New kinds may be added; whoever reads the trace ignores the ones it does not know.
+New kinds may be added; whoever reads the trace ignores the ones it does not know. In the
+code they are one enumeration (`primum_runtime.trace.Kind`), and a test holds this table to
+it.
 
 ## How much is kept
 
@@ -79,9 +85,10 @@ missed the entries in between: they were dropped before it asked.
 numbers at 1 again**: a caller that finds a `run` it did not have, or a `last` below the
 `after` it asked with, holds entries of a trace that is gone, and asks again from 0.
 
-- The WebSocket always sends its first message at once, also with no entries in it: a
-  client that comes back after a restart asking for what follows entry 500 is told where
-  the new trace is, instead of waiting for an entry 501.
+- The WebSocket always sends its first message at once, also with no entries in it. A
+  client that comes back after a restart asking for what follows entry 500, when the new
+  trace has not reached it, is sent the new trace from its start: it has to notice the new
+  `run` and drop what it had, but it misses nothing and need not connect again.
 - A negative `after` is refused by both: `request.invalid` (422) by the route, and the
   WebSocket closes without accepting (close code 1008).
 

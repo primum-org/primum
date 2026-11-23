@@ -95,7 +95,7 @@ from primum_runtime.drivers import (
 from primum_runtime.engine import Asked, Engine, Run
 from primum_runtime.errors import ErrorCode, ErrorParam, PrimumError
 from primum_runtime.hal import Claim, Hal, InputSpec, OutputSpec, PwmSpec
-from primum_runtime.trace import Trace
+from primum_runtime.trace import Kind, Trace
 
 log = logging.getLogger(__name__)
 
@@ -328,7 +328,7 @@ class Controller:
         started = (
             {} if package is None else {"project": package.project.name, "package": package.hash}
         )
-        self._traced("service.started", started)
+        self._traced(Kind.SERVICE_STARTED, started)
         for variable in variables:
             self._restore(variable, kept or {})
         self._events: Mapping[UUID, PackageEvent] = (
@@ -478,14 +478,14 @@ class Controller:
             self._last.pop(name, None)
             # Noted all the same: the output may have changed, and a test that goes on to
             # expire needs what explains it.
-            self._traced("output.commanded", {**told, "failed": True})
+            self._traced(Kind.OUTPUT_COMMANDED, {**told, "failed": True})
             self._notify()
             raise
         self._held[name] = _Held(level, until)
         self._at[name] = level
         self._last.pop(name, None)  # a person took it there, not a sequence
         self._retry_at.pop(name, None)  # commanded again: no longer waiting to get anywhere
-        self._traced("output.commanded", told)
+        self._traced(Kind.OUTPUT_COMMANDED, told)
         self._notify()
 
     def release(self, name: str) -> None:
@@ -496,7 +496,7 @@ class Controller:
             raise PrimumError(ErrorCode.OUTPUT_UNKNOWN, {"name": name})
         if self._held.pop(name, None) is None:
             return
-        self._traced("output.released", {"id": name, "name": self._outputs[name].name})
+        self._traced(Kind.OUTPUT_RELEASED, {"id": name, "name": self._outputs[name].name})
         self._settle(self._clock())
         self._notify()
 
@@ -563,7 +563,7 @@ class Controller:
         if that changed: the state says while they are not kept (``variables_unsaved``)."""
         if self._unsaved == kept:
             self._unsaved = not kept
-            self._traced("variables.saved" if kept else "variables.unsaved")
+            self._traced(Kind.VARIABLES_SAVED if kept else Kind.VARIABLES_UNSAVED)
             self._notify()
 
     def _restore(self, variable: PackageVariable, kept: Mapping[UUID, Value]) -> None:
@@ -585,7 +585,7 @@ class Controller:
                 variable.initial,
             )
             dropped = {"id": str(variable.id), "name": variable.name, "problem": refused.code.value}
-            self._traced("variable.kept_value_dropped", dropped)
+            self._traced(Kind.VARIABLE_KEPT_VALUE_DROPPED, dropped)
 
     def next_expiry_s(self) -> float | None:
         """In how many seconds ``expire`` next has something to do (0 if it already has): a
@@ -623,14 +623,14 @@ class Controller:
         expired = [key for key, held in self._held.items() if _over(held, now)]
         for key in expired:
             del self._held[key]
-            self._traced("output.test_ended", {"id": key, "name": self._outputs[key].name})
+            self._traced(Kind.OUTPUT_TEST_ENDED, {"id": key, "name": self._outputs[key].name})
         self._trace_runs(now, ENDED)
         open_before = self._open
         happened = self._due_schedules()
         if happened and self._panic:
             log.info("%d schedules ignored: panic is on", len(happened))
             for schedule in happened:
-                self._traced("event.ignored", {**self._source(schedule), "reason": "panic"})
+                self._traced(Kind.EVENT_IGNORED, {**self._source(schedule), "reason": "panic"})
             happened = []
         for schedule in happened:
             self._act_on(schedule, now)
@@ -679,7 +679,7 @@ class Controller:
             if happened:
                 log.info("%d events ignored: panic is on", len(happened))
             for event in happened:
-                self._traced("event.ignored", {**self._source(event), "reason": "panic"})
+                self._traced(Kind.EVENT_IGNORED, {**self._source(event), "reason": "panic"})
         elif happened:
             now = self._clock()
             self._trace_runs(now, ENDED)
@@ -724,7 +724,7 @@ class Controller:
         """
         now = self._clock()
         self._trace_runs(now, ENDED)
-        latched = self._traced("panic.on") if not self._panic else None
+        latched = self._traced(Kind.PANIC_ON) if not self._panic else None
         self._panic = True
         self._held.clear()  # nothing is left to expire: everything rests now
         failing = frozenset(self._retry_at)  # said already: not again at every panic
@@ -742,13 +742,18 @@ class Controller:
         finally:
             retry_at = self._clock() + RETRY_REST_S
             for key, output in self._outputs.items():
+                told: dict[str, ErrorParam] = {"id": key, "name": output.name}
                 if key in not_safe:
                     self._retry_at[key] = retry_at
                     self._at.pop(key, None)
                     if key not in failing:
-                        self._traced("output.failed", {"id": key, "name": output.name}, latched)
+                        self._traced(Kind.OUTPUT_FAILED, told, latched)
                 else:
                     self._at[key] = output.rest_level
+                    # It was failing, and panic made it safe: every failure noted gets
+                    # its recovery, or it would read as broken for ever.
+                    if key in failing:
+                        self._traced(Kind.OUTPUT_RECOVERED, told, latched)
             self._notify()
 
     def release_panic(self) -> None:
@@ -756,7 +761,7 @@ class Controller:
         if not self._panic:
             return
         self._panic = False
-        self._traced("panic.released")
+        self._traced(Kind.PANIC_RELEASED)
         self._notify()
 
     def subscribe(self, listener: Listener) -> Callable[[], None]:
@@ -835,7 +840,7 @@ class Controller:
         return frozenset(s.id for s in self._schedules if is_open(s, local))
 
     def _traced(
-        self, kind: str, params: Mapping[str, ErrorParam] | None = None, cause: int | None = None
+        self, kind: Kind, params: Mapping[str, ErrorParam] | None = None, cause: int | None = None
     ) -> int:
         """Note something in the trace, at the time it is now; its number.
 
@@ -846,7 +851,7 @@ class Controller:
         time = self._wall()
         turned = (time is not None) != self._time_traced
         self._time_traced = time is not None
-        change = "time.known" if time is not None else "time.unknown"
+        change = Kind.TIME_KNOWN if time is not None else Kind.TIME_UNKNOWN
         if turned and self.trace.last:
             self.trace.add(change, {}, since_start, time)
         number = self.trace.add(kind, params or {}, since_start, time, cause)
@@ -871,8 +876,9 @@ class Controller:
         runs = frozenset(self._engine.running(_ms(now)))
         gone, new = self._traced_runs - runs, runs - self._traced_runs
         self._traced_runs = runs
-        if by == ENDED:
-            self._asked_to_stop.clear()  # what is found now ended on its own
+        # Asked to stop up to this look, and no further: a stop that found nothing running
+        # must not be remembered for a run that starts after it.
+        asked_to_stop, self._asked_to_stop = self._asked_to_stop, set()
         names = {sequence.id: sequence.name for sequence in self._engine.sequences}
         groups = {sequence.id: sequence.exclusive_group for sequence in self._engine.sequences}
         taken = {groups[run.sequence] for run in new} - {None}
@@ -882,18 +888,18 @@ class Controller:
                 continue
             told: dict[str, ErrorParam] = {"id": str(run.sequence), "name": names[run.sequence]}
             if by == ENDED:
-                self._traced("sequence.ended", told, cause)
+                self._traced(Kind.SEQUENCE_ENDED, told, cause)
             else:
                 # Stopped by one that started in its exclusive group, not by who started it:
                 # unless it was asked to stop, and then it was stopped by who asked.
-                asked = run.sequence in self._asked_to_stop
+                asked = by != ENDED and run.sequence in asked_to_stop
                 why = "exclusive_group" if groups[run.sequence] in taken and not asked else by
-                self._traced("sequence.stopped", {**told, "by": why}, cause)
+                self._traced(Kind.SEQUENCE_STOPPED, {**told, "by": why}, cause)
         for run in sorted(new, key=lambda run: run.started_ms):
             told = {"id": str(run.sequence), "name": names[run.sequence], "by": by}
             if run.sequence in restarted:
                 told["restarted"] = True
-            self._traced("sequence.started", told, cause)
+            self._traced(Kind.SEQUENCE_STARTED, told, cause)
 
     def _trace_value(self, variable: PackageVariable, by: str, cause: int | None = None) -> None:
         told: dict[str, ErrorParam] = {
@@ -902,7 +908,7 @@ class Controller:
             "value": self._values[variable.id],
             "by": by,
         }
-        self._traced("variable.changed", told, cause)
+        self._traced(Kind.VARIABLE_CHANGED, told, cause)
 
     def _act_on(self, source: UUID, now: float) -> None:
         """Something happened: the automations that wait for it act, each condition worked
@@ -914,12 +920,12 @@ class Controller:
         what = self._source(source)
         name = what["name"]
         log.info("event %s (%s)", name, source)
-        happened = self._traced("event.happened", what)
+        happened = self._traced(Kind.EVENT_HAPPENED, what)
         try:
             concerned = verdicts(self._automations, source, self._values, self._open_schedules())
         except Exception:
             log.exception("event %s could not be dealt with: its automations did nothing", name)
-            self._traced("event.failed", what, happened)
+            self._traced(Kind.EVENT_FAILED, what, happened)
             return
         for verdict in concerned:
             automation = verdict.automation
@@ -930,11 +936,11 @@ class Controller:
                 problem = PrimumError(ErrorCode.AUTOMATION_CONDITION_FAILED, params)
                 log.warning("%s", problem)
             elif verdict.acts:
-                acted = self._traced("automation.acted", told, happened)
+                acted = self._traced(Kind.AUTOMATION_ACTED, told, happened)
                 problem = self._do_all(automation, now, acted)
                 self._trace_runs(now, "automation", acted)
             else:
-                self._traced("automation.did_not_act", told, happened)
+                self._traced(Kind.AUTOMATION_DID_NOT_ACT, told, happened)
             # Concerned, and nothing went wrong: also when its condition was just false.
             if problem is None:
                 self._problems.pop(automation.id, None)
@@ -948,7 +954,7 @@ class Controller:
                     if name != "automation"
                 }
                 failed = {**told, **details, "problem": problem.code.value}
-                self._traced("automation.failed", failed, happened)
+                self._traced(Kind.AUTOMATION_FAILED, failed, happened)
 
     def _do_all(self, automation: PackageAutomation, now: float, cause: int) -> PrimumError | None:
         """Do the actions of an automation, in order; the first that failed, if any did.
@@ -1138,14 +1144,14 @@ class Controller:
                         RETRY_REST_S,
                         error,
                     )
-                    self._traced("output.failed", {"id": key, "name": output.name})
+                    self._traced(Kind.OUTPUT_FAILED, {"id": key, "name": output.name})
                 self._retry_at[key] = now + RETRY_REST_S
                 self._at.pop(key, None)
                 self._last.pop(key, None)
             else:
                 if retry_at is not None:
                     log.info("%s is where it should be after all", output.name)
-                    self._traced("output.recovered", {"id": key, "name": output.name})
+                    self._traced(Kind.OUTPUT_RECOVERED, {"id": key, "name": output.name})
                     del self._retry_at[key]
                 self._at[key] = wanted
                 self._taken_by(key, asked, now)
