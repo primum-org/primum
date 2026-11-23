@@ -6,15 +6,18 @@ handlers in a thread pool).
 """
 
 import asyncio
+import contextlib
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, Request, WebSocket, WebSocketDisconnect
 
 from primum_runtime.api.broadcast import StateBroadcaster, Subscription
-from primum_runtime.api.models import OutputCommand, StateBody, VariableValue
+from primum_runtime.api.models import OutputCommand, StateBody, TraceBody, VariableValue
 from primum_runtime.control import Controller, State
 
 router = APIRouter(prefix="/api")
+# The close code of a WebSocket for a request that is refused (RFC 6455, 1008).
+WS_POLICY_VIOLATION = 1008
 
 
 def _controller(request: Request) -> Controller:
@@ -85,6 +88,78 @@ async def panic(controller: ControllerDep) -> StateBody:
 async def release_panic(controller: ControllerDep) -> StateBody:
     controller.release_panic()
     return StateBody.of(controller.state())
+
+
+@router.get("/trace")
+async def trace(controller: ControllerDep, after: Annotated[int, Query(ge=0)] = 0) -> TraceBody:
+    """What the board did, oldest first: the entries numbered above ``after`` that are still
+    kept (all of them without it)."""
+    return TraceBody.of(controller.trace, after)
+
+
+@router.websocket("/trace/ws")
+async def trace_updates(websocket: WebSocket, after: int = 0) -> None:
+    """Send the entries above ``after`` that are kept, at once and also if there are none,
+    then each new one as it is noted, until either side closes. Each message is as
+    ``GET /api/trace`` answers. A negative ``after`` is refused: the connection is closed."""
+    controller: Controller = websocket.app.state.controller
+    broadcaster: StateBroadcaster = websocket.app.state.broadcaster
+    if after < 0:  # refused, as GET /api/trace refuses it: never taken as something else
+        await websocket.close(code=WS_POLICY_VIOLATION)
+        return
+    await websocket.accept()
+    news = asyncio.Event()
+    news.set()  # what is there already
+    unsubscribe = controller.trace.subscribe(news.set)
+    # The service stopping ends the feed: the broadcaster of states says when.
+    stopping = broadcaster.subscribe()
+    tasks = {
+        asyncio.create_task(_send_trace(websocket, controller, news, after)),
+        asyncio.create_task(_wait_for_disconnect(websocket)),
+        asyncio.create_task(_wait_for_stop(stopping)),
+    }
+    try:
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+        for task in done:
+            task.result()  # re-raise what went wrong, if anything
+        with contextlib.suppress(RuntimeError):  # the client is gone already
+            await websocket.close()
+    finally:
+        unsubscribe()
+        stopping.close()
+
+
+async def _send_trace(
+    websocket: WebSocket, controller: Controller, news: asyncio.Event, after: int
+) -> None:
+    """A slow client is never waited for by the controller: it is sent, when it can take
+    it, whatever is kept above the last entry it has."""
+    # Asked for what follows an entry this trace never reached: what the client has is of
+    # another trace (the service restarted). It is sent this one from its start.
+    sent = after if after <= controller.trace.last else 0
+    first = True
+    try:
+        while True:
+            await news.wait()
+            news.clear()
+            body = TraceBody.of(controller.trace, sent)
+            # The first message always goes, also with nothing in it: a client that asks
+            # for what follows an entry this trace never reached (the service restarted)
+            # must be told where the trace is, not left waiting for that entry.
+            if body.entries or first:
+                await websocket.send_json(body.model_dump())
+            if body.entries:
+                sent = body.entries[-1].number
+            first = False
+    except WebSocketDisconnect:
+        return
+
+
+async def _wait_for_stop(stopping: Subscription) -> None:
+    while await stopping.next() is not None:
+        pass
 
 
 @router.websocket("/ws")

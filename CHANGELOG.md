@@ -79,6 +79,9 @@ All notable changes to this project are documented here. The format follows
   automations that wait for it check their condition and start or stop sequences and change
   variables. A counter that is incremented stays within its limits. Panic stops all of it.
   The state lists the events and the automations, with what went wrong in each, if anything.
+- The board keeps a trace of what it did and why: what happened, which automations acted
+  or did not, the sequences that started and ended, what a person commanded, panic. Read
+  it with `GET /api/trace`, or follow it live on the WebSocket `/api/trace/ws`.
 - Variables marked `persistent` keep their value across a restart and a power cut: a
   counter of visits, a brightness set from the phone. They are kept on the board for the
   project, so a new package of the same project finds them.
