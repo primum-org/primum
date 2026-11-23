@@ -484,7 +484,10 @@ class Controller:
         self._held[name] = _Held(level, until)
         self._at[name] = level
         self._last.pop(name, None)  # a person took it there, not a sequence
-        self._retry_at.pop(name, None)  # commanded again: no longer waiting to get anywhere
+        # Commanded, and it went: no longer waiting to get anywhere. If it was failing, this
+        # is its recovery: every failure noted gets one, whichever way it ends.
+        if self._retry_at.pop(name, None) is not None:
+            self._traced(Kind.OUTPUT_RECOVERED, {"id": name, "name": output.name})
         self._traced(Kind.OUTPUT_COMMANDED, told)
         self._notify()
 

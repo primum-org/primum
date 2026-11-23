@@ -314,6 +314,42 @@ def test_an_output_that_failed_and_panic_makes_safe_is_noted_as_recovered(
     assert _last(service, "output.recovered").cause == _last(service, "panic.on").number
 
 
+def test_an_output_that_failed_and_a_person_then_commands_is_noted_as_recovered(
+    service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The other door out of failing: commanded, with success, it is where it was asked."""
+    with monkeypatch.context() as broken:
+        _stuck(service, broken)
+        service.controller.start_sequence(ON)
+
+    service.controller.command(LED, "on")
+    service.after(5)
+    service.after(5)
+
+    assert _kinds(service) == [
+        "sequence.started",
+        "output.failed",
+        "output.recovered",
+        "output.commanded",
+    ]
+
+
+def test_an_output_that_fails_again_under_a_command_stays_failed_until_it_recovers(
+    service: Service, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    with monkeypatch.context() as broken:
+        _stuck(service, broken)
+        service.controller.start_sequence(ON)
+        with pytest.raises(OSError, match="stuck"):
+            service.controller.command(LED, "on")
+
+    service.after(5)  # the retry: the line works again
+
+    kinds = _kinds(service)
+    assert (kinds.count("output.failed"), kinds.count("output.recovered")) == (1, 1)
+    assert kinds[-1] == "output.recovered"
+
+
 def test_an_output_a_first_panic_could_not_make_safe_and_a_second_does_is_recovered(
     service: Service, monkeypatch: pytest.MonkeyPatch
 ) -> None:

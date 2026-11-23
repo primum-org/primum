@@ -976,7 +976,10 @@ per element, from a deployment package that can be rolled back. One pull request
     a first message that always goes and an id of the trace (`run`). In a second round:
     an output that failed and that panic then made safe never got its `output.recovered`;
     a stop that found nothing running was remembered for a later run. The kinds are now
-    an enumeration, held to the spec by a test.
+    an enumeration, held to the spec by a test. In a third: the same missing
+    `output.recovered` by the other door, a person commanding with success an output that
+    was failing. Every place an output stops being failing now notes it (three: a retry,
+    panic, a command).
   - Left for phase 5: texts for the kinds, and a page that shows it. Left out: a trace
     kept across restarts; a restart of a sequence in the very millisecond it started is
     not noted.

@@ -54,7 +54,8 @@ a sequence started by an automation names that automation's entry.
   sequence reached its end: the two are the same in practice, since the end of a sequence
   is one of the instants the service asks to be woken at.
 - Every `output.failed` is followed, sooner or later, by an `output.recovered` of the same
-  output: also when it is panic that makes it safe.
+  output, whichever way it gets where it should be: a retry, panic making it safe, or a
+  person commanding it with success (then right before that `output.commanded`).
 - When an automation acts, what its actions did follows it, in order: variables changed,
   then the sequences that stopped and started.
 - A sequence restarted in the very millisecond it started is not noted again.
