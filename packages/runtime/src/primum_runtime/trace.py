@@ -10,7 +10,8 @@ one it has; and, when something led to it, the number of that entry (``cause``):
 automation that started a sequence, the event that concerned the automation.
 
 The trace is kept in memory, the last ``SIZE`` entries: it tells what has just happened and
-does not wear a card. It starts empty when the service does; the journal has the rest.
+does not wear a card. It starts empty when the service does, with a new id (``run``) and its
+numbers from 1 again; the journal has the rest.
 """
 
 from collections import deque
@@ -18,6 +19,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from types import MappingProxyType
+from uuid import uuid4
 
 from primum_runtime.errors import ErrorParam
 
@@ -45,6 +47,9 @@ class Trace:
     def __init__(self, size: int = SIZE) -> None:
         self._entries: deque[Entry] = deque(maxlen=size)
         self._last = 0
+        # Numbers start again at 1 with every trace. Whoever follows one keeps its id, and
+        # knows by it that what it has is of another: the service restarted.
+        self.run = uuid4().hex
         self._listeners: list[Listener] = []
 
     def add(

@@ -969,6 +969,11 @@ per element, from a deployment package that can be rolled back. One pull request
   with the entry that led to it. The last 1000, in memory. `GET /api/trace?after=n` and
   the WebSocket `/api/trace/ws`.
   - Tried on the simulated HAL only, a real service with both routes included.
+  - Found in review, each reproduced with a test first: every panic noted again an output
+    it could not make safe; a command the hardware refused was not noted, and its test
+    then ended in the trace out of nowhere; a client of the WebSocket that came back after
+    a restart with an `after` above the new trace waited in silence. Fixed, the last with
+    a first message that always goes and an id of the trace (`run`).
   - Left for phase 5: texts for the kinds, and a page that shows it. Left out: a trace
     kept across restarts; a restart of a sequence in the very millisecond it started is
     not noted.

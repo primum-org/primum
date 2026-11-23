@@ -16,6 +16,8 @@ from primum_runtime.api.models import OutputCommand, StateBody, TraceBody, Varia
 from primum_runtime.control import Controller, State
 
 router = APIRouter(prefix="/api")
+# The close code of a WebSocket for a request that is refused (RFC 6455, 1008).
+WS_POLICY_VIOLATION = 1008
 
 
 def _controller(request: Request) -> Controller:
@@ -97,10 +99,14 @@ async def trace(controller: ControllerDep, after: Annotated[int, Query(ge=0)] = 
 
 @router.websocket("/trace/ws")
 async def trace_updates(websocket: WebSocket, after: int = 0) -> None:
-    """Send the entries above ``after`` that are kept, then each new one as it is noted,
-    until either side closes. Each message is as ``GET /api/trace`` answers."""
+    """Send the entries above ``after`` that are kept, at once and also if there are none,
+    then each new one as it is noted, until either side closes. Each message is as
+    ``GET /api/trace`` answers. A negative ``after`` is refused: the connection is closed."""
     controller: Controller = websocket.app.state.controller
     broadcaster: StateBroadcaster = websocket.app.state.broadcaster
+    if after < 0:  # refused, as GET /api/trace refuses it: never taken as something else
+        await websocket.close(code=WS_POLICY_VIOLATION)
+        return
     await websocket.accept()
     news = asyncio.Event()
     news.set()  # what is there already
@@ -108,7 +114,7 @@ async def trace_updates(websocket: WebSocket, after: int = 0) -> None:
     # The service stopping ends the feed: the broadcaster of states says when.
     stopping = broadcaster.subscribe()
     tasks = {
-        asyncio.create_task(_send_trace(websocket, controller, news, max(0, after))),
+        asyncio.create_task(_send_trace(websocket, controller, news, after)),
         asyncio.create_task(_wait_for_disconnect(websocket)),
         asyncio.create_task(_wait_for_stop(stopping)),
     }
@@ -131,14 +137,20 @@ async def _send_trace(
     """A slow client is never waited for by the controller: it is sent, when it can take
     it, whatever is kept above the last entry it has."""
     sent = after
+    first = True
     try:
         while True:
             await news.wait()
             news.clear()
             body = TraceBody.of(controller.trace, sent)
-            if body.entries:
+            # The first message always goes, also with nothing in it: a client that asks
+            # for what follows an entry this trace never reached (the service restarted)
+            # must be told where the trace is, not left waiting for that entry.
+            if body.entries or first:
                 await websocket.send_json(body.model_dump())
+            if body.entries:
                 sent = body.entries[-1].number
+            first = False
     except WebSocketDisconnect:
         return
 

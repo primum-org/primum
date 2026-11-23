@@ -319,15 +319,18 @@ class Controller:
         variables = () if package is None else package.variables
         self._variables: Mapping[UUID, PackageVariable] = {v.id: v for v in variables}
         self._values: dict[UUID, Value] = {v.id: v.initial for v in variables}
-        for variable in variables:
-            self._restore(variable, kept or {})
         self._unsaved = False
         # The runs the trace last told of: what started or ended since is what is new.
         self._traced_runs: frozenset[Run] = frozenset()
+        # The sequences something asked to stop since then: stopped by it, not by a group.
+        self._asked_to_stop: set[UUID] = set()
+        self._time_traced = False  # whether the trace was last told the time is known
         started = (
             {} if package is None else {"project": package.project.name, "package": package.hash}
         )
         self._traced("service.started", started)
+        for variable in variables:
+            self._restore(variable, kept or {})
         self._events: Mapping[UUID, PackageEvent] = (
             {} if package is None else {event.id: event for event in package.events}
         )
@@ -461,6 +464,9 @@ class Controller:
             raise PrimumError(ErrorCode.TEST_DURATION_OUT_OF_RANGE, params)
         level = output.level_for(action, arguments)  # refused here, nothing has changed
         until = None if duration_ms is None else self._clock() + duration_ms / MS_PER_S
+        told: dict[str, ErrorParam] = {"id": name, "name": output.name, "action": action}
+        if duration_ms is not None:
+            told["durationMs"] = duration_ms
         try:
             output.go_to(level)
         except Exception:
@@ -470,15 +476,15 @@ class Controller:
                 self._held[name] = _Held(level, until)
             self._at.pop(name, None)
             self._last.pop(name, None)
+            # Noted all the same: the output may have changed, and a test that goes on to
+            # expire needs what explains it.
+            self._traced("output.commanded", {**told, "failed": True})
             self._notify()
             raise
         self._held[name] = _Held(level, until)
         self._at[name] = level
         self._last.pop(name, None)  # a person took it there, not a sequence
         self._retry_at.pop(name, None)  # commanded again: no longer waiting to get anywhere
-        told: dict[str, ErrorParam] = {"id": name, "name": output.name, "action": action}
-        if duration_ms is not None:
-            told["durationMs"] = duration_ms
         self._traced("output.commanded", told)
         self._notify()
 
@@ -515,6 +521,7 @@ class Controller:
         now = self._clock()
         self._trace_runs(now, ENDED)
         engine.stop(found)
+        self._asked_to_stop.add(found)
         log.info("sequence %s stopped", sequence)
         self._trace_runs(now, "api")
         self._settle(now)
@@ -577,6 +584,8 @@ class Controller:
                 refused.code,
                 variable.initial,
             )
+            dropped = {"id": str(variable.id), "name": variable.name, "problem": refused.code.value}
+            self._traced("variable.kept_value_dropped", dropped)
 
     def next_expiry_s(self) -> float | None:
         """In how many seconds ``expire`` next has something to do (0 if it already has): a
@@ -618,8 +627,6 @@ class Controller:
         self._trace_runs(now, ENDED)
         open_before = self._open
         happened = self._due_schedules()
-        if (open_before is None) != (self._open is None):
-            self._traced("time.unknown" if self._open is None else "time.known")
         if happened and self._panic:
             log.info("%d schedules ignored: panic is on", len(happened))
             for schedule in happened:
@@ -720,6 +727,7 @@ class Controller:
         latched = self._traced("panic.on") if not self._panic else None
         self._panic = True
         self._held.clear()  # nothing is left to expire: everything rests now
+        failing = frozenset(self._retry_at)  # said already: not again at every panic
         self._retry_at.clear()
         self._last.clear()
         if self._engine is not None:
@@ -737,7 +745,8 @@ class Controller:
                 if key in not_safe:
                     self._retry_at[key] = retry_at
                     self._at.pop(key, None)
-                    self._traced("output.failed", {"id": key, "name": output.name}, latched)
+                    if key not in failing:
+                        self._traced("output.failed", {"id": key, "name": output.name}, latched)
                 else:
                     self._at[key] = output.rest_level
             self._notify()
@@ -828,9 +837,22 @@ class Controller:
     def _traced(
         self, kind: str, params: Mapping[str, ErrorParam] | None = None, cause: int | None = None
     ) -> int:
-        """Note something in the trace, at the time it is now; its number."""
+        """Note something in the trace, at the time it is now; its number.
+
+        The time of day goes with it when the board knows it. That it came to be known, or
+        stopped being, is an entry of its own, before the first one it changes: whatever the
+        package, with schedules or without. Only the service starting comes before it."""
         since_start = _ms(self._clock() - self._started)
-        return self.trace.add(kind, params or {}, since_start, self._wall(), cause)
+        time = self._wall()
+        turned = (time is not None) != self._time_traced
+        self._time_traced = time is not None
+        change = "time.known" if time is not None else "time.unknown"
+        if turned and self.trace.last:
+            self.trace.add(change, {}, since_start, time)
+        number = self.trace.add(kind, params or {}, since_start, time, cause)
+        if turned and number == 1:
+            self.trace.add(change, {}, since_start, time)
+        return number
 
     def _source(self, source: UUID) -> dict[str, ErrorParam]:
         """An event or a schedule, as the trace names what happened."""
@@ -849,6 +871,8 @@ class Controller:
         runs = frozenset(self._engine.running(_ms(now)))
         gone, new = self._traced_runs - runs, runs - self._traced_runs
         self._traced_runs = runs
+        if by == ENDED:
+            self._asked_to_stop.clear()  # what is found now ended on its own
         names = {sequence.id: sequence.name for sequence in self._engine.sequences}
         groups = {sequence.id: sequence.exclusive_group for sequence in self._engine.sequences}
         taken = {groups[run.sequence] for run in new} - {None}
@@ -860,8 +884,10 @@ class Controller:
             if by == ENDED:
                 self._traced("sequence.ended", told, cause)
             else:
-                # Stopped by one that started in its exclusive group, not by who started it.
-                why = "exclusive_group" if groups[run.sequence] in taken else by
+                # Stopped by one that started in its exclusive group, not by who started it:
+                # unless it was asked to stop, and then it was stopped by who asked.
+                asked = run.sequence in self._asked_to_stop
+                why = "exclusive_group" if groups[run.sequence] in taken and not asked else by
                 self._traced("sequence.stopped", {**told, "by": why}, cause)
         for run in sorted(new, key=lambda run: run.started_ms):
             told = {"id": str(run.sequence), "name": names[run.sequence], "by": by}
@@ -948,6 +974,7 @@ class Controller:
                 self._engine.start(action.sequence, _ms(now))
             else:
                 self._engine.stop(action.sequence)
+                self._asked_to_stop.add(action.sequence)
             return
         if action.variable is None:
             raise ValueError(f"{action.action} names nothing to act on")

@@ -194,16 +194,18 @@ class TraceEntryBody(_Body):
 class TraceBody(_Body):
     """The entries asked for, oldest first. ``first`` is the oldest entry still kept and
     ``last`` the newest ever noted: asked for entries after one that is below ``first`` less
-    one, some were noted and are gone."""
+    one, some were noted and are gone. Asked for entries after one above ``last``, or with a
+    ``run`` that is not the one the caller had, the service restarted: start again from 0."""
 
     entries: list[TraceEntryBody]
     first: int
     last: int
+    run: str  # the id of this trace: another one means the service restarted, numbers from 1
 
     @classmethod
     def of(cls, trace: Trace, after: int) -> "TraceBody":
         entries = [TraceEntryBody.of(entry) for entry in trace.entries(after)]
-        return cls(entries=entries, first=trace.first, last=trace.last)
+        return cls(entries=entries, first=trace.first, last=trace.last, run=trace.run)
 
 
 class ErrorBody(_Body):

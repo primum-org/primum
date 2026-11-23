@@ -12,7 +12,7 @@ each output is the state's to tell, and the steps of a fade are in neither.
 
 | Field | |
 |---|---|
-| `number` | From 1, growing by one, never used again while the service runs |
+| `number` | From 1, growing by one, never used again while the service runs. It starts at 1 again when the service restarts: `run`, below, tells |
 | `atMs` | When, in milliseconds since the service started, on the clock that never jumps |
 | `time` | The time of day (ISO 8601, UTC) when the board knows it (`events.md`); `null` until then |
 | `kind` | What it is: a stable code, as an error's |
@@ -34,16 +34,17 @@ a sequence started by an automation names that automation's entry.
 | `automation.did_not_act` | Its condition was false, or a window it needs is closed | `id`, `name`; `cause`: the event |
 | `automation.failed` | Its condition could not be worked out, or an action failed | `id`, `name`, `problem` (the code its state has), and that problem's own params (`reason`; or `action` and `failure`, the code of what the action failed with); `cause`: the event |
 | `sequence.started` | A sequence starts running | `id`, `name`, `by` (`api`, `automation`), `restarted` when it was running; `cause`: the automation |
-| `sequence.stopped` | It was stopped | `id`, `name`, `by` (`api`, `automation`, `panic`, or `exclusive_group` when one of its group started) |
+| `sequence.stopped` | It was stopped | `id`, `name`, `by`: who asked (`api`, `automation`), `panic`, or `exclusive_group` when nobody asked and one of its group started |
 | `sequence.ended` | It reached its end on its own | `id`, `name` |
 | `variable.changed` | A variable was set or incremented | `id`, `name`, `value` (after), `by` (`api`, `automation`); `cause`: the automation |
-| `output.commanded` | A person commanded an output | `id`, `name`, `action`, `durationMs` for a test |
+| `variable.kept_value_dropped` | When the service starts: a persistent variable no longer takes the value kept for it, and starts at its initial one | `id`, `name`, `problem` (why it does not take it) |
+| `output.commanded` | A person commanded an output | `id`, `name`, `action`, `durationMs` for a test, `failed` when the hardware refused it (the output may have changed, and a test still expires) |
 | `output.released` | A person let go of one they held | `id`, `name` |
 | `output.test_ended` | A test ran out | `id`, `name` |
-| `output.failed` | An output could not be taken where it should be (said once, not at every retry) | `id`, `name` |
+| `output.failed` | An output could not be taken where it should be, or panic could not make it safe (said once, not at every retry nor at every panic) | `id`, `name`; `cause`: the panic |
 | `output.recovered` | It got there after all | `id`, `name` |
 | `panic.on`, `panic.released` | Panic is latched, released | |
-| `time.known`, `time.unknown` | The board comes to know the time, or stops knowing it | |
+| `time.known`, `time.unknown` | The board comes to know the time, or stops knowing it: noted right before the first entry it changes the `time` of, whatever the package (right after `service.started` when it starts knowing it) | |
 | `variables.unsaved`, `variables.saved` | Persistent values could not be kept, are kept again | |
 
 - A request that is refused (an unknown output, an event fired during panic) notes nothing:
@@ -70,9 +71,19 @@ Nothing is written to the card for it.
 | `GET /api/trace?after=<number>` | Only the entries numbered above it: what is new since the last one the caller has |
 | WebSocket `/api/trace/ws` (`?after=<number>`) | A message as above with what is kept (above `after`), then one with each new entry or entries as they are noted |
 
-`first` is the oldest entry still kept and `last` the newest ever noted. A caller that asks
-for what follows entry `n` and finds `first` above `n + 1` missed the entries in between:
-they were dropped before it asked.
+`{entries, first, last, run}`: `first` is the oldest entry still kept and `last` the newest
+ever noted. A caller that asks for what follows entry `n` and finds `first` above `n + 1`
+missed the entries in between: they were dropped before it asked.
+
+`run` is the id of the trace, new each time the service starts. **A restart starts the
+numbers at 1 again**: a caller that finds a `run` it did not have, or a `last` below the
+`after` it asked with, holds entries of a trace that is gone, and asks again from 0.
+
+- The WebSocket always sends its first message at once, also with no entries in it: a
+  client that comes back after a restart asking for what follows entry 500 is told where
+  the new trace is, instead of waiting for an entry 501.
+- A negative `after` is refused by both: `request.invalid` (422) by the route, and the
+  WebSocket closes without accepting (close code 1008).
 
 A slow client of the WebSocket holds nothing up: it is sent, when it can take it, what is
 kept above the last entry it has.
