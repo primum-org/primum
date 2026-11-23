@@ -17,13 +17,26 @@ development; in phase 7 rpi-image-gen runs the same script to build the Primum O
 
 ## Running a package on the Pi
 
-Until packages are activated from the UI (block 4.5), by hand. On the laptop, `uv run primum
-build <project>`; copy the `.package.json` to the Pi, somewhere the `primum` user can read
-(`/data`); in `/etc/primum/runtime.env` set `PRIMUM_PACKAGE=/data/<name>.package.json` and
-remove `PRIMUM_PIN` and the other options of elements (the service refuses both together);
-`sudo systemctl restart primum`. If the package cannot be run the service does not start and
-`journalctl -u primum` says why. Wire only what the package says, on the pins it says: its
-project is what was checked against the board.
+The service runs the package that was activated on it when `/etc/primum/runtime.env` has
+neither `PRIMUM_PIN` nor `PRIMUM_PACKAGE` (`provision.sh` still writes a `PRIMUM_PIN`: remove
+it, and the other options of elements, then `sudo systemctl restart primum`). It starts with
+nothing, and takes packages through its API, in two steps:
+
+```
+uv run primum build <project>                                   # on the laptop
+curl -X PUT --data-binary @<name>.package.json http://<pi>:8080/api/package
+curl -X POST -H 'Content-Type: application/json' \
+     -d '{"hash": "sha256:…"}' http://<pi>:8080/api/package/activate
+curl -X POST http://<pi>:8080/api/package/rollback               # the one before, again
+```
+
+The first answers with the hash to activate (`staged`), or with what is wrong with the
+package; nothing changes on the board until the second. `GET /api/package` says what runs.
+There is no pairing yet: whoever reaches the API can do this. Wire only what the package
+says, on the pins it says: its project is what was checked against the board.
+
+`PRIMUM_PACKAGE=<file>` still runs one file, for development; such a service takes no
+others, and does not start if it cannot run it.
 
 Variables marked persistent are kept in `variables.json` in the data directory (`/data`),
 for the project: a new package of the same project finds them. To start them again, stop

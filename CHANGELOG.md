@@ -79,6 +79,11 @@ All notable changes to this project are documented here. The format follows
   automations that wait for it check their condition and start or stop sequences and change
   variables. A counter that is incremented stays within its limits. Panic stops all of it.
   The state lists the events and the automations, with what went wrong in each, if anything.
+- A board takes its packages through its API, in two steps: `PUT /api/package` checks one
+  and keeps it, `POST /api/package/activate` runs it, and `POST /api/package/rollback` puts
+  the one before back. A package the board cannot run is refused and what was running goes
+  on. A service started without `--package` and `--pin` runs what was activated on it, and
+  starts with nothing instead of failing when there is none.
 - The board keeps a trace of what it did and why: what happened, which automations acted
   or did not, the sequences that started and ended, what a person commanded, panic. Read
   it with `GET /api/trace`, or follow it live on the WebSocket `/api/trace/ws`.

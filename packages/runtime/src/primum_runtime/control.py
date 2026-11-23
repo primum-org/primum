@@ -274,6 +274,9 @@ class Controller:
         package: Package | None = None,
         wall: Wall = lambda: None,
         kept: Mapping[UUID, Value] | None = None,
+        trace: Trace | None = None,
+        origin: float | None = None,
+        opening: tuple[Kind, Mapping[str, ErrorParam]] | None = None,
     ) -> None:
         """Make the driver of every element and claim them all at once. Outputs start in
         their safe state, and no sequence of ``package`` is running.
@@ -307,9 +310,11 @@ class Controller:
         self._panic = False
         self._listeners: list[Listener] = []
         self._clock = clock
-        self._started = clock()
+        # A service that changes the package it runs makes a new controller and goes on
+        # with the same trace: it gives the trace, and the instant its times count from.
+        self._started = clock() if origin is None else origin
         self._wall = wall
-        self.trace = Trace()
+        self.trace = Trace() if trace is None else trace
         self._held: dict[str, _Held] = {}  # what a person asked of each output
         self._retry_at: dict[str, float] = {}  # outputs not where they should be: when next
         # The level each output was last taken to, while that is known: the claim left them
@@ -324,11 +329,16 @@ class Controller:
         self._traced_runs: frozenset[Run] = frozenset()
         # The sequences something asked to stop since then: stopped by it, not by a group.
         self._asked_to_stop: set[UUID] = set()
-        self._time_traced = False  # whether the trace was last told the time is known
-        started = (
+        # Whether the trace was last told the time is known: as its last entry says.
+        last = self.trace.entries(self.trace.last - 1)
+        self._time_traced = bool(last) and last[-1].time is not None
+        started: dict[str, ErrorParam] = (
             {} if package is None else {"project": package.project.name, "package": package.hash}
         )
-        self._traced(Kind.SERVICE_STARTED, started)
+        # Its first entry: the service starting, unless whoever made it says what it is
+        # (a package activated on a service that was running already).
+        kind, told = opening or (Kind.SERVICE_STARTED, started)
+        self._traced(kind, told)
         for variable in variables:
             self._restore(variable, kept or {})
         self._events: Mapping[UUID, PackageEvent] = (
@@ -552,6 +562,11 @@ class Controller:
         self._values[found.id] = value
         self._trace_value(found, "api")
         self._notify()
+
+    def note(self, kind: Kind, params: Mapping[str, ErrorParam] | None = None) -> int:
+        """Note in the trace something that whoever runs the controller decided, and that
+        the controller cannot know: a package stored, one that could not be activated."""
+        return self._traced(kind, params)
 
     def persistent_values(self) -> dict[UUID, Value]:
         """The value each persistent variable has now, by its id: what is worth keeping."""

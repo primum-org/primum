@@ -121,10 +121,45 @@ are its driver's, and that pins and buses are free on the board. **The runtime c
 when it loads a package** (below), with its own drivers and its HAL, and refuses the package
 whole: it never trusts one for having a hash.
 
+## On a board: stored, activated, put back (decision 0033)
+
+A service told neither a package file nor pins runs **the package that was activated on
+it**, and takes others through its API. It is how a board is meant to run.
+
+| Request | Does | Refused |
+|---|---|---|
+| `GET /api/package` | `{running, active, previous, staged, problem, fixed}`: each package as `{hash, project}` | |
+| `PUT /api/package`, the body the `.package.json` | Checks it against this board (*Running one*, below) and keeps it as the **staged** one, replacing the one staged before. Nothing that runs changes | What is wrong with it (422: `package.invalid`, `element.*`, `event.not_listenable`, `package.board_unsupported` for another board than this service's…); `package.too_large` (413, over 8 MiB); `package.unwritable`; `package.fixed` (409) |
+| `POST /api/package/activate` with `{"hash": "sha256:…"}` | Runs a package that is kept: the staged one, or the previous one. The one that ran becomes the previous one | `package.not_stored` (404); `panic.active` (409); `package.fixed` (409); what is wrong with it, read again; `package.activation_failed` (500: `hash`, `problem`) |
+| `POST /api/package/rollback` | Activates the previous one: the two swap, so it can be undone | `package.no_previous` (409); the rest as activating |
+
+- **Two steps, on purpose**: storing never changes what a board does, and activating names
+  the package by its hash. Until the API has its PIN (phase 5), that is all that stands
+  between a request and the hardware.
+- **Activating stops everything and starts from nothing**: sequences stop, what a person
+  held is let go, every output goes to its safe state and is released, and the package
+  claims its own elements. Also the outputs both packages have: they go through their safe
+  state.
+- **What carries over**: the persistent variables, which are the project's (a package put
+  back finds the values there are now, if it still takes them: `engine-semantics.md`), and
+  the trace, which notes `package.stored`, `package.activated` and `package.refused`.
+- **A package that cannot be started is not activated**: what ran before is started again
+  and stays active; the package stays staged.
+- **Not while panic is on**: release it first.
+- **At most three packages are kept**, in `packages/` under the data directory, each in a
+  file named by its hash, with a `state.json` that says which is active, previous and
+  staged. A kept package is read and checked again each time it is used.
+- **A service with nothing it can run starts empty**: no package activated yet, or the
+  active one no longer reads or no longer fits. Nothing moves, `running` is `null`, and
+  `problem` says why. It never keeps the service from starting.
+- `fixed` is true on a service started with `--package` or `--pin`: it runs that and takes
+  no packages.
+
 ## Running one
 
 ```
-primum-runtime --package <file>        (or PRIMUM_PACKAGE)
+primum-runtime                         runs what was activated on the board
+primum-runtime --package <file>        (or PRIMUM_PACKAGE) runs that file, for development
 ```
 
 The service takes its elements and its board from the package (decision 0025), instead of
@@ -162,7 +197,8 @@ drove its own (commands, test mode, panic); it starts no sequence yet.
 
 - How a board runs the sequences of a package, its fades and its variables is in
   `engine-semantics.md`; its events and automations, in `events.md`.
-- Activation, rollback and sending a package to a board: block 4.5. Until then the file is
-  copied by hand and named in the service's configuration.
+- Pairing: whoever reaches the API can store and activate a package. The PIN of phase 5.
+- A service started with `--package` and a file it cannot run does not start, and systemd
+  restarts it without end. A board runs without that option.
 - Audio and other files next to the package: phase 6.
 - A project on several boards.

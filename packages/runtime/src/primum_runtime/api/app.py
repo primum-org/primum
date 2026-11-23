@@ -9,33 +9,28 @@ from systemd, both handled by uvicorn) the HAL is closed, which applies the safe
 import asyncio
 import logging
 import os
-from collections.abc import AsyncGenerator, Callable, Mapping
+import time
+from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
-from functools import partial
 from pathlib import Path
-from uuid import UUID
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from primum_core.values import Value
-from primum_runtime import __version__, declared, stored, systemd
+from primum_runtime import __version__, systemd
 from primum_runtime.api.broadcast import StateBroadcaster
+from primum_runtime.api.deploy import Deployment, HalFactory, Parts
 from primum_runtime.api.errors import install_error_handlers
-from primum_runtime.api.expiry import ExpiryTimer
 from primum_runtime.api.routes import router
-from primum_runtime.api.saving import VariableSaver
 from primum_runtime.config import RuntimeConfig
 from primum_runtime.control import Controller, Wall
-from primum_runtime.drivers import load_manifests
-from primum_runtime.hal import Claim, Hal, create_hal
+from primum_runtime.hal import Hal, create_hal
+from primum_runtime.trace import Trace
 
 log = logging.getLogger(__name__)
 
 # The page and its generated assets (i18n catalogs, tokens, icons), served at "/".
 UI_DIR = Path(__file__).resolve().parent.parent / "ui"
-
-type HalFactory = Callable[[], Hal]
 
 
 def create_app(
@@ -44,11 +39,14 @@ def create_app(
     env: Mapping[str, str] | None = None,
     wall: Wall | None = None,
 ) -> FastAPI:
-    """The API for ``config``. ``open_hal`` replaces the HAL ``config`` asks for (tests);
-    ``env`` is where systemd says how to reach it (the process's environment unless given);
-    ``wall`` replaces the system's clock, for the schedules (tests).
+    """The API for ``config``. ``open_hal`` replaces the HAL ``config`` asks for (tests): it
+    is called for a new HAL each time what runs changes; ``env`` is where systemd says how
+    to reach it (the process's environment unless given); ``wall`` replaces the system's
+    clock, for the schedules (tests).
 
     ``app.state.stopped_safely`` becomes true once the HAL has closed without errors.
+    ``app.state.deployment`` is what runs (``api.deploy``); its controller changes when a
+    package is activated, so nothing keeps it across requests.
     """
     notify = systemd.notifier(os.environ if env is None else env)
     watchdog_interval_s = systemd.watchdog_interval_s(os.environ if env is None else env)
@@ -56,92 +54,46 @@ def create_app(
     def default_hal() -> Hal:
         return create_hal(simulate=config.simulate, board=config.board)
 
-    declarations: list[Claim] = []  # what this service declared: one claim, or none yet
-
-    def declare(claim: Claim) -> None:
-        declared.write(config.data_dir, declared.Declaration.of(config.board.model, claim))
-        declarations.append(claim)
-
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
-        with (open_hal or default_hal)() as hal:
-            # A real service declares what it claims before it claims it, so that primum-safe
-            # can make it safe if this process dies. A simulated one has nothing to make safe.
-            before_claim = None if config.simulate else declare
-            project = None if config.package is None else config.package.project.id
-            kept = {} if project is None else stored.read(config.data_dir, project)
+        broadcaster = StateBroadcaster()
+        parts = Parts(
+            config=config,
+            open_hal=open_hal or default_hal,
+            wall=wall or systemd.trusted_time(trust=config.trust_clock),
+            loop=asyncio.get_running_loop(),
+            broadcaster=broadcaster,
+            trace=Trace(),
+            origin=time.monotonic(),
+            clock=time.monotonic,
+        )
+        deployment = Deployment(parts)
+        app.state.deployment = deployment
+        app.state.broadcaster = broadcaster
+        app.state.trace = parts.trace
+        # The beats come from this loop: if it is stuck, systemd stops hearing them.
+        watchdog = None
+        if watchdog_interval_s is not None:
+            beats = systemd.feed_watchdog(notify, watchdog_interval_s, asyncio.sleep)
+            watchdog = asyncio.create_task(beats)
+        log.info(
+            "started outputs=%s simulate=%s", _describe(deployment.controller), config.simulate
+        )
+        notify(systemd.READY)
+        try:
+            yield
+        finally:
+            notify(systemd.STOPPING)
+            if watchdog is not None:
+                watchdog.cancel()
             try:
-                controller = Controller(
-                    hal,
-                    config.elements,
-                    load_manifests(),
-                    config.limits,
-                    before_claim,
-                    package=config.package,
-                    wall=wall or systemd.trusted_time(trust=config.trust_clock),
-                    kept=kept,
-                )
-            except Exception:
-                # A claim that fails leaves nothing claimed: what was declared for it names
-                # outputs nobody holds (a pin the board lacks, say), and primum-safe would
-                # fail on it at every stop.
-                if declarations:
-                    declared.remove(config.data_dir)
-                raise
-            broadcaster = StateBroadcaster()
-            unsubscribe = controller.subscribe(broadcaster.publish)
-            app.state.controller = controller
-            app.state.broadcaster = broadcaster
-            # Input changes are read when the HAL says there are some: no thread, no polling.
-            # Without inputs there is nothing to watch.
-            loop = asyncio.get_running_loop()
-            # Tests that expire on their own, and the sequences in their time.
-            expiry = ExpiryTimer(controller, loop.call_later)
-            # The values of persistent variables, kept as they change.
-            saver = None
-            if project is not None and _drops(kept, controller.persistent_values()):
-                # Before anything replaces it: going back must be able to find them.
-                stored.set_aside(config.data_dir)
-            if project is not None and controller.persistent_values():
-                saver = VariableSaver(
-                    controller,
-                    partial(stored.write, config.data_dir, project),
-                    loop.call_later,
-                    partial(_off_the_loop, loop),
-                    {v: kept[v] for v in controller.persistent_values() if v in kept},
-                )
-            events_fd = controller.events_fd()
-            if events_fd is not None:
-                loop.add_reader(events_fd, _read_inputs, loop, events_fd, controller)
-            # The beats come from this loop: if it is stuck, systemd stops hearing them.
-            watchdog = None
-            if watchdog_interval_s is not None:
-                beats = systemd.feed_watchdog(notify, watchdog_interval_s, asyncio.sleep)
-                watchdog = asyncio.create_task(beats)
-            log.info("started outputs=%s simulate=%s", _describe(controller), config.simulate)
-            if config.package is not None:
-                project, package_hash = config.package.project.name, config.package.hash
-                log.info("running package %s of project %s", package_hash, project)
-            notify(systemd.READY)
-            try:
-                yield
+                deployment.stop()
             finally:
-                notify(systemd.STOPPING)
-                if watchdog is not None:
-                    watchdog.cancel()
-                if events_fd is not None:
-                    loop.remove_reader(events_fd)
-                expiry.close()
-                if saver is not None:
-                    saver.close()
-                unsubscribe()
                 broadcaster.close()
         # Only reached when closing the HAL raised nothing: every output is in its safe state
-        # and released, so there is nothing left for primum-safe to do.
-        if not config.simulate:
-            declared.remove(config.data_dir)
+        # and released.
         app.state.stopped_safely = True
-        log.info("stopped outputs=%s", _describe(controller))
+        log.info("stopped outputs=%s", _describe(deployment.controller))
 
     app = FastAPI(title="Primum runtime", version=__version__, lifespan=lifespan)
     app.state.stopped_safely = False
@@ -150,39 +102,6 @@ def create_app(
     app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")
     install_error_handlers(app)
     return app
-
-
-def _drops(kept: Mapping[UUID, Value], now: Mapping[UUID, Value]) -> bool:
-    """Whether writing ``now`` over what is on the board would lose something of it: a
-    value that was kept and is not what its variable starts at (the variable is gone, or
-    no longer takes it), or a file whose values could not be used at all (another
-    project's, or unreadable; nothing kept sets nothing aside)."""
-    return not kept or any(now.get(variable) != value for variable, value in kept.items())
-
-
-def _off_the_loop(
-    loop: asyncio.AbstractEventLoop,
-    work: Callable[[], None],
-    done: Callable[[BaseException | None], None],
-) -> None:
-    """Run ``work`` in a thread, and call ``done`` on the loop with what it raised, if
-    anything: a write to the card must not keep the loop, and panic with it, waiting."""
-    future = loop.run_in_executor(None, work)
-    # A service that is stopping cancels what waits: its last save is made on the way out.
-    future.add_done_callback(
-        lambda finished: None if finished.cancelled() else done(finished.exception())
-    )
-
-
-def _read_inputs(loop: asyncio.AbstractEventLoop, events_fd: int, controller: Controller) -> None:
-    """Read the input changes the descriptor announces. If reading fails the watch ends: the
-    descriptor would stay readable and the loop would call again at once, for ever. The
-    outputs and the panic button go on working; the inputs keep their last state."""
-    try:
-        controller.read_inputs()
-    except Exception:  # whatever it is, it must not spin the event loop
-        loop.remove_reader(events_fd)
-        log.exception("reading the inputs failed: inputs are no longer listened to")
 
 
 def _describe(controller: Controller) -> str:

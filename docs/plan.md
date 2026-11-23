@@ -984,6 +984,24 @@ per element, from a deployment package that can be rolled back. One pull request
     kept across restarts; a restart of a sequence in the very millisecond it started is
     not noted.
 
+- **4.5b · Activation and rollback: code done; not tried on `primum-dev`** (decision 0033,
+  `specs/deployment-package.md`). A service told neither a package nor pins runs what was
+  activated on it. `PUT /api/package` checks and keeps a package, `POST
+  /api/package/activate` runs it by its hash, `POST /api/package/rollback` puts the one
+  before back. Activating closes what runs (safe state, HAL released) and starts the
+  package on a HAL of its own; one that cannot be started leaves what ran before running.
+  A service with nothing it can run starts empty and says why. Persistent variables and
+  the trace carry over.
+  - Tried on the simulated HAL only, with a new simulated HAL at each activation.
+  - To try on a Pi, and it is what this block most needs: that the real HAL can be closed
+    and opened again in one process (lines released and requested again, PWM unexported
+    and exported), which activation relies on and no test here can show. Then the "done
+    when" of the phase, below.
+  - `provision.sh` still writes a `PRIMUM_PIN`: a board runs packages once it is removed.
+    Not changed here: the script cannot be tried from this session.
+  - Left for phase 5: the PIN, which activation must be the first thing behind. Left out:
+    a service started with `--package` and a file it cannot run still does not start.
+
 **Done when:** "presence sensor → 10 s sequence with relay, LED and PWM output" runs from a
 deployed package, shows in the trace and can be rolled back. A servo, an exclusive element
 with its pulse limits, comes with the drivers of phase 6.

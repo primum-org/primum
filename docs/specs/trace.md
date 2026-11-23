@@ -27,6 +27,9 @@ a sequence started by an automation names that automation's entry.
 | Kind | When | Params |
 |---|---|---|
 | `service.started` | The service starts: always entry 1 | `project`, `package` (its hash), with a package |
+| `package.stored` | A package was given to the board and kept | `project`, `package` (its hash) |
+| `package.activated` | A package started running in place of what ran: the first entry of what follows | `project`, `package`, `previous` (the hash of the one before), `rollback` when it is the previous one put back |
+| `package.refused` | A package could not be started, and what ran before runs again | `hash`, `problem` |
 | `event.happened` | An input changed, an event was fired, a schedule happened | `id`, `name`, `source` (`element`, `ui`, `api`, `schedule`) |
 | `event.ignored` | It happened while panic was on | the same, and `reason`: `panic` |
 | `event.failed` | It could not be dealt with at all | the same; `cause`: the event |
@@ -82,7 +85,8 @@ Nothing is written to the card for it.
 ever noted. A caller that asks for what follows entry `n` and finds `first` above `n + 1`
 missed the entries in between: they were dropped before it asked.
 
-`run` is the id of the trace, new each time the service starts. **A restart starts the
+`run` is the id of the trace, new each time the service starts. Activating a package does
+not start a new trace: the numbers go on. **A restart starts the
 numbers at 1 again**: a caller that finds a `run` it did not have, or a `last` below the
 `after` it asked with, holds entries of a trace that is gone, and asks again from 0.
 
@@ -100,4 +104,3 @@ kept above the last entry it has.
 
 - Texts for the kinds in the catalogs, and the trace on a page: the UI of phase 5.
 - A trace kept across restarts.
-- Which package was activated, and when one was put back: block 4.5b.

@@ -81,6 +81,12 @@ def load_package(path: Path, manifests: Mapping[str, Driver]) -> LoadedPackage:
     except OSError as error:
         params = {"path": str(path), "detail": str(error)}
         raise PrimumError(ErrorCode.PACKAGE_UNREADABLE, params) from error
+    return check_content(content, path, manifests)
+
+
+def check_content(content: bytes, path: Path, manifests: Mapping[str, Driver]) -> LoadedPackage:
+    """The package whose bytes are ``content``, checked against the drivers and its board as
+    ``load_package`` says; ``path`` is only what it is called in what is reported."""
     read = read_package(PurePosixPath(path.name), content)
     if read.value is None:
         problems = [

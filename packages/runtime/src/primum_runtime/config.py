@@ -63,6 +63,9 @@ class RuntimeConfig:
     # Take the system's clock as right without waiting for it to be set from the network:
     # a board with a clock of its own, or a laptop.
     trust_clock: bool = False
+    # Told neither a package file nor pins: it runs the package that was activated on it
+    # (``primum_runtime.deployed``), and takes others through its API.
+    deployed: bool = False
 
 
 def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
@@ -76,14 +79,14 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
     if package_path is not None:
         return _from_package(package_path, args, parser)
     pin: int | None = args.pin
-    if pin is None:
-        parser.error("say what to drive: --package (PRIMUM_PACKAGE), or --pin (PRIMUM_PIN)")
     simulate: bool = args.simulate
     board: str = args.board or DEFAULT_BOARD
     if board not in available_boards():  # argparse checks the choices of options, not defaults
         parser.error(
             f"no profile for board {board!r} (PRIMUM_BOARD): {', '.join(available_boards())}"
         )
+    if pin is None:
+        return _deployed(board, args, parser)
     active_low: bool = args.active_low
     elements = [ElementConfig(LED, "digital_output", pin, active_low)]
     input_pin: int | None = args.input_pin
@@ -127,7 +130,37 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
         data_dir=args.data_dir,
         host=host,
         port=port,
+        trust_clock=args.trust_clock,
     )
+
+
+def _deployed(
+    board: str, args: argparse.Namespace, parser: argparse.ArgumentParser
+) -> RuntimeConfig:
+    """The configuration of a service told neither a package file nor a pin: it runs the
+    package activated on it, on ``board``, and starts with nothing if there is none."""
+    given = _given(args)
+    if given:
+        parser.error(f"options of elements without --pin (PRIMUM_PIN): remove {given}")
+    return RuntimeConfig(
+        simulate=args.simulate,
+        board=load_board(board),
+        limits=option_limits(load_profile(board)),
+        elements=(),
+        data_dir=args.data_dir,
+        host=args.host,
+        port=args.port,
+        trust_clock=args.trust_clock,
+        deployed=True,
+    )
+
+
+def _given(args: argparse.Namespace) -> str:
+    """The options of elements that were given, as they are written; none: empty."""
+    # By identity: 0 is a pin and a debounce like any other, and in Python it equals False.
+    values = {name: getattr(args, name) for name in _ELEMENT_OPTIONS}
+    given = [name for name, value in values.items() if value is not None and value is not False]
+    return ", ".join("--" + name.replace("_", "-") for name in given)
 
 
 # The options that say what elements there are: with a package, the package says it.
@@ -148,12 +181,9 @@ def _from_package(
 ) -> RuntimeConfig:
     """The configuration of a service that runs a package: its board and its elements are
     the package's. Raises what ``load_package`` does for one it cannot run."""
-    # By identity: 0 is a pin and a debounce like any other, and in Python it equals False.
-    values = {name: getattr(args, name) for name in _ELEMENT_OPTIONS}
-    given = [name for name, value in values.items() if value is not None and value is not False]
+    given = _given(args)
     if given:
-        options = ", ".join("--" + name.replace("_", "-") for name in given)
-        parser.error(f"a package says what elements there are: remove {options} (or PRIMUM_*)")
+        parser.error(f"a package says what elements there are: remove {given} (or PRIMUM_*)")
     loaded = load_package(path, load_manifests())
     model = loaded.package.board.model
     board: str | None = args.board

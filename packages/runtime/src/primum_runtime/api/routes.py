@@ -12,17 +12,36 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request, WebSocket, WebSocketDisconnect
 
 from primum_runtime.api.broadcast import StateBroadcaster, Subscription
-from primum_runtime.api.models import OutputCommand, StateBody, TraceBody, VariableValue
+from primum_runtime.api.deploy import Deployment
+from primum_runtime.api.models import (
+    OutputCommand,
+    PackageChoice,
+    PackagesBody,
+    StateBody,
+    TraceBody,
+    VariableValue,
+)
 from primum_runtime.control import Controller, State
+from primum_runtime.deployed import MAX_BYTES
+from primum_runtime.errors import ErrorCode, PrimumError
+from primum_runtime.trace import Trace
 
 router = APIRouter(prefix="/api")
 # The close code of a WebSocket for a request that is refused (RFC 6455, 1008).
 WS_POLICY_VIOLATION = 1008
 
 
+def _deployment(request: Request) -> Deployment:
+    deployment: Deployment = request.app.state.deployment
+    return deployment
+
+
 def _controller(request: Request) -> Controller:
-    controller: Controller = request.app.state.controller
-    return controller
+    # Asked for at each request: activating a package makes a new one.
+    return _deployment(request).controller
+
+
+type DeploymentDep = Annotated[Deployment, Depends(_deployment)]
 
 
 type ControllerDep = Annotated[Controller, Depends(_controller)]
@@ -90,11 +109,53 @@ async def release_panic(controller: ControllerDep) -> StateBody:
     return StateBody.of(controller.state())
 
 
+@router.get("/package")
+async def packages(deployment: DeploymentDep) -> PackagesBody:
+    """The package that runs, the one before it and the one stored to be activated."""
+    return PackagesBody.of(deployment)
+
+
+@router.put("/package")
+async def store_package(request: Request, deployment: DeploymentDep) -> PackagesBody:
+    """Give the board a package (the body is the ``.package.json``, as ``primum build``
+    writes it). It is checked against this board and kept, and nothing that runs changes:
+    activating it is another request, that names it by its hash."""
+    deployment.store(await _body(request))
+    return PackagesBody.of(deployment)
+
+
+@router.post("/package/activate")
+async def activate_package(body: PackageChoice, deployment: DeploymentDep) -> PackagesBody:
+    """Run a package the board keeps, named by its hash: the one stored last, or the one
+    before the active one. Everything stops and every output goes to its safe state first."""
+    deployment.activate(body.hash)
+    return PackagesBody.of(deployment)
+
+
+@router.post("/package/rollback")
+async def rollback_package(deployment: DeploymentDep) -> PackagesBody:
+    """Run again the package that ran before the active one."""
+    deployment.rollback()
+    return PackagesBody.of(deployment)
+
+
+async def _body(request: Request) -> bytes:
+    """The body of a request, refused as soon as it is past what a package may be: never
+    read whole first."""
+    content = bytearray()
+    async for chunk in request.stream():
+        content += chunk
+        if len(content) > MAX_BYTES:
+            raise PrimumError(ErrorCode.PACKAGE_TOO_LARGE, {"max_bytes": MAX_BYTES})
+    return bytes(content)
+
+
 @router.get("/trace")
-async def trace(controller: ControllerDep, after: Annotated[int, Query(ge=0)] = 0) -> TraceBody:
+async def trace(request: Request, after: Annotated[int, Query(ge=0)] = 0) -> TraceBody:
     """What the board did, oldest first: the entries numbered above ``after`` that are still
     kept (all of them without it)."""
-    return TraceBody.of(controller.trace, after)
+    kept: Trace = request.app.state.trace
+    return TraceBody.of(kept, after)
 
 
 @router.websocket("/trace/ws")
@@ -102,7 +163,7 @@ async def trace_updates(websocket: WebSocket, after: int = 0) -> None:
     """Send the entries above ``after`` that are kept, at once and also if there are none,
     then each new one as it is noted, until either side closes. Each message is as
     ``GET /api/trace`` answers. A negative ``after`` is refused: the connection is closed."""
-    controller: Controller = websocket.app.state.controller
+    kept: Trace = websocket.app.state.trace
     broadcaster: StateBroadcaster = websocket.app.state.broadcaster
     if after < 0:  # refused, as GET /api/trace refuses it: never taken as something else
         await websocket.close(code=WS_POLICY_VIOLATION)
@@ -110,11 +171,11 @@ async def trace_updates(websocket: WebSocket, after: int = 0) -> None:
     await websocket.accept()
     news = asyncio.Event()
     news.set()  # what is there already
-    unsubscribe = controller.trace.subscribe(news.set)
+    unsubscribe = kept.subscribe(news.set)
     # The service stopping ends the feed: the broadcaster of states says when.
     stopping = broadcaster.subscribe()
     tasks = {
-        asyncio.create_task(_send_trace(websocket, controller, news, after)),
+        asyncio.create_task(_send_trace(websocket, kept, news, after)),
         asyncio.create_task(_wait_for_disconnect(websocket)),
         asyncio.create_task(_wait_for_stop(stopping)),
     }
@@ -131,20 +192,18 @@ async def trace_updates(websocket: WebSocket, after: int = 0) -> None:
         stopping.close()
 
 
-async def _send_trace(
-    websocket: WebSocket, controller: Controller, news: asyncio.Event, after: int
-) -> None:
+async def _send_trace(websocket: WebSocket, kept: Trace, news: asyncio.Event, after: int) -> None:
     """A slow client is never waited for by the controller: it is sent, when it can take
     it, whatever is kept above the last entry it has."""
     # Asked for what follows an entry this trace never reached: what the client has is of
     # another trace (the service restarted). It is sent this one from its start.
-    sent = after if after <= controller.trace.last else 0
+    sent = after if after <= kept.last else 0
     first = True
     try:
         while True:
             await news.wait()
             news.clear()
-            body = TraceBody.of(controller.trace, sent)
+            body = TraceBody.of(kept, sent)
             # The first message always goes, also with nothing in it: a client that asks
             # for what follows an entry this trace never reached (the service restarted)
             # must be told where the trace is, not left waiting for that entry.
@@ -165,7 +224,8 @@ async def _wait_for_stop(stopping: Subscription) -> None:
 @router.websocket("/ws")
 async def state_updates(websocket: WebSocket) -> None:
     """Send the current state on connect, then every new state, until either side closes."""
-    controller: Controller = websocket.app.state.controller
+    deployment: Deployment = websocket.app.state.deployment
+    controller = deployment.controller
     broadcaster: StateBroadcaster = websocket.app.state.broadcaster
     await websocket.accept()
     # Subscribed before the current state is read, so no change falls in between.

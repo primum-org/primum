@@ -192,6 +192,30 @@
       "message": "Esta placa no conoce la zona horaria {timeZone} del paquete.",
       "hint": "Revisa el nombre de la zona horaria en project.json y vuelve a generar el paquete."
     },
+    "package.too_large": {
+      "message": "El paquete es mayor de lo que puede ser un paquete.",
+      "hint": "Comprueba que el fichero es el .package.json que escribió primum build."
+    },
+    "package.unwritable": {
+      "message": "No se pudo guardar el paquete en la placa.",
+      "hint": "Comprueba que la carpeta de datos existe y se puede escribir."
+    },
+    "package.not_stored": {
+      "message": "La placa no tiene guardado ese paquete.",
+      "hint": "Vuelve a enviar el paquete y actívalo después."
+    },
+    "package.no_previous": {
+      "message": "No hay un paquete anterior al que volver.",
+      "hint": "Se puede volver a un paquete cuando se ha activado otro después de él."
+    },
+    "package.fixed": {
+      "message": "Este servicio se arrancó con un paquete o unos pines fijos y no admite otros.",
+      "hint": "Arráncalo sin --package ni --pin para darle paquetes por la API."
+    },
+    "package.activation_failed": {
+      "message": "El paquete no se pudo poner en marcha y la placa ha vuelto a lo que ejecutaba.",
+      "hint": "Mira el registro del servicio para ver qué falló y envía un paquete corregido."
+    },
     "safe.declaration_unwritable": {
       "message": "Primum no puede dejar anotadas las salidas que va a usar, así que no las usará.",
       "hint": "Comprueba que su directorio de datos existe y que Primum puede escribir en él."

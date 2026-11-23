@@ -14,6 +14,10 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   reads it with `core` and checks it against the drivers and the board before anything is
   claimed, and refuses it whole. A package is never trusted for having a right hash. Elements
   are asked for by their id (`ElementConfig.key`), never by their name.
+- Packages are stored and then activated through the API (decision 0033): `deployed` keeps
+  them on disk, `api.deploy.Deployment` has what runs and swaps it (close everything, open a
+  new HAL, a new `Controller`). Nothing keeps a controller across requests: ask
+  `app.state.deployment.controller`. The trace and the broadcaster are the service's.
 - The controller is the arbiter of every output (decision 0026): panic, then what a person
   asked (manual control or a test), then the sequences, as `engine.Engine` says. The engine
   touches no hardware and reads no clock; a test holds it to `core`'s oracle. Nothing writes

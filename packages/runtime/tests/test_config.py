@@ -52,9 +52,22 @@ def test_options_win_over_the_environment() -> None:
     assert config.elements[0].pin == 27
 
 
-def test_missing_pin_exits_with_usage_instead_of_assuming_one() -> None:
+def test_without_a_pin_or_a_package_no_pin_is_assumed_the_service_runs_what_is_activated() -> None:
+    config = parse_config(["--simulate"], {})
+
+    assert (config.deployed, config.elements, config.package) == (True, (), None)
+
+
+def test_a_service_told_what_to_drive_takes_no_packages() -> None:
+    assert parse_config(["--simulate", "--pin", "17"], {}).deployed is False
+
+
+@pytest.mark.parametrize(
+    "options", [["--input-pin", "22", "--input-pull", "up"], ["--pwm-pin", "18"], ["--active-low"]]
+)
+def test_options_of_elements_without_the_pin_they_go_with_exit(options: list[str]) -> None:
     with pytest.raises(SystemExit):
-        parse_config(["--simulate"], {})
+        parse_config(["--simulate", *options], {})
 
 
 @pytest.mark.parametrize(

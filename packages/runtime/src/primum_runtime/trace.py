@@ -35,6 +35,9 @@ class Kind(StrEnum):
     are: adding one is free, renaming one breaks whoever reads the trace."""
 
     SERVICE_STARTED = "service.started"
+    PACKAGE_STORED = "package.stored"
+    PACKAGE_ACTIVATED = "package.activated"
+    PACKAGE_REFUSED = "package.refused"
     EVENT_HAPPENED = "event.happened"
     EVENT_IGNORED = "event.ignored"
     EVENT_FAILED = "event.failed"
