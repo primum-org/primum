@@ -22,7 +22,6 @@
     "output.test": "Probar",
     "output.test_of": "Encender {name} {seconds} s y apagar",
     "output.testing": "Prueba: se apaga en {seconds} s",
-    "output.test_stuck": "La prueba ha terminado, pero no se ha podido comprobar que esté apagada. Se sigue intentando.",
     "inputs.heading": "Entradas",
     "input.active": "Activa",
     "input.inactive": "Inactiva",
@@ -49,7 +48,10 @@
     "alert.rest_failed": "No se ha podido confirmar que están apagadas: {names}. La placa lo sigue intentando. Compruébalas a la vista y, si hace falta, córtales la alimentación.",
     "alert.lost_events": "Se han perdido cambios de estas entradas, que no han iniciado nada: {names}. La placa estaba demasiado ocupada para leerlos a tiempo.",
     "alert.variables_unsaved": "La placa no ha podido guardar los valores que deben conservarse. Un reinicio perdería los últimos cambios. Comprueba que su tarjeta no está llena ni en solo lectura.",
-    "alert.time_unknown": "La placa aún no sabe la hora, así que ningún horario se cumple. La aprende de la red."
+    "alert.time_unknown": "La placa aún no sabe la hora, así que ningún horario se cumple. La aprende de la red.",
+    "command.unsent": "La orden no se ha enviado: no hay conexión con la placa. Vuelve a darla cuando vuelva la conexión. Si algo tiene que parar ya, córtale la alimentación.",
+    "panic.active_unconfirmed": "Pánico activo y no se aceptan órdenes, pero no se ha podido confirmar que todas las salidas estén apagadas.",
+    "output.rest_failed": "No se ha podido confirmar que esté apagada. La placa lo sigue intentando."
   },
   "cli": {
     "severity.error": "error",

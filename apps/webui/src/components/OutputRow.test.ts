@@ -80,7 +80,14 @@ test("an output that could not be confirmed off says so instead of counting down
   const { view } = row(output({ remainingMs: 0, restFailed: true }));
 
   expect(view.find('[role="timer"]').exists()).toBe(false);
-  expect(view.text()).toContain("could not be confirmed that it is off");
+  expect(view.text()).toContain("Could not confirm that it is off");
+});
+
+test("an output that panic could not put to rest is not said to have been tested", () => {
+  const { view } = row(output({ restFailed: true }));
+
+  expect(view.text()).toContain("Could not confirm that it is off");
+  expect(view.text().toLowerCase()).not.toContain("test is over");
 });
 
 test("only an output that takes a level has a slider", () => {

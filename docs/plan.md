@@ -1121,6 +1121,22 @@ control on the API there is · 5.4 the project on the board and the first edit o
   - Found by that browser run and not by the tests written first: keys pressed one after
     another on the slider went back to the old level between them. Fixed, with a test
     that failed before.
+  - Review, found by its owner: panic pressed with the service stopped said "Retrying…"
+    twice while the order was lost, and the second notice stayed after reconnecting; with
+    an output stuck (provoked by taking the rights of the PWM's `duty_cycle` away and
+    pressing panic) the red notice said "every output is off" above an alert saying one
+    could not be confirmed off, and its row spoke of a test that never was. Fixed, each
+    with a test that failed before: an order that did not get to the board is said as not
+    sent, once, and forgotten when the board is back; panic has a second text for when an
+    output is not confirmed off; the row says only what is known. Also: the controls of a
+    row are side by side and in the same place in every row (*Release* went next to what
+    says the output is held); nothing says "no connection" while the first connection is
+    being made; a phone held sideways keeps a smaller panic button and more room;
+    pairing is asked once at start. Seen while checking, not reported: a hairline of the
+    panic button's color at the edge of its area on screens with a pixel ratio that is not
+    whole; gone, measured by pixels.
+  - Not done: `/app/`, the address of block 5.2, answers 404. It lived one day; a redirect
+    would stay for ever.
   - Not tried: a real phone, a real board, a finger on the slider (only keys and
     synthetic pointer events), a screen reader.
   - Left for 5.3b: variables, firing events, the state of automations and schedules,

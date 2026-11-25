@@ -14,6 +14,7 @@ import { command, session } from "@/session";
 const alerts = computed(() =>
   session.online && session.state ? alertsOf(session.state, session.packages) : [],
 );
+const unconfirmed = computed(() => alerts.value.some((alert) => alert.kind === "rest_failed"));
 const releasePanic = () => command(api.releasePanic());
 </script>
 
@@ -21,12 +22,16 @@ const releasePanic = () => command(api.releasePanic());
   <div class="alerts">
     <!-- What the board answered instead of saying whether this device is paired, or that
          it does not answer. Either way it is being asked again. -->
-    <ProblemNotice v-if="!session.online" :problem="session.problem ?? 'offline'" />
+    <!-- Not while the first connection is being made: nothing has been lost yet. -->
+    <ProblemNotice v-if="!session.online && session.settled" :problem="session.problem ?? 'offline'" />
 
     <section v-if="session.online && session.state?.panic" class="notice notice-danger" role="alert">
       <AppIcon name="i-panic" />
       <div class="notice-text">
-        <p>{{ t("panic.active") }}</p>
+        <!-- Never "every output is off" next to an alert that says one could not be
+             confirmed off. -->
+        <p v-if="unconfirmed">{{ t("panic.active_unconfirmed") }}</p>
+        <p v-else>{{ t("panic.active") }}</p>
         <button class="button" type="button" @click="releasePanic">{{ t("panic.release") }}</button>
       </div>
     </section>

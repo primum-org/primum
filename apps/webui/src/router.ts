@@ -1,5 +1,5 @@
-// The screens. Addresses are after a # so that the app works wherever the service puts it
-// (/app/ now, / later) without the service knowing its screens.
+// The screens. Addresses are after a # so that the service serves the app without knowing
+// its screens: whatever is typed after the #, the same file answers.
 
 import { createRouter, createWebHashHistory, type Router } from "vue-router";
 

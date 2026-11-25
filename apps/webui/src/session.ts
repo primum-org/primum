@@ -15,6 +15,9 @@ export const session = reactive({
   // null until the board has said it once.
   pairing: null as PairingBody | null,
   online: false,
+  // Whether it is known how the connection stands: false while the first one is being
+  // made, when "no connection" would be said of a connection nobody has lost yet.
+  settled: false,
   state: null as StateBody | null,
   // When that state arrived, by this device's clock (`performance.now()`): what the
   // countdown of a test counts from.
@@ -27,6 +30,7 @@ export const session = reactive({
   packages: null as PackagesBody | null,
 });
 
+let asking: Promise<boolean> | null = null;
 let socket: WebSocket | null = null;
 let retry: ReturnType<typeof setTimeout> | null = null;
 
@@ -37,13 +41,22 @@ export const mustPair = (): boolean =>
 /** Ask the board whether this device is paired. False when it could not say: it did not
  * answer, or it answered with an error, which `session.problem` then holds. Never raises
  * for either: whoever asks decides what to do without an answer. */
-export async function refreshPairing(): Promise<boolean> {
+export function refreshPairing(): Promise<boolean> {
+  // Asked once at a time: the app and its first screen both ask as they start.
+  asking ??= askPairing().finally(() => {
+    asking = null;
+  });
+  return asking;
+}
+
+async function askPairing(): Promise<boolean> {
   try {
     session.pairing = await api.pairing();
     session.problem = null;
     return true;
   } catch (failure) {
     session.problem = problemOf(failure);
+    session.settled = true;
     return false;
   }
 }
@@ -62,11 +75,13 @@ export async function command(asked: Promise<StateBody>): Promise<void> {
     session.refused = null;
   } catch (failure) {
     const problem = problemOf(failure);
-    if (problem !== "offline" && failure instanceof ApiError && failure.unpaired) {
+    if (failure instanceof ApiError && failure.unpaired) {
       await connect();
       return;
     }
-    session.refused = problem;
+    // An order that did not get to the board is lost: nobody sends it again, and saying
+    // "retrying" of it would be a lie. It is said as not sent until the board is back.
+    session.refused = problem === "offline" ? "unsent" : problem;
   }
 }
 
@@ -75,6 +90,7 @@ export async function pair(code: string, name: string): Promise<void> {
   const paired = await api.pair(code, name);
   session.pairing = { required: true, device: paired.device };
   session.problem = null;
+  session.settled = false;
   listen();
 }
 
@@ -111,11 +127,16 @@ export function listen(delay = RECONNECT_MIN_MS): void {
       if (!opened) void askForPackages();
       opened = true;
       session.online = true;
+      session.settled = true;
+      // The board is back: an order that was not sent can be given again, and the notice
+      // of it would only be in the way. What the board itself refused stays.
+      if (session.refused === "unsent") session.refused = null;
       take(state);
     },
     () => {
       if (socket !== current) return; // closed on purpose, or replaced
       session.online = false;
+      session.settled = true;
       // A connection that worked starts the waits over; one that never did lengthens them.
       again(delay, opened ? RECONNECT_MIN_MS : Math.min(delay * 2, RECONNECT_MAX_MS));
     },

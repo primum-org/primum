@@ -51,6 +51,7 @@ export function board(initial: StateBody, answer: () => Response = () => json(se
     problem: null,
     refused: null,
     packages: null,
+    settled: true,
   });
   const asked: Asked[] = [];
   vi.stubGlobal("fetch", async (url: URL, init: RequestInit) => {

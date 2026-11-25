@@ -133,6 +133,12 @@ main {
   border-bottom: var(--size-rule-md) solid var(--rule);
 }
 .row-name { flex: 1; font-family: var(--font-family-mono); }
+/* What a row is commanded with, side by side and the same in every row. On a narrow phone
+   they go under the name together, as one line. */
+.row-controls { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+/* An output a person holds: what says so, and the button that gives it back. */
+.row-held { display: flex; align-items: center; gap: var(--space-3); }
+.row-held > p { flex: 1; }
 .row-state { padding: 0 var(--space-2); }
 .row-state.active { font-weight: 600; }
 /* What a row says under its controls: a test under way, who commands it. */
@@ -188,7 +194,7 @@ main {
   transform: translateX(calc(var(--switch-width) - var(--size-control-sm)));
   background: var(--color-text-inverse);
 }
-.switch-state { min-width: calc(var(--space-7) * 2); text-align: start; }
+.switch-state { min-width: calc(var(--space-7) * 3); text-align: start; }
 .switch:disabled { cursor: not-allowed; opacity: 0.45; }
 /* Offline the last state may be stale: "mixed" puts the thumb in the middle, neither on nor off. */
 .switch[aria-pressed="mixed"] .switch-thumb {
@@ -218,7 +224,10 @@ main {
   width: 100%;
   min-height: var(--size-panic-touch);
   border: 0;
-  background: var(--color-semantic-danger);
+  /* One color, written as an image: as a plain color, Chromium draws a hairline of it
+     along the edge of the area, above and below the button, on screens whose pixel ratio
+     is not whole (2.625 on many phones) once the page scrolls under it. */
+  background: linear-gradient(var(--color-semantic-danger), var(--color-semantic-danger));
   color: var(--color-text-inverse);
   font: inherit;
   font-size: var(--font-size-lg);
@@ -260,6 +269,23 @@ main {
   border-top-color: var(--color-text-primary);
   color: var(--color-text-primary);
   font-weight: 600;
+}
+
+/* A phone held sideways has little height, and what stays in place (panic, the tabs) must
+   leave room for the content: the panic button keeps its touch size and loses what is
+   around it. Its description is still read by a screen reader. */
+@media (max-height: 480px) {
+  .panic-area { padding: var(--space-2) 0; }
+  .panic { min-height: var(--size-transport-touch); }
+  .panic-area > p {
+    position: absolute;
+    width: var(--size-rule-md);
+    height: var(--size-rule-md);
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  :root { --tabs-height: var(--size-control-touch); }
 }
 
 @media (prefers-reduced-motion: reduce) {

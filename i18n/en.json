@@ -22,7 +22,6 @@
     "output.test": "Test",
     "output.test_of": "Turn {name} on for {seconds} s, then off",
     "output.testing": "Test: off in {seconds} s",
-    "output.test_stuck": "The test is over, but it could not be confirmed that it is off. Trying again.",
     "inputs.heading": "Inputs",
     "input.active": "Active",
     "input.inactive": "Inactive",
@@ -49,7 +48,10 @@
     "alert.rest_failed": "Could not confirm that these are off: {names}. The board keeps trying. Check them by eye, and cut their power if you must.",
     "alert.lost_events": "Changes of these inputs were lost and started nothing: {names}. The board was too busy to read them in time.",
     "alert.variables_unsaved": "The board could not save the values that must be kept. A restart would lose the latest changes. Check that its card is not full or read-only.",
-    "alert.time_unknown": "The board does not know the time yet, so no schedule happens. It learns it from the network."
+    "alert.time_unknown": "The board does not know the time yet, so no schedule happens. It learns it from the network.",
+    "command.unsent": "The order was not sent: there is no connection with the board. Give it again when the connection is back. If something must stop now, cut its power.",
+    "panic.active_unconfirmed": "Panic is active and commands are refused, but not every output could be confirmed off.",
+    "output.rest_failed": "Could not confirm that it is off. The board keeps trying."
   },
   "cli": {
     "severity.error": "error",

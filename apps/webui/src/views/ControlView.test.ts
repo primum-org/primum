@@ -2,9 +2,20 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, expect, test, vi } from "vitest";
 
 import AlertStrip from "@/components/AlertStrip.vue";
-import { session } from "@/session";
+import { listen, session, stop } from "@/session";
 import { board, json, output, state } from "@/testing/board";
 import ControlView from "@/views/ControlView.vue";
+
+class FakeSocket extends EventTarget {
+  static last: FakeSocket | null = null;
+
+  constructor() {
+    super();
+    FakeSocket.last = this;
+  }
+
+  close(): void {}
+}
 
 const SEQUENCE = { id: "show", name: "Show", running: false };
 const INPUT = { id: "pir", name: "Presence", active: true, lostEvents: 0 };
@@ -114,4 +125,71 @@ test("a device the board no longer knows is sent to pair again", async () => {
 
   expect(session.pairing).toEqual({ required: true, device: null });
   expect(session.refused).toBeNull();
+});
+
+test("an order the board never got is said as not sent, once, and not as being tried again", async () => {
+  board(state({ outputs: [output()] }), () => {
+    throw new TypeError("Failed to fetch");
+  });
+  const view = mount(ControlView);
+  const alerts = mount(AlertStrip);
+
+  await view.get(".panic").trigger("click");
+  await flushPromises();
+
+  expect(session.refused).toBe("unsent");
+  expect(alerts.text()).toContain("was not sent");
+  expect(alerts.text()).not.toContain("Retrying");
+});
+
+test("an order that was not sent is forgotten when the board is back", async () => {
+  board(state({ outputs: [output()] }));
+  session.refused = "unsent";
+  vi.stubGlobal("WebSocket", FakeSocket);
+
+  listen();
+  FakeSocket.last?.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(state()) }));
+
+  expect(session.refused).toBeNull();
+  stop();
+});
+
+test("what the board itself refused stays when the connection comes back", () => {
+  board(state({ outputs: [output()] }));
+  session.refused = { code: "panic.active", params: {} };
+  vi.stubGlobal("WebSocket", FakeSocket);
+
+  listen();
+  FakeSocket.last?.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(state()) }));
+
+  expect(session.refused).toEqual({ code: "panic.active", params: {} });
+  stop();
+});
+
+test("panic never says every output is off while one could not be confirmed off", () => {
+  board(state({ panic: true, outputs: [output({ name: "Dimmer", restFailed: true })] }));
+
+  const text = mount(AlertStrip).text();
+
+  expect(text).not.toContain("every output is off");
+  expect(text).toContain("Panic is active");
+  expect(text).toContain("Could not confirm that these are off: Dimmer.");
+});
+
+test("panic with every output at rest says so", () => {
+  board(state({ panic: true, outputs: [output()] }));
+
+  expect(mount(AlertStrip).text()).toContain("every output is off");
+});
+
+test("while the first connection is being made, nothing says it was lost", async () => {
+  board(state());
+  Object.assign(session, { online: false, state: null, settled: false });
+  const alerts = mount(AlertStrip);
+
+  expect(alerts.find('[role="status"]').exists()).toBe(false);
+  session.settled = true; // it could not be made, or it was made and lost
+  await alerts.vm.$nextTick();
+
+  expect(alerts.get('[role="status"]').text()).toContain("No connection with the board");
 });
