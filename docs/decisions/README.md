@@ -40,6 +40,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0030](0030-schedules-read-a-trusted-clock-in-the-projects-time-zone.md) | Schedules read a trusted clock, in the project's time zone, once a minute | Accepted |
 | [0031](0031-persistent-variables-are-kept-per-project-and-written-in-batches.md) | Persistent variables are kept per project, and written a moment after they change | Accepted |
 | [0032](0032-the-trace-is-decisions-in-memory-with-their-cause.md) | The trace is decisions, kept in memory, each with what led to it | Accepted |
+| [0033](0033-packages-are-stored-then-activated-and-the-one-before-is-kept.md) | A package is stored, then activated; the one before is kept to be put back | Accepted |
 
 ## Template
 

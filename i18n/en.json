@@ -192,6 +192,34 @@
       "message": "This board does not know the time zone {timeZone} of the package.",
       "hint": "Check the name of the time zone in project.json and build the package again."
     },
+    "package.too_large": {
+      "message": "The package is larger than a package can be.",
+      "hint": "Check that the file is the .package.json that primum build wrote."
+    },
+    "package.unwritable": {
+      "message": "The package could not be saved on the board.",
+      "hint": "Check that the data folder exists and can be written."
+    },
+    "package.not_stored": {
+      "message": "The board does not keep that package.",
+      "hint": "Send the package again, then activate it."
+    },
+    "package.no_previous": {
+      "message": "There is no previous package to go back to.",
+      "hint": "A package can be put back once another one has been activated after it."
+    },
+    "package.fixed": {
+      "message": "This service was started with a fixed package or fixed pins, and takes no others.",
+      "hint": "Start it without --package and --pin to give it packages through the API."
+    },
+    "package.activation_failed": {
+      "message": "The package could not be started, and the board went back to what it was running.",
+      "hint": "Look at the log of the service for what went wrong, and send a corrected package."
+    },
+    "package.stop_failed": {
+      "message": "What was running could not be stopped, so the package was not activated.",
+      "hint": "Its outputs were taken again to put them in their safe state. Check the wiring and the board, and look at the service log before trying again."
+    },
     "safe.declaration_unwritable": {
       "message": "Primum cannot write down which outputs it is about to use, so it will not use them.",
       "hint": "Check that its data directory exists and that Primum may write in it."

@@ -1,10 +1,15 @@
 """Request and response bodies of the HTTP API (pydantic at this edge only, decision 0008)."""
 
+from typing import TYPE_CHECKING
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from primum_runtime.control import State
 from primum_runtime.errors import ErrorParam
 from primum_runtime.trace import Entry, Trace
+
+if TYPE_CHECKING:  # deploy imports nothing of this module, but it is the API's own
+    from primum_runtime.api.deploy import Deployment
 
 
 class _Body(BaseModel):
@@ -206,6 +211,54 @@ class TraceBody(_Body):
     def of(cls, trace: Trace, after: int) -> "TraceBody":
         entries = [TraceEntryBody.of(entry) for entry in trace.entries(after)]
         return cls(entries=entries, first=trace.first, last=trace.last, run=trace.run)
+
+
+class PackageChoice(_Body):
+    """The package to activate, by its hash: ``{"hash": "sha256:…"}``."""
+
+    hash: str
+
+
+class PackageBody(_Body):
+    hash: str
+    project: str | None  # its name; null for a package that is kept and no longer reads
+
+
+class PackagesBody(_Body):
+    """The packages of the board. ``running`` is what runs now: the active package, unless
+    it could not be run (then ``problem`` says why, and nothing runs), or what the service
+    was told to drive by its options (then ``fixed``: no package can be stored)."""
+
+    running: PackageBody | None
+    active: PackageBody | None
+    previous: PackageBody | None
+    staged: PackageBody | None
+    problem: "ErrorBody | None"
+    fixed: bool
+
+    @classmethod
+    def of(cls, deployment: "Deployment") -> "PackagesBody":
+        pointers = deployment.pointers()
+        running = deployment.running.package
+        problem = deployment.problem
+        return cls(
+            running=None
+            if running is None
+            else PackageBody(hash=running.hash, project=running.project.name),
+            active=_kept(deployment, pointers.active),
+            previous=_kept(deployment, pointers.previous),
+            staged=_kept(deployment, pointers.staged),
+            problem=None
+            if problem is None
+            else ErrorBody(code=problem.code.value, params=dict(problem.params)),
+            fixed=deployment.fixed,
+        )
+
+
+def _kept(deployment: "Deployment", package: str | None) -> PackageBody | None:
+    if package is None:
+        return None
+    return PackageBody(hash=package, project=deployment.project_of(package))
 
 
 class ErrorBody(_Body):

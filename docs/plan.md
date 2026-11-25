@@ -984,6 +984,47 @@ per element, from a deployment package that can be rolled back. One pull request
     kept across restarts; a restart of a sequence in the very millisecond it started is
     not noted.
 
+- **4.5b · Activation and rollback: code done; not tried on `primum-dev`** (decision 0033,
+  `specs/deployment-package.md`). A service told neither a package nor pins runs what was
+  activated on it. `PUT /api/package` checks and keeps a package, `POST
+  /api/package/activate` runs it by its hash, `POST /api/package/rollback` puts the one
+  before back. Activating closes what runs (safe state, HAL released) and starts the
+  package on a HAL of its own; one that cannot be started leaves what ran before running.
+  A service with nothing it can run starts empty and says why. Persistent variables and
+  the trace carry over.
+  - Tried on the simulated HAL only, with a new simulated HAL at each activation.
+  - To try on a Pi, and it is what this block most needs: that the real HAL can be closed
+    and opened again in one process (lines released and requested again, PWM unexported
+    and exported), which activation relies on and no test here can show. Then the "done
+    when" of the phase, below.
+  - On the Pi and with large packages, by its owner, before the fixes: a show of 3000
+    clips (834 kB) held the event loop a second to store and a second to activate, and
+    half a second at every `GET /api/package`; 7.9 MB of JSON that is no package, 5.4 s.
+    Found too: with `packages/` read-only the answer said the activation failed with the
+    new package already running; a claim that fails at start (another process holding a
+    line) still killed the service; a counter was lost going to a package of another
+    project and back; a sequence running at an activation was left without its
+    `sequence.stopped`. All fixed, each with a test that failed before: the check is off
+    the loop and the names are in the state file, the state is written before anything
+    is touched, the service starts empty whatever keeps the active package from running,
+    persistent values are one file per project, and the trace notes the stop. The fixes
+    have not been reported as run on the Pi. A check in a thread still shares the
+    interpreter with the loop: requests are answered meanwhile, more slowly.
+  - Second review, three problems reproduced by its owner on the simulated HAL: a panic
+    that came while the board wrote its state was taken away by the activation (the last
+    look at panic was before an `await`); a failed activation stopped everything and
+    told no listener of the state; what runs failing to close was blamed on the new
+    package. Fixed, each with a test that failed before: panic is looked at inside the
+    swap, with nothing awaited after; a refused package publishes the state; a stop
+    that fails is `package.stop_failed` and what ran is claimed again. Also: a refusal
+    by panic is noted in the trace, and files a power cut left half written are dropped.
+    Simulated HAL only. On a real board, whether lines can be claimed again after a
+    close that failed is not known: if they cannot, the service runs nothing.
+  - `provision.sh` still writes a `PRIMUM_PIN`: a board runs packages once it is removed.
+    Not changed here: the script cannot be tried from this session.
+  - Left for phase 5: the PIN, which activation must be the first thing behind. Left out:
+    a service started with `--package` and a file it cannot run still does not start.
+
 **Done when:** "presence sensor → 10 s sequence with relay, LED and PWM output" runs from a
 deployed package, shows in the trace and can be rolled back. A servo, an exclusive element
 with its pulse limits, comes with the drivers of phase 6.
