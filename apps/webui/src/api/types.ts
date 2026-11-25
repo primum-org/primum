@@ -13,4 +13,6 @@ export type StateBody = Schemas["StateBody"];
 export type OutputState = Schemas["OutputStateBody"];
 export type InputState = Schemas["InputStateBody"];
 export type SequenceState = Schemas["SequenceStateBody"];
+export type VariableState = Schemas["VariableStateBody"];
+export type EventState = Schemas["EventStateBody"];
 export type PackagesBody = Schemas["PackagesBody"];

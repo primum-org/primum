@@ -11,6 +11,10 @@ import { problemOfAsking, problemOfOrder, type Problem } from "@/problem";
 
 export const RECONNECT_MIN_MS = 1000;
 export const RECONNECT_MAX_MS = 10000;
+// A board that is there says its state again every 2 s when nothing changes. One that is
+// frozen, or out of the Wi-Fi's reach, closes nothing: three beats without a word and it
+// is taken for gone.
+export const SILENCE_MS = 6000;
 
 export const session = reactive({
   // null until the board has said it once.
@@ -35,6 +39,7 @@ export const session = reactive({
 let asking: Promise<boolean> | null = null;
 let socket: WebSocket | null = null;
 let retry: ReturnType<typeof setTimeout> | null = null;
+let silence: ReturnType<typeof setTimeout> | null = null;
 
 /** Whether the board asks for a pairing code that this device has not given. */
 export const mustPair = (): boolean =>
@@ -141,8 +146,11 @@ export async function connect(delay = RECONNECT_MIN_MS): Promise<void> {
 export function listen(delay = RECONNECT_MIN_MS): void {
   stop();
   let opened = false;
+  // Counted from now: a connection that opens and never says anything is given up too.
+  hear();
   const current = openStates(
     (state) => {
+      hear();
       if (!opened) void askForPackages();
       session.online = true;
       session.settled = true;
@@ -164,10 +172,22 @@ export function listen(delay = RECONNECT_MIN_MS): void {
   socket = current;
 }
 
+// The board said something, or is given this long to: silence past it means it is gone,
+// whatever the connection says, and it is looked for again.
+function hear(): void {
+  if (silence !== null) clearTimeout(silence);
+  silence = setTimeout(() => {
+    session.settled = true;
+    void connect();
+  }, SILENCE_MS);
+}
+
 /** Stop listening and trying, for good until `connect` or `listen` is called again. */
 export function stop(): void {
   if (retry !== null) clearTimeout(retry);
   retry = null;
+  if (silence !== null) clearTimeout(silence);
+  silence = null;
   const closing = socket;
   socket = null;
   closing?.close();

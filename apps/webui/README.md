@@ -2,8 +2,8 @@
 
 The local web interface the board serves (Vue 3 + TypeScript, mobile first, English and
 Spanish), and the only page it has. Being built through phase 5: it pairs a device and
-has daily control (outputs, sequences, inputs, panic, the board's alerts); variables,
-events, packages and the trace come next, then the editors. The same UI will later run
+has daily control (outputs, sequences, events, the project's settings, inputs, panic, the
+board's alerts); the trace and packages come next, then the editors. The same UI will later run
 inside Primum Studio. Decision 0035.
 
 ```bash
@@ -39,5 +39,7 @@ uv run just ui-build     # build it into the runtime's package, which serves it 
   order that did not get to the board, one the board did not answer, and one from a device
   the board has forgotten are each said as what they are; none is sent again. States are
   numbered by the board (`revision`): one that is not later than the one held is dropped.
+- **Silence means gone.** The board says its state again every 2 s; 6 s without a word
+  and the app takes it for gone and looks for it again (`SILENCE_MS` in `src/session.ts`).
 - Screens have addresses after a `#`: the app works wherever the service puts it without
   the service knowing its screens.

@@ -187,6 +187,22 @@ def test_websocket_sends_the_current_state_then_every_change(client: TestClient)
     assert third == {**OFF, "panic": True}
 
 
+def test_websocket_says_the_state_again_when_nothing_changes_so_that_silence_means_gone(
+    hal: SimulatedHal,
+) -> None:
+    """A board that is frozen, or out of the Wi-Fi's reach, closes nothing: whoever
+    listens can only tell by not hearing from it. So a board that is there is never
+    silent for long, and each state it says is later than the one before."""
+    app = create_app(CONFIG, open_hal=lambda: hal, beat_s=0.01)
+    with TestClient(app) as client, client.websocket_connect("/api/ws") as websocket:
+        first = websocket.receive_json()
+        again = [websocket.receive_json() for _ in range(3)]  # nobody changed anything
+
+    assert again == [OFF, OFF, OFF]
+    revisions = [first["revision"], *(state["revision"] for state in again)]
+    assert revisions == sorted(set(revisions))
+
+
 def _with_button(hal: SimulatedHal) -> TestClient:
     return TestClient(create_app(WITH_BUTTON, open_hal=lambda: hal))
 

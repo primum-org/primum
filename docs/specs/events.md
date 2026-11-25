@@ -209,6 +209,7 @@ running:
 | `schedules` | `id`, `name`, `open` (a window of it is open now; `null` while the time is not known) |
 | `timeKnown` | Whether the board knows the time |
 | `inputs` | also `lostEvents` |
+| (the WebSocket) | When nothing changes for 2 s, `/api/ws` sends the state again, with a new `revision`: a board that is frozen or out of reach closes nothing, and whoever listens can only tell by its silence. The web UI takes 6 s without a word for a board that is gone |
 | `revision` | A number above that of every state the service reported before, by the answer to a command or by the WebSocket, whatever package runs. Two states may cross on their way to a device: the one with the higher number is the later. It starts over when the service restarts |
 
 | Request | Does | Refused |

@@ -4,7 +4,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import AlertStrip from "@/components/AlertStrip.vue";
 import { COMMAND_TIMEOUT_MS } from "@/api/client";
 import { listen, session, stop } from "@/session";
-import { board, json, output, state } from "@/testing/board";
+import { board, event, json, output, state, variable } from "@/testing/board";
 import ControlView from "@/views/ControlView.vue";
 
 class FakeSocket extends EventTarget {
@@ -315,4 +315,31 @@ test("an order the board answers while the screen is reconnecting shows at once 
   expect(session.state?.panic).toBe(true);
   expect(FakeSocket.last).not.toBeNull(); // connecting again now, not when the wait is over
   stop();
+});
+
+test("only the variables exposed as settings are shown, and only the events a person may fire", () => {
+  const variables = [variable(), variable({ id: "v2", name: "visits", setting: false })];
+  const events = [event(), event({ id: "e2", name: "Presence", source: "element" }), event({ id: "e3", name: "Remote", source: "api" })];
+  board(state({ variables, events }));
+
+  const view = mount(ControlView);
+
+  expect(view.findAll("h2").map((heading) => heading.text())).toEqual(["Events", "Project settings"]);
+  expect(view.text()).toContain("brightness");
+  expect(view.text()).not.toContain("visits");
+  expect(view.text()).toContain("Open the shop");
+  expect(view.text()).toContain("Remote");
+  expect(view.text()).not.toContain("Presence");
+});
+
+test("an event is fired by its id, and not while panic is on", async () => {
+  const asked = board(state({ events: [event()] }));
+  const view = mount(ControlView);
+
+  await view.get(".row button").trigger("click");
+  expect(asked).toEqual([{ method: "POST", path: "/api/events/e1/fire", body: undefined }]);
+
+  session.state = state({ events: [event()], panic: true });
+  await view.vm.$nextTick();
+  expect(view.get(".row button").attributes("disabled")).toBeDefined();
 });

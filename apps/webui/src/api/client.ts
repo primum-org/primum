@@ -81,6 +81,11 @@ export const api = {
   release: (output: string) => request<StateBody>("DELETE", `outputs/${id(output)}`),
   startSequence: (sequence: string) => request<StateBody>("POST", `sequences/${id(sequence)}/start`),
   stopSequence: (sequence: string) => request<StateBody>("POST", `sequences/${id(sequence)}/stop`),
+  /** Give a variable a value, of its type and within its limits: the board checks both. */
+  setVariable: (variable: string, value: number | boolean | string) =>
+    request<StateBody>("PUT", `variables/${id(variable)}`, { value }),
+  /** Make an event happen by hand: its automations act. */
+  fireEvent: (event: string) => request<StateBody>("POST", `events/${id(event)}/fire`),
   panic: () => request<StateBody>("POST", "panic"),
   releasePanic: () => request<StateBody>("DELETE", "panic"),
 };

@@ -122,6 +122,8 @@ main {
   color: var(--color-text-primary);
   font: inherit;
 }
+.field-value { width: calc(var(--space-7) * 4); text-align: end; }
+.field:disabled { cursor: not-allowed; opacity: 0.45; }
 .field-code { font-family: var(--font-family-mono); width: calc(var(--space-7) * 4); }
 .form .button { margin-top: var(--space-2); }
 

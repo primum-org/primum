@@ -53,7 +53,16 @@
     "panic.active_unconfirmed": "Panic is active and commands are refused, but not every output could be confirmed off.",
     "output.rest_failed": "Could not confirm that it is off. The board keeps trying.",
     "command.unanswered": "The board did not answer: it is not known whether it did what was asked. Look at what it is doing. If something must stop now, cut its power.",
-    "command.forgotten": "The board no longer knows this device, so it did not do what was asked. Pair again and give the order again."
+    "command.forgotten": "The board no longer knows this device, so it did not do what was asked. Pair again and give the order again.",
+    "events.heading": "Events",
+    "event.fire": "Fire",
+    "event.fire_of": "Make {name} happen now",
+    "variables.heading": "Project settings",
+    "variable.true": "Yes",
+    "variable.false": "No",
+    "variable.toggle": "Change {name}",
+    "variable.value_of": "Value of {name}",
+    "variable.persistent": "Kept when the board restarts."
   },
   "cli": {
     "severity.error": "error",
