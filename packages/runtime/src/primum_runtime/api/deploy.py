@@ -211,17 +211,18 @@ class Deployment:
         loading it reports, or ``package.unwritable`` when the board cannot write that it
         is the active one: that is written first, before anything that runs is touched.
         If it cannot be started (``package.activation_failed``: ``hash``, ``problem``),
-        what ran before is started again and stays the active one.
+        or what runs cannot be stopped (``package.stop_failed``, the same), what ran
+        before is started again and stays the active one.
         """
         store = self._store()
         async with self._changing:
-            self._not_in_panic()
+            self._not_in_panic(package)
             before = store.pointers()
             if package == before.active and self.problem is None:
                 return  # it runs already
             # Read and checked again, off the event loop: it takes as long as storing it.
             loaded = await asyncio.to_thread(store.load, package)
-            self._not_in_panic()  # it may have come while the package was being read
+            self._not_in_panic(package)  # it may have come while the package was being read
             await asyncio.to_thread(store.activate, package)
             try:
                 self._swap(loaded, before)
@@ -238,15 +239,25 @@ class Deployment:
             raise PrimumError(ErrorCode.PACKAGE_NO_PREVIOUS)
         await self.activate(previous)
 
-    def _not_in_panic(self) -> None:
-        if self.controller.state().panic:
-            raise PrimumError(ErrorCode.PANIC_ACTIVE)
+    def _not_in_panic(self, package: str) -> None:
+        """Panic is released by a person, not by a package: the one asked for is refused,
+        and the trace says so."""
+        if not self.controller.state().panic:
+            return
+        error = PrimumError(ErrorCode.PANIC_ACTIVE)
+        self.controller.note(Kind.PACKAGE_REFUSED, {"hash": package, "problem": error.code.value})
+        raise error
 
     def _swap(self, loaded: LoadedPackage, before: Pointers) -> None:
         """Close what runs and start ``loaded`` in its place, all at once on the event
-        loop. ``package.activation_failed`` if it does not start: then what ran before
-        runs again."""
+        loop: nothing is awaited from the look at panic to the package running, so panic
+        cannot come in between and be taken away by a controller born without it.
+
+        ``package.stop_failed`` if what runs does not stop, ``package.activation_failed``
+        if the package does not start: then what ran before runs again, and whoever
+        listens to the state is told, since everything stopped on the way."""
         package = loaded.package.hash
+        self._not_in_panic(package)  # it may have come while the board wrote its state
         told: dict[str, ErrorParam] = {
             "project": loaded.package.project.name,
             "package": package,
@@ -261,16 +272,31 @@ class Deployment:
             # replaces them.
             was.controller.stop_all("package")
             was.close()
+        except Exception as error:
+            # Not the package's doing, and the outputs are not known to be safe: what ran
+            # is claimed again, which puts them in their safe state.
+            log.exception("what runs could not be stopped to activate package %s", package)
+            self._refused(was, before, package, ErrorCode.PACKAGE_STOP_FAILED.value)
+            raise PrimumError(ErrorCode.PACKAGE_STOP_FAILED, _told(package, error)) from error
+        try:
             self.running = self._run(loaded, (Kind.PACKAGE_ACTIVATED, told))
         except Exception as error:
             log.exception("package %s could not be activated: what ran before runs again", package)
-            params: dict[str, ErrorParam] = {"hash": package}
-            if isinstance(error, PrimumError):
-                params["problem"] = error.code.value
-            self.running = self._again(was, before, (Kind.PACKAGE_REFUSED, params))
+            params = _told(package, error)
+            problem = params.get("problem")
+            self._refused(was, before, package, problem if isinstance(problem, str) else None)
             raise PrimumError(ErrorCode.PACKAGE_ACTIVATION_FAILED, params) from error
         self.problem = None
         log.info("package %s of project %s activated", package, loaded.package.project.name)
+        self._parts.broadcaster.publish(self.controller.state())
+
+    def _refused(self, was: Running, before: Pointers, package: str, problem: str | None) -> None:
+        """Start again what ran before a package that did not go, and tell whoever listens
+        to the state: it shows what was running, and everything stopped."""
+        params: dict[str, ErrorParam] = {"hash": package}
+        if problem is not None:
+            params["problem"] = problem
+        self.running = self._again(was, before, (Kind.PACKAGE_REFUSED, params))
         self._parts.broadcaster.publish(self.controller.state())
 
     def _store(self) -> Deployed:
@@ -322,6 +348,15 @@ def _problem(error: Exception, package: str) -> PrimumError:
     if isinstance(error, PrimumError):
         return error
     return PrimumError(ErrorCode.PACKAGE_ACTIVATION_FAILED, {"hash": package})
+
+
+def _told(package: str, error: Exception) -> dict[str, ErrorParam]:
+    """The params of an activation that failed: the package, and the code of what kept it
+    from going when it has one."""
+    params: dict[str, ErrorParam] = {"hash": package}
+    if isinstance(error, PrimumError):
+        params["problem"] = error.code.value
+    return params
 
 
 def _put_back(store: Deployed, before: Pointers) -> None:

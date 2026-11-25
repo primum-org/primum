@@ -29,7 +29,7 @@ a sequence started by an automation names that automation's entry.
 | `service.started` | The service starts: always entry 1 | `project`, `package` (its hash), with a package |
 | `package.stored` | A package was given to the board and kept | `project`, `package` (its hash) |
 | `package.activated` | A package started running in place of what ran: the first entry of what follows | `project`, `package`, `previous` (the hash of the one before), `rollback` when it is the previous one put back |
-| `package.refused` | A package could not be started, and what ran before runs again | `hash`, `problem` |
+| `package.refused` | A package asked for was not activated: it could not be started or what ran could not be stopped (what ran before runs again), or panic was on (nothing was touched) | `hash`, `problem`: the code of what kept it from starting, `package.stop_failed`, `panic.active` |
 | `event.happened` | An input changed, an event was fired, a schedule happened | `id`, `name`, `source` (`element`, `ui`, `api`, `schedule`) |
 | `event.ignored` | It happened while panic was on | the same, and `reason`: `panic` |
 | `event.failed` | It could not be dealt with at all | the same; `cause`: the event |

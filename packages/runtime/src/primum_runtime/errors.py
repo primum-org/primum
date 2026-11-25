@@ -57,6 +57,7 @@ class ErrorCode(StrEnum):
     PACKAGE_NO_PREVIOUS = "package.no_previous"
     PACKAGE_FIXED = "package.fixed"
     PACKAGE_ACTIVATION_FAILED = "package.activation_failed"
+    PACKAGE_STOP_FAILED = "package.stop_failed"
     SAFE_DECLARATION_UNWRITABLE = "safe.declaration_unwritable"
     SAFE_DECLARATION_INVALID = "safe.declaration_invalid"
     TEST_DURATION_OUT_OF_RANGE = "test.duration_out_of_range"

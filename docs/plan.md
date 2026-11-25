@@ -1010,6 +1010,16 @@ per element, from a deployment package that can be rolled back. One pull request
     persistent values are one file per project, and the trace notes the stop. The fixes
     have not been reported as run on the Pi. A check in a thread still shares the
     interpreter with the loop: requests are answered meanwhile, more slowly.
+  - Second review, three problems reproduced by its owner on the simulated HAL: a panic
+    that came while the board wrote its state was taken away by the activation (the last
+    look at panic was before an `await`); a failed activation stopped everything and
+    told no listener of the state; what runs failing to close was blamed on the new
+    package. Fixed, each with a test that failed before: panic is looked at inside the
+    swap, with nothing awaited after; a refused package publishes the state; a stop
+    that fails is `package.stop_failed` and what ran is claimed again. Also: a refusal
+    by panic is noted in the trace, and files a power cut left half written are dropped.
+    Simulated HAL only. On a real board, whether lines can be claimed again after a
+    close that failed is not known: if they cannot, the service runs nothing.
   - `provision.sh` still writes a `PRIMUM_PIN`: a board runs packages once it is removed.
     Not changed here: the script cannot be tried from this session.
   - Left for phase 5: the PIN, which activation must be the first thing behind. Left out:

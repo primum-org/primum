@@ -216,6 +216,10 @@
       "message": "The package could not be started, and the board went back to what it was running.",
       "hint": "Look at the log of the service for what went wrong, and send a corrected package."
     },
+    "package.stop_failed": {
+      "message": "What was running could not be stopped, so the package was not activated.",
+      "hint": "Its outputs were taken again to put them in their safe state. Check the wiring and the board, and look at the service log before trying again."
+    },
     "safe.declaration_unwritable": {
       "message": "Primum cannot write down which outputs it is about to use, so it will not use them.",
       "hint": "Check that its data directory exists and that Primum may write in it."

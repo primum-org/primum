@@ -38,6 +38,7 @@ log = logging.getLogger(__name__)
 DIRECTORY = "packages"
 STATE_NAME = "state.json"
 SUFFIX = ".package.json"
+TEMPORARY_SUFFIX = ".tmp"
 VERSION = 1
 # A package is a few hundred kilobytes at most; this is what is taken before it is even read.
 MAX_BYTES = 8 * 1024 * 1024
@@ -59,7 +60,10 @@ class Pointers:
 
 
 class Deployed:
-    """The packages kept in ``data_dir``. Used from one thread, the event loop's."""
+    """The packages kept in ``data_dir``.
+
+    Its files are read and written off the event loop, one change at a time: whoever
+    calls it keeps two changes from running together (``Deployment`` has a lock)."""
 
     def __init__(self, data_dir: Path, manifests: Mapping[str, Driver], model: str) -> None:
         """``model`` is the board the service drives: a package for another is not for it,
@@ -168,13 +172,16 @@ class Deployed:
 
     def settle(self) -> None:
         """Drop the packages no pointer names: what an activation that went well, or a
-        package staged over another, leaves behind."""
+        package staged over another, leaves behind. Also what a power cut left half
+        written, which is up to the size of a package each time."""
         pointers = self.pointers()
         named = (pointers.active, pointers.previous, pointers.staged)
         kept = {self._path(package).name for package in named if package}
         for file in self._directory.glob("*" + SUFFIX):
             if file.name not in kept:
                 file.unlink(missing_ok=True)
+        for file in self._directory.glob("*" + TEMPORARY_SUFFIX):
+            file.unlink(missing_ok=True)
 
     def _checked(self, content: bytes, path: Path) -> LoadedPackage:
         loaded = check_content(content, path, self._manifests)
@@ -213,7 +220,7 @@ def _is_hash(value: object) -> bool:
 
 def write_whole(path: Path, content: bytes) -> None:
     """A file written whole, on the card, then renamed into place, and the name on the card too."""
-    temporary = path.with_suffix(".tmp")
+    temporary = path.with_suffix(TEMPORARY_SUFFIX)
     with temporary.open("wb") as file:
         file.write(content)
         file.flush()

@@ -31,7 +31,12 @@ project is that nothing moves hardware without a person confirming it.
 - **A package that cannot be started is not activated**: what ran before is started again
   and stays the active one (`package.activation_failed`). A board is not left running
   nothing because a package would not go.
-- **Not while panic is on**: panic is released by a person, not by a package.
+- **What runs failing to stop is told apart** (`package.stop_failed`): it is not the
+  package's doing, and the outputs are not known to be safe. What ran is claimed again,
+  which puts them in their safe state.
+- **Not while panic is on**: panic is released by a person, not by a package. It is looked
+  at for the last time where nothing is awaited any more before the package runs: a new
+  controller is born without panic, so a panic that came in between would be taken away.
 - **Putting the previous one back is activating it**: the two swap, so it can be undone.
 - **Persistent variables are the project's, not the package's** (decision 0031): a package
   put back finds the values there are now, if it still takes them. A counter does not go

@@ -541,6 +541,109 @@ def test_a_package_is_not_activated_if_the_board_cannot_write_that_it_is(
     assert "package.activated" not in kinds[3:]
 
 
+def test_panic_that_comes_while_an_activation_is_under_way_is_not_taken_away_by_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The activation waits for the card (the state is written off the event loop), and
+    panic may come meanwhile. The package must not start: its controller would be born
+    without panic, and panic is released by a person, not by a package."""
+    with _service(tmp_path) as (client, board):
+        _give(client, FIRST)
+        _give(client, SECOND, activate=False)
+        activate = Deployed.activate
+
+        def panic_first(self: Deployed, package: str) -> Pointers:
+            assert client.post("/api/panic").status_code == 200  # while the card is written
+            return activate(self, package)
+
+        monkeypatch.setattr(Deployed, "activate", panic_first)
+
+        refused = client.post("/api/package/activate", json={"hash": SECOND_HASH})
+        state = client.get("/api/status").json()
+        packages = client.get("/api/package").json()
+        started = client.post(f"/api/sequences/{ON}/start")
+
+    assert (refused.status_code, refused.json()["code"]) == (409, "panic.active")
+    assert state["panic"] is True
+    assert (packages["running"]["project"], packages["active"]["project"]) == ("First", "First")
+    assert (started.status_code, len(board.hals)) == (409, 2)  # still in panic, same HAL
+
+
+def test_a_listener_of_the_state_is_told_when_an_activation_fails(tmp_path: Path) -> None:
+    """Everything stopped and what ran before started again from nothing: whoever shows
+    the state must not go on showing the LED on and the sequence running."""
+    waiting = ThreadPoolExecutor(max_workers=1)
+    try:
+        with _service(tmp_path) as (client, board), client.websocket_connect("/api/ws") as ws:
+            _give(client, FIRST)
+            _give(client, SECOND, activate=False)
+            client.post(f"/api/sequences/{ON}/start")
+            while not any(s["running"] for s in ws.receive_json()["sequences"]):
+                pass  # up to the state with the sequence running
+            board.fail = True
+
+            client.post("/api/package/activate", json={"hash": SECOND_HASH})
+            told = waiting.submit(ws.receive_json).result(timeout=WAIT_S)
+    finally:
+        waiting.shutdown(wait=False)
+
+    assert [(o["name"], o["on"]) for o in told["outputs"]] == [("LED", False)]
+    assert [s["running"] for s in told["sequences"]] == [False]
+
+
+def test_what_runs_failing_to_stop_is_not_blamed_on_the_package(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The HAL of what runs does not close: its outputs are not known to be safe. That is
+    said for what it is, and what ran is claimed again, which makes its outputs safe."""
+    with _service(tmp_path) as (client, board):
+        _give(client, FIRST)
+        _give(client, SECOND, activate=False)
+
+        def stuck() -> None:
+            raise PrimumError(ErrorCode.HAL_SAFE_STATE_INCOMPLETE, {"pins": (17,)})
+
+        monkeypatch.setattr(board.hal, "close", stuck)
+
+        failed = client.post("/api/package/activate", json={"hash": SECOND_HASH})
+        packages = client.get("/api/package").json()
+        trace = client.get("/api/trace").json()["entries"]
+
+    assert (failed.status_code, failed.json()["code"]) == (500, "package.stop_failed")
+    assert failed.json()["params"] == {"hash": SECOND_HASH, "problem": "hal.safe_state_incomplete"}
+    assert (packages["running"]["project"], packages["active"]["project"]) == ("First", "First")
+    assert sorted(board.hal.lines) == [17]  # claimed again, on a HAL of its own
+    assert (trace[-1]["kind"], trace[-1]["params"]["problem"]) == (
+        "package.refused",
+        "package.stop_failed",
+    )
+
+
+def test_an_activation_refused_by_panic_is_noted(tmp_path: Path) -> None:
+    with _service(tmp_path) as (client, _):
+        _give(client, FIRST)
+        _give(client, SECOND)
+        client.post("/api/panic")
+
+        client.post("/api/package/rollback")
+        last = client.get("/api/trace").json()["entries"][-1]
+
+    assert (last["kind"], last["params"]) == (
+        "package.refused",
+        {"hash": FIRST_HASH, "problem": "panic.active"},
+    )
+
+
+def test_what_a_power_cut_left_half_written_is_dropped(kept: Deployed, tmp_path: Path) -> None:
+    (tmp_path / DIRECTORY).mkdir()
+    stray = tmp_path / DIRECTORY / "abc.package.tmp"
+    stray.write_bytes(b"half a package")
+
+    kept.store(_bytes(FIRST))
+
+    assert not stray.exists()
+
+
 def test_a_counter_survives_a_package_of_another_project_and_the_way_back(
     tmp_path: Path,
 ) -> None:

@@ -130,7 +130,7 @@ it**, and takes others through its API. It is how a board is meant to run.
 |---|---|---|
 | `GET /api/package` | `{running, active, previous, staged, problem, fixed}`: each package as `{hash, project}` | |
 | `PUT /api/package`, the body the `.package.json` | Checks it against this board (*Running one*, below) and keeps it as the **staged** one, replacing the one staged before. Nothing that runs changes, and nothing waits: the check is off the event loop (a second for a show of 3000 clips) | What is wrong with it (422: `package.invalid`, `element.*`, `event.not_listenable`, `package.board_unsupported` for another board than this service's…); `package.too_large` (413, over 8 MiB); `package.unwritable`; `package.fixed` (409) |
-| `POST /api/package/activate` with `{"hash": "sha256:…"}` | Runs a package that is kept: the staged one, or the previous one. The one that ran becomes the previous one | `package.not_stored` (404); `panic.active` (409); `package.fixed` (409); what is wrong with it, read again; `package.unwritable` (500) when the board cannot write which package is active: that is written first, and then nothing is touched; `package.activation_failed` (500: `hash`, `problem`) |
+| `POST /api/package/activate` with `{"hash": "sha256:…"}` | Runs a package that is kept: the staged one, or the previous one. The one that ran becomes the previous one | `package.not_stored` (404); `panic.active` (409); `package.fixed` (409); what is wrong with it, read again; `package.unwritable` (500) when the board cannot write which package is active: that is written first, and then nothing is touched; `package.activation_failed` (500: `hash`, `problem`); `package.stop_failed` (500, the same) |
 | `POST /api/package/rollback` | Activates the previous one: the two swap, so it can be undone | `package.no_previous` (409); the rest as activating |
 
 - **Two steps, on purpose**: storing never changes what a board does, and activating names
@@ -145,7 +145,15 @@ it**, and takes others through its API. It is how a board is meant to run.
   of another project ran in between: `engine-semantics.md`), and
   the trace, which notes `package.stored`, `package.activated` and `package.refused`.
 - **A package that cannot be started is not activated**: what ran before is started again
-  and stays active; the package stays staged.
+  and stays active; the package stays staged. Whoever listens to the state is told, since
+  everything stopped on the way.
+- **What runs failing to stop is not the package's doing** (`package.stop_failed`, with
+  the code of what failed as `problem`): its outputs are not known to be safe, so what
+  ran is claimed again, which puts them in their safe state. The package stays staged.
+- **Panic is looked at last with nothing awaited after it**: a panic that comes while the
+  package is read or the board writes its state refuses the activation
+  (`panic.active`), and the board's state goes back to what it was. A refusal by panic
+  is noted in the trace (`package.refused`).
 - **In this order**: the package is read and checked again (off the event loop), the board
   writes that it is the active one, what runs is closed and the package is started. If the
   write fails nothing has changed. If the start fails, what ran before runs again and the
