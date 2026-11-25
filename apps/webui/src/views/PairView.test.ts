@@ -66,3 +66,14 @@ test("a board that does not answer is said as that, not as an error", async () =
   expect(view.find('[role="alert"]').exists()).toBe(false);
   expect(view.get('[role="status"]').text()).toBe("No connection with the board. Retrying…");
 });
+
+test("a device sent here by an order the board did not take is told so", async () => {
+  session.refused = "forgotten";
+  const router = createAppRouter();
+  await router.push("/pair");
+
+  const view = mount(PairView, { global: { plugins: [router] } });
+
+  expect(view.get('[role="alert"]').text()).toContain("no longer knows this device");
+  session.refused = null;
+});

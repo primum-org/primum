@@ -17,7 +17,7 @@ there to give it a package, and the state says why.
 
 import asyncio
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from functools import partial
 from uuid import UUID
@@ -55,6 +55,7 @@ class Parts:
     trace: Trace
     origin: float  # the instant the times of the trace count from
     clock: Callable[[], float]
+    revisions: Iterator[int]  # the numbers of the states, rising across controllers
 
 
 class Running:
@@ -93,6 +94,7 @@ class Running:
                 trace=parts.trace,
                 origin=parts.origin,
                 opening=opening,
+                revisions=parts.revisions,
             )
         except Exception:
             # A claim that fails leaves nothing claimed: what was declared for it names

@@ -137,6 +137,8 @@ All notable changes to this project are documented here. The format follows
   time the board's own alerts on every screen (an output that could not be confirmed off,
   lost changes of an input, values that could not be saved, a clock not yet set, an
   active package that is not running).
+- The state of the API has a `revision`, which rises with every state reported: of two
+  states that reach a client by different ways, the higher is the later.
 - Pairing: a board has a pairing code (`primum-pairing` shows it), and a phone or a program
   must give it once before the board shows or takes anything from it, panic included.
   `primum-pairing --renew` makes a new code and unpairs every device. **Breaking:** a

@@ -1112,7 +1112,7 @@ control on the API there is · 5.4 the project on the board and the first edit o
   known with schedules waiting, an active package that does not run). The app is served
   at `/`; `primum_runtime/ui/`, its generated copies, its JavaScript tests and the `ui`
   section of the catalogs are removed.
-  - Tried: 57 Vitest tests, the behaviour of the page ported with them (a switch that says
+  - Tried: its Vitest tests, the behaviour of the page ported with them (a switch that says
     nothing offline, a test not offered for an output left on, the slider asked for once on
     letting go and keeping the time of a test). By hand, not by a test of the repository:
     a headless Chromium as a phone in Spanish against a simulated service running
@@ -1135,6 +1135,25 @@ control on the API there is · 5.4 the project on the board and the first edit o
     pairing is asked once at start. Seen while checking, not reported: a hairline of the
     panic button's color at the edge of its area on screens with a pixel ratio that is not
     whole; gone, measured by pixels.
+  - Second review, found by its owner: an answer to a command that came late replaced a
+    later state (a switch held back, panic from another device, and the screen showed the
+    relay on and no panic); a board that does not answer without closing the connection
+    passed for connected, and panic gave no sign in 35 s; the alert of an active package
+    that does not run stayed after another device activated a good one; an alert with a
+    long word ran off the screen, and that word was the path of a file, answered by
+    `GET /api/package`; an order from a device the board had forgotten sent it to pair
+    without saying it was not done. Fixed, each with a test that failed before: every
+    state has a number (`revision`) rising across the controllers of a service, and the
+    app drops one that is not later than the one it holds; a request is waited for 5 s,
+    then said as not answered, and the connection is made again; the packages are asked
+    again while their problem stands; notices break long words; no error a client is told
+    has a file's path, inside another body either, and the two messages that had `{path}`
+    in them no longer do (a test keeps it so); the pairing screen says the order was not
+    carried out. Tried by hand in the browser with the service frozen (`SIGSTOP`): told
+    after 5 s, "no connection" shown, back by itself when thawed. Not tried: a power cut
+    or leaving the Wi-Fi's range, where nothing closes the connection; the limit of 5 s
+    is what answers there, when something is asked. A screen nobody touches still shows
+    a frozen board as connected: the WebSocket has no heartbeat yet.
   - Not done: `/app/`, the address of block 5.2, answers 404. It lived one day; a redirect
     would stay for ever.
   - Not tried: a real phone, a real board, a finger on the slider (only keys and

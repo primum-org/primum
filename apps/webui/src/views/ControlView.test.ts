@@ -2,6 +2,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, expect, test, vi } from "vitest";
 
 import AlertStrip from "@/components/AlertStrip.vue";
+import { COMMAND_TIMEOUT_MS } from "@/api/client";
 import { listen, session, stop } from "@/session";
 import { board, json, output, state } from "@/testing/board";
 import ControlView from "@/views/ControlView.vue";
@@ -72,8 +73,9 @@ test("an input says what it reads, and nothing when the board is gone", async ()
 });
 
 test("the state the board answers a command with is the one shown", async () => {
+  const before = state({ outputs: [output()] });
   const after = state({ outputs: [output({ on: true, controlledBy: "manual" })] });
-  board(state({ outputs: [output()] }), () => json(after));
+  board(before, () => json(after));
   const view = mount(ControlView);
 
   await view.get(".switch").trigger("click");
@@ -115,7 +117,7 @@ test("the board's alerts are said in words, with the names they are about", () =
   expect(text).toContain("could not save the values");
 });
 
-test("a device the board no longer knows is sent to pair again", async () => {
+test("a device the board no longer knows is told its order was not carried out", async () => {
   const answers = [json({ code: "pairing.required", params: {} }, 401), json({ required: true, device: null })];
   board(state({ outputs: [output()] }), () => answers.shift() ?? json(null, 500));
   const view = mount(ControlView);
@@ -124,7 +126,7 @@ test("a device the board no longer knows is sent to pair again", async () => {
   await flushPromises();
 
   expect(session.pairing).toEqual({ required: true, device: null });
-  expect(session.refused).toBeNull();
+  expect(session.refused).toBe("forgotten");
 });
 
 test("an order the board never got is said as not sent, once, and not as being tried again", async () => {
@@ -192,4 +194,105 @@ test("while the first connection is being made, nothing says it was lost", async
   await alerts.vm.$nextTick();
 
   expect(alerts.get('[role="status"]').text()).toContain("No connection with the board");
+});
+
+test("an answer that comes late never replaces a state that is later than it", async () => {
+  // The switch is asked for; before its answer comes, another device presses panic and
+  // the WebSocket says so. The answer, of before the panic, must not bring the switch back.
+  const before = state({ outputs: [output()] });
+  const answer = state({ outputs: [output({ on: true, controlledBy: "manual" })] });
+  const panicked = state({ outputs: [output()], panic: true });
+  let release = (): void => {};
+  board(before);
+  vi.stubGlobal("fetch", (url: URL) => {
+    // Only the switch is held back: whatever else is asked is answered at once.
+    if (!url.pathname.includes("/outputs/")) return Promise.resolve(json(null, 500));
+    return new Promise<Response>((resolve) => {
+      release = function release() {
+        resolve(json(answer));
+      };
+    });
+  });
+  vi.stubGlobal("WebSocket", FakeSocket);
+  listen();
+  const view = mount(ControlView);
+  const alerts = mount(AlertStrip);
+  FakeSocket.last?.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(before) }));
+  await flushPromises();
+
+  await view.get(".switch").trigger("click");
+  expect(release.name).toBe("release"); // the switch was asked for, and its answer is held
+  FakeSocket.last?.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(panicked) }));
+  release();
+  await new Promise((resolve) => setTimeout(resolve, 20)); // the answer is read and taken, or not
+  await flushPromises();
+
+  expect(alerts.text()).toContain("Panic is active");
+  expect(view.get(".switch").attributes("aria-pressed")).toBe("false");
+  stop();
+});
+
+test("a board that was restarted starts its numbers over, and is believed", () => {
+  board(state({ outputs: [output({ on: true })] }));
+  vi.stubGlobal("WebSocket", FakeSocket);
+
+  listen(); // a new connection
+  FakeSocket.last?.dispatchEvent(
+    new MessageEvent("message", { data: JSON.stringify({ ...state({ outputs: [] }), revision: 1 }) }),
+  );
+
+  expect(session.state?.outputs).toEqual([]);
+  stop();
+});
+
+test("an order the board does not answer in time is said as that, and the connection is made again", async () => {
+  vi.useFakeTimers();
+  board(state({ outputs: [output()] }));
+  const paired = { required: true, device: { id: "1", name: "phone", current: true } };
+  vi.stubGlobal("fetch", (url: URL, init: RequestInit) => {
+    // The board takes the order and says nothing; asked anything else, it answers.
+    if (!url.pathname.endsWith("/panic")) return Promise.resolve(json(paired));
+    return new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+    });
+  });
+  vi.stubGlobal("WebSocket", FakeSocket);
+  listen();
+  const before = FakeSocket.last;
+  FakeSocket.last?.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(state()) }));
+  const view = mount(ControlView);
+  const alerts = mount(AlertStrip);
+
+  await view.get(".panic").trigger("click");
+  await vi.advanceTimersByTimeAsync(COMMAND_TIMEOUT_MS - 1);
+  expect(session.refused).toBeNull();
+  await vi.advanceTimersByTimeAsync(1);
+  await flushPromises();
+
+  expect(session.refused).toBe("unanswered");
+  expect(alerts.text()).toContain("did not answer");
+  expect(session.online).toBe(false); // a board that does not answer is not taken for connected
+  expect(FakeSocket.last === before).toBe(false);
+  stop();
+  vi.useRealTimers();
+});
+
+test("the alert of a package that does not run goes when the board runs one again", async () => {
+  const problem = { code: "package.invalid", params: {} };
+  const broken = { running: null, active: null, previous: null, staged: null, problem, fixed: false };
+  const answers = [json(broken), json({ ...broken, problem: null })];
+  board(state(), () => answers.shift() ?? json(null, 500));
+  vi.stubGlobal("WebSocket", FakeSocket);
+  listen();
+  const alerts = mount(AlertStrip);
+  FakeSocket.last?.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(state()) }));
+  await flushPromises();
+  expect(alerts.text()).toContain("The active package is not running");
+
+  // Another device activates a package that runs: the board says its new state.
+  FakeSocket.last?.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(state({ outputs: [output()] })) }));
+  await flushPromises();
+
+  expect(alerts.text()).not.toContain("The active package is not running");
+  stop();
 });

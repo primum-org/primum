@@ -51,7 +51,9 @@
     "alert.time_unknown": "La placa aún no sabe la hora, así que ningún horario se cumple. La aprende de la red.",
     "command.unsent": "La orden no se ha enviado: no hay conexión con la placa. Vuelve a darla cuando vuelva la conexión. Si algo tiene que parar ya, córtale la alimentación.",
     "panic.active_unconfirmed": "Pánico activo y no se aceptan órdenes, pero no se ha podido confirmar que todas las salidas estén apagadas.",
-    "output.rest_failed": "No se ha podido confirmar que esté apagada. La placa lo sigue intentando."
+    "output.rest_failed": "No se ha podido confirmar que esté apagada. La placa lo sigue intentando.",
+    "command.unanswered": "La placa no ha respondido: no se sabe si ha hecho lo que se le pidió. Mira lo que está haciendo. Si algo tiene que parar ya, córtale la alimentación.",
+    "command.forgotten": "La placa ya no conoce este dispositivo, así que no ha hecho lo que se le pidió. Vuelve a emparejarlo y da la orden otra vez."
   },
   "cli": {
     "severity.error": "error",
@@ -197,11 +199,11 @@
       "hint": "Vuelve a construir el paquete desde su proyecto: primum validate lo detecta."
     },
     "package.unreadable": {
-      "message": "No se puede leer el paquete {path}.",
+      "message": "No se puede leer el paquete.",
       "hint": "Comprueba que el fichero existe y que el servicio puede leerlo."
     },
     "package.invalid": {
-      "message": "{path} no es un paquete que esta versión pueda ejecutar: {problems}.",
+      "message": "No es un paquete que esta versión pueda ejecutar: {problems}.",
       "hint": "Constrúyelo de nuevo con primum build, con esta versión de Primum."
     },
     "package.board_unsupported": {

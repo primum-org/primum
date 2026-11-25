@@ -7,6 +7,7 @@ from systemd, both handled by uvicorn) the HAL is closed, which applies the safe
 """
 
 import asyncio
+import itertools
 import logging
 import os
 import time
@@ -72,6 +73,7 @@ def create_app(
             trace=Trace(),
             origin=time.monotonic(),
             clock=time.monotonic,
+            revisions=itertools.count(1),
         )
         deployment = Deployment(parts)
         app.state.deployment = deployment

@@ -543,6 +543,10 @@
             "title": "Panic",
             "type": "boolean"
           },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
           "schedules": {
             "items": {
               "$ref": "#/components/schemas/ScheduleStateBody"
@@ -583,7 +587,8 @@
           "automations",
           "schedules",
           "timeKnown",
-          "variablesUnsaved"
+          "variablesUnsaved",
+          "revision"
         ],
         "title": "StateBody",
         "type": "object"

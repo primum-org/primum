@@ -5,6 +5,7 @@ from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import ANY
 
 import pytest
 from fastapi.testclient import TestClient
@@ -54,6 +55,7 @@ OFF = {
     "schedules": [],
     "timeKnown": False,
     "variablesUnsaved": False,
+    "revision": ANY,  # which state is the later one: not what a state holds
 }
 ON = {
     "outputs": [
@@ -77,6 +79,7 @@ ON = {
     "schedules": [],
     "timeKnown": False,
     "variablesUnsaved": False,
+    "revision": ANY,  # which state is the later one: not what a state holds
 }
 
 

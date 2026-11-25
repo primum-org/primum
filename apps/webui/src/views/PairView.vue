@@ -7,7 +7,7 @@ import { useRouter } from "vue-router";
 import ProblemNotice from "@/components/ProblemNotice.vue";
 import { t } from "@/i18n";
 import { problemOf, type Problem } from "@/problem";
-import { pair } from "@/session";
+import { pair, session } from "@/session";
 
 const CODE_DIGITS = 6;
 const MAX_NAME = 64;
@@ -43,6 +43,8 @@ async function submit(): Promise<void> {
   <section class="panel" aria-labelledby="pairing-heading">
     <h2 id="pairing-heading">{{ t("pairing.heading") }}</h2>
     <p class="secondary">{{ t("pairing.explain") }}</p>
+    <!-- Sent here by an order the board did not take from a device it no longer knows. -->
+    <ProblemNotice v-if="session.refused === 'forgotten'" problem="forgotten" />
     <ProblemNotice v-if="problem" :problem="problem" />
     <form class="form" @submit.prevent="submit">
       <label for="pairing-code">{{ t("pairing.code") }}</label>

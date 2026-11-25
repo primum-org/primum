@@ -118,3 +118,25 @@ def test_the_web_ui_uses_every_one_of_its_keys_and_only_keys_that_exist() -> Non
 
     assert used - webui == set(), "keys used by the web UI but missing in the catalogs"
     assert webui - used == set(), "keys in the catalogs that the web UI does not use"
+
+
+@pytest.mark.parametrize("language", LANGUAGES)
+def test_no_message_of_the_runtime_shows_where_a_file_is(language: str) -> None:
+    """The API never answers the path of a file on the board (it logs it), so a message
+    that had ``{path}`` in it would show the placeholder itself. The paths of the API's own
+    addresses (``request.*``) are another thing, and are answered."""
+    errors = _load(language)["errors"]
+
+    with_a_path = {
+        code.value
+        for code in ErrorCode
+        if not code.value.startswith("request.")
+        and "path" in _placeholders(" ".join(map(str, _fields(errors[code.value]))))
+    }
+
+    assert with_a_path == set()
+
+
+def _fields(entry: object) -> list[object]:
+    assert _is_object(entry)
+    return list(entry.values())

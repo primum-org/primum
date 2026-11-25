@@ -70,12 +70,11 @@ _CODE_BY_HTTP_STATUS = {
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(PrimumError)
     async def primum_error(_request: Request, error: PrimumError) -> JSONResponse:
-        params = dict(error.params)
         # Where the board keeps its files is not for a client, paired or not: it is logged.
-        path = params.pop("path", None)
+        path = error.params.get("path")
         if path is not None:
-            log.error("%s: %s (%s)", error.code.value, path, params.get("detail", ""))
-        return error_response(error.code, params)
+            log.error("%s: %s (%s)", error.code.value, path, error.params.get("detail", ""))
+        return error_response(error.code, ErrorBody.of(error).params)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(_request: Request, error: RequestValidationError) -> JSONResponse:

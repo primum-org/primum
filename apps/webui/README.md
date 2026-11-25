@@ -35,5 +35,9 @@ uv run just ui-build     # build it into the runtime's package, which serves it 
   something old. Commands go through `command()` of `src/session.ts`: the board's answer is
   its new state, and what it refuses is said above the content of every screen
   (`components/AlertStrip.vue`), with panic and the board's own alerts (`src/alerts.ts`).
+- **Orders are not repeated, and never left in silence.** A request is waited for 5 s. An
+  order that did not get to the board, one the board did not answer, and one from a device
+  the board has forgotten are each said as what they are; none is sent again. States are
+  numbered by the board (`revision`): one that is not later than the one held is dropped.
 - Screens have addresses after a `#`: the app works wherever the service puts it without
   the service knowing its screens.

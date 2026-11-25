@@ -19,7 +19,11 @@ export const output = (over: Partial<OutputState> = {}): OutputState => ({
   ...over,
 });
 
+// Each state a test makes is later than the ones before it, as the board's are.
+let revision = 0;
+
 export const state = (over: Partial<StateBody> = {}): StateBody => ({
+  revision: ++revision,
   outputs: [],
   inputs: [],
   panic: false,

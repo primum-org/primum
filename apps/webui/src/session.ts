@@ -61,9 +61,17 @@ async function askPairing(): Promise<boolean> {
   }
 }
 
-function take(state: StateBody): void {
+// States reach this device by two ways, the answer to a command and the WebSocket, and may
+// cross on their way: the board numbers them, and one that is not later than the one held
+// is dropped. A new connection may be to a board that was restarted and counts from one
+// again: its first state is believed whatever its number.
+function take(state: StateBody, fresh = false): void {
+  if (!fresh && session.state !== null && state.revision <= session.state.revision) return;
   session.state = state;
   session.stateAt = performance.now();
+  // The alert of a package that does not run is asked for apart, and goes stale: a new
+  // state may be of a package another device has just activated.
+  if (session.packages?.problem) void askForPackages();
 }
 
 /** Ask the board to do something. Its answer is its new state; what it refuses is kept in
@@ -76,12 +84,17 @@ export async function command(asked: Promise<StateBody>): Promise<void> {
   } catch (failure) {
     const problem = problemOf(failure);
     if (failure instanceof ApiError && failure.unpaired) {
+      // The pairing screen takes over, and says why: the order was not carried out.
+      session.refused = "forgotten";
       await connect();
       return;
     }
     // An order that did not get to the board is lost: nobody sends it again, and saying
     // "retrying" of it would be a lie. It is said as not sent until the board is back.
     session.refused = problem === "offline" ? "unsent" : problem;
+    // A board that does not answer is not to be taken for connected, whatever the
+    // WebSocket says (nothing tells a frozen board from a quiet one): connect again.
+    if (problem === "unanswered") void connect();
   }
 }
 
@@ -90,6 +103,7 @@ export async function pair(code: string, name: string): Promise<void> {
   const paired = await api.pair(code, name);
   session.pairing = { required: true, device: paired.device };
   session.problem = null;
+  session.refused = null;
   session.settled = false;
   listen();
 }
@@ -125,13 +139,14 @@ export function listen(delay = RECONNECT_MIN_MS): void {
   const current = openStates(
     (state) => {
       if (!opened) void askForPackages();
-      opened = true;
       session.online = true;
       session.settled = true;
       // The board is back: an order that was not sent can be given again, and the notice
-      // of it would only be in the way. What the board itself refused stays.
-      if (session.refused === "unsent") session.refused = null;
-      take(state);
+      // of it would only be in the way. What the board itself refused stays, and so does
+      // an order nobody knows the end of: the person must look.
+      if (!opened && session.refused === "unsent") session.refused = null;
+      take(state, !opened);
+      opened = true;
     },
     () => {
       if (socket !== current) return; // closed on purpose, or replaced
@@ -155,9 +170,14 @@ export function stop(): void {
 }
 
 // Whether the active package runs is not in the state. Not knowing it is no problem of its
-// own: the alert it would give is simply not shown.
+// own: the alert it would give is simply not shown. Asked once at a time.
+let askingPackages = false;
+
 async function askForPackages(): Promise<void> {
+  if (askingPackages) return;
+  askingPackages = true;
   session.packages = await api.packages().catch(() => null);
+  askingPackages = false;
 }
 
 function again(after: number, next: number): void {

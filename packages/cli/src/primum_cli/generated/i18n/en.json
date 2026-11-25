@@ -51,7 +51,9 @@
     "alert.time_unknown": "The board does not know the time yet, so no schedule happens. It learns it from the network.",
     "command.unsent": "The order was not sent: there is no connection with the board. Give it again when the connection is back. If something must stop now, cut its power.",
     "panic.active_unconfirmed": "Panic is active and commands are refused, but not every output could be confirmed off.",
-    "output.rest_failed": "Could not confirm that it is off. The board keeps trying."
+    "output.rest_failed": "Could not confirm that it is off. The board keeps trying.",
+    "command.unanswered": "The board did not answer: it is not known whether it did what was asked. Look at what it is doing. If something must stop now, cut its power.",
+    "command.forgotten": "The board no longer knows this device, so it did not do what was asked. Pair again and give the order again."
   },
   "cli": {
     "severity.error": "error",
@@ -197,11 +199,11 @@
       "hint": "Build the package again from its project: primum validate reports this."
     },
     "package.unreadable": {
-      "message": "The package {path} cannot be read.",
+      "message": "The package cannot be read.",
       "hint": "Check that the file exists and that the service may read it."
     },
     "package.invalid": {
-      "message": "{path} is not a package this version can run: {problems}.",
+      "message": "This is not a package this version can run: {problems}.",
       "hint": "Build it again with primum build, with this version of Primum."
     },
     "package.board_unsupported": {

@@ -24,6 +24,14 @@ export class ApiError extends Error {
 /** The board did not answer at all: no network, or the service is stopped. */
 export class OfflineError extends Error {}
 
+/** The board took the request and did not answer in time: nobody knows whether it did
+ * what was asked. A board that is frozen, or out of reach without the connection closing. */
+export class UnansweredError extends Error {}
+
+// How long the board is waited for. It answers in milliseconds: past this, a person must
+// be told that nothing came back instead of being left looking at a screen that says nothing.
+export const COMMAND_TIMEOUT_MS = 5000;
+
 // The API is served next to the app, wherever the service puts both.
 const url = (path: string): URL => new URL(`api/${path}`, document.baseURI);
 
@@ -36,11 +44,21 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     init.headers = JSON_HEADERS;
     init.body = JSON.stringify(body);
   }
+  const waiting = new AbortController();
+  let late = false;
+  const timer = setTimeout(() => {
+    late = true;
+    waiting.abort();
+  }, COMMAND_TIMEOUT_MS);
+  init.signal = waiting.signal;
   let response: Response;
   try {
     response = await fetch(url(path), init);
   } catch (cause) {
+    if (late) throw new UnansweredError("the board did not answer in time", { cause });
     throw new OfflineError("the board did not answer", { cause });
+  } finally {
+    clearTimeout(timer);
   }
   // An unexpected failure may not be JSON: its HTTP status stands in for the code.
   const payload: unknown = await response.json().catch(() => null);
