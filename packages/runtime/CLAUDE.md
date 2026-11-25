@@ -56,6 +56,9 @@ The service that runs on Linux boards. It executes deployment packages from `pri
 - Errors are `PrimumError(ErrorCode.X, params)` (decision 0009), never text. System text (for
   example `strerror`) goes in a `detail` param. A new code goes in `ErrorCode` and in both
   catalogs in `i18n/` (`test_catalogs.py` checks it).
+- The web UI (`apps/webui`, decision 0035) is served at `/app/` from `webui/`, where
+  `just ui-build` puts it: not in the repository, and a service without it starts all the
+  same. A body of the API that changes changes `apps/webui/openapi.json` (`just gen`).
 - The page lives in `ui/` (no build step). `ui/generated/` holds copies of `i18n/` and `design/`
   assets, and `generated/boards/` and `generated/drivers/` copies of the board profiles and the
   driver manifests, made by `just gen`: never edit

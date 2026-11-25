@@ -63,7 +63,8 @@ A Raspberry Pi 4 (or an SD card) for Primum only, never one that runs other GPIO
 2. Wire an LED and a 220–330 Ω resistor between GPIO 17 (physical pin 11) and GND (pin 9).
 3. An SSH alias `primum-dev` in `~/.ssh/config`, and `ssh primum-dev hostname` working without a
    password. Check the LED with `ssh primum-dev 'sudo pinctrl set 17 op dh'` (then `dl`, `ip`).
-4. `rsync` on the laptop and on the Pi, then `uv run just pi-provision 17`.
+4. `rsync` on the laptop and on the Pi, Node and pnpm on the laptop (the web UI is built
+   there before it is copied: the Pi has no Node), then `uv run just pi-provision 17`.
 
 **From WSL.** Windows may resolve `primum-dev.local` only to an IPv6 link-local address
 (`ping -4 primum-dev.local` in PowerShell gives the IPv4 one). When the Pi is on the network

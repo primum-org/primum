@@ -1,0 +1,108 @@
+// What this device knows of the board: whether it is paired with it, whether the board
+// answers, and its last state. The board is the only source of truth: nothing here is
+// guessed, and a state is only as fresh as `online` says.
+
+import { reactive } from "vue";
+
+import { api, ApiError, openStates } from "@/api/client";
+import type { PairingBody, StateBody } from "@/api/types";
+import { problemOf, type Problem } from "@/problem";
+
+export const RECONNECT_MIN_MS = 1000;
+export const RECONNECT_MAX_MS = 10000;
+
+export const session = reactive({
+  // null until the board has said it once.
+  pairing: null as PairingBody | null,
+  online: false,
+  state: null as StateBody | null,
+  // Why the board could not say whether this device is paired, the last time it was asked.
+  problem: null as Problem | null,
+});
+
+let socket: WebSocket | null = null;
+let retry: ReturnType<typeof setTimeout> | null = null;
+
+/** Whether the board asks for a pairing code that this device has not given. */
+export const mustPair = (): boolean =>
+  session.pairing !== null && session.pairing.required && session.pairing.device === null;
+
+/** Ask the board whether this device is paired. False when it could not say: it did not
+ * answer, or it answered with an error, which `session.problem` then holds. Never raises
+ * for either: whoever asks decides what to do without an answer. */
+export async function refreshPairing(): Promise<boolean> {
+  try {
+    session.pairing = await api.pairing();
+    session.problem = null;
+    return true;
+  } catch (failure) {
+    session.problem = problemOf(failure);
+    return false;
+  }
+}
+
+/** Pair with the board's code, then listen to its state. Raises what the board answers. */
+export async function pair(code: string, name: string): Promise<void> {
+  const paired = await api.pair(code, name);
+  session.pairing = { required: true, device: paired.device };
+  session.problem = null;
+  listen();
+}
+
+export async function unpair(): Promise<void> {
+  try {
+    session.pairing = await api.unpair();
+  } catch (error) {
+    // Unpaired already (forgotten from another device): the same end.
+    if (!(error instanceof ApiError && error.unpaired)) throw error;
+    session.pairing = { required: true, device: null };
+  }
+  stop();
+}
+
+/** Get to listening to the board's state, and stay there: ask whether this device is
+ * paired and, if it is, listen. A board that cannot say (no answer, or an error) is asked
+ * again, each time after a longer wait, for as long as it takes. It stops by itself only
+ * when the board says this device must pair: the pairing screen takes over. */
+export async function connect(delay = RECONNECT_MIN_MS): Promise<void> {
+  stop();
+  const known = await refreshPairing();
+  if (known && mustPair()) return;
+  if (known) listen(delay);
+  else again(delay, Math.min(delay * 2, RECONNECT_MAX_MS));
+}
+
+/** Listen to the board's state. When the connection is lost, `connect` again: it may have
+ * closed because the board stopped, or because this device was forgotten. */
+export function listen(delay = RECONNECT_MIN_MS): void {
+  stop();
+  let opened = false;
+  const current = openStates(
+    (state) => {
+      opened = true;
+      session.online = true;
+      session.state = state;
+    },
+    () => {
+      if (socket !== current) return; // closed on purpose, or replaced
+      session.online = false;
+      // A connection that worked starts the waits over; one that never did lengthens them.
+      again(delay, opened ? RECONNECT_MIN_MS : Math.min(delay * 2, RECONNECT_MAX_MS));
+    },
+  );
+  socket = current;
+}
+
+/** Stop listening and trying, for good until `connect` or `listen` is called again. */
+export function stop(): void {
+  if (retry !== null) clearTimeout(retry);
+  retry = null;
+  const closing = socket;
+  socket = null;
+  closing?.close();
+  session.online = false;
+}
+
+function again(after: number, next: number): void {
+  retry = setTimeout(() => void connect(next), after);
+}

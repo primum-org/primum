@@ -295,3 +295,8 @@ class ErrorBody(_Body):
 
     code: str
     params: dict[str, ErrorParam]
+
+
+# What every route may answer instead of its own body: said once, so that the description
+# of the API (and the types the web UI takes from it) has the shape of an error.
+ERROR_RESPONSES: dict[int | str, dict[str, object]] = {"default": {"model": ErrorBody}}

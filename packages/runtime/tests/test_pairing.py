@@ -10,7 +10,7 @@ import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.routing import APIRoute, APIWebSocketRoute
 from fastapi.testclient import TestClient
-from starlette.routing import BaseRoute, Mount
+from starlette.routing import BaseRoute, Mount, Route
 from starlette.websockets import WebSocketDisconnect
 
 from primum_runtime import pairing_tool
@@ -279,9 +279,11 @@ def _routes(routes: Sequence[BaseRoute]) -> Iterator[BaseRoute]:
             yield from _routes(included.routes)
         elif isinstance(route, APIRoute | APIWebSocketRoute):
             yield route
-        else:
-            assert isinstance(route, Mount), route  # the page's files
-            assert route.path == "", route
+        elif isinstance(route, Mount):  # the page's files, the web UI's
+            assert route.path in ("", "/app"), route
+        else:  # the one plain route: /app, which only sends a browser on to /app/
+            assert isinstance(route, Route), route
+            assert (route.path, route.methods) == ("/app", {"GET", "HEAD"}), route
 
 
 def _asked(path: str) -> str:

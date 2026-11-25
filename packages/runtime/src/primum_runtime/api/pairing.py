@@ -18,11 +18,17 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Depends, Response, WebSocketException
 from starlette.requests import HTTPConnection
 
-from primum_runtime.api.models import DeviceBody, PairedBody, PairingBody, PairingRequest
+from primum_runtime.api.models import (
+    ERROR_RESPONSES,
+    DeviceBody,
+    PairedBody,
+    PairingBody,
+    PairingRequest,
+)
 from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.pairing import Device, Pairing
 
-router = APIRouter(prefix="/api/pairing")
+router = APIRouter(prefix="/api/pairing", responses=ERROR_RESPONSES)
 COOKIE = "primum_session"
 # As long as a browser keeps a cookie (they cap it near 400 days); it is given again each
 # time the page asks whether it is paired, so a device in use never runs out.

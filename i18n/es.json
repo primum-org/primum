@@ -38,6 +38,25 @@
     "pairing.submit": "Emparejar",
     "pairing.name": "Nombre de este dispositivo"
   },
+  "webui": {
+    "app.title": "Primum",
+    "connection.online": "Conectado con la placa.",
+    "connection.offline": "Sin conexión con la placa. Reintentando…",
+    "panic.active": "Pánico activo: todas las salidas están apagadas y no se aceptan órdenes.",
+    "error.detail": "Detalle técnico",
+    "error.unknown": "Error inesperado ({code}).",
+    "pairing.heading": "Empareja este dispositivo",
+    "pairing.explain": "Introduce el código de emparejamiento de esta placa. En la placa, el comando primum-pairing lo muestra.",
+    "pairing.code": "Código de emparejamiento",
+    "pairing.name": "Nombre de este dispositivo",
+    "pairing.submit": "Emparejar",
+    "control.heading": "Control",
+    "control.elsewhere": "Esta es la interfaz nueva, todavía en construcción. Hasta que esté lista, las salidas, las secuencias y el botón de pánico están en la página a la que sustituirá.",
+    "control.open": "Abrir la página de control",
+    "device.heading": "Este dispositivo",
+    "device.unnamed": "Sin nombre",
+    "device.unpair": "Desemparejar este dispositivo"
+  },
   "cli": {
     "severity.error": "error",
     "severity.warning": "aviso",

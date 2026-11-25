@@ -30,3 +30,5 @@ path = "src/primum_runtime/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/primum_runtime"]
+# The built web UI is kept out of git, which hatch would otherwise take as "not to ship".
+artifacts = ["src/primum_runtime/webui/**"]

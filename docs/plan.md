@@ -1070,6 +1070,39 @@ control on the API there is · 5.4 the project on the board and the first edit o
     still ends well.
   - Left out: HTTPS; roles; closing the WebSocket of a device that is forgotten; showing
     the code without a shell (phase 7).
+- [x] **5.2 The skeleton of `apps/webui`** (decision 0035, `apps/webui/README.md`). Vue 3,
+  TypeScript, Vite, Vitest, Vue Router, pnpm. The app pairs a device and says whether the
+  board answers; the page keeps the controls until 5.3. Texts from `i18n/` (section
+  `webui`), tokens and icons from `design/`, read where they are. The API's types are
+  generated from the runtime's models through `apps/webui/openapi.json` (`just gen`). The
+  build is not in the repository: `just ui-build` puts it in the runtime's package, which
+  serves it at `/app/`, and `just pi-sync` builds it before copying. `just check` and CI
+  lint, type-check, test and build it.
+  - Tried: its tests (Vitest), and by hand, not by a test of the repository, in a headless
+    Chromium as a phone in Spanish against a simulated service that serves the build: it
+    asks for the code, says a wrong one in words, pairs, stays paired after a reload, shows
+    panic when it comes, and unpairs. The copy rules of `pi.sh` were tried with `rsync` to
+    a local folder (the build goes, `node_modules` does not), and the wheel was built and
+    has the UI in it.
+  - Review, found by its owner: `just pi-watch` started over and over with nobody saving
+    (each sync built the UI into two watched folders: 9 starts in 40 s, measured with a
+    stand-in for the copy); the app stopped asking for good when the board answered with
+    an error, and showed a blank page if that happened at start; `/app` without its last
+    slash answered an error in JSON. Fixed: the watch ignores the two folders (reproduced
+    here the same way, 11 starts in 24 s, then 1); an error from the board is asked again
+    and shown, with tests that failed before; `/app` leads to `/app/`, with its test.
+    Also: the index is served `no-cache` (a risk, not seen: a browser keeping an index
+    that names files a deployment removed); the sync builds the UI only when it is older
+    than what it is made from (tried by hand with the function taken out of `pi.sh`);
+    `just ui-dev` now serves the app at `/app/` and hands the rest to the service, so
+    the link to the page works there too; the line height and the font weights, which
+    have no token, are noted as the exception they are.
+  - Not tried: `just pi-sync` and `just pi-watch` against a Pi, a real phone. `just ui-dev`
+    was tried by hand in a headless Chromium (pairing, the WebSocket through its proxy, the
+    link to the page). The CI steps that install pnpm ran with this pull request.
+  - Left for later: the fonts of the brand bundled for offline use (it shows the system's);
+    TypeScript types of the project's formats, from `schemas/` (5.4); tests in a browser
+    that are part of the repository.
 
 ## Phase 6 · Hardware manager
 

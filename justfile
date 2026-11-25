@@ -8,7 +8,7 @@ default:
     @just --list
 
 # First time after cloning: environment and git hooks
-setup: sync
+setup: sync ui-install
     uv run pre-commit install
 
 # Install or update the Python environment from uv.lock
@@ -22,6 +22,25 @@ test *args:
 # Tests of the page's JavaScript (Node's built-in runner; needs Node 22 or later)
 test-js:
     node --test "packages/runtime/tests/js/*.test.mjs"
+
+# Install the web UI's dependencies from its lockfile (needs Node 22 or later and pnpm)
+ui-install:
+    pnpm --dir apps/webui install --frozen-lockfile
+
+# The web UI with hot reload, against the service of `just dev` (or PRIMUM_SERVICE)
+ui-dev:
+    pnpm --dir apps/webui dev
+
+# Build the web UI into the runtime's package, which then serves it at /app/
+ui-build:
+    pnpm --dir apps/webui build
+
+# Everything about the web UI: lint, types, tests, and that it builds
+ui-check:
+    pnpm --dir apps/webui lint
+    pnpm --dir apps/webui typecheck
+    pnpm --dir apps/webui test
+    pnpm --dir apps/webui build
 
 # Run only the tests that need a real board (on the Pi, with PRIMUM_HW_TEST_PIN set); none collected is not a failure
 test-hw *args:
@@ -47,9 +66,9 @@ pi-test:
 pi-logs:
     bash tools/pi.sh logs
 
-# Sync to the Pi every time a file is saved
+# Sync to the Pi every time a file is saved (not the folders the sync itself writes: the build of the web UI and its generated types)
 pi-watch:
-    uv run watchfiles --target-type command "bash tools/pi.sh sync" packages i18n design image
+    uv run watchfiles --ignore-paths packages/runtime/src/primum_runtime/webui,apps/webui/src/generated --target-type command "bash tools/pi.sh sync" packages i18n design image apps/webui/src
 
 # Re-run the tests every time a file is saved
 watch:
@@ -74,17 +93,19 @@ typecheck:
 arch:
     uv run lint-imports
 
-# Regenerate generated files: core's types from schemas/, design tokens CSS, then the packages' copies of i18n, design assets and board profiles
+# Regenerate generated files: core's types from schemas/, design tokens CSS, the packages' copies of i18n, design assets and board profiles, then the API's description for the web UI
 gen:
     uv run python tools/gen_schemas.py
     uv run python tools/gen_tokens.py
     uv run python tools/gen_assets.py
+    uv run python tools/gen_api.py
 
 # Fail if a generated file is out of date
 gen-check:
     uv run python tools/gen_schemas.py --check
     uv run python tools/gen_tokens.py --check
     uv run python tools/gen_assets.py --check
+    uv run python tools/gen_api.py --check
 
 # Repository hygiene hooks (whitespace, YAML/TOML/JSON, large files) on every file. Ruff is
 # skipped here because `lint` checks it without writing. The whitespace hooks still fix files
@@ -92,5 +113,5 @@ gen-check:
 hooks:
     SKIP=ruff-check,ruff-format uv run pre-commit run --all-files
 
-# Everything CI runs: hygiene, lint, types, architecture, generated files and tests
-check: hooks lint typecheck arch gen-check test test-js
+# Everything CI runs: hygiene, lint, types, architecture, generated files, tests and the web UI
+check: hooks lint typecheck arch gen-check test test-js ui-check
