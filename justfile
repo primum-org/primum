@@ -19,19 +19,15 @@ sync:
 test *args:
     uv run pytest {{args}}
 
-# Tests of the page's JavaScript (Node's built-in runner; needs Node 22 or later)
-test-js:
-    node --test "packages/runtime/tests/js/*.test.mjs"
-
 # Install the web UI's dependencies from its lockfile (needs Node 22 or later and pnpm)
 ui-install:
     pnpm --dir apps/webui install --frozen-lockfile
 
-# The web UI with hot reload, against the service of `just dev` (or PRIMUM_SERVICE)
+# The web UI with hot reload, against the service of `just dev` (or PRIMUM_SERVICE); open the address it prints, not the service's
 ui-dev:
     pnpm --dir apps/webui dev
 
-# Build the web UI into the runtime's package, which then serves it at /app/
+# Build the web UI into the runtime's package, which then serves it
 ui-build:
     pnpm --dir apps/webui build
 
@@ -114,4 +110,4 @@ hooks:
     SKIP=ruff-check,ruff-format uv run pre-commit run --all-files
 
 # Everything CI runs: hygiene, lint, types, architecture, generated files, tests and the web UI
-check: hooks lint typecheck arch gen-check test test-js ui-check
+check: hooks lint typecheck arch gen-check test ui-check

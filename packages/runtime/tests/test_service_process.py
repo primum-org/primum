@@ -14,6 +14,7 @@ import sys
 import time
 import urllib.request
 from collections.abc import Iterator
+from unittest.mock import ANY
 
 import pytest
 
@@ -107,6 +108,7 @@ def test_sigterm_stops_the_service_with_every_output_in_its_safe_state(
         "schedules": [],
         "timeKnown": False,
         "variablesUnsaved": False,
+        "revision": ANY,  # which state is the later one: not what a state holds
     }
 
     process.send_signal(signal.SIGTERM)

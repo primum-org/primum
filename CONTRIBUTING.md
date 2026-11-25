@@ -6,8 +6,7 @@ to open an issue with ideas, use cases or questions.
 ## Setup
 
 1. Install [uv](https://docs.astral.sh/uv/), [Node.js](https://nodejs.org/) 22 or later and
-   [pnpm](https://pnpm.io/) (for the web UI in `apps/webui` and the tests of the runtime's
-   page; both part of `just check`).
+   [pnpm](https://pnpm.io/) (for the web UI in `apps/webui`, part of `just check`).
 2. `uv sync`, then `uv run just setup`: installs the environment (including `just`), the
    web UI's dependencies and the git hooks that format and check every commit. Run tasks with `uv run just <task>`.
 

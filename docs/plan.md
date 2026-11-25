@@ -1103,6 +1103,93 @@ control on the API there is · 5.4 the project on the board and the first edit o
   - Left for later: the fonts of the brand bundled for offline use (it shows the system's);
     TypeScript types of the project's formats, from `schemas/` (5.4); tests in a browser
     that are part of the repository.
+- [x] **5.3a Daily control in the web UI; the page of phase 1 is gone.** Tabs at the bottom
+  (Control, Settings; Activity comes with 5.3b). Control has the outputs (switch, level,
+  *Test* with its countdown, who commands each and *Release*), the sequences, the inputs
+  and the panic button, on that screen only. Above the content of every screen: no
+  connection, panic and its release, what the board last refused, and the board's alerts
+  (an output not confirmed off, lost changes of an input, values not saved, time not
+  known with schedules waiting, an active package that does not run). The app is served
+  at `/`; `primum_runtime/ui/`, its generated copies, its JavaScript tests and the `ui`
+  section of the catalogs are removed.
+  - Tried: its Vitest tests, the behaviour of the page ported with them (a switch that says
+    nothing offline, a test not offered for an output left on, the slider asked for once on
+    letting go and keeping the time of a test). By hand, not by a test of the repository:
+    a headless Chromium as a phone in Spanish against a simulated service running
+    `examples/shop-window`: pairing, a switch and its release, a test and its countdown,
+    the level by keys, a sequence, panic from Control and its release from Settings.
+  - Found by that browser run and not by the tests written first: keys pressed one after
+    another on the slider went back to the old level between them. Fixed, with a test
+    that failed before.
+  - Review, found by its owner: panic pressed with the service stopped said "Retrying…"
+    twice while the order was lost, and the second notice stayed after reconnecting; with
+    an output stuck (provoked by taking the rights of the PWM's `duty_cycle` away and
+    pressing panic) the red notice said "every output is off" above an alert saying one
+    could not be confirmed off, and its row spoke of a test that never was. Fixed, each
+    with a test that failed before: an order that did not get to the board is said as not
+    sent, once, and forgotten when the board is back; panic has a second text for when an
+    output is not confirmed off; the row says only what is known. Also: the controls of a
+    row are side by side and in the same place in every row (*Release* went next to what
+    says the output is held); nothing says "no connection" while the first connection is
+    being made; a phone held sideways keeps a smaller panic button and more room;
+    pairing is asked once at start. Seen while checking, not reported: a hairline of the
+    panic button's color at the edge of its area on screens with a pixel ratio that is not
+    whole; gone, measured by pixels.
+  - Second review, found by its owner: an answer to a command that came late replaced a
+    later state (a switch held back, panic from another device, and the screen showed the
+    relay on and no panic); a board that does not answer without closing the connection
+    passed for connected, and panic gave no sign in 35 s; the alert of an active package
+    that does not run stayed after another device activated a good one; an alert with a
+    long word ran off the screen, and that word was the path of a file, answered by
+    `GET /api/package`; an order from a device the board had forgotten sent it to pair
+    without saying it was not done. Fixed, each with a test that failed before: every
+    state has a number (`revision`) rising across the controllers of a service, and the
+    app drops one that is not later than the one it holds; a request is waited for 5 s,
+    then said as not answered, and the connection is made again; the packages are asked
+    again while their problem stands; notices break long words; no error a client is told
+    has a file's path, inside another body either, and the two messages that had `{path}`
+    in them no longer do (a test keeps it so); the pairing screen says the order was not
+    carried out. Tried by hand in the browser with the service frozen (`SIGSTOP`): told
+    after 5 s, "no connection" shown, back by itself when thawed. Not tried: a power cut
+    or leaving the Wi-Fi's range, where nothing closes the connection; the limit of 5 s
+    is what answers there, when something is asked. A screen nobody touches still shows
+    a frozen board as connected: the WebSocket has no heartbeat yet.
+  - Third review, found by its owner with the simulated service frozen for more than 10 s:
+    "no connection, retrying" gave way to a second "the board did not answer: it is not
+    known whether it did what was asked", with no way to close it. The question
+    `connect()` asks (is this device paired?) ran out of time too, and was told as an
+    order. Fixed, with tests that failed before: a question that is not answered is "no
+    connection"; only an order can be left unanswered. The same for pairing itself. Tried
+    by hand in the browser with the service frozen 26 s.
+  - Fourth review, found by its owner with emulated touch: scrolling the page with the
+    finger starting on the slider's track sent a level (the real PWM went from 18 % to
+    71 %): the browser moves the slider under the finger, then takes the touch for a
+    scroll, and the cancelled touch was treated as letting go. Fixed, with a test that
+    failed before: a cancelled touch asks for nothing and the slider goes back to what the
+    board reports; a drag up or down over the slider scrolls, one sideways moves it.
+    Reproduced here the same way before the fix and gone after it, with touches sent
+    through the browser's debugger. **Not tried with a finger on a phone**, and this
+    would be a 220 V dimmer: to try before trusting it. Also: panic pressed while the
+    screen waited to connect again was done by the board and the screen went on saying
+    "no connection" for up to 10 s; an order the board answers now connects at once.
+    Unpairing with no connection said "retrying"; it says it was not sent. More room
+    between the rows; the rows of the inputs are no longer announced at every change.
+  - For the start of 5.3b: a heartbeat on the WebSocket. A phone that leaves the Wi-Fi's
+    range is the common case, and until then its screen shows an old state as current
+    for as long as nothing is asked.
+  - Noted for later, not done: the answer of a service that has just died, arriving after
+    the first state of the one that replaced it, would carry a high `revision` and make
+    the app drop every state until it connects again. Not reproduced, and very unlikely; a
+    mark of the service's start next to the number would close it. Without a watchdog (a
+    laptop), an order given to a frozen service is carried out when it thaws: the notice
+    says to look at what the board is doing. Rows are not all of one height: a long name
+    sends its controls to the next line.
+  - Not done: `/app/`, the address of block 5.2, answers 404. It lived one day; a redirect
+    would stay for ever.
+  - Not tried: a real phone, a real board, a finger on the slider (only keys and
+    synthetic pointer events), a screen reader.
+  - Left for 5.3b: variables, firing events, the state of automations and schedules,
+    packages, the trace, the list of paired devices.
 
 ## Phase 6 · Hardware manager
 

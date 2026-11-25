@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, Field
 
 from primum_runtime.control import State
-from primum_runtime.errors import ErrorParam
+from primum_runtime.errors import ErrorParam, PrimumError
 from primum_runtime.pairing import MAX_NAME, Device
 from primum_runtime.trace import Entry, Trace
 
@@ -104,6 +104,9 @@ class StateBody(_Body):
     timeKnown: bool  # noqa: N815 (until the board knows the time, no schedule happens)
     # The values of persistent variables could not be kept: a restart would lose changes.
     variablesUnsaved: bool  # noqa: N815
+    # Above that of every state reported before, by a command's answer or the WebSocket:
+    # of two states that crossed on their way, the one with the higher number is the later.
+    revision: int
 
     @classmethod
     def of(cls, state: State) -> "StateBody":
@@ -134,9 +137,7 @@ class StateBody(_Body):
                 id=item.id,
                 name=item.name,
                 enabled=item.enabled,
-                problem=None
-                if item.problem is None
-                else ErrorBody(code=item.problem.code.value, params=dict(item.problem.params)),
+                problem=None if item.problem is None else ErrorBody.of(item.problem),
             )
             for item in state.automations
         ]
@@ -171,6 +172,7 @@ class StateBody(_Body):
             ],
             timeKnown=state.time_known,
             variablesUnsaved=state.variables_unsaved,
+            revision=state.revision,
         )
 
 
@@ -277,9 +279,7 @@ class PackagesBody(_Body):
             active=_kept(deployment, pointers.active),
             previous=_kept(deployment, pointers.previous),
             staged=_kept(deployment, pointers.staged),
-            problem=None
-            if problem is None
-            else ErrorBody(code=problem.code.value, params=dict(problem.params)),
+            problem=None if problem is None else ErrorBody.of(problem),
             fixed=deployment.fixed,
         )
 
@@ -295,6 +295,13 @@ class ErrorBody(_Body):
 
     code: str
     params: dict[str, ErrorParam]
+
+    @classmethod
+    def of(cls, error: PrimumError) -> "ErrorBody":
+        """An error as a client is told it, in an answer of its own or inside another:
+        where the board keeps its files is never part of it (the service logs it)."""
+        params = {name: value for name, value in error.params.items() if name != "path"}
+        return cls(code=error.code.value, params=params)
 
 
 # What every route may answer instead of its own body: said once, so that the description

@@ -63,11 +63,12 @@ listened to: ``read_inputs`` takes their changes from the HAL. Listeners are tol
 """
 
 import contextlib
+import itertools
 import logging
 import math
 import time
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -241,6 +242,10 @@ class State:
     # The values of persistent variables could not be kept the last time it was tried: a
     # restart now would lose what changed since they last were.
     variables_unsaved: bool = False
+    # Which of two states is the later one: each has a number above the one reported
+    # before it, across the controllers of one service. It says nothing of what the state
+    # holds, and two states that hold the same are equal whatever their numbers.
+    revision: int = field(default=0, compare=False)
 
 
 @dataclass(frozen=True)
@@ -277,6 +282,7 @@ class Controller:
         trace: Trace | None = None,
         origin: float | None = None,
         opening: tuple[Kind, Mapping[str, ErrorParam]] | None = None,
+        revisions: Iterator[int] | None = None,
     ) -> None:
         """Make the driver of every element and claim them all at once. Outputs start in
         their safe state, and no sequence of ``package`` is running.
@@ -315,6 +321,9 @@ class Controller:
         self._started = clock() if origin is None else origin
         self._wall = wall
         self.trace = Trace() if trace is None else trace
+        # The numbers of the states it reports: the service's, so that they go on rising
+        # when a package is activated and another controller takes over.
+        self._revisions = itertools.count(1) if revisions is None else revisions
         self._held: dict[str, _Held] = {}  # what a person asked of each output
         self._retry_at: dict[str, float] = {}  # outputs not where they should be: when next
         # The level each output was last taken to, while that is known: the claim left them
@@ -439,6 +448,7 @@ class Controller:
             schedules,
             self._open is not None,
             self._unsaved,
+            next(self._revisions),
         )
 
     def command(

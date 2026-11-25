@@ -1,6 +1,6 @@
 // The one place that talks to the board: requests, and the WebSocket of its state.
 
-import type { ErrorBody, PairedBody, PairingBody, StateBody } from "@/api/types";
+import type { ErrorBody, PackagesBody, PairedBody, PairingBody, StateBody } from "@/api/types";
 
 // The status of a request from a device that is not paired with the board.
 const UNPAIRED = 401;
@@ -24,8 +24,19 @@ export class ApiError extends Error {
 /** The board did not answer at all: no network, or the service is stopped. */
 export class OfflineError extends Error {}
 
-// The page is served next to the API, wherever the service puts it (/app/ or /).
-const url = (path: string): URL => new URL(`../api/${path}`, document.baseURI);
+/** The board took the request and did not answer in time: nobody knows whether it did
+ * what was asked. A board that is frozen, or out of reach without the connection closing. */
+export class UnansweredError extends Error {}
+
+// How long the board is waited for. It answers in milliseconds: past this, a person must
+// be told that nothing came back instead of being left looking at a screen that says nothing.
+export const COMMAND_TIMEOUT_MS = 5000;
+
+// The API is served next to the app, wherever the service puts both.
+const url = (path: string): URL => new URL(`api/${path}`, document.baseURI);
+
+type Arguments = Readonly<Record<string, number | boolean | string>>;
+const id = encodeURIComponent;
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const init: RequestInit = { method };
@@ -33,11 +44,21 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     init.headers = JSON_HEADERS;
     init.body = JSON.stringify(body);
   }
+  const waiting = new AbortController();
+  let late = false;
+  const timer = setTimeout(() => {
+    late = true;
+    waiting.abort();
+  }, COMMAND_TIMEOUT_MS);
+  init.signal = waiting.signal;
   let response: Response;
   try {
     response = await fetch(url(path), init);
   } catch (cause) {
+    if (late) throw new UnansweredError("the board did not answer in time", { cause });
     throw new OfflineError("the board did not answer", { cause });
+  } finally {
+    clearTimeout(timer);
   }
   // An unexpected failure may not be JSON: its HTTP status stands in for the code.
   const payload: unknown = await response.json().catch(() => null);
@@ -50,6 +71,18 @@ export const api = {
   pairing: () => request<PairingBody>("GET", "pairing"),
   pair: (code: string, name: string) => request<PairedBody>("POST", "pairing", { code, name }),
   unpair: () => request<PairingBody>("DELETE", "pairing"),
+  packages: () => request<PackagesBody>("GET", "package"),
+  // Every command answers with the board's whole state after it.
+  /** Ask an output for one of the actions of its driver, with the arguments it takes by
+   * name. With a duration it is a test: the output goes to rest on its own after it. */
+  ask: (output: string, action: string, args: Arguments = {}, durationMs: number | null = null) =>
+    request<StateBody>("PUT", `outputs/${id(output)}`, { action, arguments: args, durationMs }),
+  /** Give an output a person holds back to the sequences. */
+  release: (output: string) => request<StateBody>("DELETE", `outputs/${id(output)}`),
+  startSequence: (sequence: string) => request<StateBody>("POST", `sequences/${id(sequence)}/start`),
+  stopSequence: (sequence: string) => request<StateBody>("POST", `sequences/${id(sequence)}/stop`),
+  panic: () => request<StateBody>("POST", "panic"),
+  releasePanic: () => request<StateBody>("DELETE", "panic"),
 };
 
 /** The WebSocket of the board's state: the current one on connect, then every new one. */

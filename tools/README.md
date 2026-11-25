@@ -7,10 +7,9 @@ Developer scripts. Common tasks are exposed through the `justfile`.
   dataclass, with its parser, for every object (`just gen`; `--check` in CI).
 - `gen_tokens.py`: generates `design/tokens/tokens.css` from `design/tokens/tokens.json`
   (`just gen`; `--check` in CI).
-- `gen_assets.py`: copies shared files into the packages that ship them: `i18n/*.json`,
-  `tokens.css`, the icons and the logo into `primum_runtime/ui/generated/` (the page serves
-  them), the board profiles of `boards/` into `primum_runtime/generated/boards/`, and the
-  catalogs, the board profiles and the driver manifests of `drivers/` into
+- `gen_assets.py`: copies shared files into the packages that ship them: the board profiles
+  of `boards/` and the driver manifests of `drivers/` into `primum_runtime/generated/`, and
+  the catalogs of `i18n/`, the board profiles and the driver manifests into
   `primum_cli/generated/` (`just gen`; `--check` in CI).
 - `gen_api.py`: writes the description of the runtime's HTTP API (OpenAPI, from its pydantic
   models) to `apps/webui/openapi.json`, which the web UI makes its TypeScript types from

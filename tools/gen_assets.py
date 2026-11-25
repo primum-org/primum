@@ -2,9 +2,9 @@
 
 The sources stay where they are; the packages get byte-identical copies, never edited by hand:
 
-- runtime: the page's assets (``i18n/``, ``design/``) under ``primum_runtime/ui/generated/``,
-  the board profiles (``boards/``) under ``primum_runtime/generated/boards/`` and the driver
-  manifests (``drivers/``) under ``primum_runtime/generated/drivers/``;
+- runtime: the board profiles (``boards/``) under ``primum_runtime/generated/boards/`` and
+  the driver manifests (``drivers/``) under ``primum_runtime/generated/drivers/`` (the web UI
+  reads ``i18n/`` and ``design/`` where they are, when it is built);
 - CLI: the message catalogs (``i18n/``) under ``primum_cli/generated/i18n/``, the board
   profiles under ``primum_cli/generated/boards/`` and the driver manifests (``drivers/``) under
   ``primum_cli/generated/drivers/``.
@@ -34,12 +34,6 @@ class Source:
 
 # Each target directory, with what it holds. A target holds nothing else: extra files go.
 TARGETS: dict[Path, tuple[Source, ...]] = {
-    RUNTIME / "ui" / "generated": (
-        Source(ROOT / "i18n", "*.json", "i18n"),
-        Source(ROOT / "design" / "tokens", "tokens.css", "."),
-        Source(ROOT / "design" / "icons", "*.svg", "icons"),
-        Source(ROOT / "design" / "logo", "*.svg", "logo"),
-    ),
     RUNTIME / "generated" / "boards": (Source(ROOT / "boards", "*.json", "."),),
     RUNTIME / "generated" / "drivers": (Source(ROOT / "drivers", "*.json", "."),),
     CLI / "generated" / "i18n": (Source(ROOT / "i18n", "*.json", "."),),

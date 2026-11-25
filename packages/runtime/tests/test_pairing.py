@@ -10,7 +10,7 @@ import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.routing import APIRoute, APIWebSocketRoute
 from fastapi.testclient import TestClient
-from starlette.routing import BaseRoute, Mount, Route
+from starlette.routing import BaseRoute, Mount
 from starlette.websockets import WebSocketDisconnect
 
 from primum_runtime import pairing_tool
@@ -279,11 +279,9 @@ def _routes(routes: Sequence[BaseRoute]) -> Iterator[BaseRoute]:
             yield from _routes(included.routes)
         elif isinstance(route, APIRoute | APIWebSocketRoute):
             yield route
-        elif isinstance(route, Mount):  # the page's files, the web UI's
-            assert route.path in ("", "/app"), route
-        else:  # the one plain route: /app, which only sends a browser on to /app/
-            assert isinstance(route, Route), route
-            assert (route.path, route.methods) == ("/app", {"GET", "HEAD"}), route
+        else:
+            assert isinstance(route, Mount), route  # the web UI's files
+            assert route.path == "", route
 
 
 def _asked(path: str) -> str:
@@ -334,12 +332,10 @@ def test_the_service_describes_its_api_to_nobody(tmp_path: Path, path: str) -> N
         assert client.get(path).status_code == 404
 
 
-def test_the_page_is_served_to_anyone_and_asks_whether_it_is_paired(tmp_path: Path) -> None:
+def test_anyone_may_ask_whether_they_are_paired(tmp_path: Path) -> None:
     with _service(tmp_path) as client:
-        page = client.get("/")
         asked = client.get("/api/pairing")
 
-    assert page.status_code == 200
     assert asked.json() == {"required": True, "device": None}
 
 

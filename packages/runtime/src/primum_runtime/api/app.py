@@ -7,6 +7,7 @@ from systemd, both handled by uvicorn) the HAL is closed, which applies the safe
 """
 
 import asyncio
+import itertools
 import logging
 import os
 import time
@@ -15,8 +16,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import override
 
-from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi import FastAPI
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from starlette.types import Scope
 
@@ -34,12 +35,9 @@ from primum_runtime.trace import Trace
 
 log = logging.getLogger(__name__)
 
-# The page and its generated assets (i18n catalogs, tokens, icons), served at "/".
-UI_DIR = Path(__file__).resolve().parent.parent / "ui"
-# The web UI (``apps/webui``), built into the package when it is deployed: it is not in
-# the repository, and a service without it serves the page alone.
+# The web UI (``apps/webui``), served at "/". It is built into the package when it is
+# deployed and is not in the repository: a service without it has its API and no page.
 WEBUI_DIR = Path(__file__).resolve().parent.parent / "webui"
-WEBUI_PATH = "/app"
 
 
 def create_app(
@@ -75,6 +73,7 @@ def create_app(
             trace=Trace(),
             origin=time.monotonic(),
             clock=time.monotonic,
+            revisions=itertools.count(1),
         )
         deployment = Deployment(parts)
         app.state.deployment = deployment
@@ -120,15 +119,11 @@ def create_app(
         log.warning("pairing is off: whoever reaches this service commands it")
     app.include_router(pairing_router)
     app.include_router(router)
-    # Mounted last: the API's routes are matched first, and the web UI before the page,
-    # which takes every other path.
+    # Mounted last: the API's routes are matched first, and the web UI takes every other path.
     if (WEBUI_DIR / "index.html").is_file():
-        app.mount(WEBUI_PATH + "/", _WebUi(directory=WEBUI_DIR, html=True), name="webui")
-        # What a person types by hand, without the last slash the app's addresses need.
-        app.add_route(WEBUI_PATH, _to_the_web_ui, methods=["GET"], include_in_schema=False)
+        app.mount("/", _WebUi(directory=WEBUI_DIR, html=True), name="webui")
     else:
-        log.info("the web UI is not built (`just ui-build`): nothing is served at %s", WEBUI_PATH)
-    app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")
+        log.warning("the web UI is not built (`just ui-build`): this service has no page")
     install_error_handlers(app)
     return app
 
@@ -150,10 +145,6 @@ class _WebUi(StaticFiles):
         if Path(full_path).suffix == ".html":
             response.headers["Cache-Control"] = "no-cache"
         return response
-
-
-async def _to_the_web_ui(_request: Request) -> Response:
-    return RedirectResponse(WEBUI_PATH + "/")
 
 
 def _describe(controller: Controller) -> str:

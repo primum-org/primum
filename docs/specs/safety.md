@@ -110,7 +110,7 @@ it ends the output goes to what the sequences say, and to rest when they say not
   as by any command. If that
   fails, whatever the hardware raises, the other outputs still expire; the failure is
   logged (once, and again when it rests), the state of the output says so (`restFailed`,
-  shown on the page) and it is tried again every 5 s until it rests, is commanded again, or
+  shown on the web UI) and it is tried again every 5 s until it rests, is commanded again, or
   panic takes over. `restFailed` does not say the output is on: the write may have worked
   and only the read-back failed. It says that it could not be confirmed off.
 - Panic ends every test at once; releasing it brings nothing back. An output that panic
@@ -128,9 +128,9 @@ it ends the output goes to what the sequences say, and to rest when they say not
 
 Time is the monotonic clock's. The controller keeps the deadlines and the event loop wakes it
 for the next one: no thread and no polling. The state says how long each test has left
-(`remainingMs`); the page counts down from there on its own clock.
+(`remainingMs`); the web UI counts down from there on its own clock.
 
-On the page each output has a *Test* button: on for 10 s, then off. It is not offered for an
+In the web UI each output has a *Test* button: on for 10 s, then off. It is not offered for an
 output that was left on on purpose: the test would turn it off. A level set with the slider
 during a test is part of the test: it keeps the time the test had left, whether the output
 is on at that moment or not.

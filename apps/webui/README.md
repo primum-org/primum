@@ -1,16 +1,17 @@
 # Web UI
 
 The local web interface the board serves (Vue 3 + TypeScript, mobile first, English and
-Spanish). Being built through phase 5: for now it pairs a device and says whether the board
-answers; the page of phase 1 (`primum_runtime/ui/`) still has the controls, and block 5.3
-replaces it. The same UI will later run inside Primum Studio. Decision 0035.
+Spanish), and the only page it has. Being built through phase 5: it pairs a device and
+has daily control (outputs, sequences, inputs, panic, the board's alerts); variables,
+events, packages and the trace come next, then the editors. The same UI will later run
+inside Primum Studio. Decision 0035.
 
 ```bash
 uv run just ui-install   # its dependencies, from pnpm-lock.yaml (Node 22 or later, pnpm)
 uv run just dev          # a simulated service at http://127.0.0.1:8080 ...
-uv run just ui-dev       # ... and this app with hot reload at /app/, the rest handed to it
+uv run just ui-dev       # ... and this app with hot reload, talking to it
 uv run just ui-check     # lint, types, tests, build (part of `just check`)
-uv run just ui-build     # build it into the runtime's package: served at /app/
+uv run just ui-build     # build it into the runtime's package, which serves it at /
 ```
 
 - **Nothing is copied here.** Texts come from `i18n/*.json` (section `webui`, errors by
@@ -29,5 +30,14 @@ uv run just ui-build     # build it into the runtime's package: served at /app/
   on the laptop before copying, since the Pi has no Node, and only when it is older than
   what it is made from. Its index is served `no-cache`; its other files have their content
   in their name.
+- **The board is the only source of truth.** A screen shows the state it is given and
+  never guesses one; offline that state may be stale, and rows say nothing rather than
+  something old. Commands go through `command()` of `src/session.ts`: the board's answer is
+  its new state, and what it refuses is said above the content of every screen
+  (`components/AlertStrip.vue`), with panic and the board's own alerts (`src/alerts.ts`).
+- **Orders are not repeated, and never left in silence.** A request is waited for 5 s. An
+  order that did not get to the board, one the board did not answer, and one from a device
+  the board has forgotten are each said as what they are; none is sent again. States are
+  numbered by the board (`revision`): one that is not later than the one held is dropped.
 - Screens have addresses after a `#`: the app works wherever the service puts it without
   the service knowing its screens.

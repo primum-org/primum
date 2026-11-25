@@ -707,6 +707,26 @@ def test_a_service_whose_active_package_no_longer_reads_starts_empty_and_says_wh
     assert packages["active"] == {"hash": FIRST_HASH, "project": "First"}
     assert packages["problem"]["code"] == "package.invalid"
     assert (after["running"]["project"], after["problem"]) == ("Second", None)
+    # Where the board keeps its files is not for a client: it is in the service's log.
+    assert "path" not in packages["problem"]["params"]
+    assert str(tmp_path) not in json.dumps(packages)
+
+
+def test_every_state_has_a_number_above_the_one_before_also_after_an_activation(
+    tmp_path: Path,
+) -> None:
+    """Two states reach a device by two ways (the answer to a command, the WebSocket) and
+    may cross: the number says which is the later one, whatever package it is of."""
+    with _service(tmp_path) as (client, _), client.websocket_connect("/api/ws") as ws:
+        numbers = [ws.receive_json()["revision"]]
+        _give(client, FIRST)
+        numbers.append(client.post(f"/api/sequences/{ON}/start").json()["revision"])
+        numbers.append(client.get("/api/status").json()["revision"])
+        _give(client, SECOND)  # a new controller
+        numbers.append(client.get("/api/status").json()["revision"])
+        numbers.append(client.post("/api/panic").json()["revision"])
+
+    assert numbers == sorted(set(numbers))
 
 
 def test_a_service_told_what_to_drive_takes_no_packages(tmp_path: Path) -> None:

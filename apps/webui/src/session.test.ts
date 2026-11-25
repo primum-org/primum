@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
+import { COMMAND_TIMEOUT_MS } from "@/api/client";
 import { connect, listen, mustPair, pair, RECONNECT_MIN_MS, session, stop, unpair } from "@/session";
 
 // A WebSocket the test drives: what was opened, and the board's side of each one.
@@ -141,4 +142,34 @@ test("a service that asks for no pairing needs none", () => {
   session.pairing = { required: false, device: null };
 
   expect(mustPair()).toBe(false);
+});
+
+// A fetch that never answers, and gives up when the request is taken back.
+const silent = (_url: URL, init: RequestInit) =>
+  new Promise<Response>((_resolve, reject) => {
+    init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+  });
+
+test("a board that does not answer a question is out of reach, not an order left undone", async () => {
+  session.pairing = null;
+  vi.stubGlobal("fetch", silent);
+
+  const asked = connect();
+  await vi.advanceTimersByTimeAsync(COMMAND_TIMEOUT_MS);
+  await asked;
+
+  expect(session.problem).toBe("offline");
+  expect(session.refused).toBeNull();
+});
+
+test("a board out of reach for long is still being asked, and said so", async () => {
+  vi.stubGlobal("fetch", silent);
+  listen();
+  last().send(STATE);
+  last().close();
+
+  await vi.advanceTimersByTimeAsync(COMMAND_TIMEOUT_MS * 6);
+
+  expect(session.problem).toBe("offline");
+  expect(session.online).toBe(false);
 });
