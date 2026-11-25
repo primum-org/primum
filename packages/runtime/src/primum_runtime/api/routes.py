@@ -21,14 +21,14 @@ from primum_runtime.api.models import (
     TraceBody,
     VariableValue,
 )
+from primum_runtime.api.pairing import WS_POLICY_VIOLATION, paired
 from primum_runtime.control import Controller, State
 from primum_runtime.deployed import MAX_BYTES
 from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.trace import Trace
 
-router = APIRouter(prefix="/api")
-# The close code of a WebSocket for a request that is refused (RFC 6455, 1008).
-WS_POLICY_VIOLATION = 1008
+# Nothing here is seen or commanded but by a paired device, panic included.
+router = APIRouter(prefix="/api", dependencies=[Depends(paired)])
 
 
 def _deployment(request: Request) -> Deployment:

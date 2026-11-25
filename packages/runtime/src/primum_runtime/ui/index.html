@@ -46,6 +46,19 @@
       </div>
     </section>
 
+    <section id="pairing" class="pairing" aria-labelledby="pairing-heading" hidden>
+      <h2 id="pairing-heading" data-i18n="pairing.heading"></h2>
+      <p class="secondary" data-i18n="pairing.explain"></p>
+      <form id="pairing-form">
+        <label for="pairing-code" data-i18n="pairing.code"></label>
+        <input id="pairing-code" class="pairing-code" type="text" inputmode="numeric"
+               autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" required>
+        <label for="pairing-name" data-i18n="pairing.name"></label>
+        <input id="pairing-name" class="pairing-name" type="text" maxlength="64">
+        <button class="button" type="submit" data-i18n="pairing.submit"></button>
+      </form>
+    </section>
+
     <section class="outputs" aria-labelledby="outputs-heading">
       <h2 id="outputs-heading" data-i18n="outputs.heading"></h2>
       <ul id="outputs"></ul>

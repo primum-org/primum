@@ -23,9 +23,12 @@ BOARD = load_board("rpi4b")
 PIN = 17
 EXPIRY_WAIT_S = 5  # for a test of one second to expire: far more than it takes
 BUTTON_PIN = 22
-CONFIG = parse_config(["--simulate", "--pin", str(PIN)], {})
+CONFIG = parse_config(["--simulate", "--no-pairing", "--pin", str(PIN)], {})
 WITH_BUTTON = parse_config(
-    [*("--simulate", "--pin", str(PIN)), *("--input-pin", str(BUTTON_PIN), "--input-pull", "up")],
+    [
+        *("--simulate", "--no-pairing", "--pin", str(PIN)),
+        *("--input-pin", str(BUTTON_PIN), "--input-pull", "up"),
+    ],
     {},
 )
 SWITCH = ["on", "off"]
@@ -292,7 +295,7 @@ def test_the_page_assets_are_served(client: TestClient, path: str) -> None:
 
 def _real(tmp_path: Path) -> RuntimeConfig:
     """The configuration of a service on a board, not simulated; the tests give it a HAL."""
-    return parse_config(["--pin", str(PIN), "--data-dir", str(tmp_path)], {})
+    return parse_config(["--no-pairing", "--pin", str(PIN), "--data-dir", str(tmp_path)], {})
 
 
 def test_a_service_declares_its_outputs_while_it_runs_and_forgets_them_once_stopped(
@@ -351,7 +354,7 @@ def test_a_start_that_fails_before_declaring_leaves_what_was_declared(tmp_path: 
     service left declared is not this one's to forget."""
     earlier = Declaration("rpi4b", (OutputSpec(pin=27, active_low=False),))
     declared.write(tmp_path, earlier)
-    argv = ["--pin", str(PIN), "--input-pin", "22", "--input-pull", "up"]
+    argv = ["--no-pairing", "--pin", str(PIN), "--input-pin", "22", "--input-pull", "up"]
     config = parse_config([*argv, "--input-debounce-ms", "99999", "--data-dir", str(tmp_path)], {})
     hal = SimulatedHal(BOARD)
 
@@ -375,7 +378,9 @@ def test_a_stop_that_leaves_an_output_unsafe_keeps_it_declared(
 
 
 def test_a_simulated_service_declares_nothing(hal: SimulatedHal, tmp_path: Path) -> None:
-    config = parse_config(["--simulate", "--pin", str(PIN), "--data-dir", str(tmp_path)], {})
+    config = parse_config(
+        ["--simulate", "--no-pairing", "--pin", str(PIN), "--data-dir", str(tmp_path)], {}
+    )
 
     with TestClient(create_app(config, open_hal=lambda: hal, env={})):
         assert list(tmp_path.iterdir()) == []
@@ -403,7 +408,9 @@ def test_systemd_is_told_when_the_service_is_ready_and_when_it_stops(
 
 DIMMER_PIN = 18
 LEVEL = ["on", "off", "set", "fade"]
-WITH_DIMMER = parse_config(["--simulate", "--pin", str(PIN), "--pwm-pin", str(DIMMER_PIN)], {})
+WITH_DIMMER = parse_config(
+    ["--simulate", "--no-pairing", "--pin", str(PIN), "--pwm-pin", str(DIMMER_PIN)], {}
+)
 
 
 @pytest.fixture
@@ -523,7 +530,15 @@ def test_panic_takes_the_pwm_output_to_0_and_refuses_levels(
 def test_a_real_service_declares_its_pwm_output_with_its_frequency(
     hal: SimulatedHal, tmp_path: Path
 ) -> None:
-    argv = ["--pin", str(PIN), "--pwm-pin", str(DIMMER_PIN), "--pwm-frequency-hz", "25000"]
+    argv = [
+        "--no-pairing",
+        "--pin",
+        str(PIN),
+        "--pwm-pin",
+        str(DIMMER_PIN),
+        "--pwm-frequency-hz",
+        "25000",
+    ]
     config = parse_config([*argv, "--data-dir", str(tmp_path)], {})
 
     with TestClient(create_app(config, open_hal=lambda: hal, env={})):

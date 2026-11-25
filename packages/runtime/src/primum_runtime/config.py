@@ -66,6 +66,9 @@ class RuntimeConfig:
     # Told neither a package file nor pins: it runs the package that was activated on it
     # (``primum_runtime.deployed``), and takes others through its API.
     deployed: bool = False
+    # The API asks for a paired device (``primum_runtime.pairing``). Off for a laptop and
+    # for tests, never on a board: whoever reaches the port commands it.
+    pairing: bool = True
 
 
 def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
@@ -131,6 +134,7 @@ def parse_config(argv: Sequence[str], env: Mapping[str, str]) -> RuntimeConfig:
         host=host,
         port=port,
         trust_clock=args.trust_clock,
+        pairing=not args.no_pairing,
     )
 
 
@@ -151,6 +155,7 @@ def _deployed(
         host=args.host,
         port=args.port,
         trust_clock=args.trust_clock,
+        pairing=not args.no_pairing,
         deployed=True,
     )
 
@@ -202,6 +207,7 @@ def _from_package(
         port=port,
         package=loaded.package,
         trust_clock=args.trust_clock,
+        pairing=not args.no_pairing,
     )
 
 
@@ -288,6 +294,13 @@ def _parser(env: Mapping[str, str]) -> argparse.ArgumentParser:
         default=_flag(env, "PRIMUM_TRUST_CLOCK"),
         help="take the system's time as right without waiting for it to be set from the "
         "network: for a board with a clock of its own (PRIMUM_TRUST_CLOCK=1)",
+    )
+    parser.add_argument(
+        "--no-pairing",
+        action="store_true",
+        default=_flag(env, "PRIMUM_NO_PAIRING"),
+        help="let anyone who reaches the service use it, without the pairing code: for a "
+        "laptop, never for a board (PRIMUM_NO_PAIRING=1)",
     )
     parser.add_argument(
         "--data-dir",

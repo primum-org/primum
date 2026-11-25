@@ -134,7 +134,7 @@ it**, and takes others through its API. It is how a board is meant to run.
 | `POST /api/package/rollback` | Activates the previous one: the two swap, so it can be undone | `package.no_previous` (409); the rest as activating |
 
 - **Two steps, on purpose**: storing never changes what a board does, and activating names
-  the package by its hash. Until the API has its PIN (phase 5), that is all that stands
+  the package by its hash. With pairing (`pairing.md`), that is what stands
   between a request and the hardware.
 - **Activating stops everything and starts from nothing**: sequences stop, what a person
   held is let go, every output goes to its safe state and is released, and the package
@@ -212,7 +212,6 @@ drove its own (commands, test mode, panic); it starts no sequence yet.
 
 - How a board runs the sequences of a package, its fades and its variables is in
   `engine-semantics.md`; its events and automations, in `events.md`.
-- Pairing: whoever reaches the API can store and activate a package. The PIN of phase 5.
 - A service started with `--package` and a file it cannot run does not start, and systemd
   restarts it without end. A board runs without that option.
 - Audio and other files next to the package: phase 6.

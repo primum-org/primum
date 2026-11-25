@@ -11,6 +11,8 @@ const RECONNECT_MAX_MS = 10000;
 const TEST_MS = 10000;
 const COUNTDOWN_STEP_MS = 250;
 const MIN_TEST_MS = 1000;
+// The status of a request from a device that is not paired with the board.
+const UNPAIRED = 401;
 
 const page = {
   connection: document.getElementById("connection"),
@@ -31,6 +33,10 @@ const page = {
   inputs: document.getElementById("inputs"),
   inputRow: document.getElementById("input-row"),
   panic: document.getElementById("panic"),
+  pairing: document.getElementById("pairing"),
+  pairingForm: document.getElementById("pairing-form"),
+  pairingCode: document.getElementById("pairing-code"),
+  pairingName: document.getElementById("pairing-name"),
 };
 
 const [catalog] = await Promise.all([
@@ -302,6 +308,10 @@ async function command(method, path, body) {
   }
   // An unexpected failure may not be JSON: its HTTP status stands in for the code.
   const payload = await response.json().catch(() => ({ code: `http.${response.status}` }));
+  if (response.status === UNPAIRED) {
+    askToPair();
+    return;
+  }
   if (!response.ok) {
     showError(payload);
     return;
@@ -337,8 +347,66 @@ function connect(delay = RECONNECT_MIN_MS) {
     online = false;
     showOffline(true);
     render();
-    setTimeout(() => connect(Math.min(delay * 2, RECONNECT_MAX_MS)), delay);
+    setTimeout(() => start(Math.min(delay * 2, RECONNECT_MAX_MS)), delay);
   });
 }
 
-connect();
+// --- Pairing -----------------------------------------------------------------------------
+
+// The service shows and takes nothing from a device that is not paired with the board: the
+// page asks for the board's code first, and only then listens to the state.
+function askToPair() {
+  state = null;
+  render();
+  // What the browser says it runs on ("Android", "Windows"): a start, for the person to
+  // change into a name that tells this device from the others.
+  if (!page.pairingName.value) {
+    page.pairingName.value = navigator.userAgentData?.platform ?? navigator.platform ?? "";
+  }
+  page.pairing.hidden = false;
+  page.pairingCode.focus();
+}
+
+async function start(delay = RECONNECT_MIN_MS) {
+  let pairing;
+  try {
+    pairing = await (await fetch("api/pairing")).json();
+  } catch {
+    showOffline(true);
+    setTimeout(() => start(Math.min(delay * 2, RECONNECT_MAX_MS)), delay);
+    return;
+  }
+  showOffline(false);
+  if (pairing.required && pairing.device === null) {
+    askToPair();
+    return;
+  }
+  page.pairing.hidden = true;
+  connect(delay);
+}
+
+page.pairingForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const body = JSON.stringify({
+    code: page.pairingCode.value.trim(),
+    name: page.pairingName.value.trim(),
+  });
+  let response;
+  try {
+    response = await fetch("api/pairing", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body,
+    });
+  } catch {
+    showOffline(true);
+    return;
+  }
+  if (!response.ok) {
+    showError(await response.json().catch(() => ({ code: `http.${response.status}` })));
+    return;
+  }
+  page.error.hidden = true;
+  page.pairingCode.value = "";
+  start();
+});
+
+start();

@@ -132,6 +132,10 @@ All notable changes to this project are documented here. The format follows
 - Each output of the page has a *Test* button: it turns the output on for ten seconds and
   off on its own, to check a wire without leaving it on. Over the API, any command can
   expire (`durationMs`, from one second to five minutes).
+- Pairing: a board has a pairing code (`primum-pairing` shows it), and a phone or a program
+  must give it once before the board shows or takes anything from it, panic included.
+  `primum-pairing --renew` makes a new code and unpairs every device. **Breaking:** a
+  service asks for pairing unless started with `--no-pairing`.
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.

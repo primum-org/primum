@@ -240,7 +240,7 @@ def test_a_variable_read_for_a_parameter_the_action_does_not_have_is_refused(
 def test_a_package_configures_the_service_with_its_board_and_its_elements(tmp_path: Path) -> None:
     path = _written(tmp_path)
 
-    config = parse_config(["--simulate", "--package", str(path)], {})
+    config = parse_config(["--simulate", "--no-pairing", "--package", str(path)], {})
 
     assert config.board == load_board("rpi4b")
     assert [element.key for element in config.elements] == [RELAY, LED, SENSOR]
@@ -290,7 +290,9 @@ def test_the_service_does_not_start_from_a_package_it_cannot_run(
 
 
 def _client(tmp_path: Path, hal: SimulatedHal, change: Change | None = None) -> TestClient:
-    config = parse_config(["--simulate", "--package", str(_written(tmp_path, change))], {})
+    config = parse_config(
+        ["--simulate", "--no-pairing", "--package", str(_written(tmp_path, change))], {}
+    )
     return TestClient(create_app(config, open_hal=lambda: hal))
 
 

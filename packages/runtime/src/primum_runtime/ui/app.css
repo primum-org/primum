@@ -236,3 +236,9 @@ main {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* Pairing: asked before anything is shown, to a device the board does not know. */
+.pairing[hidden] { display: none; }
+.pairing form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.pairing-code { font: inherit; width: calc(var(--space-7) * 3); padding: var(--space-2); }
+.pairing-name { font: inherit; padding: var(--space-2); }

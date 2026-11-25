@@ -16,6 +16,7 @@ dependencies = [
 [project.scripts]
 primum-runtime = "primum_runtime.cli:main"
 primum-safe = "primum_runtime.safe:main"
+primum-pairing = "primum_runtime.pairing_tool:main"
 
 [tool.uv.sources]
 primum-core = { workspace = true }

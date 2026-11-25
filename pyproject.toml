@@ -113,7 +113,7 @@ ignore_imports = ["primum_runtime.hal.gpiod_hal -> gpiod"]
 name = "runtime layers: each one imports only the ones below it"
 type = "layers"
 layers = [
-    "primum_runtime.cli | primum_runtime.safe",
+    "primum_runtime.cli | primum_runtime.safe | primum_runtime.pairing_tool",
     "primum_runtime.api",
     "primum_runtime.config",
     "primum_runtime.deployed",
@@ -122,7 +122,7 @@ layers = [
     "primum_runtime.control",
     "primum_runtime.engine",
     "primum_runtime.drivers",
-    "primum_runtime.declared | primum_runtime.stored | primum_runtime.trace",
+    "primum_runtime.declared | primum_runtime.stored | primum_runtime.trace | primum_runtime.pairing",
     "primum_runtime.hal",
     "primum_runtime.systemd",
     "primum_runtime.errors",
@@ -142,6 +142,8 @@ source_modules = [
     "primum_runtime.declared",
     "primum_runtime.stored",
     "primum_runtime.trace",
+    "primum_runtime.pairing",
+    "primum_runtime.pairing_tool",
     "primum_runtime.safe",
     "primum_runtime.hal",
     "primum_runtime.systemd",

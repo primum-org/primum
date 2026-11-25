@@ -171,8 +171,10 @@ restart_service() {
   log "restarting primum.service"
   systemctl restart primum.service
   for _ in $(seq "$STARTUP_TIMEOUT_S"); do
-    if curl -sf "http://127.0.0.1:$PORT/api/status" >/dev/null; then
+    # The one route that answers a device that is not paired.
+    if curl -sf "http://127.0.0.1:$PORT/api/pairing" >/dev/null; then
       log "running: http://$(hostname).local:$PORT"
+      log "its pairing code: sudo $PRIMUM_HOME/venv/bin/primum-pairing"
       return 0
     fi
     sleep 1

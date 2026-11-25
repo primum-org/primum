@@ -9,8 +9,8 @@ when a phase starts or finishes.
 | 1 | End-to-end skeleton: toggle an LED from a phone | Done |
 | 2 | Project model and `core`: workspace of files, board profile, pin conflicts, validation | Done |
 | 3 | HAL, basic drivers and safety | Done |
-| 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Not started |
-| 5 | Local web UI v1 | Not started |
+| 4 | Engine: sequences, automations, events, variables, arbitration, deployment packages | Built; its "done when" still to be run on the Pi |
+| 5 | Local web UI v1 | In progress |
 | 6 | Hardware manager (`config.txt`, tryboot) and I2C, LED strip and audio drivers | Not started |
 | 7 | Primum OS image | Not started |
 | 8 | Local MCP server | Not started |
@@ -1034,6 +1034,42 @@ with its pulse limits, comes with the drivers of phase 6.
 Vue 3 + TypeScript, mobile first, English and Spanish: pairing with PIN, file explorer,
 elements with *Test*, simple sequence editor with simulated preview, automations, settings
 (exposed variables), daily control, alerts, "controlled by" per element.
+
+Blocks, one pull request each: 5.1 pairing · 5.2 the skeleton of `apps/webui` (Vue,
+TypeScript, build, generated types, tokens, i18n, how the runtime serves it) · 5.3 daily
+control on the API there is · 5.4 the project on the board and the first edit operations of
+`core` · 5.5 file explorer and elements · 5.6 sequence editor with simulated preview ·
+5.7 automations and schedules · 5.8 build and deploy from the UI.
+
+- [x] **5.1 Pairing** (decision 0034, `docs/specs/pairing.md`). A board has a pairing code
+  of six digits, made on it; a device that gives it gets a token (cookie for a browser,
+  `Authorization: Bearer` for a program) that does not expire. Nothing is shown or
+  commanded without it, panic included; WebSockets are not opened. Five wrong codes and
+  none is taken for five minutes. `primum-pairing` shows the code and renews it;
+  `--no-pairing` is for a laptop and for tests. The page of phase 1 asks for the code.
+  - Tried with tests on the simulated HAL. The page was tried by hand, not by a test of
+    the repository, in a headless Chromium against a simulated service: it asks for the
+    code, shows a wrong one as such, pairs, the WebSocket opens with the cookie, and a
+    reload stays paired. Not tried on a phone nor in another browser.
+  - Review: a wait that did not grow let every code be tried in under two years; a file
+    that could not be read was taken for missing, so any wrong code forgot every device
+    and changed the code (reproduced by its owner with `chmod 000`); the test that listed
+    the routes did not see the WebSockets, and FastAPI's `/docs` and `/openapi.json`
+    answered anyone; `pairing.unwritable` told a client the path of the file;
+    `primum-pairing` without `sudo` showed a traceback; nothing looked at `Origin`; every
+    Android was named alike. Fixed, each with a test that failed before but the name: the
+    wait doubles up to a day, an unreadable file is left alone (`pairing.unreadable`), the
+    test walks the app's routes, the service describes itself to nobody, paths are logged
+    and not answered (those of `package.unwritable` too), the command says to use `sudo`,
+    a request with an `Origin` that is not the service's is refused, and the page asks
+    for a name. The tests stand in for a file without permission with a read that fails:
+    they run as root, which `chmod 000` does not stop.
+  - To try on the Pi: `sudo /opt/primum/venv/bin/primum-pairing` shows the code and the
+    service (user `primum`) still reads the file after `--renew` as root; the page pairs
+    from a phone; `provision.sh`, whose check of the service now asks `GET /api/pairing`,
+    still ends well.
+  - Left out: HTTPS; roles; closing the WebSocket of a device that is forgotten; showing
+    the code without a shell (phase 7).
 
 ## Phase 6 · Hardware manager
 
