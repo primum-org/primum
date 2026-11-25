@@ -18,6 +18,10 @@ The service that runs on Linux boards. It executes deployment packages from `pri
   them on disk, `api.deploy.Deployment` has what runs and swaps it (close everything, open a
   new HAL, a new `Controller`). Nothing keeps a controller across requests: ask
   `app.state.deployment.controller`. The trace and the broadcaster are the service's.
+- Every route of the API asks for a paired device (decision 0034, `docs/specs/pairing.md`):
+  `routes.router` has the dependency, so a new route there is behind it; a route anywhere
+  else must ask for it too, and `test_pairing.py` lists them all. `pairing` keeps the code
+  and the devices; say "pairing code", never PIN: a pin is where an element is wired.
 - The controller is the arbiter of every output (decision 0026): panic, then what a person
   asked (manual control or a test), then the sequences, as `engine.Engine` says. The engine
   touches no hardware and reads no clock; a test holds it to `core`'s oracle. Nothing writes

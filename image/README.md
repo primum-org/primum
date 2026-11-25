@@ -23,16 +23,21 @@ it, and the other options of elements, then `sudo systemctl restart primum`). It
 nothing, and takes packages through its API, in two steps:
 
 ```
-uv run primum build <project>                                   # on the laptop
-curl -X PUT --data-binary @<name>.package.json http://<pi>:8080/api/package
+sudo /opt/primum/venv/bin/primum-pairing                        # on the Pi: its pairing code
 curl -X POST -H 'Content-Type: application/json' \
+     -d '{"code": "<code>", "name": "laptop"}' http://<pi>:8080/api/pairing   # answers a token
+A='Authorization: Bearer <token>'
+uv run primum build <project>                                   # on the laptop
+curl -H "$A" -X PUT --data-binary @<name>.package.json http://<pi>:8080/api/package
+curl -H "$A" -X POST -H 'Content-Type: application/json' \
      -d '{"hash": "sha256:…"}' http://<pi>:8080/api/package/activate
-curl -X POST http://<pi>:8080/api/package/rollback               # the one before, again
+curl -H "$A" -X POST http://<pi>:8080/api/package/rollback      # the one before, again
 ```
 
 The first answers with the hash to activate (`staged`), or with what is wrong with the
 package; nothing changes on the board until the second. `GET /api/package` says what runs.
-There is no pairing yet: whoever reaches the API can do this. Wire only what the package
+Only a paired device can do this (`docs/specs/pairing.md`); the page asks a phone for the
+code. `primum-pairing --renew` makes a new code and unpairs every device. Wire only what the package
 says, on the pins it says: its project is what was checked against the board.
 
 `PRIMUM_PACKAGE=<file>` still runs one file, for development; such a service takes no

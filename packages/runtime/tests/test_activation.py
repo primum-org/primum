@@ -207,7 +207,7 @@ def _service(
 ) -> Generator[tuple[TestClient, _Board]]:
     """A service that runs what is activated on it, keeping what it keeps in ``data_dir``.
     With ``fail``, the first HAL it asks for does not open."""
-    config = parse_config(["--simulate", "--data-dir", str(data_dir), *options], {})
+    config = parse_config(["--simulate", "--no-pairing", "--data-dir", str(data_dir), *options], {})
     board = _Board(fail)
     with TestClient(create_app(config, open_hal=board.open)) as client:
         yield client, board

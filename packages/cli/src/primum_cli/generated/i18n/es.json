@@ -31,7 +31,11 @@
     "output.release": "Soltar",
     "output.release_of": "Devolver {name} a las secuencias",
     "output.by_manual": "Tomada a mano, por encima de las secuencias, hasta que se suelte.",
-    "output.by_sequence": "La está mandando una secuencia."
+    "output.by_sequence": "La está mandando una secuencia.",
+    "pairing.heading": "Empareja este dispositivo",
+    "pairing.explain": "Introduce el código de emparejamiento de esta placa. En la placa, el comando primum-pairing lo muestra.",
+    "pairing.code": "Código de emparejamiento",
+    "pairing.submit": "Emparejar"
   },
   "cli": {
     "severity.error": "error",
@@ -219,6 +223,30 @@
     "package.stop_failed": {
       "message": "No se ha podido parar lo que estaba en marcha, así que el paquete no se ha activado.",
       "hint": "Sus salidas se han vuelto a tomar para dejarlas en su estado seguro. Revisa el cableado y la placa, y mira el registro del servicio antes de volver a intentarlo."
+    },
+    "pairing.required": {
+      "message": "Este dispositivo no está emparejado con la placa.",
+      "hint": "Introduce el código de emparejamiento de la placa. En la placa, el comando primum-pairing lo muestra."
+    },
+    "pairing.code_wrong": {
+      "message": "Ese no es el código de emparejamiento de esta placa. Intentos que quedan: {left}.",
+      "hint": "En la placa, el comando primum-pairing muestra el código."
+    },
+    "pairing.locked": {
+      "message": "Demasiados códigos erróneos: no se acepta ninguno durante {seconds} s.",
+      "hint": "Espera, comprueba el código en la placa con el comando primum-pairing y vuelve a intentarlo."
+    },
+    "pairing.device_unknown": {
+      "message": "Ningún dispositivo emparejado tiene ese identificador.",
+      "hint": "Puede que ya se haya olvidado. Vuelve a pedir la lista de dispositivos emparejados."
+    },
+    "pairing.off": {
+      "message": "Este servicio no usa emparejamiento.",
+      "hint": "Se arrancó con --no-pairing: cualquiera que llegue a él puede usarlo. Nunca arranques así una placa."
+    },
+    "pairing.unwritable": {
+      "message": "La placa no ha podido guardar los datos de emparejamiento.",
+      "hint": "Comprueba que el directorio de datos existe, que el servicio puede escribir en él y que la tarjeta no está llena ni en solo lectura."
     },
     "safe.declaration_unwritable": {
       "message": "Primum no puede dejar anotadas las salidas que va a usar, así que no las usará.",

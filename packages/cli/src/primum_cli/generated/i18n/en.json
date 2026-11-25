@@ -31,7 +31,11 @@
     "output.release": "Release",
     "output.release_of": "Give {name} back to the sequences",
     "output.by_manual": "Held by hand, over the sequences, until released.",
-    "output.by_sequence": "A sequence is commanding it."
+    "output.by_sequence": "A sequence is commanding it.",
+    "pairing.heading": "Pair this device",
+    "pairing.explain": "Enter the pairing code of this board. On the board, the command primum-pairing shows it.",
+    "pairing.code": "Pairing code",
+    "pairing.submit": "Pair"
   },
   "cli": {
     "severity.error": "error",
@@ -219,6 +223,30 @@
     "package.stop_failed": {
       "message": "What was running could not be stopped, so the package was not activated.",
       "hint": "Its outputs were taken again to put them in their safe state. Check the wiring and the board, and look at the service log before trying again."
+    },
+    "pairing.required": {
+      "message": "This device is not paired with the board.",
+      "hint": "Enter the board's pairing code. On the board, the command primum-pairing shows it."
+    },
+    "pairing.code_wrong": {
+      "message": "That is not the pairing code of this board. Tries left: {left}.",
+      "hint": "On the board, the command primum-pairing shows the code."
+    },
+    "pairing.locked": {
+      "message": "Too many wrong codes: no code is taken for {seconds} s.",
+      "hint": "Wait, check the code on the board with the command primum-pairing, and try again."
+    },
+    "pairing.device_unknown": {
+      "message": "No paired device has that id.",
+      "hint": "It may have been forgotten already. Ask for the list of paired devices again."
+    },
+    "pairing.off": {
+      "message": "This service does not use pairing.",
+      "hint": "It was started with --no-pairing: anyone who reaches it can use it. Never run a board like that."
+    },
+    "pairing.unwritable": {
+      "message": "The board could not keep its pairing data.",
+      "hint": "Check that the data directory exists, that the service may write in it and that the card is not full or read-only."
     },
     "safe.declaration_unwritable": {
       "message": "Primum cannot write down which outputs it is about to use, so it will not use them.",

@@ -220,7 +220,7 @@ def running(
     path = tmp_path / "show.package.json"
     path.write_text(json.dumps(document() if of is None else of), encoding="utf-8")
     options = [] if data_dir is None else ["--data-dir", str(data_dir)]
-    config = parse_config(["--simulate", "--package", str(path), *options], {})
+    config = parse_config(["--simulate", "--no-pairing", "--package", str(path), *options], {})
     hal = SimulatedHal(load_board("rpi4b"))
     with TestClient(create_app(config, open_hal=lambda: hal, wall=wall)) as client:
         yield client, hal

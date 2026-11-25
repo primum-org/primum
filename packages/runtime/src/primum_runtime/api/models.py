@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from primum_runtime.control import State
 from primum_runtime.errors import ErrorParam
+from primum_runtime.pairing import MAX_NAME, Device
 from primum_runtime.trace import Entry, Trace
 
 if TYPE_CHECKING:  # deploy imports nothing of this module, but it is the API's own
@@ -211,6 +212,34 @@ class TraceBody(_Body):
     def of(cls, trace: Trace, after: int) -> "TraceBody":
         entries = [TraceEntryBody.of(entry) for entry in trace.entries(after)]
         return cls(entries=entries, first=trace.first, last=trace.last, run=trace.run)
+
+
+class PairingRequest(_Body):
+    """The board's pairing code, and what the device calls itself:
+    ``{"code": "123456", "name": "Joan's phone"}``."""
+
+    code: str = Field(max_length=32)
+    name: str = Field(default="", max_length=MAX_NAME)
+
+
+class DeviceBody(_Body):
+    id: str
+    name: str
+    current: bool  # the one that asks
+
+    @classmethod
+    def of(cls, device: Device, asking: Device | None) -> "DeviceBody":
+        return cls(id=device.id, name=device.name, current=device == asking)
+
+
+class PairingBody(_Body):
+    required: bool  # false for a service started with --no-pairing
+    device: DeviceBody | None  # whoever asks, if it is paired
+
+
+class PairedBody(_Body):
+    token: str  # told this once: for ``Authorization: Bearer``
+    device: DeviceBody
 
 
 class PackageChoice(_Body):

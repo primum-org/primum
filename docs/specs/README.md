@@ -13,6 +13,7 @@ the spec in the same pull request. They are written from phase 2 on.
 | [`engine-semantics.md`](engine-semantics.md) | Which sequences are running: starting, stopping, re-trigger, exclusive groups, restarts; later automations and arbitration | 4 |
 | [`safety.md`](safety.md) | Safe state, panic, the watchdog and `primum-safe` after a crash, test mode | 3 |
 | [`deployment-package.md`](deployment-package.md) | Package format, its commands and its hash, `primum build`; later activation and rollback | 4 |
+| [`pairing.md`](pairing.md) | Who may use the API: the board's pairing code, paired devices and their tokens, wrong codes, `primum-pairing` | 5 |
 | [`board-profiles.md`](board-profiles.md) | Board profile format, rules and use | 2 |
 | [`drivers.md`](drivers.md) | Driver manifest: actions, config, safe state, conflict policy; what `core` checks against it; the drivers of the runtime | 3 |
 | `protocol.md` | Messages between boards and transports | after v1 |

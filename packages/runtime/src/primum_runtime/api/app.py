@@ -21,10 +21,12 @@ from primum_runtime import __version__, systemd
 from primum_runtime.api.broadcast import StateBroadcaster
 from primum_runtime.api.deploy import Deployment, HalFactory, Parts
 from primum_runtime.api.errors import install_error_handlers
+from primum_runtime.api.pairing import router as pairing_router
 from primum_runtime.api.routes import router
 from primum_runtime.config import RuntimeConfig
 from primum_runtime.control import Controller, Wall
 from primum_runtime.hal import Hal, create_hal
+from primum_runtime.pairing import Pairing
 from primum_runtime.trace import Trace
 
 log = logging.getLogger(__name__)
@@ -97,6 +99,10 @@ def create_app(
 
     app = FastAPI(title="Primum runtime", version=__version__, lifespan=lifespan)
     app.state.stopped_safely = False
+    app.state.pairing = Pairing(config.data_dir, time.monotonic) if config.pairing else None
+    if not config.pairing:
+        log.warning("pairing is off: whoever reaches this service commands it")
+    app.include_router(pairing_router)
     app.include_router(router)
     # Mounted last: the API's routes are matched first.
     app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")

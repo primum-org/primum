@@ -484,7 +484,7 @@ def test_the_clock_can_be_taken_as_right_by_configuration(
     path = tmp_path / "show.package.json"
     path.write_text(json.dumps(DOCUMENT), encoding="utf-8")
 
-    config = parse_config(["--simulate", "--package", str(path), *arguments], env)
+    config = parse_config(["--simulate", "--no-pairing", "--package", str(path), *arguments], env)
 
     assert config.trust_clock is trusted
 

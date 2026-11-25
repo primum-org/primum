@@ -58,7 +58,7 @@ def _log_until(process: subprocess.Popen[bytes], marker: str) -> str:
 @pytest.fixture
 def service() -> Iterator[tuple[subprocess.Popen[bytes], int]]:
     port = _free_port()
-    command = [sys.executable, "-m", "primum_runtime", "--simulate", "--pin", "17"]
+    command = [sys.executable, "-m", "primum_runtime", "--simulate", "--no-pairing", "--pin", "17"]
     process = subprocess.Popen(  # noqa: S603 (fixed command, this interpreter)
         [*command, "--port", str(port)], stderr=subprocess.PIPE, bufsize=0
     )

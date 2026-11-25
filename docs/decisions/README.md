@@ -41,6 +41,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0031](0031-persistent-variables-are-kept-per-project-and-written-in-batches.md) | Persistent variables are kept per project, and written a moment after they change | Accepted |
 | [0032](0032-the-trace-is-decisions-in-memory-with-their-cause.md) | The trace is decisions, kept in memory, each with what led to it | Accepted |
 | [0033](0033-packages-are-stored-then-activated-and-the-one-before-is-kept.md) | A package is stored, then activated; the one before is kept to be put back | Accepted |
+| [0034](0034-a-device-is-paired-with-the-boards-code-and-nothing-is-open-without-it.md) | A device is paired with the board's code, and nothing is open without it | Accepted |
 
 ## Template
 
