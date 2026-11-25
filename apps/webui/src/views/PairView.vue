@@ -6,7 +6,7 @@ import { useRouter } from "vue-router";
 
 import ProblemNotice from "@/components/ProblemNotice.vue";
 import { t } from "@/i18n";
-import { problemOf, type Problem } from "@/problem";
+import { problemOfAsking, type Problem } from "@/problem";
 import { pair, session } from "@/session";
 
 const CODE_DIGITS = 6;
@@ -32,7 +32,7 @@ async function submit(): Promise<void> {
     await pair(code.value.trim(), name.value.trim());
     await router.replace({ name: "control" });
   } catch (failure) {
-    problem.value = problemOf(failure);
+    problem.value = problemOfAsking(failure);
   } finally {
     busy.value = false;
   }

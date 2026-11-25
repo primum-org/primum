@@ -2,6 +2,7 @@ import en from "@i18n/en.json";
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
+import { COMMAND_TIMEOUT_MS } from "@/api/client";
 import { Catalog, useCatalog } from "@/i18n";
 import { createAppRouter } from "@/router";
 import { session, stop } from "@/session";
@@ -76,4 +77,27 @@ test("a device sent here by an order the board did not take is told so", async (
 
   expect(view.get('[role="alert"]').text()).toContain("no longer knows this device");
   session.refused = null;
+});
+
+test("pairing with a board that does not answer says it is out of reach, not that an order was left undone", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("fetch", (_url: URL, init: RequestInit) =>
+    new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+    }));
+  const router = createAppRouter();
+  session.pairing = { required: true, device: null };
+  const pushed = router.push("/pair");
+  await vi.advanceTimersByTimeAsync(0);
+  await pushed;
+  const view = mount(PairView, { global: { plugins: [router] } });
+  await view.get("#pairing-code").setValue("123456");
+
+  await view.get("form").trigger("submit");
+  await vi.advanceTimersByTimeAsync(COMMAND_TIMEOUT_MS);
+  await flushPromises();
+
+  expect(view.text()).toContain("No connection with the board");
+  expect(view.text()).not.toContain("did not answer");
+  vi.useRealTimers();
 });

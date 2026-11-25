@@ -17,3 +17,12 @@ export function problemOf(failure: unknown): ErrorLike | "offline" | "unanswered
   if (failure instanceof OfflineError) return "offline";
   throw failure;
 }
+
+/** The problem behind a question the board did not answer well (is this device paired?,
+ * the pairing itself). A question it does not answer in time left nothing undone: the
+ * board is out of reach, as when it does not answer at all. Only an order can be
+ * "unanswered". */
+export function problemOfAsking(failure: unknown): ErrorLike | "offline" {
+  const problem = problemOf(failure);
+  return problem === "unanswered" ? "offline" : problem;
+}

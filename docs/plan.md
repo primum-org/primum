@@ -1154,6 +1154,20 @@ control on the API there is · 5.4 the project on the board and the first edit o
     or leaving the Wi-Fi's range, where nothing closes the connection; the limit of 5 s
     is what answers there, when something is asked. A screen nobody touches still shows
     a frozen board as connected: the WebSocket has no heartbeat yet.
+  - Third review, found by its owner with the simulated service frozen for more than 10 s:
+    "no connection, retrying" gave way to a second "the board did not answer: it is not
+    known whether it did what was asked", with no way to close it. The question
+    `connect()` asks (is this device paired?) ran out of time too, and was told as an
+    order. Fixed, with tests that failed before: a question that is not answered is "no
+    connection"; only an order can be left unanswered. The same for pairing itself. Tried
+    by hand in the browser with the service frozen 26 s.
+  - Noted for later, not done: the answer of a service that has just died, arriving after
+    the first state of the one that replaced it, would carry a high `revision` and make
+    the app drop every state until it connects again. Not reproduced, and very unlikely; a
+    mark of the service's start next to the number would close it. Without a watchdog (a
+    laptop), an order given to a frozen service is carried out when it thaws: the notice
+    says to look at what the board is doing. Rows are not all of one height: a long name
+    sends its controls to the next line.
   - Not done: `/app/`, the address of block 5.2, answers 404. It lived one day; a redirect
     would stay for ever.
   - Not tried: a real phone, a real board, a finger on the slider (only keys and

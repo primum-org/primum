@@ -6,7 +6,8 @@ import { reactive } from "vue";
 
 import { api, ApiError, openStates } from "@/api/client";
 import type { PackagesBody, PairingBody, StateBody } from "@/api/types";
-import { problemOf, type Problem } from "@/problem";
+import type { ErrorLike } from "@/i18n";
+import { problemOf, problemOfAsking, type Problem } from "@/problem";
 
 export const RECONNECT_MIN_MS = 1000;
 export const RECONNECT_MAX_MS = 10000;
@@ -22,8 +23,9 @@ export const session = reactive({
   // When that state arrived, by this device's clock (`performance.now()`): what the
   // countdown of a test counts from.
   stateAt: 0,
-  // Why the board could not say whether this device is paired, the last time it was asked.
-  problem: null as Problem | null,
+  // Why the board could not say whether this device is paired, the last time it was asked:
+  // an error of its own, or that it is out of reach. Never an order left undone.
+  problem: null as ErrorLike | "offline" | null,
   // What the board refused the last time it was asked to do something, until dismissed.
   refused: null as Problem | null,
   // The board's packages, asked for when the connection opens: whether the active one runs.
@@ -55,7 +57,7 @@ async function askPairing(): Promise<boolean> {
     session.problem = null;
     return true;
   } catch (failure) {
-    session.problem = problemOf(failure);
+    session.problem = problemOfAsking(failure);
     session.settled = true;
     return false;
   }
