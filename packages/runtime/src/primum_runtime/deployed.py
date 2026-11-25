@@ -8,8 +8,13 @@ They are kept in ``packages/`` under the data directory:
 
 - ``<hash>.package.json``: a package, named by its own hash. At most three: the active one,
   the previous one and the one stored and not activated yet (``staged``).
-- ``state.json``: which is which. Written whole and renamed into place: a power cut leaves
-  the pointers before or the pointers after.
+- ``state.json``: which is which, and the name of the project of each, so that saying what
+  the board keeps never costs reading a package. Written whole and renamed into place: a
+  power cut leaves the pointers before or the pointers after.
+
+Checking a package takes time in proportion to its size (a second for a large show), and
+only reads: ``check`` may run off the event loop. What writes (``keep``, ``activate``,
+``restore``, ``settle``) is asked for by one caller at a time.
 
 Nothing here runs anything: whoever runs packages asks which is active, and says when
 another one is.
@@ -20,7 +25,7 @@ import logging
 import os
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from primum_core.generated.model import Driver
@@ -46,6 +51,8 @@ class Pointers:
     active: str | None = None
     previous: str | None = None
     staged: str | None = None
+    # The name of the project of each, by its hash: told without reading the package.
+    projects: Mapping[str, str] = field(default_factory=dict[str, str], compare=False)
 
     def __contains__(self, package: object) -> bool:
         return package is not None and package in (self.active, self.previous, self.staged)
@@ -75,33 +82,51 @@ class Deployed:
             ]
             if wrong:
                 raise ValueError(f"not a hash: {', '.join(wrong)}")
+            projects = {
+                package: name
+                for package, name in as_object(fields.get("projects", {})).items()
+                if isinstance(name, str)
+            }
         except FileNotFoundError:
             return Pointers()
         except (OSError, ValueError, KeyError, TypeError, RecursionError) as error:
             log.warning("the state of the packages (%s) cannot be used: %s", path, error)
             return Pointers()
-        return Pointers(**{name: value for name, value in names.items() if isinstance(value, str)})
+        hashes = {name: value for name, value in names.items() if isinstance(value, str)}
+        return Pointers(**hashes, projects=projects)
 
-    def store(self, content: bytes) -> LoadedPackage:
-        """Check a package and keep it as the staged one, replacing the one staged before.
-        Nothing that runs changes.
+    def check(self, content: bytes) -> LoadedPackage:
+        """A package given to the board, checked and nothing else: it only reads, so it may
+        run off the event loop, however long the package makes it.
 
-        Fails, keeping nothing, with ``package.too_large`` (``max_bytes``), what
-        ``primum_runtime.package`` reports for one this board cannot run,
-        ``package.board_unsupported`` for one made for another board than the service's,
-        and ``package.unwritable`` (``path``, ``detail``).
+        Fails with ``package.too_large`` (``max_bytes``), what ``primum_runtime.package``
+        reports for one this board cannot run, and ``package.board_unsupported`` for one
+        made for another board than the service's.
         """
         if len(content) > MAX_BYTES:
             raise PrimumError(ErrorCode.PACKAGE_TOO_LARGE, {"max_bytes": MAX_BYTES})
-        loaded = self._checked(content, Path("uploaded" + SUFFIX))
+        return self._checked(content, Path("uploaded" + SUFFIX))
+
+    def keep(self, loaded: LoadedPackage, content: bytes) -> None:
+        """Keep a package that was checked as the staged one, replacing the one staged
+        before. Nothing that runs changes. ``package.unwritable`` (``path``, ``detail``),
+        and then nothing is kept."""
         package = loaded.package.hash
         path = self._path(package)
         try:
             self._directory.mkdir(parents=True, exist_ok=True)
-            _write(path, content)
+            write_whole(path, content)
         except OSError as error:
             raise _unwritable(path, error) from error
-        self._point(replace(self.pointers(), staged=package))
+        before = self.pointers()
+        projects = {**before.projects, package: loaded.package.project.name}
+        self._point(replace(before, staged=package, projects=projects))
+        self.settle()
+
+    def store(self, content: bytes) -> LoadedPackage:
+        """``check`` and ``keep``, one after the other."""
+        loaded = self.check(content)
+        self.keep(loaded, content)
         return loaded
 
     def load(self, package: str) -> LoadedPackage:
@@ -122,16 +147,34 @@ class Deployed:
     def activate(self, package: str) -> Pointers:
         """Say that ``package`` is the one that runs now. The one that was becomes the
         previous one; activating the previous one swaps the two (a package put back can be
-        undone again). The pointers as they are after."""
+        undone again). The pointers as they are after.
+
+        No package is dropped yet: until whoever runs packages says it went well
+        (``settle``), the pointers can be put back as they were (``restore``).
+        ``package.unwritable`` when they cannot be written, and then nothing changed."""
         before = self.pointers()
         if package not in before:
             raise PrimumError(ErrorCode.PACKAGE_NOT_STORED, {"hash": package})
         if package == before.active:
             return before
         staged = None if package == before.staged else before.staged
-        after = Pointers(active=package, previous=before.active, staged=staged)
+        after = replace(before, active=package, previous=before.active, staged=staged)
         self._point(after)
         return after
+
+    def restore(self, pointers: Pointers) -> None:
+        """Put the pointers back as they were before an ``activate`` that did not go."""
+        self._point(pointers)
+
+    def settle(self) -> None:
+        """Drop the packages no pointer names: what an activation that went well, or a
+        package staged over another, leaves behind."""
+        pointers = self.pointers()
+        named = (pointers.active, pointers.previous, pointers.staged)
+        kept = {self._path(package).name for package in named if package}
+        for file in self._directory.glob("*" + SUFFIX):
+            if file.name not in kept:
+                file.unlink(missing_ok=True)
 
     def _checked(self, content: bytes, path: Path) -> LoadedPackage:
         loaded = check_content(content, path, self._manifests)
@@ -142,27 +185,21 @@ class Deployed:
         return loaded
 
     def _point(self, pointers: Pointers) -> None:
-        """Write the pointers, then drop the packages none of them names."""
+        """Write the pointers, with the names of the projects of the packages they name."""
         path = self._directory / STATE_NAME
+        named = [p for p in (pointers.active, pointers.previous, pointers.staged) if p]
         document = {
             "version": VERSION,
             "active": pointers.active,
             "previous": pointers.previous,
             "staged": pointers.staged,
+            "projects": {p: pointers.projects[p] for p in named if p in pointers.projects},
         }
         try:
             self._directory.mkdir(parents=True, exist_ok=True)
-            _write(path, json.dumps(document).encode())
+            write_whole(path, json.dumps(document).encode())
         except OSError as error:
             raise _unwritable(path, error) from error
-        kept = {
-            self._path(package).name
-            for package in (pointers.active, pointers.previous, pointers.staged)
-            if package
-        }
-        for file in self._directory.glob("*" + SUFFIX):
-            if file.name not in kept:
-                file.unlink(missing_ok=True)
 
     def _path(self, package: str) -> Path:
         if not _is_hash(package):  # it becomes a file name: nothing but a hash gets there
@@ -174,8 +211,8 @@ def _is_hash(value: object) -> bool:
     return isinstance(value, str) and _HASH.fullmatch(value) is not None
 
 
-def _write(path: Path, content: bytes) -> None:
-    """Whole, on the card, then renamed into place, and the name on the card too."""
+def write_whole(path: Path, content: bytes) -> None:
+    """A file written whole, on the card, then renamed into place, and the name on the card too."""
     temporary = path.with_suffix(".tmp")
     with temporary.open("wb") as file:
         file.write(content)

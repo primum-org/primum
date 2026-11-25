@@ -997,6 +997,19 @@ per element, from a deployment package that can be rolled back. One pull request
     and opened again in one process (lines released and requested again, PWM unexported
     and exported), which activation relies on and no test here can show. Then the "done
     when" of the phase, below.
+  - On the Pi and with large packages, by its owner, before the fixes: a show of 3000
+    clips (834 kB) held the event loop a second to store and a second to activate, and
+    half a second at every `GET /api/package`; 7.9 MB of JSON that is no package, 5.4 s.
+    Found too: with `packages/` read-only the answer said the activation failed with the
+    new package already running; a claim that fails at start (another process holding a
+    line) still killed the service; a counter was lost going to a package of another
+    project and back; a sequence running at an activation was left without its
+    `sequence.stopped`. All fixed, each with a test that failed before: the check is off
+    the loop and the names are in the state file, the state is written before anything
+    is touched, the service starts empty whatever keeps the active package from running,
+    persistent values are one file per project, and the trace notes the stop. The fixes
+    have not been reported as run on the Pi. A check in a thread still shares the
+    interpreter with the loop: requests are answered meanwhile, more slowly.
   - `provision.sh` still writes a `PRIMUM_PIN`: a board runs packages once it is removed.
     Not changed here: the script cannot be tried from this session.
   - Left for phase 5: the PIN, which activation must be the first thing behind. Left out:

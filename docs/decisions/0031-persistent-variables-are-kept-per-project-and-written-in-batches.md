@@ -11,10 +11,12 @@ cut. Keeping them raises what the mark leaves open: whose the values are when th
 changes, what a value is worth when its variable changed, and how often a card is written.
 
 ## Decision
-- **The values belong to the project.** One file in the data directory
-  (`variables.json`), with the id of the project and the value of each persistent variable
-  by its id. A new package of the same project finds them; another project does not take
-  them, and starts at its initial values.
+- **The values belong to the project.** One file per project in `variables/` under the
+  data directory, named by the project's id, with the value of each persistent variable by
+  its id. A new package of the same project finds them; another project has a file of its
+  own. (At first it was one file for the board, `variables.json`, that another project
+  replaced: activating a package of another project and going back lost every counter.
+  Changed with activation, block 4.5b; that file is still read for the project it names.)
 - **A kept value that its variable no longer takes gives way to the initial one**, logged:
   a new package may have changed the type or the limits. The other variables keep theirs.
 - **A change is written a moment later, not at once**: the first change arms a timer of a
@@ -25,9 +27,8 @@ changes, what a value is worth when its variable changed, and how often a card i
   cut leaves the file before or the file after, never half of one. Writes land in the
   order they were asked for: one that gets to the card after a later one writes nothing.
 - **What is kept is not replaced by values that drop some of it without a copy left
-  beside it** (`variables.json.bak`): another project's values, a file that could not be
-  read, a value a new package no longer takes. A package put back (block 4.5) must be able
-  to find its counter; how it does is that block's to say.
+  beside it** (`<project id>.json.bak`): a file that could not be read, a value a new
+  package no longer takes.
 - **On stopping, the last save is made before the outputs are made safe.** It is a write
   of milliseconds. A card that hangs would hold the stop until systemd's `TimeoutStopSec`
   ends it and `primum-safe` makes the outputs safe: the same net as for any hang. Saving
@@ -62,8 +63,9 @@ changes, what a value is worth when its variable changed, and how often a card i
 - Nobody but the log and the API's state sees that the values are not kept
   (`variablesUnsaved`): the page of the runtime does not show it. For the UI of phase 5.
 - Only the last file set aside is there: a second replacement writes over the copy.
-- Deleting `variables.json` (or putting another project on the board) starts every
-  variable at its initial value: that is the way to reset them until the UI has one.
+- Deleting the file of a project starts its variables at their initial values: that is
+  the way to reset them until the UI has one.
+- The files of projects a board no longer runs stay: a few hundred bytes each.
 - The data directory must be writable for persistent variables to be kept; when it is not,
   the service runs all the same and says so.
 - "Once per window across restarts" (decision 0030) could use the same file; it is not

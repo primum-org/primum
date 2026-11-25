@@ -38,10 +38,11 @@ says, on the pins it says: its project is what was checked against the board.
 `PRIMUM_PACKAGE=<file>` still runs one file, for development; such a service takes no
 others, and does not start if it cannot run it.
 
-Variables marked persistent are kept in `variables.json` in the data directory (`/data`),
-for the project: a new package of the same project finds them. To start them again, stop
-the service and remove that file. When a new package or another project drops values that
-were kept, the file before is left beside it as `variables.json.bak`.
+Variables marked persistent are kept in `variables/<project id>.json` under the data
+directory (`/data`), one file per project: a new package of the same project finds them,
+and another project does not touch them. To start them again, stop the service and remove
+that file. When a new package drops values that were kept, the file before is left beside
+it with `.bak`.
 
 A package with schedules needs the board to know the time: the Pi sets its clock from the
 network, and until it has, no schedule happens (`timeKnown` in `/api/status`). A board with

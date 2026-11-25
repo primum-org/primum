@@ -120,7 +120,7 @@ async def store_package(request: Request, deployment: DeploymentDep) -> Packages
     """Give the board a package (the body is the ``.package.json``, as ``primum build``
     writes it). It is checked against this board and kept, and nothing that runs changes:
     activating it is another request, that names it by its hash."""
-    deployment.store(await _body(request))
+    await deployment.store(await _body(request))
     return PackagesBody.of(deployment)
 
 
@@ -128,14 +128,14 @@ async def store_package(request: Request, deployment: DeploymentDep) -> Packages
 async def activate_package(body: PackageChoice, deployment: DeploymentDep) -> PackagesBody:
     """Run a package the board keeps, named by its hash: the one stored last, or the one
     before the active one. Everything stops and every output goes to its safe state first."""
-    deployment.activate(body.hash)
+    await deployment.activate(body.hash)
     return PackagesBody.of(deployment)
 
 
 @router.post("/package/rollback")
 async def rollback_package(deployment: DeploymentDep) -> PackagesBody:
     """Run again the package that ran before the active one."""
-    deployment.rollback()
+    await deployment.rollback()
     return PackagesBody.of(deployment)
 
 

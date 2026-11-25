@@ -129,8 +129,8 @@ it**, and takes others through its API. It is how a board is meant to run.
 | Request | Does | Refused |
 |---|---|---|
 | `GET /api/package` | `{running, active, previous, staged, problem, fixed}`: each package as `{hash, project}` | |
-| `PUT /api/package`, the body the `.package.json` | Checks it against this board (*Running one*, below) and keeps it as the **staged** one, replacing the one staged before. Nothing that runs changes | What is wrong with it (422: `package.invalid`, `element.*`, `event.not_listenable`, `package.board_unsupported` for another board than this service's…); `package.too_large` (413, over 8 MiB); `package.unwritable`; `package.fixed` (409) |
-| `POST /api/package/activate` with `{"hash": "sha256:…"}` | Runs a package that is kept: the staged one, or the previous one. The one that ran becomes the previous one | `package.not_stored` (404); `panic.active` (409); `package.fixed` (409); what is wrong with it, read again; `package.activation_failed` (500: `hash`, `problem`) |
+| `PUT /api/package`, the body the `.package.json` | Checks it against this board (*Running one*, below) and keeps it as the **staged** one, replacing the one staged before. Nothing that runs changes, and nothing waits: the check is off the event loop (a second for a show of 3000 clips) | What is wrong with it (422: `package.invalid`, `element.*`, `event.not_listenable`, `package.board_unsupported` for another board than this service's…); `package.too_large` (413, over 8 MiB); `package.unwritable`; `package.fixed` (409) |
+| `POST /api/package/activate` with `{"hash": "sha256:…"}` | Runs a package that is kept: the staged one, or the previous one. The one that ran becomes the previous one | `package.not_stored` (404); `panic.active` (409); `package.fixed` (409); what is wrong with it, read again; `package.unwritable` (500) when the board cannot write which package is active: that is written first, and then nothing is touched; `package.activation_failed` (500: `hash`, `problem`) |
 | `POST /api/package/rollback` | Activates the previous one: the two swap, so it can be undone | `package.no_previous` (409); the rest as activating |
 
 - **Two steps, on purpose**: storing never changes what a board does, and activating names
@@ -141,17 +141,24 @@ it**, and takes others through its API. It is how a board is meant to run.
   claims its own elements. Also the outputs both packages have: they go through their safe
   state.
 - **What carries over**: the persistent variables, which are the project's (a package put
-  back finds the values there are now, if it still takes them: `engine-semantics.md`), and
+  back finds the values its project has now, if it still takes them, also after a package
+  of another project ran in between: `engine-semantics.md`), and
   the trace, which notes `package.stored`, `package.activated` and `package.refused`.
 - **A package that cannot be started is not activated**: what ran before is started again
   and stays active; the package stays staged.
+- **In this order**: the package is read and checked again (off the event loop), the board
+  writes that it is the active one, what runs is closed and the package is started. If the
+  write fails nothing has changed. If the start fails, what ran before runs again and the
+  board writes back which package is active.
 - **Not while panic is on**: release it first.
 - **At most three packages are kept**, in `packages/` under the data directory, each in a
   file named by its hash, with a `state.json` that says which is active, previous and
-  staged. A kept package is read and checked again each time it is used.
+  staged, and the name of the project of each: `GET /api/package` reads that file and no
+  package. A kept package is read and checked again each time it is activated or started.
 - **A service with nothing it can run starts empty**: no package activated yet, or the
-  active one no longer reads or no longer fits. Nothing moves, `running` is `null`, and
-  `problem` says why. It never keeps the service from starting.
+  active one no longer reads, no longer fits, or cannot be claimed (a line another program
+  holds, a PWM controller that is missing). Nothing moves, `running` is `null`, and
+  `problem` says why. Whatever is wrong with the active package, the service starts.
 - `fixed` is true on a service started with `--package` or `--pin`: it runs that and takes
   no packages.
 

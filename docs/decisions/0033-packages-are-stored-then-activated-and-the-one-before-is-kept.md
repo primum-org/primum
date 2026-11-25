@@ -25,6 +25,9 @@ project is that nothing moves hardware without a person confirming it.
   stop, what is pending of the variables is written, every output goes to its safe state
   and the HAL is let go of. Then the new package opens a HAL of its own and claims its
   elements. Nothing carries over but the persistent variables and the trace.
+- **The board writes which package is active before it touches what runs.** A card that
+  went read-only refuses the activation with nothing changed, instead of leaving a package
+  running that a restart would not bring back.
 - **A package that cannot be started is not activated**: what ran before is started again
   and stays the active one (`package.activation_failed`). A board is not left running
   nothing because a package would not go.
@@ -34,7 +37,11 @@ project is that nothing moves hardware without a person confirming it.
   put back finds the values there are now, if it still takes them. A counter does not go
   back because the lights did.
 - **A service with nothing it can run starts empty and says why**: no package activated
-  yet, or the active one no longer reads or fits. The API is there to give it another.
+  yet, or the active one no longer reads, no longer fits or cannot be claimed. The API is
+  there to give it another.
+- **Checking a package is off the event loop**, when it is stored and when it is
+  activated: it takes time in proportion to the package, and panic must never wait behind
+  it. What the packages are is told from the state file, never by reading them.
 - **The trace goes on through an activation** (`package.stored`, `package.activated`,
   `package.refused`), with the same numbers and the same id.
 

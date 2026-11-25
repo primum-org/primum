@@ -37,7 +37,7 @@ a sequence started by an automation names that automation's entry.
 | `automation.did_not_act` | Its condition was false, or a window it needs is closed | `id`, `name`; `cause`: the event |
 | `automation.failed` | Its condition could not be worked out, or an action failed | `id`, `name`, `problem` (the code its state has), and that problem's own params (`reason`; or `action` and `failure`, the code of what the action failed with); `cause`: the event |
 | `sequence.started` | A sequence starts running | `id`, `name`, `by` (`api`, `automation`), `restarted` when it was running; `cause`: the automation |
-| `sequence.stopped` | It was stopped | `id`, `name`, `by`: who asked (`api`, `automation`), `panic`, or `exclusive_group` when nobody asked and one of its group started |
+| `sequence.stopped` | It was stopped | `id`, `name`, `by`: who asked (`api`, `automation`), `panic`, `package` when a package was activated in place of the one it is of, or `exclusive_group` when nobody asked and one of its group started |
 | `sequence.ended` | It reached its end on its own | `id`, `name` |
 | `variable.changed` | A variable was set or incremented | `id`, `name`, `value` (after), `by` (`api`, `automation`); `cause`: the automation |
 | `variable.kept_value_dropped` | When the service starts: a persistent variable no longer takes the value kept for it, and starts at its initial one | `id`, `name`, `problem` (why it does not take it) |

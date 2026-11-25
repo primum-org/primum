@@ -127,11 +127,14 @@ the variable's limits.
 A variable marked `persistent` keeps its value across a restart of the service and a power
 cut.
 
-- **Where**: `variables.json` in the data directory (`/data`; `--data-dir`,
-  `PRIMUM_DATA_DIR`), with the id of the project and the value of each persistent variable,
-  by its id.
-- **Whose**: the project's. A new package of the same project finds the values; a package
-  of another project does not use them, and when it keeps its own they are replaced.
+- **Where**: in `variables/` under the data directory (`/data`; `--data-dir`,
+  `PRIMUM_DATA_DIR`), one file per project, `<project id>.json`, with the value of each
+  persistent variable by its id.
+- **Whose**: the project's. A new package of the same project finds the values. A package
+  of another project has its own file: running it for a while, and going back, leaves the
+  values of the first as they were.
+- Before block 4.5b there was one file for the board, `variables.json`, of one project. It
+  is still read, for the project it names, until that project has a file of its own.
 - **When the service starts**, each persistent variable takes the value kept for it, if it
   still takes it: of its type and within its limits, as a value set through the API. One it
   no longer takes (a new package changed the variable) gives way to the initial value, and
@@ -144,11 +147,10 @@ cut.
   made safe.
 - **The file is never half written**: written whole beside it, synced, renamed into place.
   The write does not hold up the service: outputs, inputs and panic go on meanwhile.
-- **What was kept is set aside before it is dropped**: when the values on the board are
-  another project's, cannot be read, or include one a variable no longer takes (or whose
-  variable is gone), the file is copied to `variables.json.bak` before the new values
-  replace it. Only the last copy is there. Nothing reads it yet: putting a package back
-  (block 4.5) will say how its values come back.
+- **What was kept is set aside before it is dropped**: when the values kept for the
+  project cannot be read, or include one a variable no longer takes (or whose variable is
+  gone), the file is copied to `<project id>.json.bak` before the new values replace it.
+  Only the last copy is there, and nothing reads it: it is for a person to recover from.
 - **If it cannot be read** (not there, damaged, not even text, of another version), the
   variables start at their initial values and the service runs. **If it cannot be written**, the service runs
   all the same: the log says so once, the state says so while it lasts

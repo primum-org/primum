@@ -109,7 +109,7 @@ class Running:
         self._saver: VariableSaver | None = None
         if project is not None and _drops(kept, controller.persistent_values()):
             # Before anything replaces it: going back must be able to find them.
-            stored.set_aside(config.data_dir)
+            stored.set_aside(config.data_dir, project)
         if project is not None and controller.persistent_values():
             self._saver = VariableSaver(
                 controller,
@@ -160,6 +160,9 @@ class Deployment:
             else None
         )
         self.problem: PrimumError | None = None  # why the active package is not running
+        # One change of the packages at a time: a store and an activation wait for a
+        # check off the event loop, and another must not come in between.
+        self._changing = asyncio.Lock()
         self.running = self._start()
 
     @property
@@ -176,47 +179,77 @@ class Deployment:
         return Pointers() if self._deployed is None else self._deployed.pointers()
 
     def project_of(self, package: str) -> str | None:
-        """The name of the project of a package that is kept; ``None`` for one that no
-        longer reads."""
-        if self._deployed is None:
-            return None
-        try:
-            return self._deployed.load(package).package.project.name
-        except PrimumError:
-            return None
+        """The name of the project of a package that is kept, as it was when it was
+        stored: told without reading the package."""
+        return self.pointers().projects.get(package)
 
     def stop(self) -> None:
         self.running.close()
 
-    def store(self, content: bytes) -> LoadedPackage:
+    async def store(self, content: bytes) -> LoadedPackage:
         """Check a package and keep it, to be activated later. Nothing that runs changes.
         ``package.fixed`` on a service that was told what to drive; what
-        ``Deployed.store`` reports for a package it does not take."""
-        loaded = self._store().store(content)
+        ``Deployed.check`` and ``Deployed.keep`` report for a package it does not take.
+
+        The check and the write are off the event loop: a large package takes a second to
+        check, and panic must not wait behind it."""
+        store = self._store()
+        async with self._changing:
+            loaded = await asyncio.to_thread(store.check, content)
+            await asyncio.to_thread(store.keep, loaded, content)
         told = {"project": loaded.package.project.name, "package": loaded.package.hash}
         self.controller.note(Kind.PACKAGE_STORED, told)
         return loaded
 
-    def activate(self, package: str) -> None:
+    async def activate(self, package: str) -> None:
         """Run a package that is kept (the staged one, or the previous one) instead of what
         runs now: everything stops, every output goes to its safe state, and the package
         starts from nothing.
 
         Refused, changing nothing, with ``package.fixed``, ``panic.active`` (panic is
-        released by a person, not by a package), ``package.not_stored`` (``hash``), or what
-        loading it reports. If it cannot be started (``package.activation_failed``:
-        ``hash``, ``problem``), what ran before is started again and stays the active one.
+        released by a person, not by a package), ``package.not_stored`` (``hash``), what
+        loading it reports, or ``package.unwritable`` when the board cannot write that it
+        is the active one: that is written first, before anything that runs is touched.
+        If it cannot be started (``package.activation_failed``: ``hash``, ``problem``),
+        what ran before is started again and stays the active one.
         """
         store = self._store()
+        async with self._changing:
+            self._not_in_panic()
+            before = store.pointers()
+            if package == before.active and self.problem is None:
+                return  # it runs already
+            # Read and checked again, off the event loop: it takes as long as storing it.
+            loaded = await asyncio.to_thread(store.load, package)
+            self._not_in_panic()  # it may have come while the package was being read
+            await asyncio.to_thread(store.activate, package)
+            try:
+                self._swap(loaded, before)
+            except PrimumError:
+                await asyncio.to_thread(_put_back, store, before)
+                raise
+            await asyncio.to_thread(store.settle)
+
+    async def rollback(self) -> None:
+        """Activate the previous package. ``package.no_previous`` when there is none; the
+        rest as ``activate``."""
+        previous = self._store().pointers().previous
+        if previous is None:
+            raise PrimumError(ErrorCode.PACKAGE_NO_PREVIOUS)
+        await self.activate(previous)
+
+    def _not_in_panic(self) -> None:
         if self.controller.state().panic:
             raise PrimumError(ErrorCode.PANIC_ACTIVE)
-        before = store.pointers()
-        if package == before.active and self.problem is None:
-            return  # it runs already
-        loaded = store.load(package)
+
+    def _swap(self, loaded: LoadedPackage, before: Pointers) -> None:
+        """Close what runs and start ``loaded`` in its place, all at once on the event
+        loop. ``package.activation_failed`` if it does not start: then what ran before
+        runs again."""
+        package = loaded.package.hash
         told: dict[str, ErrorParam] = {
             "project": loaded.package.project.name,
-            "package": loaded.package.hash,
+            "package": package,
         }
         if before.active is not None and before.active != package:
             told["previous"] = before.active
@@ -224,6 +257,9 @@ class Deployment:
             told["rollback"] = True
         was = self.running
         try:
+            # Its sequences end here, and the trace says so before the package that
+            # replaces them.
+            was.controller.stop_all("package")
             was.close()
             self.running = self._run(loaded, (Kind.PACKAGE_ACTIVATED, told))
         except Exception as error:
@@ -231,20 +267,11 @@ class Deployment:
             params: dict[str, ErrorParam] = {"hash": package}
             if isinstance(error, PrimumError):
                 params["problem"] = error.code.value
-            self.running = self._again(was, (Kind.PACKAGE_REFUSED, params))
+            self.running = self._again(was, before, (Kind.PACKAGE_REFUSED, params))
             raise PrimumError(ErrorCode.PACKAGE_ACTIVATION_FAILED, params) from error
         self.problem = None
-        store.activate(package)
         log.info("package %s of project %s activated", package, loaded.package.project.name)
         self._parts.broadcaster.publish(self.controller.state())
-
-    def rollback(self) -> None:
-        """Activate the previous package. ``package.no_previous`` when there is none; the
-        rest as ``activate``."""
-        previous = self._store().pointers().previous
-        if previous is None:
-            raise PrimumError(ErrorCode.PACKAGE_NO_PREVIOUS)
-        self.activate(previous)
 
     def _store(self) -> Deployed:
         if self._deployed is None:
@@ -253,7 +280,12 @@ class Deployment:
 
     def _start(self) -> Running:
         """What the service starts with: what its options say, or the active package, or
-        nothing when there is none it can run (and then ``problem`` says why)."""
+        nothing when there is none it can run (and then ``problem`` says why).
+
+        Whatever keeps the active package from running, the service starts: one that no
+        longer reads, one that no longer fits the board, one whose elements cannot be
+        claimed (a line another program holds). A service that died of it would be
+        restarted by systemd for ever, and could not be given another package."""
         config = self._parts.config
         if self._deployed is None:
             return Running(self._parts, config.elements, config.package)
@@ -262,38 +294,51 @@ class Deployment:
             return Running(self._parts, (), None)
         try:
             loaded = self._deployed.load(active)
-        except PrimumError as error:
-            log.error(
-                "the active package (%s) cannot be run: the service starts empty: %s", active, error
-            )
-            self.problem = error
+            running = self._run(loaded, None)
+        except Exception as error:
+            log.exception("the active package (%s) cannot be run: the service starts empty", active)
+            self.problem = _problem(error, active)
             return Running(self._parts, (), None)
         log.info("running package %s of project %s", active, loaded.package.project.name)
-        return self._run(loaded, None)
+        return running
 
     def _run(self, loaded: LoadedPackage, opening: Opening | None) -> Running:
         return Running(self._parts, loaded.elements, loaded.package, opening)
 
-    def _again(self, was: Running, opening: Opening) -> Running:
+    def _again(self, was: Running, before: Pointers, opening: Opening) -> Running:
         """Start again what ran before a package that would not go; nothing at all, if that
         does not start either."""
-        config = self._parts.config
-        elements = () if self._deployed is not None else config.elements
-        if was.package is not None and self._deployed is not None:
-            active = self._deployed.pointers().active
+        if was.package is not None and self._deployed is not None and before.active is not None:
             try:
-                loaded = self._deployed.load(active or "")
-                return self._run(loaded, opening)
+                return self._run(self._deployed.load(before.active), opening)
             except Exception:
                 log.exception("what ran before does not start either: the service runs nothing")
-        return Running(self._parts, elements, None, opening)
+        return Running(self._parts, (), None, opening)
+
+
+def _problem(error: Exception, package: str) -> PrimumError:
+    """Why a package is not running, as an error is told: the error itself when it has a
+    code, and else that it could not be started."""
+    if isinstance(error, PrimumError):
+        return error
+    return PrimumError(ErrorCode.PACKAGE_ACTIVATION_FAILED, {"hash": package})
+
+
+def _put_back(store: Deployed, before: Pointers) -> None:
+    """The pointers as they were before an activation that did not go. If even that cannot
+    be written it is logged: what runs is what ran before, and the state on the card will
+    say otherwise until the next activation."""
+    try:
+        store.restore(before)
+    except PrimumError:
+        log.exception("the packages' state could not be put back as it was")
 
 
 def _drops(kept: Mapping[UUID, Value], now: Mapping[UUID, Value]) -> bool:
-    """Whether writing ``now`` over what is on the board would lose something of it: a
-    value that was kept and is not what its variable starts at (the variable is gone, or
-    no longer takes it), or a file whose values could not be used at all (another
-    project's, or unreadable; nothing kept sets nothing aside)."""
+    """Whether writing ``now`` over what is kept for the project would lose something of
+    it: a value that was kept and is not what its variable starts at (the variable is gone,
+    or no longer takes it), or a file whose values could not be used at all (unreadable;
+    nothing kept sets nothing aside)."""
     return not kept or any(now.get(variable) != value for variable, value in kept.items())
 
 

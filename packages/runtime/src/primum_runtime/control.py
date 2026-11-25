@@ -540,6 +540,17 @@ class Controller:
         self._settle(now)
         self._notify()
 
+    def stop_all(self, by: str) -> None:
+        """Stop every sequence, and note each as stopped by ``by``: what runs is about to be
+        replaced (a package activated in its place). The outputs are left to whoever closes
+        the HAL, which makes them safe."""
+        if self._engine is None:
+            return
+        now = self._clock()
+        self._trace_runs(now, ENDED)
+        self._engine.stop_all()
+        self._trace_runs(now, by)
+
     def set_variable(self, variable: str, value: Value) -> None:
         """Give a variable of the package a value, by its id.
 

@@ -53,6 +53,18 @@ def _values(service: Service) -> dict[str, Value]:
     return {v.id: v.value for v in service.controller.state().variables}
 
 
+def _kept(tmp_path: Path, content: bytes) -> None:
+    """Put ``content`` where the values of the project are kept."""
+    file = stored.path(tmp_path, PROJECT)
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_bytes(content)
+
+
+def _aside_file(tmp_path: Path) -> Path:
+    file = stored.path(tmp_path, PROJECT)
+    return file.with_name(file.name + stored.ASIDE_SUFFIX)
+
+
 # --- the file --------------------------------------------------------------------------------
 
 
@@ -101,7 +113,7 @@ def _kept_file(**fields: object) -> str:
 def test_a_file_that_does_not_say_what_it_should_gives_no_values_and_does_not_fail(
     tmp_path: Path, content: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    (tmp_path / stored.FILE_NAME).write_text(content, encoding="utf-8")
+    _kept(tmp_path, content.encode())
 
     assert stored.read(tmp_path, PROJECT) == {}
     assert "kept variables" in caplog.text
@@ -118,7 +130,7 @@ def test_a_file_that_does_not_say_what_it_should_gives_no_values_and_does_not_fa
 def test_a_file_that_is_not_even_text_gives_no_values_and_does_not_fail(
     tmp_path: Path, content: bytes, caplog: pytest.LogCaptureFixture
 ) -> None:
-    (tmp_path / stored.FILE_NAME).write_bytes(content)
+    _kept(tmp_path, content)
 
     assert stored.read(tmp_path, PROJECT) == {}
     assert "kept variables" in caplog.text
@@ -129,34 +141,70 @@ def test_a_write_replaces_the_file_whole_and_leaves_nothing_else(tmp_path: Path)
 
     stored.write(tmp_path, PROJECT, {UUID(VISITS): 4})
 
-    assert [path.name for path in tmp_path.iterdir()] == [stored.FILE_NAME]
-    assert json.loads((tmp_path / stored.FILE_NAME).read_text())["values"] == {VISITS: 4}
+    file = stored.path(tmp_path, PROJECT)
+    assert list(file.parent.iterdir()) == [file]
+    assert json.loads(file.read_text())["values"] == {VISITS: 4}
 
 
 def test_what_is_about_to_be_replaced_can_be_set_aside(tmp_path: Path) -> None:
     stored.write(tmp_path, PROJECT, {UUID(VISITS): 7})
 
-    stored.set_aside(tmp_path)
-    stored.write(tmp_path, OTHER_PROJECT, {UUID(VISITS): 0})
+    stored.set_aside(tmp_path, PROJECT)
+    stored.write(tmp_path, PROJECT, {UUID(VISITS): 0})
 
-    aside = json.loads((tmp_path / stored.ASIDE_NAME).read_text())
+    aside = json.loads(_aside_file(tmp_path).read_text())
     assert (aside["project"], aside["values"]) == (str(PROJECT), {VISITS: 7})
 
 
 def test_setting_aside_nothing_does_nothing(tmp_path: Path) -> None:
-    stored.set_aside(tmp_path)
+    stored.set_aside(tmp_path, PROJECT)
 
     assert list(tmp_path.iterdir()) == []
 
 
+def test_each_project_has_values_of_its_own_and_neither_touches_the_others(
+    tmp_path: Path,
+) -> None:
+    stored.write(tmp_path, PROJECT, {UUID(VISITS): 3})
+
+    stored.write(tmp_path, OTHER_PROJECT, {UUID(VISITS): 8})
+
+    assert stored.read(tmp_path, PROJECT) == {UUID(VISITS): 3}
+    assert stored.read(tmp_path, OTHER_PROJECT) == {UUID(VISITS): 8}
+
+
+def _legacy(tmp_path: Path, project: UUID, visits: int) -> None:
+    """The one file of before block 4.5b, for one project."""
+    document = {"version": 1, "project": str(project), "values": {VISITS: visits}}
+    (tmp_path / stored.LEGACY_NAME).write_text(json.dumps(document), encoding="utf-8")
+
+
+def test_the_one_file_of_before_is_still_read_for_the_project_it_names(tmp_path: Path) -> None:
+    _legacy(tmp_path, PROJECT, 5)
+
+    assert stored.read(tmp_path, PROJECT) == {UUID(VISITS): 5}
+    assert stored.read(tmp_path, OTHER_PROJECT) == {}
+
+
+def test_a_project_with_a_file_of_its_own_no_longer_reads_the_one_of_before(
+    tmp_path: Path,
+) -> None:
+    _legacy(tmp_path, PROJECT, 5)
+
+    stored.write(tmp_path, PROJECT, {UUID(VISITS): 6})
+
+    assert stored.read(tmp_path, PROJECT) == {UUID(VISITS): 6}
+
+
 def test_a_write_that_fails_says_so_and_keeps_what_was_there(tmp_path: Path) -> None:
-    missing = tmp_path / "gone"
+    not_a_folder = tmp_path / "file"
+    not_a_folder.write_text("in the way", encoding="utf-8")
 
     with pytest.raises(PrimumError) as refused:
-        stored.write(missing, PROJECT, {UUID(VISITS): 3})
+        stored.write(not_a_folder, PROJECT, {UUID(VISITS): 3})
 
     assert refused.value.code is ErrorCode.VARIABLES_UNWRITABLE
-    assert refused.value.params["path"] == str(missing / stored.FILE_NAME)
+    assert refused.value.params["path"] == str(stored.path(not_a_folder, PROJECT))
 
 
 # --- the controller --------------------------------------------------------------------------
@@ -499,16 +547,16 @@ def test_a_new_package_whose_variable_no_longer_takes_the_value_starts_it_again(
 def test_a_service_whose_values_cannot_be_read_starts_at_the_initial_ones(
     tmp_path: Path, content: bytes
 ) -> None:
-    (tmp_path / stored.FILE_NAME).write_bytes(content)
+    _kept(tmp_path, content)
 
     found = _run(tmp_path, DOCUMENT)
 
     assert found[VISITS] == 0
-    assert (tmp_path / stored.ASIDE_NAME).read_bytes() == content  # set aside
+    assert _aside_file(tmp_path).read_bytes() == content  # set aside
 
 
 def _aside(tmp_path: Path) -> dict[str, object] | None:
-    path = tmp_path / stored.ASIDE_NAME
+    path = _aside_file(tmp_path)
     return json.loads(path.read_text(encoding="utf-8"))["values"] if path.exists() else None
 
 
@@ -523,12 +571,13 @@ def test_kept_values_that_a_new_package_drops_are_set_aside_before_they_are_repl
     assert _aside(tmp_path) == {VISITS: 7, LEVEL: 0.5, NOTE: ""}
 
 
-def test_values_of_another_project_are_set_aside_before_they_are_replaced(tmp_path: Path) -> None:
+def test_values_of_another_project_are_left_as_they_are(tmp_path: Path) -> None:
     stored.write(tmp_path, OTHER_PROJECT, {UUID(VISITS): 9})
 
     _run(tmp_path, DOCUMENT, (VISITS, 1))
 
-    assert _aside(tmp_path) == {VISITS: 9}
+    assert stored.read(tmp_path, OTHER_PROJECT) == {UUID(VISITS): 9}
+    assert _aside(tmp_path) is None  # nothing was dropped: nothing to set aside
 
 
 def test_nothing_is_set_aside_when_every_kept_value_is_taken(tmp_path: Path) -> None:

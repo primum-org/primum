@@ -1,27 +1,34 @@
 """Packages on a board: stored, activated, put back (decision 0033)."""
 
 import json
+import threading
 from collections.abc import Generator
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
+from primum_runtime import deployed
 from primum_runtime.api import create_app
 from primum_runtime.board import load_board
 from primum_runtime.config import parse_config
 from primum_runtime.deployed import DIRECTORY, MAX_BYTES, STATE_NAME, Deployed, Pointers
 from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.hal import Hal, SimulatedHal
-from show_service import MANIFESTS, compiled, make_file, make_id, make_sequence
+from primum_runtime.package import LoadedPackage
+from show_service import MANIFESTS, WAIT_S, compiled, make_file, make_id, make_sequence
 
 LED, ON, VISITS = make_id(4), make_id(30), make_id(61)
 
 
-def _document(name: str = "Shop", pin: int = 17, maximum: int = 10) -> dict[str, object]:
+def _document(
+    name: str = "Shop", pin: int = 17, maximum: int = 10, project: int = 1
+) -> dict[str, object]:
     """A Pi with an LED on ``pin``, the sequence *On* that holds it on, and a persistent
-    counter of visits, up to ``maximum``. Always the same project, whatever its name."""
+    counter of visits, up to ``maximum``. The same project, whatever its name, unless
+    ``project`` says another."""
     board = {"id": make_id(3), "name": "Pi", "model": "rpi4b"}
     led = {"id": LED, "name": "LED", "type": "digital_output", "pin": pin, "board": make_id(3)}
     visits = {"id": VISITS, "name": "visits", "type": "integer", "initial": 0, "min": 0}
@@ -29,7 +36,7 @@ def _document(name: str = "Shop", pin: int = 17, maximum: int = 10) -> dict[str,
     on: dict[str, object] = {"atMs": 0, "durationMs": 0, "action": "on"}
     return compiled(
         {
-            "project.json": make_file("project", 1, name=name),
+            "project.json": make_file("project", project, name=name),
             "hardware.hw": make_file("hardware", 2, boards=[board], elements=[led]),
             "shop.vars": make_file("variables", 60, constants=[], variables=[{**visits, **kept}]),
             "on.sec": make_sequence(30, "On", 4, on, whenDone="hold"),
@@ -178,9 +185,9 @@ class _Board:
     """The HALs a service opened, one each time what it runs changed; the last is the one
     in use. ``fail`` makes the next one refuse to open."""
 
-    def __init__(self) -> None:
+    def __init__(self, fail: bool = False) -> None:
         self.hals: list[SimulatedHal] = []
-        self.fail = False
+        self.fail = fail
 
     def open(self) -> Hal:
         if self.fail:
@@ -195,10 +202,13 @@ class _Board:
 
 
 @contextmanager
-def _service(data_dir: Path, *options: str) -> Generator[tuple[TestClient, _Board]]:
-    """A service that runs what is activated on it, keeping what it keeps in ``data_dir``."""
+def _service(
+    data_dir: Path, *options: str, fail: bool = False
+) -> Generator[tuple[TestClient, _Board]]:
+    """A service that runs what is activated on it, keeping what it keeps in ``data_dir``.
+    With ``fail``, the first HAL it asks for does not open."""
     config = parse_config(["--simulate", "--data-dir", str(data_dir), *options], {})
-    board = _Board()
+    board = _Board(fail)
     with TestClient(create_app(config, open_hal=board.open)) as client:
         yield client, board
 
@@ -441,6 +451,141 @@ def test_a_service_that_restarts_runs_the_package_that_was_active(tmp_path: Path
     )
 
 
+def test_a_service_whose_active_package_cannot_be_claimed_starts_empty_and_says_why(
+    tmp_path: Path,
+) -> None:
+    """Another program holds a line of the package: the claim fails. The service must still
+    start, or systemd would restart it for ever."""
+    with _service(tmp_path) as (client, _):
+        _give(client, FIRST)
+
+    with _service(tmp_path, fail=True) as (client, _):
+        packages = client.get("/api/package").json()
+        outputs = _outputs(client)
+
+    assert (packages["running"], outputs) == (None, [])
+    assert packages["active"] == {"hash": FIRST_HASH, "project": "First"}
+    assert packages["problem"]["code"] == "hal.chip_not_found"
+
+
+def test_what_the_packages_are_is_told_without_reading_them(tmp_path: Path) -> None:
+    """Asked at every look of a page: it must not cost reading and checking three packages
+    on the event loop, where panic waits too. Their names are in the state."""
+    with _service(tmp_path) as (client, _):
+        _give(client, FIRST)
+        _give(client, SECOND)
+        _give(client, _document("Third", 22), activate=False)
+        for file in (tmp_path / DIRECTORY).glob("*.package.json"):
+            file.write_bytes(b"not read")
+
+        packages = client.get("/api/package").json()
+
+    names = [packages[which]["project"] for which in ("active", "previous", "staged")]
+    assert names == ["Second", "First", "Third"]
+
+
+def test_checking_a_package_does_not_keep_other_requests_waiting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A large package takes a second to check. Panic, and everything else, must not wait
+    behind it: the check is off the event loop."""
+    checking, release = threading.Event(), threading.Event()
+    check = Deployed.check
+
+    def slow(self: Deployed, content: bytes) -> LoadedPackage:
+        checking.set()
+        assert release.wait(WAIT_S)
+        return check(self, content)
+
+    monkeypatch.setattr(Deployed, "check", slow)
+    waiting = ThreadPoolExecutor(max_workers=1)
+    try:
+        with _service(tmp_path) as (client, _):
+            stored = waiting.submit(client.put, "/api/package", content=_bytes(FIRST))
+            assert checking.wait(WAIT_S)
+            meanwhile = client.post("/api/panic")  # answered while the check goes on
+            still_checking = not stored.done()
+            release.set()
+            answer = stored.result(timeout=WAIT_S)
+    finally:
+        release.set()
+        waiting.shutdown(wait=False)
+
+    assert (meanwhile.status_code, still_checking, answer.status_code) == (200, True, 200)
+
+
+def test_a_package_is_not_activated_if_the_board_cannot_write_that_it_is(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A card that went read-only: nothing must change, or the answer would say it failed
+    with the new package already running, and a restart would bring the old one back."""
+    with _service(tmp_path) as (client, board):
+        _give(client, FIRST)
+        _give(client, SECOND, activate=False)
+        write = deployed.write_whole
+
+        def read_only(path: Path, content: bytes) -> None:
+            if path.name == STATE_NAME:
+                raise OSError(30, "Read-only file system")
+            write(path, content)
+
+        monkeypatch.setattr(deployed, "write_whole", read_only)
+
+        refused = client.post("/api/package/activate", json={"hash": SECOND_HASH})
+        packages = client.get("/api/package").json()
+        opened, kinds = len(board.hals), _kinds(client)
+
+    assert (refused.status_code, refused.json()["code"]) == (500, "package.unwritable")
+    assert (packages["running"]["project"], packages["active"]["project"]) == ("First", "First")
+    assert opened == 2  # the HAL of the first package was never closed
+    assert "package.activated" not in kinds[3:]
+
+
+def test_a_counter_survives_a_package_of_another_project_and_the_way_back(
+    tmp_path: Path,
+) -> None:
+    """Persistent values are the project's: running another project for a while must not
+    cost a project its own."""
+    other = _document("Other", 22, project=900)
+
+    def visits(client: TestClient) -> object:
+        return client.get("/api/status").json()["variables"][0]["value"]
+
+    with _service(tmp_path) as (client, _):
+        _give(client, FIRST)
+        client.put(f"/api/variables/{VISITS}", json={"value": 3})
+        _give(client, other)
+        elsewhere = visits(client)
+        client.put(f"/api/variables/{VISITS}", json={"value": 8})
+
+        client.post("/api/package/rollback")
+        back = visits(client)
+        client.post("/api/package/rollback")
+
+        assert (elsewhere, back, visits(client)) == (0, 3, 8)
+
+
+def test_a_sequence_running_when_a_package_is_activated_is_noted_as_stopped(
+    tmp_path: Path,
+) -> None:
+    with _service(tmp_path) as (client, _):
+        _give(client, FIRST)
+        client.post(f"/api/sequences/{ON}/start")
+
+        _give(client, SECOND)
+        trace = client.get("/api/trace").json()["entries"]
+
+    kinds = [entry["kind"] for entry in trace]
+    stopped = next(entry for entry in trace if entry["kind"] == "sequence.stopped")
+    assert kinds[-4:] == [
+        "sequence.started",
+        "package.stored",
+        "sequence.stopped",
+        "package.activated",
+    ]
+    assert (stopped["params"]["name"], stopped["params"]["by"]) == ("On", "package")
+
+
 def test_a_service_whose_active_package_no_longer_reads_starts_empty_and_says_why(
     tmp_path: Path,
 ) -> None:
@@ -456,7 +601,7 @@ def test_a_service_whose_active_package_no_longer_reads_starts_empty_and_says_wh
         after = client.get("/api/package").json()
 
     assert (packages["running"], outputs) == (None, [])
-    assert packages["active"] == {"hash": FIRST_HASH, "project": None}
+    assert packages["active"] == {"hash": FIRST_HASH, "project": "First"}
     assert packages["problem"]["code"] == "package.invalid"
     assert (after["running"]["project"], after["problem"]) == ("Second", None)
 
