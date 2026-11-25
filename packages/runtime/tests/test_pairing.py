@@ -280,8 +280,8 @@ def _routes(routes: Sequence[BaseRoute]) -> Iterator[BaseRoute]:
         elif isinstance(route, APIRoute | APIWebSocketRoute):
             yield route
         else:
-            assert isinstance(route, Mount), route  # the page's files
-            assert route.path == "", route
+            assert isinstance(route, Mount), route  # the page's files, the web UI's
+            assert route.path in ("", "/app"), route
 
 
 def _asked(path: str) -> str:

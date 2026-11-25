@@ -7,6 +7,7 @@ The test lives here because the runtime depends on ``core`` and can see both set
 
 import json
 import re
+from collections.abc import Iterable
 from pathlib import Path
 from typing import TypeIs
 
@@ -18,6 +19,7 @@ from primum_runtime.errors import ErrorCode
 ROOT = Path(__file__).resolve().parents[3]
 CATALOGS = ROOT / "i18n"
 UI = ROOT / "packages" / "runtime" / "src" / "primum_runtime" / "ui"
+WEBUI = ROOT / "apps" / "webui" / "src"
 DEFAULT = "en"
 LANGUAGES = ("en", "es")
 # Shown apart as technical detail, never inside a message (see i18n/README.md).
@@ -54,13 +56,23 @@ def _placeholders(text: str) -> set[str]:
     return set(PLACEHOLDER.findall(text))
 
 
-def _ui_keys_used_by_the_page() -> set[str]:
+def _keys_used_in(paths: Iterable[Path]) -> set[str]:
     used: set[str] = set()
-    for path in [*UI.glob("*.html"), *UI.glob("*.js")]:
+    for path in paths:
         text = path.read_text(encoding="utf-8")
         for pattern in UI_KEY_USES:
             used.update(pattern.findall(text))
     return used
+
+
+def _ui_keys_used_by_the_page() -> set[str]:
+    return _keys_used_in([*UI.glob("*.html"), *UI.glob("*.js")])
+
+
+def _keys_used_by_the_web_ui() -> set[str]:
+    """Its components and modules; not its tests, which may ask for keys that do not exist."""
+    sources = [*WEBUI.rglob("*.vue"), *WEBUI.rglob("*.ts")]
+    return _keys_used_in(path for path in sources if not path.name.endswith(".test.ts"))
 
 
 @pytest.mark.parametrize("language", [lang for lang in LANGUAGES if lang != DEFAULT])
@@ -111,3 +123,12 @@ def test_the_page_uses_every_ui_key_and_only_keys_that_exist() -> None:
 
     assert used - ui == set(), "keys used by the page but missing in the catalogs"
     assert ui - used == set(), "keys in the catalogs that the page does not use"
+
+
+def test_the_web_ui_uses_every_one_of_its_keys_and_only_keys_that_exist() -> None:
+    webui = set(_load(DEFAULT)["webui"])
+
+    used = _keys_used_by_the_web_ui()
+
+    assert used - webui == set(), "keys used by the web UI but missing in the catalogs"
+    assert webui - used == set(), "keys in the catalogs that the web UI does not use"

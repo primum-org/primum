@@ -33,6 +33,10 @@ log = logging.getLogger(__name__)
 
 # The page and its generated assets (i18n catalogs, tokens, icons), served at "/".
 UI_DIR = Path(__file__).resolve().parent.parent / "ui"
+# The web UI (``apps/webui``), built into the package when it is deployed: it is not in
+# the repository, and a service without it serves the page alone.
+WEBUI_DIR = Path(__file__).resolve().parent.parent / "webui"
+WEBUI_PATH = "/app"
 
 
 def create_app(
@@ -113,7 +117,12 @@ def create_app(
         log.warning("pairing is off: whoever reaches this service commands it")
     app.include_router(pairing_router)
     app.include_router(router)
-    # Mounted last: the API's routes are matched first.
+    # Mounted last: the API's routes are matched first, and the web UI before the page,
+    # which takes every other path.
+    if (WEBUI_DIR / "index.html").is_file():
+        app.mount(WEBUI_PATH, StaticFiles(directory=WEBUI_DIR, html=True), name="webui")
+    else:
+        log.info("the web UI is not built (`just ui-build`): nothing is served at %s", WEBUI_PATH)
     app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")
     install_error_handlers(app)
     return app

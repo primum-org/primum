@@ -38,6 +38,25 @@
     "pairing.submit": "Pair",
     "pairing.name": "Name of this device"
   },
+  "webui": {
+    "app.title": "Primum",
+    "connection.online": "Connected to the board.",
+    "connection.offline": "No connection with the board. Retrying…",
+    "panic.active": "Panic is active: every output is off and commands are refused.",
+    "error.detail": "Technical detail",
+    "error.unknown": "Unexpected error ({code}).",
+    "pairing.heading": "Pair this device",
+    "pairing.explain": "Enter the pairing code of this board. On the board, the command primum-pairing shows it.",
+    "pairing.code": "Pairing code",
+    "pairing.name": "Name of this device",
+    "pairing.submit": "Pair",
+    "control.heading": "Control",
+    "control.elsewhere": "This is the new interface, still being built. Until it is ready, outputs, sequences and the panic button are on the page it will replace.",
+    "control.open": "Open the control page",
+    "device.heading": "This device",
+    "device.unnamed": "No name",
+    "device.unpair": "Unpair this device"
+  },
   "cli": {
     "severity.error": "error",
     "severity.warning": "warning",

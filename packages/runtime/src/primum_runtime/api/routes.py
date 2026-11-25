@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, Query, Request, WebSocket, WebSocketDisc
 from primum_runtime.api.broadcast import StateBroadcaster, Subscription
 from primum_runtime.api.deploy import Deployment
 from primum_runtime.api.models import (
+    ERROR_RESPONSES,
     OutputCommand,
     PackageChoice,
     PackagesBody,
@@ -28,7 +29,7 @@ from primum_runtime.errors import ErrorCode, PrimumError
 from primum_runtime.trace import Trace
 
 # Nothing here is seen or commanded but by a paired device, panic included.
-router = APIRouter(prefix="/api", dependencies=[Depends(paired)])
+router = APIRouter(prefix="/api", dependencies=[Depends(paired)], responses=ERROR_RESPONSES)
 
 
 def _deployment(request: Request) -> Deployment:

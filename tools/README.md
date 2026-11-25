@@ -12,7 +12,10 @@ Developer scripts. Common tasks are exposed through the `justfile`.
   them), the board profiles of `boards/` into `primum_runtime/generated/boards/`, and the
   catalogs, the board profiles and the driver manifests of `drivers/` into
   `primum_cli/generated/` (`just gen`; `--check` in CI).
+- `gen_api.py`: writes the description of the runtime's HTTP API (OpenAPI, from its pydantic
+  models) to `apps/webui/openapi.json`, which the web UI makes its TypeScript types from
+  (`just gen`; `--check` in CI).
 - `pi.sh`: works against the development Pi (block 1.4) for the `just pi-*` tasks: provision it,
   sync this working tree and restart the service, run the `hw` tests there, follow the log. The
   host comes from `PRIMUM_PI_HOST`, `primum-dev` by default. Needs `ssh` and `rsync` on the
-  laptop.
+  laptop, and `pnpm`: it builds the web UI before copying.

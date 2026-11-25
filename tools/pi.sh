@@ -15,6 +15,7 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 REMOTE_SOURCE=primum-src
 DEFAULT_HOST=primum-dev
+WEBUI_BUILD=packages/runtime/src/primum_runtime/webui
 
 fail() {
   echo "pi: $*" >&2
@@ -25,12 +26,27 @@ host() {
   echo "${PRIMUM_PI_HOST:-$DEFAULT_HOST}"
 }
 
-# Mirror the working tree, local changes included, minus what .gitignore excludes (rsync reads
-# the .gitignore files as filter rules), so files deleted here are deleted on the Pi too.
+# The web UI is built here: the Pi has no Node. Its build is kept out of git, inside the
+# runtime's package, which serves it.
+build_ui() {
+  command -v pnpm >/dev/null ||
+    fail "pnpm is needed to build the web UI before copying it (https://pnpm.io/installation)"
+  echo "==> building the web UI"
+  pnpm --dir "$ROOT/apps/webui" install --frozen-lockfile --silent
+  pnpm --dir "$ROOT/apps/webui" --silent build
+}
+
+# The rsync options that mirror the working tree, local changes included, minus what
+# .gitignore excludes (rsync reads the .gitignore files as filter rules), so files deleted
+# here are deleted on the Pi too. The built web UI is ignored by git and copied all the same:
+# the first rule that matches a file decides.
+MIRROR=(-a --delete --exclude .git --include "/$WEBUI_BUILD/***" --filter=':- .gitignore')
+
 sync_source() {
   local pi=$1
+  build_ui
   echo "==> copying the source to $pi:$REMOTE_SOURCE"
-  rsync -a --delete --exclude .git --filter=':- .gitignore' "$ROOT/" "$pi:$REMOTE_SOURCE/"
+  rsync "${MIRROR[@]}" "$ROOT/" "$pi:$REMOTE_SOURCE/"
 }
 
 provision() {

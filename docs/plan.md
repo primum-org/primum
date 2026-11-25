@@ -1070,6 +1070,25 @@ control on the API there is · 5.4 the project on the board and the first edit o
     still ends well.
   - Left out: HTTPS; roles; closing the WebSocket of a device that is forgotten; showing
     the code without a shell (phase 7).
+- [x] **5.2 The skeleton of `apps/webui`** (decision 0035, `apps/webui/README.md`). Vue 3,
+  TypeScript, Vite, Vitest, Vue Router, pnpm. The app pairs a device and says whether the
+  board answers; the page keeps the controls until 5.3. Texts from `i18n/` (section
+  `webui`), tokens and icons from `design/`, read where they are. The API's types are
+  generated from the runtime's models through `apps/webui/openapi.json` (`just gen`). The
+  build is not in the repository: `just ui-build` puts it in the runtime's package, which
+  serves it at `/app/`, and `just pi-sync` builds it before copying. `just check` and CI
+  lint, type-check, test and build it.
+  - Tried: its tests (Vitest), and by hand, not by a test of the repository, in a headless
+    Chromium as a phone in Spanish against a simulated service that serves the build: it
+    asks for the code, says a wrong one in words, pairs, stays paired after a reload, shows
+    panic when it comes, and unpairs. The copy rules of `pi.sh` were tried with `rsync` to
+    a local folder (the build goes, `node_modules` does not), and the wheel was built and
+    has the UI in it.
+  - Not tried: `just pi-sync` against a Pi, a real phone, `just ui-dev` with its proxy, and
+    the CI steps that install pnpm before this pull request runs them.
+  - Left for later: the fonts of the brand bundled for offline use (it shows the system's);
+    TypeScript types of the project's formats, from `schemas/` (5.4); tests in a browser
+    that are part of the repository.
 
 ## Phase 6 · Hardware manager
 

@@ -1,0 +1,1467 @@
+{
+  "components": {
+    "schemas": {
+      "AutomationStateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "problem"
+        ],
+        "title": "AutomationStateBody",
+        "type": "object"
+      },
+      "DeviceBody": {
+        "additionalProperties": false,
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "current"
+        ],
+        "title": "DeviceBody",
+        "type": "object"
+      },
+      "ErrorBody": {
+        "additionalProperties": false,
+        "description": "Every error response: a code and its params, never text (decision 0009).",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ErrorParam"
+            },
+            "title": "Params",
+            "type": "object"
+          }
+        },
+        "required": [
+          "code",
+          "params"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
+      "ErrorParam": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/ErrorScalar"
+          },
+          {
+            "items": {
+              "$ref": "#/components/schemas/ErrorScalar"
+            },
+            "type": "array"
+          }
+        ]
+      },
+      "ErrorScalar": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "EventStateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "source"
+        ],
+        "title": "EventStateBody",
+        "type": "object"
+      },
+      "InputStateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "lostEvents": {
+            "title": "Lostevents",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "active",
+          "lostEvents"
+        ],
+        "title": "InputStateBody",
+        "type": "object"
+      },
+      "OutputCommand": {
+        "additionalProperties": false,
+        "description": "One of the actions of the output's driver, with the arguments it takes by name:\n``{\"action\": \"on\"}``, ``{\"action\": \"set\", \"arguments\": {\"level\": 40}}``.",
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "arguments": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Arguments",
+            "type": "object"
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Durationms"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "OutputCommand",
+        "type": "object"
+      },
+      "OutputStateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "controlledBy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Controlledby"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "level": {
+            "title": "Level",
+            "type": "number"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          },
+          "remainingMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remainingms"
+          },
+          "restFailed": {
+            "title": "Restfailed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "on",
+          "level",
+          "actions",
+          "remainingMs",
+          "restFailed",
+          "controlledBy"
+        ],
+        "title": "OutputStateBody",
+        "type": "object"
+      },
+      "PackageBody": {
+        "additionalProperties": false,
+        "properties": {
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
+          }
+        },
+        "required": [
+          "hash",
+          "project"
+        ],
+        "title": "PackageBody",
+        "type": "object"
+      },
+      "PackageChoice": {
+        "additionalProperties": false,
+        "description": "The package to activate, by its hash: ``{\"hash\": \"sha256:…\"}``.",
+        "properties": {
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hash"
+        ],
+        "title": "PackageChoice",
+        "type": "object"
+      },
+      "PackagesBody": {
+        "additionalProperties": false,
+        "description": "The packages of the board. ``running`` is what runs now: the active package, unless\nit could not be run (then ``problem`` says why, and nothing runs), or what the service\nwas told to drive by its options (then ``fixed``: no package can be stored).",
+        "properties": {
+          "active": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackageBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fixed": {
+            "title": "Fixed",
+            "type": "boolean"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackageBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "running": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackageBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "staged": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackageBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "running",
+          "active",
+          "previous",
+          "staged",
+          "problem",
+          "fixed"
+        ],
+        "title": "PackagesBody",
+        "type": "object"
+      },
+      "PairedBody": {
+        "additionalProperties": false,
+        "properties": {
+          "device": {
+            "$ref": "#/components/schemas/DeviceBody"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "device"
+        ],
+        "title": "PairedBody",
+        "type": "object"
+      },
+      "PairingBody": {
+        "additionalProperties": false,
+        "properties": {
+          "device": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeviceBody"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "required",
+          "device"
+        ],
+        "title": "PairingBody",
+        "type": "object"
+      },
+      "PairingRequest": {
+        "additionalProperties": false,
+        "description": "The board's pairing code, and what the device calls itself:\n``{\"code\": \"123456\", \"name\": \"Joan's phone\"}``.",
+        "properties": {
+          "code": {
+            "maxLength": 32,
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "default": "",
+            "maxLength": 64,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "PairingRequest",
+        "type": "object"
+      },
+      "ScheduleStateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "open": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "open"
+        ],
+        "title": "ScheduleStateBody",
+        "type": "object"
+      },
+      "SequenceStateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "running": {
+            "title": "Running",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "running"
+        ],
+        "title": "SequenceStateBody",
+        "type": "object"
+      },
+      "StateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "automations": {
+            "items": {
+              "$ref": "#/components/schemas/AutomationStateBody"
+            },
+            "title": "Automations",
+            "type": "array"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventStateBody"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/InputStateBody"
+            },
+            "title": "Inputs",
+            "type": "array"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/OutputStateBody"
+            },
+            "title": "Outputs",
+            "type": "array"
+          },
+          "panic": {
+            "title": "Panic",
+            "type": "boolean"
+          },
+          "schedules": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleStateBody"
+            },
+            "title": "Schedules",
+            "type": "array"
+          },
+          "sequences": {
+            "items": {
+              "$ref": "#/components/schemas/SequenceStateBody"
+            },
+            "title": "Sequences",
+            "type": "array"
+          },
+          "timeKnown": {
+            "title": "Timeknown",
+            "type": "boolean"
+          },
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/VariableStateBody"
+            },
+            "title": "Variables",
+            "type": "array"
+          },
+          "variablesUnsaved": {
+            "title": "Variablesunsaved",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "outputs",
+          "inputs",
+          "panic",
+          "sequences",
+          "variables",
+          "events",
+          "automations",
+          "schedules",
+          "timeKnown",
+          "variablesUnsaved"
+        ],
+        "title": "StateBody",
+        "type": "object"
+      },
+      "TraceBody": {
+        "additionalProperties": false,
+        "description": "The entries asked for, oldest first. ``first`` is the oldest entry still kept and\n``last`` the newest ever noted: asked for entries after one that is below ``first`` less\none, some were noted and are gone. Asked for entries after one above ``last``, or with a\n``run`` that is not the one the caller had, the service restarted: start again from 0.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/TraceEntryBody"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "first": {
+            "title": "First",
+            "type": "integer"
+          },
+          "last": {
+            "title": "Last",
+            "type": "integer"
+          },
+          "run": {
+            "title": "Run",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entries",
+          "first",
+          "last",
+          "run"
+        ],
+        "title": "TraceBody",
+        "type": "object"
+      },
+      "TraceEntryBody": {
+        "additionalProperties": false,
+        "description": "One thing the board did: a ``kind`` and its ``params``, as an error is a code and\nits params. ``cause`` is the number of the entry that led to it, if one did.",
+        "properties": {
+          "atMs": {
+            "title": "Atms",
+            "type": "integer"
+          },
+          "cause": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cause"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "params": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ErrorParam"
+            },
+            "title": "Params",
+            "type": "object"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          }
+        },
+        "required": [
+          "number",
+          "atMs",
+          "time",
+          "kind",
+          "params",
+          "cause"
+        ],
+        "title": "TraceEntryBody",
+        "type": "object"
+      },
+      "VariableStateBody": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "persistent": {
+            "title": "Persistent",
+            "type": "boolean"
+          },
+          "setting": {
+            "title": "Setting",
+            "type": "boolean"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "value",
+          "min",
+          "max",
+          "setting",
+          "persistent"
+        ],
+        "title": "VariableStateBody",
+        "type": "object"
+      },
+      "VariableValue": {
+        "additionalProperties": false,
+        "description": "The value to give a variable: ``{\"value\": 40}``. Of its type and within its limits,\nwhich are the controller's to check, answered with their own codes.",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "VariableValue",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Primum runtime",
+    "version": "0.0.1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/events/{event_id}/fire": {
+      "post": {
+        "description": "Make an event of the package happen: one whose source is ``ui`` or ``api``. An event\nthat listens to an element only happens when the element says so.",
+        "operationId": "fire_event_api_events__event_id__fire_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Fire Event"
+      }
+    },
+    "/api/outputs/{output_id}": {
+      "delete": {
+        "description": "Let go of an output a person commanded: it goes back to what the sequences say.",
+        "operationId": "release_output_api_outputs__output_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "output_id",
+            "required": true,
+            "schema": {
+              "title": "Output Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Release Output"
+      },
+      "put": {
+        "description": "``output_id`` is the ``id`` the state gives the output.",
+        "operationId": "command_output_api_outputs__output_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "output_id",
+            "required": true,
+            "schema": {
+              "title": "Output Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutputCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Command Output"
+      }
+    },
+    "/api/package": {
+      "get": {
+        "description": "The package that runs, the one before it and the one stored to be activated.",
+        "operationId": "packages_api_package_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackagesBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Packages"
+      },
+      "put": {
+        "description": "Give the board a package (the body is the ``.package.json``, as ``primum build``\nwrites it). It is checked against this board and kept, and nothing that runs changes:\nactivating it is another request, that names it by its hash.",
+        "operationId": "store_package_api_package_put",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackagesBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Store Package"
+      }
+    },
+    "/api/package/activate": {
+      "post": {
+        "description": "Run a package the board keeps, named by its hash: the one stored last, or the one\nbefore the active one. Everything stops and every output goes to its safe state first.",
+        "operationId": "activate_package_api_package_activate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PackageChoice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackagesBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Activate Package"
+      }
+    },
+    "/api/package/rollback": {
+      "post": {
+        "description": "Run again the package that ran before the active one.",
+        "operationId": "rollback_package_api_package_rollback_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PackagesBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Rollback Package"
+      }
+    },
+    "/api/pairing": {
+      "delete": {
+        "description": "Forget the device that asks.",
+        "operationId": "unpair_api_pairing_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairingBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Unpair"
+      },
+      "get": {
+        "description": "Whether this service asks for pairing, and whether whoever asks is paired.",
+        "operationId": "status_api_pairing_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairingBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Status"
+      },
+      "post": {
+        "description": "Pair with the board's code. The token comes once, here: in the cookie for a browser,\nin the body for a program.",
+        "operationId": "pair_api_pairing_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairedBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Pair"
+      }
+    },
+    "/api/pairing/devices": {
+      "get": {
+        "operationId": "devices_api_pairing_devices_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceBody"
+                  },
+                  "title": "Response Devices Api Pairing Devices Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Devices"
+      }
+    },
+    "/api/pairing/devices/{device_id}": {
+      "delete": {
+        "description": "Forget a device, lost or no longer wanted: its token is worth nothing from now on.",
+        "operationId": "forget_api_pairing_devices__device_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceBody"
+                  },
+                  "title": "Response Forget Api Pairing Devices  Device Id  Delete",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Forget"
+      }
+    },
+    "/api/panic": {
+      "delete": {
+        "operationId": "release_panic_api_panic_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Release Panic"
+      },
+      "post": {
+        "operationId": "panic_api_panic_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Panic"
+      }
+    },
+    "/api/sequences/{sequence_id}/start": {
+      "post": {
+        "operationId": "start_sequence_api_sequences__sequence_id__start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sequence_id",
+            "required": true,
+            "schema": {
+              "title": "Sequence Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Start Sequence"
+      }
+    },
+    "/api/sequences/{sequence_id}/stop": {
+      "post": {
+        "operationId": "stop_sequence_api_sequences__sequence_id__stop_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sequence_id",
+            "required": true,
+            "schema": {
+              "title": "Sequence Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Stop Sequence"
+      }
+    },
+    "/api/status": {
+      "get": {
+        "operationId": "status_api_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Status"
+      }
+    },
+    "/api/trace": {
+      "get": {
+        "description": "What the board did, oldest first: the entries numbered above ``after`` that are still\nkept (all of them without it).",
+        "operationId": "trace_api_trace_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "After",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Trace"
+      }
+    },
+    "/api/variables/{variable_id}": {
+      "put": {
+        "description": "Give a variable of the package a value. Commands that start from now on read it.",
+        "operationId": "set_variable_api_variables__variable_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "variable_id",
+            "required": true,
+            "schema": {
+              "title": "Variable Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariableValue"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateBody"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Default Response"
+          }
+        },
+        "summary": "Set Variable"
+      }
+    }
+  }
+}

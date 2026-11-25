@@ -18,6 +18,10 @@ node_modules/
 .pnpm-store/
 apps/*/dist/
 apps/*/.vite/
+# The API's types, generated from apps/webui/openapi.json at every build and check
+apps/webui/src/generated/
+# The web UI built into the runtime's package (`just ui-build`); built when deploying
+packages/runtime/src/primum_runtime/webui/
 
 # Environment and secrets
 .env
