@@ -7,9 +7,14 @@ const root = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 // Where a service runs while the UI is being worked on: `just dev`.
 const SERVICE = process.env.PRIMUM_SERVICE ?? "http://127.0.0.1:8080";
 
-export default defineConfig({
-  // Relative: the runtime serves the build under /app/ for now, and at / from block 5.3.
-  base: "./",
+// Where the service puts the app, for now; at / from block 5.3.
+const APP = "/app/";
+
+export default defineConfig(({ command }) => ({
+  // Built with relative addresses: the service decides where it goes. Worked on at the
+  // address the service gives it, so that what is next to it (the API, the page of phase
+  // 1) is where the app expects it.
+  base: command === "serve" ? APP : "./",
   plugins: [vue()],
   resolve: {
     alias: {
@@ -27,7 +32,8 @@ export default defineConfig({
   server: {
     // The host header is left as the browser sent it: the service refuses a request whose
     // Origin is not its own page's.
-    proxy: { "/api": { target: SERVICE, ws: true } },
+    // Everything but the app is the service's: its API, its WebSockets and its page.
+    proxy: { "^/(?!app/).*": { target: SERVICE, ws: true } },
     // The texts and the brand live outside this folder, at the repository's root.
     fs: { allow: [root("."), root("../../i18n"), root("../../design")] },
   },
@@ -35,4 +41,4 @@ export default defineConfig({
     environment: "jsdom",
     include: ["src/**/*.test.ts"],
   },
-});
+}));

@@ -17,7 +17,9 @@ export function createAppRouter(): Router {
   });
   // Nothing is shown to a device the board does not know: the pairing screen comes first.
   router.beforeEach(async (to) => {
-    if (session.pairing === null) await refreshPairing();
+    // A board that cannot say goes to the home screen, which says why and that it is
+    // being asked again.
+    if (session.pairing === null && session.problem === null) await refreshPairing();
     if (mustPair()) return to.name === "pair" ? true : { name: "pair" };
     return to.name === "pair" ? { name: "home" } : true;
   });

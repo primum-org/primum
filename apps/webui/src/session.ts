@@ -4,17 +4,20 @@
 
 import { reactive } from "vue";
 
-import { api, ApiError, OfflineError, openStates } from "@/api/client";
+import { api, ApiError, openStates } from "@/api/client";
 import type { PairingBody, StateBody } from "@/api/types";
+import { problemOf, type Problem } from "@/problem";
 
 export const RECONNECT_MIN_MS = 1000;
 export const RECONNECT_MAX_MS = 10000;
 
 export const session = reactive({
-  // null until the board has been asked once.
+  // null until the board has said it once.
   pairing: null as PairingBody | null,
   online: false,
   state: null as StateBody | null,
+  // Why the board could not say whether this device is paired, the last time it was asked.
+  problem: null as Problem | null,
 });
 
 let socket: WebSocket | null = null;
@@ -24,14 +27,17 @@ let retry: ReturnType<typeof setTimeout> | null = null;
 export const mustPair = (): boolean =>
   session.pairing !== null && session.pairing.required && session.pairing.device === null;
 
-/** Ask the board whether this device is paired. False when it does not answer. */
+/** Ask the board whether this device is paired. False when it could not say: it did not
+ * answer, or it answered with an error, which `session.problem` then holds. Never raises
+ * for either: whoever asks decides what to do without an answer. */
 export async function refreshPairing(): Promise<boolean> {
   try {
     session.pairing = await api.pairing();
+    session.problem = null;
     return true;
-  } catch (error) {
-    if (error instanceof OfflineError) return false;
-    throw error;
+  } catch (failure) {
+    session.problem = problemOf(failure);
+    return false;
   }
 }
 
@@ -39,6 +45,7 @@ export async function refreshPairing(): Promise<boolean> {
 export async function pair(code: string, name: string): Promise<void> {
   const paired = await api.pair(code, name);
   session.pairing = { required: true, device: paired.device };
+  session.problem = null;
   listen();
 }
 
@@ -53,8 +60,20 @@ export async function unpair(): Promise<void> {
   stop();
 }
 
-/** Listen to the board's state for as long as this device is paired, coming back by
- * itself when the connection is lost, each time after a longer wait. */
+/** Get to listening to the board's state, and stay there: ask whether this device is
+ * paired and, if it is, listen. A board that cannot say (no answer, or an error) is asked
+ * again, each time after a longer wait, for as long as it takes. It stops by itself only
+ * when the board says this device must pair: the pairing screen takes over. */
+export async function connect(delay = RECONNECT_MIN_MS): Promise<void> {
+  stop();
+  const known = await refreshPairing();
+  if (known && mustPair()) return;
+  if (known) listen(delay);
+  else again(delay, Math.min(delay * 2, RECONNECT_MAX_MS));
+}
+
+/** Listen to the board's state. When the connection is lost, `connect` again: it may have
+ * closed because the board stopped, or because this device was forgotten. */
 export function listen(delay = RECONNECT_MIN_MS): void {
   stop();
   let opened = false;
@@ -67,14 +86,14 @@ export function listen(delay = RECONNECT_MIN_MS): void {
     () => {
       if (socket !== current) return; // closed on purpose, or replaced
       session.online = false;
-      const next = opened ? RECONNECT_MIN_MS : Math.min(delay * 2, RECONNECT_MAX_MS);
-      retry = setTimeout(() => void comeBack(next), delay);
+      // A connection that worked starts the waits over; one that never did lengthens them.
+      again(delay, opened ? RECONNECT_MIN_MS : Math.min(delay * 2, RECONNECT_MAX_MS));
     },
   );
   socket = current;
 }
 
-/** Stop listening, for good until `listen` is called again. */
+/** Stop listening and trying, for good until `connect` or `listen` is called again. */
 export function stop(): void {
   if (retry !== null) clearTimeout(retry);
   retry = null;
@@ -84,11 +103,6 @@ export function stop(): void {
   session.online = false;
 }
 
-// The connection may have closed because the board stopped, or because this device was
-// forgotten: the board is asked before trying again.
-async function comeBack(delay: number): Promise<void> {
-  retry = null;
-  const answered = await refreshPairing();
-  if (answered && mustPair()) return; // the pairing screen takes over
-  listen(delay);
+function again(after: number, next: number): void {
+  retry = setTimeout(() => void connect(next), after);
 }

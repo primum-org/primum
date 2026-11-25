@@ -8,7 +8,7 @@ replaces it. The same UI will later run inside Primum Studio. Decision 0035.
 ```bash
 uv run just ui-install   # its dependencies, from pnpm-lock.yaml (Node 22 or later, pnpm)
 uv run just dev          # a simulated service at http://127.0.0.1:8080 ...
-uv run just ui-dev       # ... and this app with hot reload, talking to it
+uv run just ui-dev       # ... and this app with hot reload at /app/, the rest handed to it
 uv run just ui-check     # lint, types, tests, build (part of `just check`)
 uv run just ui-build     # build it into the runtime's package: served at /app/
 ```
@@ -26,6 +26,8 @@ uv run just ui-build     # build it into the runtime's package: served at /app/
   A key that is not used, or used and missing, fails `just check`.
 - **The build is not in the repository.** It goes inside the runtime's package
   (`packages/runtime/src/primum_runtime/webui/`), which serves it; `just pi-sync` builds it
-  on the laptop before copying, since the Pi has no Node.
+  on the laptop before copying, since the Pi has no Node, and only when it is older than
+  what it is made from. Its index is served `no-cache`; its other files have their content
+  in their name.
 - Screens have addresses after a `#`: the app works wherever the service puts it without
   the service knowing its screens.

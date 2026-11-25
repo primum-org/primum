@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-import { listen, mustPair, pair, RECONNECT_MIN_MS, session, stop, unpair } from "@/session";
+import { connect, listen, mustPair, pair, RECONNECT_MIN_MS, session, stop, unpair } from "@/session";
 
 // A WebSocket the test drives: what was opened, and the board's side of each one.
 class FakeSocket extends EventTarget {
@@ -32,6 +32,7 @@ beforeEach(() => {
   vi.stubGlobal("WebSocket", FakeSocket);
   session.pairing = PAIRED;
   session.state = null;
+  session.problem = null;
 });
 
 afterEach(() => {
@@ -76,6 +77,37 @@ test("a board that does not come back is asked less and less often", async () =>
   expect(FakeSocket.opened).toHaveLength(2); // the third waits twice as long
   await vi.advanceTimersByTimeAsync(RECONNECT_MIN_MS);
   expect(FakeSocket.opened).toHaveLength(3);
+});
+
+test("a board that answers with an error is asked again, and the error is said", async () => {
+  const broken = { code: "pairing.unreadable", params: {} };
+  vi.stubGlobal("fetch", answers(broken, 500));
+  listen();
+  last().send(STATE);
+
+  last().close();
+  await vi.advanceTimersByTimeAsync(RECONNECT_MIN_MS);
+  expect(session.problem).toMatchObject({ code: "pairing.unreadable" });
+  expect(FakeSocket.opened).toHaveLength(1); // nothing to listen to yet
+
+  vi.stubGlobal("fetch", answers(PAIRED));
+  await vi.advanceTimersByTimeAsync(RECONNECT_MIN_MS * 20);
+
+  expect(FakeSocket.opened).toHaveLength(2);
+  expect(session.problem).toBeNull();
+});
+
+test("a board that is broken when the app starts is asked again until it answers", async () => {
+  session.pairing = null;
+  vi.stubGlobal("fetch", answers({ code: "pairing.unreadable", params: {} }, 500));
+
+  await connect(); // must not raise: the app is mounted after it
+  expect(FakeSocket.opened).toHaveLength(0);
+
+  vi.stubGlobal("fetch", answers(PAIRED));
+  await vi.advanceTimersByTimeAsync(RECONNECT_MIN_MS);
+
+  expect(FakeSocket.opened).toHaveLength(1);
 });
 
 test("a device the board forgot stops trying and must pair again", async () => {

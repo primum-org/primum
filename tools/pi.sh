@@ -28,7 +28,18 @@ host() {
 
 # The web UI is built here: the Pi has no Node. Its build is kept out of git, inside the
 # runtime's package, which serves it.
+# Whether the build is missing or older than something it is made from: the app's own
+# files (its dependencies and the API's description among them), the texts and the brand.
+ui_is_stale() {
+  local built=$ROOT/$WEBUI_BUILD/index.html
+  [[ -f $built ]] || return 0
+  [[ -n $(find "$ROOT/apps/webui" "$ROOT/i18n" "$ROOT/design" \
+    \( -name node_modules -o -name generated \) -prune -o -type f -newer "$built" -print -quit) ]]
+}
+
+# Only when it is stale: most syncs change Python alone, and need not wait for a build.
 build_ui() {
+  ui_is_stale || return 0
   command -v pnpm >/dev/null ||
     fail "pnpm is needed to build the web UI before copying it (https://pnpm.io/installation)"
   echo "==> building the web UI"

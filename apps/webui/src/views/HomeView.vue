@@ -29,10 +29,9 @@ async function forgetThisDevice(): Promise<void> {
     <AppIcon name="s-ok" />
     <span class="notice-text">{{ t("connection.online") }}</span>
   </p>
-  <p v-else class="notice notice-warning" role="status">
-    <AppIcon name="s-warn" />
-    <span class="notice-text">{{ t("connection.offline") }}</span>
-  </p>
+  <!-- What the board answered instead of saying whether this device is paired, or that
+       it does not answer. Either way it is being asked again. -->
+  <ProblemNotice v-else :problem="session.problem ?? 'offline'" />
 
   <p v-if="session.state?.panic" class="notice notice-danger" role="alert">
     <AppIcon name="i-panic" />

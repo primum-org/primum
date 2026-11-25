@@ -1084,8 +1084,22 @@ control on the API there is · 5.4 the project on the board and the first edit o
     panic when it comes, and unpairs. The copy rules of `pi.sh` were tried with `rsync` to
     a local folder (the build goes, `node_modules` does not), and the wheel was built and
     has the UI in it.
-  - Not tried: `just pi-sync` against a Pi, a real phone, `just ui-dev` with its proxy, and
-    the CI steps that install pnpm before this pull request runs them.
+  - Review, found by its owner: `just pi-watch` started over and over with nobody saving
+    (each sync built the UI into two watched folders: 9 starts in 40 s, measured with a
+    stand-in for the copy); the app stopped asking for good when the board answered with
+    an error, and showed a blank page if that happened at start; `/app` without its last
+    slash answered an error in JSON. Fixed: the watch ignores the two folders (reproduced
+    here the same way, 11 starts in 24 s, then 1); an error from the board is asked again
+    and shown, with tests that failed before; `/app` leads to `/app/`, with its test.
+    Also: the index is served `no-cache` (a risk, not seen: a browser keeping an index
+    that names files a deployment removed); the sync builds the UI only when it is older
+    than what it is made from (tried by hand with the function taken out of `pi.sh`);
+    `just ui-dev` now serves the app at `/app/` and hands the rest to the service, so
+    the link to the page works there too; the line height and the font weights, which
+    have no token, are noted as the exception they are.
+  - Not tried: `just pi-sync` and `just pi-watch` against a Pi, a real phone. `just ui-dev`
+    was tried by hand in a headless Chromium (pairing, the WebSocket through its proxy, the
+    link to the page). The CI steps that install pnpm ran with this pull request.
   - Left for later: the fonts of the brand bundled for offline use (it shows the system's);
     TypeScript types of the project's formats, from `schemas/` (5.4); tests in a browser
     that are part of the repository.

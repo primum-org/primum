@@ -1,4 +1,7 @@
-/* The web UI. Colors, fonts, sizes and motion come only from design/tokens/tokens.css. */
+/* The web UI. Colors, fonts, sizes and motion come only from design/tokens/tokens.css.
+   Two things have no token yet and are written here, as on the page of phase 1: the line
+   height (1.4) and the font weights (500 for the title, 600 for what must stand out). The
+   brandbook does not give them; they go to the tokens when it does (design/README.md). */
 
 :root {
   /* No border token: the brandbook mixes text.primary at 13 % for rules. */

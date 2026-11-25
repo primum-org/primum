@@ -66,9 +66,9 @@ pi-test:
 pi-logs:
     bash tools/pi.sh logs
 
-# Sync to the Pi every time a file is saved
+# Sync to the Pi every time a file is saved (not the folders the sync itself writes: the build of the web UI and its generated types)
 pi-watch:
-    uv run watchfiles --target-type command "bash tools/pi.sh sync" packages i18n design image apps/webui/src
+    uv run watchfiles --ignore-paths packages/runtime/src/primum_runtime/webui,apps/webui/src/generated --target-type command "bash tools/pi.sh sync" packages i18n design image apps/webui/src
 
 # Re-run the tests every time a file is saved
 watch:

@@ -6,7 +6,7 @@ import { createApp, watch } from "vue";
 import App from "@/App.vue";
 import { loadCatalog, pickLanguage, t } from "@/i18n";
 import { createAppRouter } from "@/router";
-import { listen, mustPair, refreshPairing } from "@/session";
+import { connect, mustPair } from "@/session";
 
 await loadCatalog(pickLanguage(navigator.languages));
 document.title = t("app.title");
@@ -17,7 +17,8 @@ watch(mustPair, (must) => {
   if (must) void router.replace({ name: "pair" });
 });
 
-await refreshPairing();
-if (!mustPair()) listen();
+// Not waited for: a board that does not answer, or answers with an error, is asked again
+// behind a screen that says so, never behind a blank page.
+void connect();
 
 createApp(App).use(router).mount("#app");

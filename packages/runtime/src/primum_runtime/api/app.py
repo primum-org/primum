@@ -13,9 +13,12 @@ import time
 from collections.abc import AsyncGenerator, Mapping
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import override
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope
 
 from primum_runtime import __version__, systemd
 from primum_runtime.api.broadcast import StateBroadcaster
@@ -120,12 +123,37 @@ def create_app(
     # Mounted last: the API's routes are matched first, and the web UI before the page,
     # which takes every other path.
     if (WEBUI_DIR / "index.html").is_file():
-        app.mount(WEBUI_PATH, StaticFiles(directory=WEBUI_DIR, html=True), name="webui")
+        app.mount(WEBUI_PATH + "/", _WebUi(directory=WEBUI_DIR, html=True), name="webui")
+        # What a person types by hand, without the last slash the app's addresses need.
+        app.add_route(WEBUI_PATH, _to_the_web_ui, methods=["GET"], include_in_schema=False)
     else:
         log.info("the web UI is not built (`just ui-build`): nothing is served at %s", WEBUI_PATH)
     app.mount("/", StaticFiles(directory=UI_DIR, html=True), name="ui")
     install_error_handlers(app)
     return app
+
+
+class _WebUi(StaticFiles):
+    """The built web UI. Its index is asked for again each time: after a deployment it
+    names other files, and one a browser kept would ask for files that are gone. The files
+    have their content in their name, and are a browser's to keep."""
+
+    @override
+    def file_response(
+        self,
+        full_path: str | os.PathLike[str],
+        stat_result: os.stat_result,
+        scope: Scope,
+        status_code: int = 200,
+    ) -> Response:
+        response = super().file_response(full_path, stat_result, scope, status_code)
+        if Path(full_path).suffix == ".html":
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+async def _to_the_web_ui(_request: Request) -> Response:
+    return RedirectResponse(WEBUI_PATH + "/")
 
 
 def _describe(controller: Controller) -> str:
