@@ -27,6 +27,15 @@ A device says who it is in one of two ways, and the service takes either:
   `GET /api/pairing`, so a device in use never runs out;
 - `Authorization: Bearer <token>`, for a program. It wins over the cookie.
 
+A request that says where it comes from (`Origin`, which a browser sends with every request
+to another origin and with every WebSocket) must come from the service's own page:
+`request.origin_refused` (403), or a WebSocket that is not opened. `SameSite` tells sites
+apart, not ports, so without it a page served from another port of the board could use the
+cookie of a paired browser. A program sends no `Origin`.
+
+The service does not describe its API: FastAPI's `/docs`, `/redoc` and `/openapi.json` are
+off. An error never says where the board keeps its files: the path is logged, not answered.
+
 A token does not expire: a device stays paired until it is forgotten or the code is renewed.
 A board has no clock to trust for an expiry (the Pi 4 has no RTC), and an installation
 touched once a year should not ask for the code again.
@@ -36,7 +45,7 @@ touched once a year should not ask for the code again.
 | Request | Does | Refused |
 |---|---|---|
 | `GET /api/pairing` | `{required, device}`: whether the service asks for pairing, and the device that asks (`{id, name, current}`) or `null` | |
-| `POST /api/pairing` with `{"code": "123456", "name": "…"}` | Pairs: `{token, device}`, and the cookie. The token is told this once. `name` (optional, 64 characters) is what the device calls itself | `pairing.code_wrong` (403, `left`); `pairing.locked` (429, `seconds`); `pairing.unwritable` (500) |
+| `POST /api/pairing` with `{"code": "123456", "name": "…"}` | Pairs: `{token, device}`, and the cookie. The token is told this once. `name` (optional, 64 characters) is what the device calls itself | `pairing.code_wrong` (403, `left`); `pairing.locked` (429, `seconds`); `pairing.unwritable`, `pairing.unreadable` (500) |
 | `DELETE /api/pairing` | Forgets the device that asks | |
 | `GET /api/pairing/devices` | The paired devices | |
 | `DELETE /api/pairing/devices/{id}` | Forgets one: its token is worth nothing from now on. Answers with those left | `pairing.device_unknown` (404, `id`) |
@@ -44,11 +53,15 @@ touched once a year should not ask for the code again.
 ## Wrong codes
 
 After 5 wrong codes in a row no code is taken for 5 minutes, the right one neither
-(`pairing.locked`, with the seconds left). A right code sets the count back. Trying every
-code takes most of a year. The count is the service's, in memory, for everyone at once:
+(`pairing.locked`, with the seconds left). Each such wait in a row is twice the one before
+(5, 10, 20 minutes…) up to a day; a right code sets the tries and the wait back. A wait
+that did not grow would let a patient program try every code in under two years, and the
+code does not change by itself. As it is, the first day gives it some 40 tries and each day
+after 5: half the codes take some 270 years. The count is the service's, in memory, for
+everyone at once:
 
-- whoever reaches the port can keep new devices from pairing by sending wrong codes. Paired
-  devices are not affected;
+- whoever reaches the port can keep new devices from pairing by sending wrong codes, for up
+  to a day at a time. Paired devices are not affected;
 - restarting the service sets the count back, which takes being on the board.
 
 ## On the board
@@ -64,8 +77,12 @@ as root, it hands the file to the owner of the data directory, so the service st
 it. The service reads the file at every question: a renewed code unpairs a running service
 at once.
 
-A file that cannot be read, or that does not say what it should, pairs nobody, and the board
-gets a new code.
+A file that does not say what it should pairs nobody, and the board gets a new code. A file
+that is there and cannot be read (its permissions, the card) is left as it is, and every
+request that needs it is answered `pairing.unreadable` (500): taking it for missing would
+let anyone, with any wrong code, forget every device and change the code.
+
+Run without the right to read the data, `primum-pairing` says so and to run it as root.
 
 ## Without pairing
 

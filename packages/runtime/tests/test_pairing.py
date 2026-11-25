@@ -2,12 +2,15 @@
 nothing from anyone else."""
 
 import stat
-from collections.abc import Generator
+from collections.abc import Generator, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
+from fastapi import APIRouter, FastAPI
+from fastapi.routing import APIRoute, APIWebSocketRoute
 from fastapi.testclient import TestClient
+from starlette.routing import BaseRoute, Mount
 from starlette.websockets import WebSocketDisconnect
 
 from primum_runtime import pairing_tool
@@ -15,7 +18,7 @@ from primum_runtime.api import create_app
 from primum_runtime.api.pairing import COOKIE
 from primum_runtime.config import parse_config
 from primum_runtime.errors import ErrorCode, PrimumError
-from primum_runtime.pairing import LOCK_S, MAX_ATTEMPTS, NAME, Pairing
+from primum_runtime.pairing import LOCK_S, MAX_ATTEMPTS, MAX_LOCK_S, NAME, Pairing
 
 PIN = 17
 
@@ -93,6 +96,39 @@ def test_after_too_many_wrong_codes_not_even_the_right_one_is_taken_for_a_while(
     assert pairing.devices() == (device,)
 
 
+def _lock(pairing: Pairing, clock: _Clock) -> int:
+    """Wait out any lock, then give wrong codes until none is taken: for how long."""
+    wrong = _wrong(pairing.code())
+    while True:
+        try:
+            pairing.pair(wrong, "phone")
+        except PrimumError as error:
+            if error.code is ErrorCode.PAIRING_LOCKED:
+                seconds = error.params["seconds"]
+                assert isinstance(seconds, int)
+                clock.now += seconds
+                return seconds
+
+
+def test_each_lock_in_a_row_lasts_twice_the_one_before_up_to_a_day(
+    pairing: Pairing, clock: _Clock
+) -> None:
+    """A fixed wait lets a patient program try every code in under two years."""
+    waits = [_lock(pairing, clock) for _ in range(12)]
+
+    assert waits[:4] == [300, 600, 1200, 2400]
+    assert waits[-2:] == [MAX_LOCK_S, MAX_LOCK_S]
+
+
+def test_a_right_code_sets_the_wait_back_to_the_shortest(pairing: Pairing, clock: _Clock) -> None:
+    for _ in range(3):
+        _lock(pairing, clock)
+
+    pairing.pair(pairing.code(), "phone")
+
+    assert _lock(pairing, clock) == 300
+
+
 def test_a_right_code_forgets_the_wrong_ones_before_it(pairing: Pairing) -> None:
     code = pairing.code()
     for _ in range(MAX_ATTEMPTS - 1):
@@ -137,6 +173,34 @@ def test_a_file_that_does_not_say_what_it_should_pairs_nobody(
 
     assert pairing.devices() == ()
     assert len(pairing.code()) == 6  # a new one
+
+
+def test_a_file_that_cannot_be_read_is_left_as_it_is(
+    pairing: Pairing, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Not being able to read it does not mean there is nothing in it: taking it for
+    missing would let anyone, with any wrong code, forget every device and change the code."""
+    _, token = pairing.pair(pairing.code(), "phone")
+    before = (tmp_path / NAME).read_bytes()
+
+    def denied(_self: Path, encoding: str | None = None) -> str:
+        raise PermissionError(13, "Permission denied")
+
+    with monkeypatch.context() as patched:
+        patched.setattr(Path, "read_text", denied)
+        refused: list[ErrorCode] = []
+        for ask in (
+            lambda: pairing.pair("000000", "x"),
+            pairing.code,
+            lambda: pairing.device(token),
+        ):
+            with pytest.raises(PrimumError) as error:
+                ask()
+            refused.append(error.value.code)
+
+    assert refused == [ErrorCode.PAIRING_UNREADABLE] * 3
+    assert (tmp_path / NAME).read_bytes() == before
+    assert pairing.device(token) is not None
 
 
 def test_a_code_that_cannot_be_kept_is_an_error_with_a_code(tmp_path: Path, clock: _Clock) -> None:
@@ -203,73 +267,69 @@ def _pair(client: TestClient, data_dir: Path, name: str = "phone") -> tuple[str,
     return token, device
 
 
-REQUESTS = [
-    ("GET", "/api/status"),
-    ("PUT", "/api/outputs/led"),
-    ("DELETE", "/api/outputs/led"),
-    ("POST", "/api/sequences/x/start"),
-    ("POST", "/api/sequences/x/stop"),
-    ("PUT", "/api/variables/x"),
-    ("POST", "/api/events/x/fire"),
-    ("POST", "/api/panic"),
-    ("DELETE", "/api/panic"),
-    ("GET", "/api/package"),
-    ("PUT", "/api/package"),
-    ("POST", "/api/package/activate"),
-    ("POST", "/api/package/rollback"),
-    ("GET", "/api/trace"),
-    ("DELETE", "/api/pairing"),
-    ("GET", "/api/pairing/devices"),
-    ("DELETE", "/api/pairing/devices/x"),
-]
+OPEN_TO_ALL = {("GET", "/api/pairing"), ("POST", "/api/pairing")}
 
 
-@pytest.mark.parametrize(("method", "path"), REQUESTS)
-def test_nothing_is_shown_or_taken_from_a_device_that_is_not_paired(
-    tmp_path: Path, method: str, path: str
-) -> None:
+def _routes(routes: Sequence[BaseRoute]) -> Iterator[BaseRoute]:
+    """Every route of the app, those of the routers it includes too. One of a kind this
+    does not know fails the test: it must be looked at, not skipped."""
+    for route in routes:
+        included: APIRouter | None = getattr(route, "original_router", None)
+        if included is not None:
+            yield from _routes(included.routes)
+        elif isinstance(route, APIRoute | APIWebSocketRoute):
+            yield route
+        else:
+            assert isinstance(route, Mount), route  # the page's files
+            assert route.path == "", route
+
+
+def _asked(path: str) -> str:
+    """``/api/outputs/{output_id}`` → ``/api/outputs/x``."""
+    return "/".join("x" if part.startswith("{") else part for part in path.split("/"))
+
+
+def test_nothing_is_shown_or_taken_from_a_device_that_is_not_paired(tmp_path: Path) -> None:
+    """Every route the app has, found by walking it: a new one that is not behind pairing
+    fails here without anyone listing it."""
+    answers: dict[tuple[str, str], tuple[int, object]] = {}
     with _service(tmp_path) as client:
-        refused = client.request(method, path, json={"action": "on"})
+        app = client.app
+        assert isinstance(app, FastAPI)
+        for route in _routes(app.routes):
+            if not isinstance(route, APIRoute):
+                continue
+            for method in sorted((route.methods or set()) - {"HEAD"}):
+                if (method, route.path) not in OPEN_TO_ALL:
+                    answer = client.request(method, _asked(route.path), json={"action": "on"})
+                    answers[method, route.path] = (answer.status_code, answer.json())
 
-    assert (refused.status_code, refused.json()) == (
-        401,
-        {"code": "pairing.required", "params": {}},
-    )
-
-
-def test_no_route_of_the_api_is_left_out_of_the_list_above() -> None:
-    """A new route is behind pairing because the router is; this keeps the list honest."""
-    app = create_app(parse_config(["--simulate", "--pin", str(PIN)], {}))
-    paths: dict[str, dict[str, object]] = app.openapi()["paths"]
-    routes = {
-        (method.upper(), _unnamed(path)) for path, methods in paths.items() for method in methods
-    }
-    open_to_all = {("GET", "/api/pairing"), ("POST", "/api/pairing")}
-    listed = {
-        (method, path.replace("/x", "/{}").replace("/led", "/{}")) for method, path in REQUESTS
-    }
-
-    assert routes - open_to_all == listed
+    assert len(answers) > 10  # the walk found them
+    refused: tuple[int, object] = (401, {"code": "pairing.required", "params": {}})
+    assert {route: answer for route, answer in answers.items() if answer != refused} == {}
 
 
-def _unnamed(path: str) -> str:
-    """``/api/outputs/{output_id}`` → ``/api/outputs/{}``."""
-    parts = ["{}" if part.startswith("{") else part for part in path.split("/")]
-    return "/".join(parts)
+def test_a_websocket_is_not_opened_for_a_device_that_is_not_paired(tmp_path: Path) -> None:
+    closed: dict[str, int] = {}
+    with _service(tmp_path) as client:
+        app = client.app
+        assert isinstance(app, FastAPI)
+        for route in _routes(app.routes):
+            if isinstance(route, APIWebSocketRoute):
+                with (
+                    pytest.raises(WebSocketDisconnect) as refused,
+                    client.websocket_connect(route.path),
+                ):
+                    pass
+                closed[route.path] = refused.value.code
+
+    assert closed == {"/api/ws": 1008, "/api/trace/ws": 1008}
 
 
-@pytest.mark.parametrize("path", ["/api/ws", "/api/trace/ws"])
-def test_a_websocket_is_not_opened_for_a_device_that_is_not_paired(
-    tmp_path: Path, path: str
-) -> None:
-    with (
-        _service(tmp_path) as client,
-        pytest.raises(WebSocketDisconnect) as closed,
-        client.websocket_connect(path),
-    ):
-        pass
-
-    assert closed.value.code == 1008
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+def test_the_service_describes_its_api_to_nobody(tmp_path: Path, path: str) -> None:
+    with _service(tmp_path) as client:
+        assert client.get(path).status_code == 404
 
 
 def test_the_page_is_served_to_anyone_and_asks_whether_it_is_paired(tmp_path: Path) -> None:
@@ -388,3 +448,63 @@ def test_pairing_is_on_unless_the_service_is_told_otherwise() -> None:
     assert parse_config(["--simulate", "--pin", "17"], {}).pairing is True
     assert parse_config(["--simulate", "--pin", "17", "--no-pairing"], {}).pairing is False
     assert parse_config(["--simulate", "--pin", "17"], {"PRIMUM_NO_PAIRING": "1"}).pairing is False
+
+
+def test_an_error_never_tells_a_client_where_the_board_keeps_its_files(tmp_path: Path) -> None:
+    (tmp_path / "file").write_text("")
+
+    with _service(tmp_path / "file") as client:
+        failed = client.post("/api/pairing", json={"code": "123456"})
+
+    assert (failed.status_code, failed.json()["code"]) == (500, "pairing.unwritable")
+    assert "path" not in failed.json()["params"]
+    assert str(tmp_path) not in failed.text
+
+
+def test_the_command_says_to_run_it_as_root_and_shows_no_traceback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, clock: _Clock
+) -> None:
+    Pairing(tmp_path, clock).code()
+
+    def denied(_self: Path, encoding: str | None = None) -> str:
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(Path, "read_text", denied)
+    monkeypatch.setattr("os.geteuid", lambda: 1000)
+
+    status = pairing_tool.main(["--data-dir", str(tmp_path)])
+
+    assert status == 1
+    assert [record.exc_info for record in caplog.records] == [None]
+    assert "sudo" in caplog.records[0].getMessage()
+
+
+@pytest.mark.parametrize(
+    ("origin", "taken"),
+    [
+        (None, True),  # a program
+        ("http://testserver", True),  # the page itself
+        ("http://testserver:9000", False),  # another service of the same host
+        ("http://elsewhere.example", False),
+    ],
+)
+def test_a_page_of_another_origin_cannot_use_the_cookie_of_a_paired_browser(
+    tmp_path: Path, origin: str | None, taken: bool
+) -> None:
+    """``SameSite`` tells sites apart, not ports: a page served from another port of the
+    board would be sent the cookie. A browser says where a request comes from."""
+    headers = {} if origin is None else {"Origin": origin}
+    with _service(tmp_path) as client:
+        _pair(client, tmp_path)
+
+        panic = client.post("/api/panic", headers=headers)
+        try:
+            with client.websocket_connect("/api/ws", headers=headers) as ws:
+                ws.receive_json()
+            opened = True
+        except WebSocketDisconnect:
+            opened = False
+
+    assert (panic.status_code == 200, opened) == (taken, taken)
+    if not taken:
+        assert panic.json()["code"] == "request.origin_refused"

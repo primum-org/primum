@@ -1051,6 +1051,19 @@ control on the API there is · 5.4 the project on the board and the first edit o
     the repository, in a headless Chromium against a simulated service: it asks for the
     code, shows a wrong one as such, pairs, the WebSocket opens with the cookie, and a
     reload stays paired. Not tried on a phone nor in another browser.
+  - Review: a wait that did not grow let every code be tried in under two years; a file
+    that could not be read was taken for missing, so any wrong code forgot every device
+    and changed the code (reproduced by its owner with `chmod 000`); the test that listed
+    the routes did not see the WebSockets, and FastAPI's `/docs` and `/openapi.json`
+    answered anyone; `pairing.unwritable` told a client the path of the file;
+    `primum-pairing` without `sudo` showed a traceback; nothing looked at `Origin`; every
+    Android was named alike. Fixed, each with a test that failed before but the name: the
+    wait doubles up to a day, an unreadable file is left alone (`pairing.unreadable`), the
+    test walks the app's routes, the service describes itself to nobody, paths are logged
+    and not answered (those of `package.unwritable` too), the command says to use `sudo`,
+    a request with an `Origin` that is not the service's is refused, and the page asks
+    for a name. The tests stand in for a file without permission with a read that fails:
+    they run as root, which `chmod 000` does not stop.
   - To try on the Pi: `sudo /opt/primum/venv/bin/primum-pairing` shows the code and the
     service (user `primum`) still reads the file after `--renew` as root; the page pairs
     from a phone; `provision.sh`, whose check of the service now asks `GET /api/pairing`,

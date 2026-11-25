@@ -36,6 +36,7 @@ const page = {
   pairing: document.getElementById("pairing"),
   pairingForm: document.getElementById("pairing-form"),
   pairingCode: document.getElementById("pairing-code"),
+  pairingName: document.getElementById("pairing-name"),
 };
 
 const [catalog] = await Promise.all([
@@ -357,6 +358,11 @@ function connect(delay = RECONNECT_MIN_MS) {
 function askToPair() {
   state = null;
   render();
+  // What the browser says it runs on ("Android", "Windows"): a start, for the person to
+  // change into a name that tells this device from the others.
+  if (!page.pairingName.value) {
+    page.pairingName.value = navigator.userAgentData?.platform ?? navigator.platform ?? "";
+  }
   page.pairing.hidden = false;
   page.pairingCode.focus();
 }
@@ -381,7 +387,10 @@ async function start(delay = RECONNECT_MIN_MS) {
 
 page.pairingForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const body = JSON.stringify({ code: page.pairingCode.value.trim(), name: navigator.platform });
+  const body = JSON.stringify({
+    code: page.pairingCode.value.trim(),
+    name: page.pairingName.value.trim(),
+  });
   let response;
   try {
     response = await fetch("api/pairing", {

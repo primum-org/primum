@@ -97,7 +97,16 @@ def create_app(
         app.state.stopped_safely = True
         log.info("stopped outputs=%s", _describe(deployment.controller))
 
-    app = FastAPI(title="Primum runtime", version=__version__, lifespan=lifespan)
+    # It describes itself to nobody: FastAPI's own pages (/docs, /openapi.json) would be
+    # routes outside pairing.
+    app = FastAPI(
+        title="Primum runtime",
+        version=__version__,
+        lifespan=lifespan,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
     app.state.stopped_safely = False
     app.state.pairing = Pairing(config.data_dir, time.monotonic) if config.pairing else None
     if not config.pairing:

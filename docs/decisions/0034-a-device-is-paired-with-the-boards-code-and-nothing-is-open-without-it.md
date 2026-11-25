@@ -22,7 +22,13 @@ year.
   code, which forgets them all.
 - **Nothing without pairing, panic included.** The page is served and the code can be
   given; every other route answers `pairing.required`, and a WebSocket is not opened.
-- **Guessing is slow**: 5 wrong codes in a row and none is taken for 5 minutes.
+- **Guessing is slow, and slower each time**: 5 wrong codes in a row and none is taken for
+  5 minutes, then 10, then 20, up to a day. The code never changes by itself and tokens
+  never expire, so a wait that did not grow would be a matter of patience.
+- **A file that cannot be read is not a file that is missing**: it is left alone and the
+  request fails. Only a missing or broken one gives the board a new code.
+- **A browser's request must come from the service's own page** (`Origin`): `SameSite`
+  does not tell ports of one host apart.
 - **Off only when told**: `--no-pairing`, for a laptop and for tests.
 - **It is a pairing code, not a PIN**, everywhere: a pin is where an element is wired.
 
@@ -43,7 +49,8 @@ year.
   fails for one that is not.
 - Nobody stops a board from the page without having paired first. Pair the phones that
   must be able to before a show.
-- Whoever reaches the port can keep new devices from pairing by sending wrong codes.
+- Whoever reaches the port can keep new devices from pairing by sending wrong codes, for
+  up to a day at a time; restarting the service ends it.
 - The traffic is plain HTTP: on a network that is listened to, the code and the tokens can
   be read. Pairing keeps out whoever is on the network; it is not encryption.
 - A device that loses its token pairs again. A board whose every device was lost is renewed

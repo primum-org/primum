@@ -35,7 +35,8 @@
     "pairing.heading": "Pair this device",
     "pairing.explain": "Enter the pairing code of this board. On the board, the command primum-pairing shows it.",
     "pairing.code": "Pairing code",
-    "pairing.submit": "Pair"
+    "pairing.submit": "Pair",
+    "pairing.name": "Name of this device"
   },
   "cli": {
     "severity.error": "error",
@@ -248,6 +249,10 @@
       "message": "The board could not keep its pairing data.",
       "hint": "Check that the data directory exists, that the service may write in it and that the card is not full or read-only."
     },
+    "pairing.unreadable": {
+      "message": "The board could not read its pairing data.",
+      "hint": "Nothing was changed. On the board, check who may read the service's data directory and that the card is well."
+    },
     "safe.declaration_unwritable": {
       "message": "Primum cannot write down which outputs it is about to use, so it will not use them.",
       "hint": "Check that its data directory exists and that Primum may write in it."
@@ -319,6 +324,10 @@
     "request.method_not_allowed": {
       "message": "The service does not accept this action at {path}.",
       "hint": "Reload the page. If it happens again, report it with the technical detail."
+    },
+    "request.origin_refused": {
+      "message": "The request comes from a page that is not this board's.",
+      "hint": "Open the board's own page. If you were sent here by a link, do not trust the page it was on."
     },
     "file.not_utf8": {
       "message": "The file is not UTF-8 text.",

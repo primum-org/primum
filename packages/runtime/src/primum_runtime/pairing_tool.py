@@ -43,7 +43,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         code = pairing.renew() if args.renew else pairing.code()
     except PrimumError as error:
-        log.error("the pairing code cannot be kept: %s", error)
+        detail = error.params.get("detail", error.code.value)
+        # The data is the service's alone to read: the usual reason, and what to do. No
+        # traceback: this is said to a person.
+        advice = "" if os.geteuid() == 0 else ": run it as root, `sudo primum-pairing`"
+        log.error("cannot use the pairing data in %s (%s)%s", args.data_dir, detail, advice)
         return EXIT_FAILED
     sys.stdout.write(code + "\n")
     return 0

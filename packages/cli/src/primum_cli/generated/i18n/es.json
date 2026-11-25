@@ -35,7 +35,8 @@
     "pairing.heading": "Empareja este dispositivo",
     "pairing.explain": "Introduce el código de emparejamiento de esta placa. En la placa, el comando primum-pairing lo muestra.",
     "pairing.code": "Código de emparejamiento",
-    "pairing.submit": "Emparejar"
+    "pairing.submit": "Emparejar",
+    "pairing.name": "Nombre de este dispositivo"
   },
   "cli": {
     "severity.error": "error",
@@ -248,6 +249,10 @@
       "message": "La placa no ha podido guardar los datos de emparejamiento.",
       "hint": "Comprueba que el directorio de datos existe, que el servicio puede escribir en él y que la tarjeta no está llena ni en solo lectura."
     },
+    "pairing.unreadable": {
+      "message": "La placa no ha podido leer los datos de emparejamiento.",
+      "hint": "No se ha cambiado nada. En la placa, comprueba quién puede leer el directorio de datos del servicio y que la tarjeta está bien."
+    },
     "safe.declaration_unwritable": {
       "message": "Primum no puede dejar anotadas las salidas que va a usar, así que no las usará.",
       "hint": "Comprueba que su directorio de datos existe y que Primum puede escribir en él."
@@ -319,6 +324,10 @@
     "request.method_not_allowed": {
       "message": "El servicio no acepta esta acción en {path}.",
       "hint": "Recarga la página. Si vuelve a pasar, informa del error con el detalle técnico."
+    },
+    "request.origin_refused": {
+      "message": "La petición viene de una página que no es la de esta placa.",
+      "hint": "Abre la página de la propia placa. Si llegaste aquí por un enlace, no te fíes de la página donde estaba."
     },
     "file.not_utf8": {
       "message": "El fichero no es texto UTF-8.",

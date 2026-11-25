@@ -64,6 +64,8 @@ class ErrorCode(StrEnum):
     PAIRING_DEVICE_UNKNOWN = "pairing.device_unknown"
     PAIRING_OFF = "pairing.off"
     PAIRING_UNWRITABLE = "pairing.unwritable"
+    PAIRING_UNREADABLE = "pairing.unreadable"
+    REQUEST_ORIGIN_REFUSED = "request.origin_refused"
     SAFE_DECLARATION_UNWRITABLE = "safe.declaration_unwritable"
     SAFE_DECLARATION_INVALID = "safe.declaration_invalid"
     TEST_DURATION_OUT_OF_RANGE = "test.duration_out_of_range"

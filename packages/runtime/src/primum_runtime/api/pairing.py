@@ -6,10 +6,14 @@ nothing is commanded without it, panic included. A service started with ``--no-p
 asks for nothing: that is for a laptop, never for a board.
 
 The cookie is ``HttpOnly`` (the page's code never reads it) and ``SameSite=Strict`` (another
-site's page cannot make the browser send it, in a request or in a WebSocket).
+site's page cannot make the browser send it, in a request or in a WebSocket). ``SameSite``
+tells sites apart, not ports: a page served from another port of the board is the same
+site. So a request that says where it comes from (``Origin``, which a browser always sends
+across origins and with a WebSocket) must come from the service's own page.
 """
 
 from typing import Annotated
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, Response, WebSocketException
 from starlette.requests import HTTPConnection
@@ -49,11 +53,25 @@ def _device(connection: HTTPConnection) -> Device | None:
 def paired(connection: HTTPConnection) -> None:
     """Refuse whoever is not a paired device: ``pairing.required`` (401), or a WebSocket
     that is not opened."""
-    if _pairing(connection) is None or _device(connection) is not None:
+    if _pairing(connection) is None:
+        return
+    refused = None
+    if _device(connection) is None:
+        refused = PrimumError(ErrorCode.PAIRING_REQUIRED)
+    elif not _from_its_own_page(connection):
+        refused = PrimumError(ErrorCode.REQUEST_ORIGIN_REFUSED)
+    if refused is None:
         return
     if connection.scope["type"] == "websocket":
         raise WebSocketException(code=WS_POLICY_VIOLATION)
-    raise PrimumError(ErrorCode.PAIRING_REQUIRED)
+    raise refused
+
+
+def _from_its_own_page(connection: HTTPConnection) -> bool:
+    """Whether a request that says where it comes from comes from this service's page. A
+    program says nothing, and has the token because it paired."""
+    origin = connection.headers.get("origin")
+    return origin is None or urlsplit(origin).netloc == connection.headers.get("host")
 
 
 def _on(connection: HTTPConnection) -> Pairing:

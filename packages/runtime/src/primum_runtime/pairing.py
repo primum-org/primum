@@ -11,7 +11,9 @@ written whole and renamed into place. It is read at every question, so what ``pr
 changes from outside reaches a running service at once.
 
 Guessing is slow on purpose: after ``MAX_ATTEMPTS`` wrong codes in a row nothing is taken
-for ``LOCK_S``, the right code neither. That count is in memory: it is the service's.
+for ``LOCK_S``, the right code neither, and each such wait in a row is twice the one
+before, up to ``MAX_LOCK_S``. A right code sets it back. That count is in memory: it is
+the service's.
 """
 
 import hashlib
@@ -33,6 +35,7 @@ NAME = "pairing.json"
 CODE_DIGITS = 6
 MAX_ATTEMPTS = 5
 LOCK_S = 300.0
+MAX_LOCK_S = 24 * 60 * 60
 MAX_NAME = 64
 _OWNER_ONLY = 0o600
 
@@ -61,6 +64,7 @@ class Pairing:
         self._file = data_dir / NAME
         self._clock = clock
         self._wrong = 0
+        self._locks = 0  # in a row: each one waits twice the one before
         self._locked_until: float | None = None
 
     def code(self) -> str:
@@ -83,6 +87,7 @@ class Pairing:
         if not hmac.compare_digest(code.encode(), kept.code.encode()):
             raise self._wrong_code()
         self._wrong = 0
+        self._locks = 0
         token = secrets.token_urlsafe(32)
         device = Device(secrets.token_hex(4), name[:MAX_NAME])
         added = replace(kept, devices=(*kept.devices, device), hashes=(*kept.hashes, _hash(token)))
@@ -131,9 +136,11 @@ class Pairing:
         if self._wrong < MAX_ATTEMPTS:
             return PrimumError(ErrorCode.PAIRING_CODE_WRONG, {"left": MAX_ATTEMPTS - self._wrong})
         self._wrong = 0
-        self._locked_until = self._clock() + LOCK_S
-        log.warning("%d wrong pairing codes in a row: none is taken for %d s", MAX_ATTEMPTS, LOCK_S)
-        return PrimumError(ErrorCode.PAIRING_LOCKED, {"seconds": int(LOCK_S)})
+        wait = int(min(LOCK_S * 2**self._locks, MAX_LOCK_S))
+        self._locks += 1
+        self._locked_until = self._clock() + wait
+        log.warning("%d wrong pairing codes in a row: none is taken for %d s", MAX_ATTEMPTS, wait)
+        return PrimumError(ErrorCode.PAIRING_LOCKED, {"seconds": wait})
 
     def _kept(self) -> _Kept:
         kept = self._read()
@@ -145,17 +152,27 @@ class Pairing:
 
     def _read(self) -> _Kept | None:
         """What is kept; nothing when there is no file or it does not say what it should
-        (then no device is paired, and the board gets a new code)."""
+        (then no device is paired, and the board gets a new code).
+
+        A file that is there and cannot be read is another matter: ``pairing.unreadable``
+        (``path``, ``detail``), and it is left as it is. Taking it for missing would let
+        anyone, with any wrong code, forget every device and change the code."""
         try:
-            document = json.loads(self._file.read_text(encoding="utf-8"))
+            text = self._file.read_text(encoding="utf-8")
+        except (FileNotFoundError, NotADirectoryError):  # there is no such file
+            return None
+        except OSError as error:
+            params = {"path": str(self._file), "detail": error.strerror or str(error)}
+            raise PrimumError(ErrorCode.PAIRING_UNREADABLE, params) from error
+        try:
+            document = json.loads(text)
             code = document["code"]
             listed = document["devices"]
             devices = tuple(Device(str(item["id"]), str(item["name"])) for item in listed)
             hashes = tuple(str(item["token"]) for item in listed)
-        except FileNotFoundError:
-            return None
-        except (OSError, ValueError, KeyError, TypeError):
-            log.exception("%s cannot be read: no device is paired", self._file)
+        except (ValueError, KeyError, TypeError) as error:
+            # No traceback: `primum-pairing` shows this to a person.
+            log.error("%s does not say what it should (%r): nobody is paired", self._file, error)
             return None
         if not isinstance(code, str) or len(code) != CODE_DIGITS or not code.isdecimal():
             log.error("%s has no pairing code: no device is paired", self._file)

@@ -5,6 +5,7 @@ unknown paths and methods. Technical text never includes file paths or stack tra
 the API is reachable from the local network.
 """
 
+import logging
 from collections.abc import Sequence
 
 from fastapi import FastAPI, Request
@@ -15,6 +16,8 @@ from starlette.exceptions import HTTPException
 
 from primum_runtime.api.models import ErrorBody
 from primum_runtime.errors import ErrorCode, ErrorParam, PrimumError
+
+log = logging.getLogger(__name__)
 
 _STATUS_BY_CODE = {
     ErrorCode.OUTPUT_UNKNOWN: 404,
@@ -38,6 +41,7 @@ _STATUS_BY_CODE = {
     ErrorCode.PAIRING_LOCKED: 429,
     ErrorCode.PAIRING_DEVICE_UNKNOWN: 404,
     ErrorCode.PAIRING_OFF: 409,
+    ErrorCode.REQUEST_ORIGIN_REFUSED: 403,
     ErrorCode.ELEMENT_TYPE_UNSUPPORTED: 422,
     ErrorCode.ELEMENT_WIRING_REFUSED: 422,
     ErrorCode.ELEMENT_VARIABLE_UNFIT: 422,
@@ -66,7 +70,12 @@ _CODE_BY_HTTP_STATUS = {
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(PrimumError)
     async def primum_error(_request: Request, error: PrimumError) -> JSONResponse:
-        return error_response(error.code, dict(error.params))
+        params = dict(error.params)
+        # Where the board keeps its files is not for a client, paired or not: it is logged.
+        path = params.pop("path", None)
+        if path is not None:
+            log.error("%s: %s (%s)", error.code.value, path, params.get("detail", ""))
+        return error_response(error.code, params)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(_request: Request, error: RequestValidationError) -> JSONResponse:
