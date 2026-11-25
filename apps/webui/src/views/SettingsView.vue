@@ -5,7 +5,7 @@ import { useRouter } from "vue-router";
 
 import ProblemNotice from "@/components/ProblemNotice.vue";
 import { t } from "@/i18n";
-import { problemOf, type Problem } from "@/problem";
+import { problemOfOrder, type Problem } from "@/problem";
 import { session, unpair } from "@/session";
 
 const router = useRouter();
@@ -17,7 +17,7 @@ async function forgetThisDevice(): Promise<void> {
     await unpair();
     await router.replace({ name: "pair" });
   } catch (failure) {
-    problem.value = problemOf(failure);
+    problem.value = problemOfOrder(failure);
   }
 }
 </script>

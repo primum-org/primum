@@ -147,6 +147,24 @@ test("keys pressed one after another add up, each asked for as it is let go", as
   expect((slider.element as HTMLInputElement).value).toBe("50");
 });
 
+test("a touch the browser takes for a scroll asks for nothing and leaves the level as it was", async () => {
+  // A finger that lands on the track moves the slider under it, then drags the page: the
+  // browser cancels the touch. Nobody chose that level.
+  const { asked, view } = row(output({ ...DIMMER, level: 18 }));
+  const slider = view.get(".level-slider");
+
+  await slider.trigger("pointerdown");
+  await slider.setValue("71");
+  await slider.trigger("pointercancel");
+  await slider.trigger("change"); // a browser may send it for the value it moved
+  await slider.trigger("blur");
+  await flushPromises();
+
+  expect(asked).toEqual([]);
+  expect((slider.element as HTMLInputElement).value).toBe("18");
+  expect(view.get(".level-value").text()).toBe("18 %");
+});
+
 test("a slider that is held is the person's: a state that arrives does not move it", async () => {
   const { view } = row(output({ ...DIMMER, level: 20 }));
   const slider = view.get(".level-slider");

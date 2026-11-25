@@ -26,3 +26,10 @@ export function problemOfAsking(failure: unknown): ErrorLike | "offline" {
   const problem = problemOf(failure);
   return problem === "unanswered" ? "offline" : problem;
 }
+
+/** The problem behind an order that failed. One that did not get to the board is lost:
+ * nobody sends it again, so it is "unsent", never "offline" with its "retrying". */
+export function problemOfOrder(failure: unknown): ErrorLike | Undone {
+  const problem = problemOf(failure);
+  return problem === "offline" ? "unsent" : problem;
+}

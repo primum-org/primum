@@ -96,6 +96,14 @@ async function letGo(): Promise<void> {
   await askFor(wanted, left);
 }
 
+// A touch the browser takes back (the page scrolled under the finger) chose no level: a
+// finger that lands on the track moves the slider before the browser knows it is a scroll.
+// Nothing is asked for, and the slider shows the level the board reports.
+function cancelled(): void {
+  held.value = false;
+  if (asked === null) shown.value = reported.value;
+}
+
 // Changed with nothing held (assistive technology sets a value at once): ask for it. Not
 // when it is the level the board already reports, nor the one just asked for (a browser
 // sends "change" after letting go too), nor when nobody may ask.
@@ -155,7 +163,7 @@ const release = () => command(api.release(props.output.id));
         v-model.number="shown" class="level-slider" type="range" min="0" max="100" step="1"
         :disabled="!usable" :aria-label="t('output.level_of', { name })"
         @pointerdown="held = true" @keydown="held = true"
-        @pointerup="letGo" @pointercancel="letGo" @keyup="letGo" @blur="letGo" @change="changed"
+        @pointerup="letGo" @pointercancel="cancelled" @keyup="letGo" @blur="letGo" @change="changed"
       >
       <output class="level-value">{{ session.online ? t("output.level", { level: shown }) : "" }}</output>
     </div>

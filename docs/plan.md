@@ -1161,6 +1161,22 @@ control on the API there is · 5.4 the project on the board and the first edit o
     order. Fixed, with tests that failed before: a question that is not answered is "no
     connection"; only an order can be left unanswered. The same for pairing itself. Tried
     by hand in the browser with the service frozen 26 s.
+  - Fourth review, found by its owner with emulated touch: scrolling the page with the
+    finger starting on the slider's track sent a level (the real PWM went from 18 % to
+    71 %): the browser moves the slider under the finger, then takes the touch for a
+    scroll, and the cancelled touch was treated as letting go. Fixed, with a test that
+    failed before: a cancelled touch asks for nothing and the slider goes back to what the
+    board reports; a drag up or down over the slider scrolls, one sideways moves it.
+    Reproduced here the same way before the fix and gone after it, with touches sent
+    through the browser's debugger. **Not tried with a finger on a phone**, and this
+    would be a 220 V dimmer: to try before trusting it. Also: panic pressed while the
+    screen waited to connect again was done by the board and the screen went on saying
+    "no connection" for up to 10 s; an order the board answers now connects at once.
+    Unpairing with no connection said "retrying"; it says it was not sent. More room
+    between the rows; the rows of the inputs are no longer announced at every change.
+  - For the start of 5.3b: a heartbeat on the WebSocket. A phone that leaves the Wi-Fi's
+    range is the common case, and until then its screen shows an old state as current
+    for as long as nothing is asked.
   - Noted for later, not done: the answer of a service that has just died, arriving after
     the first state of the one that replaced it, would carry a high `revision` and make
     the app drop every state until it connects again. Not reproduced, and very unlikely; a

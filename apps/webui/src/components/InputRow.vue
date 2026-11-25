@@ -17,9 +17,11 @@ const word = computed(() => {
 </script>
 
 <template>
+  <!-- Not a live region: an input may change many times a second, and a screen reader
+       would say every one. What it reads is there to be read when the person gets to it. -->
   <li class="row">
     <AppIcon name="i-button" />
     <span class="row-name">{{ input.name }}</span>
-    <span class="row-state" :class="{ active: session.online && input.active }" role="status">{{ word }}</span>
+    <span class="row-state" :class="{ active: session.online && input.active }">{{ word }}</span>
   </li>
 </template>

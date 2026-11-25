@@ -140,6 +140,8 @@ main {
   align-items: center;
   gap: var(--space-3);
   min-height: var(--size-row-touch);
+  /* Room between the buttons of one row and those of the next. */
+  padding: var(--space-2) 0;
   border-bottom: var(--size-rule-md) solid var(--rule);
 }
 .row-name { flex: 1; font-family: var(--font-family-mono); }
@@ -162,7 +164,14 @@ main {
   gap: var(--space-3);
   min-height: var(--size-touch-target);
 }
-.level-slider { flex: 1; min-height: var(--size-touch-target); accent-color: var(--color-brand-primary); }
+/* A finger that drags up or down over the slider scrolls the page; one that drags sideways
+   moves the slider. */
+.level-slider {
+  flex: 1;
+  min-height: var(--size-touch-target);
+  accent-color: var(--color-brand-primary);
+  touch-action: pan-y;
+}
 .level-slider:disabled { cursor: not-allowed; opacity: 0.45; }
 .level-value { min-width: calc(var(--space-7) * 2); text-align: end; font-family: var(--font-family-mono); }
 

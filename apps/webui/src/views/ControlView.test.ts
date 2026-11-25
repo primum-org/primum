@@ -296,3 +296,23 @@ test("the alert of a package that does not run goes when the board runs one agai
   expect(alerts.text()).not.toContain("The active package is not running");
   stop();
 });
+
+test("an order the board answers while the screen is reconnecting shows at once that the board is there", async () => {
+  // The service came back and the screen is still waiting to try again: panic is pressed,
+  // the board does it and answers. The screen must not go on saying there is no connection.
+  const paired = { required: true, device: { id: "1", name: "phone", current: true } };
+  board(state({ outputs: [output()] }));
+  const panicked = state({ outputs: [output()], panic: true });
+  vi.stubGlobal("fetch", (url: URL) => Promise.resolve(json(url.pathname.endsWith("/panic") ? panicked : paired)));
+  vi.stubGlobal("WebSocket", FakeSocket);
+  Object.assign(session, { online: false, settled: true });
+  FakeSocket.last = null;
+  const view = mount(ControlView);
+
+  await view.get(".panic").trigger("click");
+  await flushPromises();
+
+  expect(session.state?.panic).toBe(true);
+  expect(FakeSocket.last).not.toBeNull(); // connecting again now, not when the wait is over
+  stop();
+});

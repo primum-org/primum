@@ -7,7 +7,7 @@ import { reactive } from "vue";
 import { api, ApiError, openStates } from "@/api/client";
 import type { PackagesBody, PairingBody, StateBody } from "@/api/types";
 import type { ErrorLike } from "@/i18n";
-import { problemOf, problemOfAsking, type Problem } from "@/problem";
+import { problemOfAsking, problemOfOrder, type Problem } from "@/problem";
 
 export const RECONNECT_MIN_MS = 1000;
 export const RECONNECT_MAX_MS = 10000;
@@ -83,8 +83,11 @@ export async function command(asked: Promise<StateBody>): Promise<void> {
   try {
     take(await asked);
     session.refused = null;
+    // The board answered: it is there, whatever the wait to try the connection again
+    // says. Connect now, so that the screen stops saying it has none.
+    if (!session.online) void connect();
   } catch (failure) {
-    const problem = problemOf(failure);
+    const problem = problemOfOrder(failure);
     if (failure instanceof ApiError && failure.unpaired) {
       // The pairing screen takes over, and says why: the order was not carried out.
       session.refused = "forgotten";
@@ -93,7 +96,7 @@ export async function command(asked: Promise<StateBody>): Promise<void> {
     }
     // An order that did not get to the board is lost: nobody sends it again, and saying
     // "retrying" of it would be a lie. It is said as not sent until the board is back.
-    session.refused = problem === "offline" ? "unsent" : problem;
+    session.refused = problem;
     // A board that does not answer is not to be taken for connected, whatever the
     // WebSocket says (nothing tells a frozen board from a quiet one): connect again.
     if (problem === "unanswered") void connect();
