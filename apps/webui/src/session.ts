@@ -5,7 +5,7 @@
 import { reactive } from "vue";
 
 import { api, ApiError, openStates } from "@/api/client";
-import type { PairingBody, StateBody } from "@/api/types";
+import type { PackagesBody, PairingBody, StateBody } from "@/api/types";
 import { problemOf, type Problem } from "@/problem";
 
 export const RECONNECT_MIN_MS = 1000;
@@ -16,8 +16,15 @@ export const session = reactive({
   pairing: null as PairingBody | null,
   online: false,
   state: null as StateBody | null,
+  // When that state arrived, by this device's clock (`performance.now()`): what the
+  // countdown of a test counts from.
+  stateAt: 0,
   // Why the board could not say whether this device is paired, the last time it was asked.
   problem: null as Problem | null,
+  // What the board refused the last time it was asked to do something, until dismissed.
+  refused: null as Problem | null,
+  // The board's packages, asked for when the connection opens: whether the active one runs.
+  packages: null as PackagesBody | null,
 });
 
 let socket: WebSocket | null = null;
@@ -38,6 +45,28 @@ export async function refreshPairing(): Promise<boolean> {
   } catch (failure) {
     session.problem = problemOf(failure);
     return false;
+  }
+}
+
+function take(state: StateBody): void {
+  session.state = state;
+  session.stateAt = performance.now();
+}
+
+/** Ask the board to do something. Its answer is its new state; what it refuses is kept in
+ * `session.refused` for the screen to say. A device the board no longer knows is sent to
+ * pair again. Never raises for either: a button has nothing to do with a failure. */
+export async function command(asked: Promise<StateBody>): Promise<void> {
+  try {
+    take(await asked);
+    session.refused = null;
+  } catch (failure) {
+    const problem = problemOf(failure);
+    if (problem !== "offline" && failure instanceof ApiError && failure.unpaired) {
+      await connect();
+      return;
+    }
+    session.refused = problem;
   }
 }
 
@@ -79,9 +108,10 @@ export function listen(delay = RECONNECT_MIN_MS): void {
   let opened = false;
   const current = openStates(
     (state) => {
+      if (!opened) void askForPackages();
       opened = true;
       session.online = true;
-      session.state = state;
+      take(state);
     },
     () => {
       if (socket !== current) return; // closed on purpose, or replaced
@@ -101,6 +131,12 @@ export function stop(): void {
   socket = null;
   closing?.close();
   session.online = false;
+}
+
+// Whether the active package runs is not in the state. Not knowing it is no problem of its
+// own: the alert it would give is simply not shown.
+async function askForPackages(): Promise<void> {
+  session.packages = await api.packages().catch(() => null);
 }
 
 function again(after: number, next: number): void {

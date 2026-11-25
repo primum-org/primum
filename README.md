@@ -23,8 +23,8 @@ all the others in motion.
 
 Requirements: [uv](https://docs.astral.sh/uv/), which installs everything else (including
 [just](https://just.systems/)) into the project environment, and [Node.js](https://nodejs.org/)
-22 or later with [pnpm](https://pnpm.io/) for the web UI (`apps/webui`) and the tests of the
-runtime's page (both part of `just check`; `uv run just ui-install` once).
+22 or later with [pnpm](https://pnpm.io/) for the web UI (`apps/webui`, part of `just check`;
+`uv run just ui-install` once).
 
 ```bash
 uv sync              # install the environment (Python 3.13 and dev tools)

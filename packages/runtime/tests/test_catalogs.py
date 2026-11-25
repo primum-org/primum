@@ -1,7 +1,7 @@
 """The message catalogs in i18n/ (decision 0009): complete, consistent and used.
 
 Every error code the runtime and ``core`` can report has an entry in every language, every
-language has the same keys and placeholders, and the page's UI strings exist and are all used.
+language has the same keys and placeholders, and the web UI's strings exist and are all used.
 The test lives here because the runtime depends on ``core`` and can see both sets of codes.
 """
 
@@ -18,15 +18,14 @@ from primum_runtime.errors import ErrorCode
 
 ROOT = Path(__file__).resolve().parents[3]
 CATALOGS = ROOT / "i18n"
-UI = ROOT / "packages" / "runtime" / "src" / "primum_runtime" / "ui"
 WEBUI = ROOT / "apps" / "webui" / "src"
 DEFAULT = "en"
 LANGUAGES = ("en", "es")
 # Shown apart as technical detail, never inside a message (see i18n/README.md).
 TECHNICAL_PARAMS = frozenset({"detail", "consumer", "fields"})
 PLACEHOLDER = re.compile(r"\{(\w+)\}")
-# How the page names UI keys: data-i18n="key" in the HTML and t("key") in the scripts.
-UI_KEY_USES = (re.compile(r'data-i18n="([\w.]+)"'), re.compile(r'\bt\("([\w.]+)"'))
+# How the web UI names its keys: t("key"), or t('key') inside an attribute of a template.
+UI_KEY_USES = (re.compile(r"""\bt\(["']([\w.]+)["']"""),)
 
 type Catalog = dict[str, dict[str, object]]
 
@@ -63,10 +62,6 @@ def _keys_used_in(paths: Iterable[Path]) -> set[str]:
         for pattern in UI_KEY_USES:
             used.update(pattern.findall(text))
     return used
-
-
-def _ui_keys_used_by_the_page() -> set[str]:
-    return _keys_used_in([*UI.glob("*.html"), *UI.glob("*.js")])
 
 
 def _keys_used_by_the_web_ui() -> set[str]:
@@ -114,15 +109,6 @@ def test_error_messages_never_embed_technical_params(language: str) -> None:
         if path.startswith("errors.") and _placeholders(text) & TECHNICAL_PARAMS
     }
     assert embedded == {}
-
-
-def test_the_page_uses_every_ui_key_and_only_keys_that_exist() -> None:
-    ui = set(_load(DEFAULT)["ui"])
-
-    used = _ui_keys_used_by_the_page()
-
-    assert used - ui == set(), "keys used by the page but missing in the catalogs"
-    assert ui - used == set(), "keys in the catalogs that the page does not use"
 
 
 def test_the_web_ui_uses_every_one_of_its_keys_and_only_keys_that_exist() -> None:

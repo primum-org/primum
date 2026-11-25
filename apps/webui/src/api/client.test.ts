@@ -10,7 +10,7 @@ afterEach(() => vi.unstubAllGlobals());
 test("a request goes to the API that is served next to the page", async () => {
   const fetched = vi.fn(async () => answer(200, { required: true, device: null }));
   vi.stubGlobal("fetch", fetched);
-  document.head.innerHTML = '<base href="http://board.local:8080/app/">';
+  document.head.innerHTML = '<base href="http://board.local:8080/">';
 
   expect(await api.pairing()).toEqual({ required: true, device: null });
 

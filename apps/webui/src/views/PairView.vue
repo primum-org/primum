@@ -30,7 +30,7 @@ async function submit(): Promise<void> {
   problem.value = null;
   try {
     await pair(code.value.trim(), name.value.trim());
-    await router.replace({ name: "home" });
+    await router.replace({ name: "control" });
   } catch (failure) {
     problem.value = problemOf(failure);
   } finally {

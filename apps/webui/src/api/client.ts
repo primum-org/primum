@@ -1,6 +1,6 @@
 // The one place that talks to the board: requests, and the WebSocket of its state.
 
-import type { ErrorBody, PairedBody, PairingBody, StateBody } from "@/api/types";
+import type { ErrorBody, PackagesBody, PairedBody, PairingBody, StateBody } from "@/api/types";
 
 // The status of a request from a device that is not paired with the board.
 const UNPAIRED = 401;
@@ -24,8 +24,11 @@ export class ApiError extends Error {
 /** The board did not answer at all: no network, or the service is stopped. */
 export class OfflineError extends Error {}
 
-// The page is served next to the API, wherever the service puts it (/app/ or /).
-const url = (path: string): URL => new URL(`../api/${path}`, document.baseURI);
+// The API is served next to the app, wherever the service puts both.
+const url = (path: string): URL => new URL(`api/${path}`, document.baseURI);
+
+type Arguments = Readonly<Record<string, number | boolean | string>>;
+const id = encodeURIComponent;
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const init: RequestInit = { method };
@@ -50,6 +53,18 @@ export const api = {
   pairing: () => request<PairingBody>("GET", "pairing"),
   pair: (code: string, name: string) => request<PairedBody>("POST", "pairing", { code, name }),
   unpair: () => request<PairingBody>("DELETE", "pairing"),
+  packages: () => request<PackagesBody>("GET", "package"),
+  // Every command answers with the board's whole state after it.
+  /** Ask an output for one of the actions of its driver, with the arguments it takes by
+   * name. With a duration it is a test: the output goes to rest on its own after it. */
+  ask: (output: string, action: string, args: Arguments = {}, durationMs: number | null = null) =>
+    request<StateBody>("PUT", `outputs/${id(output)}`, { action, arguments: args, durationMs }),
+  /** Give an output a person holds back to the sequences. */
+  release: (output: string) => request<StateBody>("DELETE", `outputs/${id(output)}`),
+  startSequence: (sequence: string) => request<StateBody>("POST", `sequences/${id(sequence)}/start`),
+  stopSequence: (sequence: string) => request<StateBody>("POST", `sequences/${id(sequence)}/stop`),
+  panic: () => request<StateBody>("POST", "panic"),
+  releasePanic: () => request<StateBody>("DELETE", "panic"),
 };
 
 /** The WebSocket of the board's state: the current one on connect, then every new one. */

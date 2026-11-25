@@ -24,7 +24,7 @@ jobs:
         with:
           enable-cache: true
 
-      # For the page's JavaScript tests (`just test-js`) and the web UI (`just ui-check`).
+      # For the web UI (`just ui-check`).
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: apps/webui/package.json

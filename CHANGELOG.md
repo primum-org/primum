@@ -132,8 +132,11 @@ All notable changes to this project are documented here. The format follows
 - Each output of the page has a *Test* button: it turns the output on for ten seconds and
   off on its own, to check a wire without leaving it on. Over the API, any command can
   expire (`durationMs`, from one second to five minutes).
-- The start of the new web interface, at `/app/` next to the current page: it pairs a
-  device and says whether the board answers. Controls stay on the current page for now.
+- A new web interface replaces the page the board served: Control and Settings tabs for a
+  phone, the same switches, levels, tests, sequences and panic button, and for the first
+  time the board's own alerts on every screen (an output that could not be confirmed off,
+  lost changes of an input, values that could not be saved, a clock not yet set, an
+  active package that is not running).
 - Pairing: a board has a pairing code (`primum-pairing` shows it), and a phone or a program
   must give it once before the board shows or takes anything from it, panic included.
   `primum-pairing --renew` makes a new code and unpairs every device. **Breaking:** a

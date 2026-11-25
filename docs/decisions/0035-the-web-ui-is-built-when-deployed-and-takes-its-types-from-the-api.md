@@ -49,3 +49,8 @@ pydantic models in the runtime, and the same texts, tokens and icons as everythi
   come: with the first screen that edits a project (block 5.4).
 - The catalogs have two sections of UI texts, `ui` (the page) and `webui`, until 5.3
   removes the first.
+
+## Since
+- Block 5.3a (2026-11-25): the app is served at `/` and the page of phase 1 is gone, with
+  its copies of the catalogs and the brand under `ui/generated/`, its tests and the `ui`
+  section of the catalogs. A service whose web UI was not built has no page.

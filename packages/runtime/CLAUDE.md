@@ -56,14 +56,12 @@ The service that runs on Linux boards. It executes deployment packages from `pri
 - Errors are `PrimumError(ErrorCode.X, params)` (decision 0009), never text. System text (for
   example `strerror`) goes in a `detail` param. A new code goes in `ErrorCode` and in both
   catalogs in `i18n/` (`test_catalogs.py` checks it).
-- The web UI (`apps/webui`, decision 0035) is served at `/app/` from `webui/`, where
-  `just ui-build` puts it: not in the repository, and a service without it starts all the
-  same. A body of the API that changes changes `apps/webui/openapi.json` (`just gen`).
-- The page lives in `ui/` (no build step). `ui/generated/` holds copies of `i18n/` and `design/`
-  assets, and `generated/boards/` and `generated/drivers/` copies of the board profiles and the
-  driver manifests, made by `just gen`: never edit
-  them, edit the source and regenerate. UI keys are written literally (`t("panic.button")`,
-  `data-i18n="panic.button"`) so the catalog test finds them.
+- The web UI (`apps/webui`, decision 0035) is the service's only page, served at `/` from
+  `webui/`, where `just ui-build` puts it: not in the repository, and a service without it
+  starts all the same, with its API and no page. A body of the API that changes changes
+  `apps/webui/openapi.json` (`just gen`).
+- `generated/boards/` and `generated/drivers/` are copies of the board profiles and the
+  driver manifests, made by `just gen`: never edit them, edit the source and regenerate.
 - Safety first: every output has a safe state applied on start, stop, crash and panic. A
   crash is covered from outside the process (decision 0020, `docs/specs/safety.md`): the
   service declares what it claims in its data directory before claiming it

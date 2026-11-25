@@ -1103,6 +1103,28 @@ control on the API there is · 5.4 the project on the board and the first edit o
   - Left for later: the fonts of the brand bundled for offline use (it shows the system's);
     TypeScript types of the project's formats, from `schemas/` (5.4); tests in a browser
     that are part of the repository.
+- [x] **5.3a Daily control in the web UI; the page of phase 1 is gone.** Tabs at the bottom
+  (Control, Settings; Activity comes with 5.3b). Control has the outputs (switch, level,
+  *Test* with its countdown, who commands each and *Release*), the sequences, the inputs
+  and the panic button, on that screen only. Above the content of every screen: no
+  connection, panic and its release, what the board last refused, and the board's alerts
+  (an output not confirmed off, lost changes of an input, values not saved, time not
+  known with schedules waiting, an active package that does not run). The app is served
+  at `/`; `primum_runtime/ui/`, its generated copies, its JavaScript tests and the `ui`
+  section of the catalogs are removed.
+  - Tried: 57 Vitest tests, the behaviour of the page ported with them (a switch that says
+    nothing offline, a test not offered for an output left on, the slider asked for once on
+    letting go and keeping the time of a test). By hand, not by a test of the repository:
+    a headless Chromium as a phone in Spanish against a simulated service running
+    `examples/shop-window`: pairing, a switch and its release, a test and its countdown,
+    the level by keys, a sequence, panic from Control and its release from Settings.
+  - Found by that browser run and not by the tests written first: keys pressed one after
+    another on the slider went back to the old level between them. Fixed, with a test
+    that failed before.
+  - Not tried: a real phone, a real board, a finger on the slider (only keys and
+    synthetic pointer events), a screen reader.
+  - Left for 5.3b: variables, firing events, the state of automations and schedules,
+    packages, the trace, the list of paired devices.
 
 ## Phase 6 · Hardware manager
 

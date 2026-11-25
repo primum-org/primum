@@ -33,7 +33,7 @@ async function typed(code: string) {
   return { view, router };
 }
 
-test("the code and the name a person gives are sent, and a paired device goes home", async () => {
+test("the code and the name a person gives are sent, and a paired device goes to control", async () => {
   const device = { id: "1", name: "Joan's phone", current: true };
   const fetched = vi.fn(async () => new Response(JSON.stringify({ token: "t", device })));
   vi.stubGlobal("fetch", fetched);
@@ -43,7 +43,7 @@ test("the code and the name a person gives are sent, and a paired device goes ho
   const [, init] = fetched.mock.calls[0] as unknown as [URL, RequestInit];
   expect(init.body).toBe('{"code":"123456","name":"Joan\'s phone"}');
   expect(session.pairing?.device).toEqual(device);
-  expect(router.currentRoute.value.name).toBe("home");
+  expect(router.currentRoute.value.name).toBe("control");
 });
 
 test("a wrong code is said in words, with what to do, and the screen stays", async () => {

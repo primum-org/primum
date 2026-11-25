@@ -61,7 +61,7 @@ changes, what a value is worth when its variable changed, and how often a card i
 - A power cut loses the changes of about the last second: the second a change waits, and
   the time the card takes to take the write.
 - Nobody but the log and the API's state sees that the values are not kept
-  (`variablesUnsaved`): the page of the runtime does not show it. For the UI of phase 5.
+  (`variablesUnsaved`): the page of the runtime does not show it. For the UI of phase 5 (shown since block 5.3a).
 - Only the last file set aside is there: a second replacement writes over the copy.
 - Deleting the file of a project starts its variables at their initial values: that is
   the way to reset them until the UI has one.

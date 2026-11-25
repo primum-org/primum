@@ -8,6 +8,9 @@
   --rule: color-mix(in srgb, var(--color-text-primary) 13%, transparent);
   /* A touch surface: the touch column of the brandbook's density table. */
   --focus-ring: var(--size-focus-ring-touch);
+  --panic-chamfer: var(--size-panic-chamfer-touch);
+  --switch-width: calc(var(--size-control-sm) + var(--space-5));
+  --tabs-height: var(--size-transport-touch);
 }
 
 * { box-sizing: border-box; }
@@ -97,7 +100,7 @@ main {
   text-decoration: none;
   cursor: pointer;
 }
-.button:disabled { color: var(--color-text-secondary); border-color: var(--rule); cursor: default; }
+.button:disabled { cursor: not-allowed; opacity: 0.45; }
 
 .form { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
 .field {
@@ -111,3 +114,154 @@ main {
 }
 .field-code { font-family: var(--font-family-mono); width: calc(var(--space-7) * 4); }
 .form .button { margin-top: var(--space-2); }
+
+/* What is not as it should be, above the content of every screen. */
+.alerts { display: flex; flex-direction: column; gap: var(--space-3); }
+.alerts:empty { display: none; }
+.alert-group { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.alert-group > .notice { align-self: stretch; }
+
+/* Lists of elements: one row each, a rule between them. */
+.list { display: flex; flex-direction: column; gap: var(--space-2); }
+.list ul { margin: 0; padding: 0; list-style: none; border-top: var(--size-rule-md) solid var(--rule); }
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-row-touch);
+  border-bottom: var(--size-rule-md) solid var(--rule);
+}
+.row-name { flex: 1; font-family: var(--font-family-mono); }
+.row-state { padding: 0 var(--space-2); }
+.row-state.active { font-weight: 600; }
+/* What a row says under its controls: a test under way, who commands it. */
+.row-note { flex-basis: 100%; padding-bottom: var(--space-2); }
+
+/* The level of an output that takes one: a row of its own under the switch. */
+.level {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-touch-target);
+}
+.level-slider { flex: 1; min-height: var(--size-touch-target); accent-color: var(--color-brand-primary); }
+.level-slider:disabled { cursor: not-allowed; opacity: 0.45; }
+.level-value { min-width: calc(var(--space-7) * 2); text-align: end; font-family: var(--font-family-mono); }
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch-target);
+  min-width: var(--size-touch-target);
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.switch-track {
+  position: relative;
+  width: var(--switch-width);
+  height: var(--size-control-sm);
+  border-radius: var(--radius-full);
+  border: var(--size-rule-md) solid var(--color-text-primary);
+  background: var(--color-surface-raised);
+  transition: background var(--motion-base);
+}
+.switch-thumb {
+  position: absolute;
+  /* Centred in the track: (track height − thumb) / 2, minus the border. */
+  top: calc((var(--size-control-sm) - var(--size-icon-24)) / 2 - var(--size-rule-md));
+  left: calc((var(--size-control-sm) - var(--size-icon-24)) / 2 - var(--size-rule-md));
+  width: var(--size-icon-24);
+  height: var(--size-icon-24);
+  border-radius: var(--radius-full);
+  background: var(--color-text-primary);
+  transition: transform var(--motion-base);
+}
+.switch[aria-pressed="true"] .switch-track { background: var(--color-brand-primary); }
+.switch[aria-pressed="true"] .switch-thumb {
+  transform: translateX(calc(var(--switch-width) - var(--size-control-sm)));
+  background: var(--color-text-inverse);
+}
+.switch-state { min-width: calc(var(--space-7) * 2); text-align: start; }
+.switch:disabled { cursor: not-allowed; opacity: 0.45; }
+/* Offline the last state may be stale: "mixed" puts the thumb in the middle, neither on nor off. */
+.switch[aria-pressed="mixed"] .switch-thumb {
+  transform: translateX(calc((var(--switch-width) - var(--size-control-sm)) / 2));
+  background: var(--color-text-secondary);
+}
+.switch:disabled .switch-track { border-style: dashed; }
+
+/* Panic: anchored above the tabs, 72 px, octagonal chamfer, never disabled. */
+.panic-area {
+  position: sticky;
+  bottom: var(--tabs-height);
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-top: var(--size-rule-md) solid var(--rule);
+  background: var(--color-surface-base);
+}
+.panic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--size-panic-touch);
+  border: 0;
+  background: var(--color-semantic-danger);
+  color: var(--color-text-inverse);
+  font: inherit;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  /* Written here like the weights: the brandbook sets the word of the button apart. */
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  clip-path: polygon(
+    var(--panic-chamfer) 0, calc(100% - var(--panic-chamfer)) 0, 100% var(--panic-chamfer),
+    100% calc(100% - var(--panic-chamfer)), calc(100% - var(--panic-chamfer)) 100%,
+    var(--panic-chamfer) 100%, 0 calc(100% - var(--panic-chamfer)), 0 var(--panic-chamfer)
+  );
+}
+/* clip-path would cut the outline: the focus ring goes inside. */
+.panic:focus-visible { outline-offset: calc(-2 * var(--focus-ring)); outline-color: var(--color-text-inverse); }
+
+/* The screens, at the bottom of the phone. The one shown is said by weight and a rule, and
+   to assistive technology by aria-current, never by a state color. */
+.tabs {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  height: var(--tabs-height);
+  border-top: var(--size-rule-md) solid var(--rule);
+  background: var(--color-surface-base);
+}
+.tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-top: var(--size-rule-strong) solid transparent;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+.tab[aria-current="page"] {
+  border-top-color: var(--color-text-primary);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}

@@ -266,30 +266,6 @@ def test_stopping_the_service_applies_the_safe_state_and_releases_the_line(
     assert app.state.stopped_safely
 
 
-def test_root_serves_the_page(client: TestClient) -> None:
-    response = client.get("/")
-
-    assert response.status_code == 200
-    assert response.headers["content-type"].startswith("text/html")
-    assert 'src="app.js"' in response.text
-
-
-@pytest.mark.parametrize(
-    "path",
-    [
-        "app.js",
-        "i18n.js",
-        "icons.js",
-        "app.css",
-        "generated/tokens.css",
-        "generated/i18n/es.json",
-        "generated/icons/s-warn.svg",
-    ],
-)
-def test_the_page_assets_are_served(client: TestClient, path: str) -> None:
-    assert client.get(f"/{path}").status_code == 200
-
-
 # --- what a real service declares, and what it tells systemd -------------------------------
 
 
