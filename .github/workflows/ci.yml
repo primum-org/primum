@@ -25,7 +25,7 @@ jobs:
           enable-cache: true
 
       # For the web UI (`just ui-check`).
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           package_json_file: apps/webui/package.json
 
