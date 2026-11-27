@@ -77,15 +77,59 @@ function take(state: StateBody, fresh = false): void {
   const changed = session.state === null || !sameState(state, session.state);
   session.state = state;
   session.stateAt = performance.now();
-  // The alert of a package that does not run is asked for apart, and goes stale: a new
-  // state may be of a package another device has just activated. Not on a beat that says
-  // the same again: every 2 s, for as long as the package does not run, nobody asked for.
-  if (changed && session.packages?.problem) void askForPackages();
+  // The packages are asked for apart, and go stale: a new state may be of a package another
+  // device has just activated. Asked again for the alert of a package that does not run,
+  // and while a screen shows them; not on a beat that says the same again: every 2 s, for
+  // as long as the package does not run, nobody asked for.
+  if (changed && (session.packages?.problem || packagesShown > 0)) askForPackagesSoon();
+}
+
+// At most this often from new states: a sequence running changes the state several times
+// a second, and asking at each would have a phone left on a screen ask all through a show.
+export const PACKAGES_MIN_INTERVAL_MS = 3000;
+let packagesAskedAt = Number.NEGATIVE_INFINITY;
+let packagesLater: ReturnType<typeof setTimeout> | null = null;
+
+// Ask for the packages now, or as soon as the interval allows: once, for every change
+// meanwhile, so that the last one is not missed.
+function askForPackagesSoon(): void {
+  if (packagesLater !== null) return;
+  // By the clock that never jumps: a phone whose time is set back would wait for long.
+  const wait = packagesAskedAt + PACKAGES_MIN_INTERVAL_MS - performance.now();
+  if (wait <= 0) {
+    void askForPackages();
+    return;
+  }
+  packagesLater = setTimeout(() => {
+    packagesLater = null;
+    void askForPackages();
+  }, wait);
+}
+
+// How many screens show the packages now.
+let packagesShown = 0;
+
+/** Keep `session.packages` fresh while a screen shows them: asked for now, and again with
+ * every state that says something new. Returns what to call when the screen goes. */
+export function showPackages(): () => void {
+  packagesShown += 1;
+  void refreshPackages();
+  return () => {
+    packagesShown -= 1;
+  };
 }
 
 // Whether two states say the same, whatever their numbers.
 const sameState = (one: StateBody, other: StateBody): boolean =>
   JSON.stringify({ ...one, revision: 0 }) === JSON.stringify({ ...other, revision: 0 });
+
+/** The board no longer knows this device: the pairing screen takes over (main.ts), and
+ * says why. Found by an order, what was asked was not done, and is said so; found by a
+ * question asked by itself (`ordered` false), nobody asked for anything. */
+export async function forgotten(ordered = true): Promise<void> {
+  session.refused = ordered ? "forgotten" : "unpaired";
+  await connect();
+}
 
 /** Ask the board to do something, and say whether it did. Its answer is its new state;
  * what it refuses is kept in `session.refused` for the screen to say. A device the board
@@ -102,9 +146,7 @@ export async function command(asked: Promise<StateBody>): Promise<boolean> {
   } catch (failure) {
     const problem = problemOfOrder(failure);
     if (failure instanceof ApiError && failure.unpaired) {
-      // The pairing screen takes over, and says why: the order was not carried out.
-      session.refused = "forgotten";
-      await connect();
+      await forgotten();
       return false;
     }
     // An order that did not get to the board is lost: nobody sends it again, and saying
@@ -197,6 +239,8 @@ export function stop(): void {
   retry = null;
   if (silence !== null) clearTimeout(silence);
   silence = null;
+  if (packagesLater !== null) clearTimeout(packagesLater);
+  packagesLater = null;
   const closing = socket;
   socket = null;
   closing?.close();
@@ -204,14 +248,33 @@ export function stop(): void {
 }
 
 // Whether the active package runs is not in the state. Not knowing it is no problem of its
-// own: the alert it would give is simply not shown. Asked once at a time.
+// own: the alert it would give is simply not shown, and what was known stays until the
+// board answers again. Asked once at a time.
 let askingPackages = false;
+let askAgain = false;
+
+/** Ask the board for its packages now: a screen that shows them, a connection back. */
+export const refreshPackages = (): Promise<void> => askForPackages();
 
 async function askForPackages(): Promise<void> {
-  if (askingPackages) return;
+  // Asked while an answer is on its way: what changed meanwhile may not be in it.
+  if (askingPackages) {
+    askAgain = true;
+    return;
+  }
   askingPackages = true;
-  session.packages = await api.packages().catch(() => null);
-  askingPackages = false;
+  packagesAskedAt = performance.now();
+  try {
+    session.packages = await api.packages();
+  } catch (failure) {
+    if (failure instanceof ApiError && failure.unpaired) await forgotten(false);
+  } finally {
+    askingPackages = false;
+  }
+  if (askAgain) {
+    askAgain = false;
+    await askForPackages();
+  }
 }
 
 function again(after: number, next: number): void {

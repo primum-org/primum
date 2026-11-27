@@ -206,6 +206,10 @@ main {
 .row-state.active { font-weight: 600; }
 /* What a row says under its controls: a test under way, who commands it. */
 .row-note { flex-basis: 100%; padding-bottom: var(--space-2); }
+/* A change that stops things, asked for a second time under the row, saying so. */
+.confirm { display: flex; flex-direction: column; gap: var(--space-2); }
+.confirm-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
 /* What went wrong with a row (an automation that failed): its icon and its words. */
 .row-problem { display: flex; align-items: flex-start; gap: var(--space-2); }
 

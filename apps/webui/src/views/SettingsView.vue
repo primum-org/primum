@@ -1,8 +1,11 @@
 <script setup lang="ts">
-// What is this device's with the board: its pairing.
+// The board's own matters: this device's pairing, the packages the board keeps, and the
+// other devices paired with it.
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 
+import DevicesPanel from "@/components/DevicesPanel.vue";
+import PackagesPanel from "@/components/PackagesPanel.vue";
 import ProblemNotice from "@/components/ProblemNotice.vue";
 import { t } from "@/i18n";
 import { problemOfOrder, type Problem } from "@/problem";
@@ -31,4 +34,7 @@ async function forgetThisDevice(): Promise<void> {
     <button class="button" type="button" @click="forgetThisDevice">{{ t("device.unpair") }}</button>
   </section>
   <p v-else class="secondary">{{ t("device.not_needed") }}</p>
+
+  <PackagesPanel />
+  <DevicesPanel v-if="session.pairing?.device" />
 </template>

@@ -1,7 +1,15 @@
 // The one place that talks to the board: requests, and the WebSockets of its state and its
 // trace.
 
-import type { ErrorBody, PackagesBody, PairedBody, PairingBody, StateBody, TraceBody } from "@/api/types";
+import type {
+  DeviceBody,
+  ErrorBody,
+  PackagesBody,
+  PairedBody,
+  PairingBody,
+  StateBody,
+  TraceBody,
+} from "@/api/types";
 
 // The status of a request from a device that is not paired with the board.
 const UNPAIRED = 401;
@@ -32,6 +40,10 @@ export class UnansweredError extends Error {}
 // How long the board is waited for. It answers in milliseconds: past this, a person must
 // be told that nothing came back instead of being left looking at a screen that says nothing.
 export const COMMAND_TIMEOUT_MS = 5000;
+// Activating a package stops what runs, reads and checks the package again and starts it:
+// about a second for a show of 3000 clips on a laptop, several on a Pi. Waited for longer,
+// so that a slow activation is not said as an order nobody knows the end of.
+export const ACTIVATION_TIMEOUT_MS = 30000;
 
 // The API is served next to the app, wherever the service puts both.
 const url = (path: string): URL => new URL(`api/${path}`, document.baseURI);
@@ -39,7 +51,7 @@ const url = (path: string): URL => new URL(`api/${path}`, document.baseURI);
 type Arguments = Readonly<Record<string, number | boolean | string>>;
 const id = encodeURIComponent;
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, timeoutMs = COMMAND_TIMEOUT_MS): Promise<T> {
   const init: RequestInit = { method };
   if (body !== undefined) {
     init.headers = JSON_HEADERS;
@@ -50,7 +62,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const timer = setTimeout(() => {
     late = true;
     waiting.abort();
-  }, COMMAND_TIMEOUT_MS);
+  }, timeoutMs);
   init.signal = waiting.signal;
   let response: Response;
   try {
@@ -73,6 +85,13 @@ export const api = {
   pair: (code: string, name: string) => request<PairedBody>("POST", "pairing", { code, name }),
   unpair: () => request<PairingBody>("DELETE", "pairing"),
   packages: () => request<PackagesBody>("GET", "package"),
+  /** Run a package the board keeps, by its hash: the staged one, or the previous one to go
+   * back to it. Everything stops first. */
+  activatePackage: (hash: string) =>
+    request<PackagesBody>("POST", "package/activate", { hash }, ACTIVATION_TIMEOUT_MS),
+  devices: () => request<DeviceBody[]>("GET", "pairing/devices"),
+  /** Forget a paired device: its token is worth nothing from now on. Answers with those left. */
+  forgetDevice: (device: string) => request<DeviceBody[]>("DELETE", `pairing/devices/${id(device)}`),
   // Every command answers with the board's whole state after it.
   /** Ask an output for one of the actions of its driver, with the arguments it takes by
    * name. With a duration it is a test: the output goes to rest on its own after it. */

@@ -16,6 +16,7 @@ export type SequenceState = Schemas["SequenceStateBody"];
 export type VariableState = Schemas["VariableStateBody"];
 export type EventState = Schemas["EventStateBody"];
 export type PackagesBody = Schemas["PackagesBody"];
+export type PackageBody = Schemas["PackageBody"];
 export type AutomationState = Schemas["AutomationStateBody"];
 export type ScheduleState = Schemas["ScheduleStateBody"];
 export type TraceBody = Schemas["TraceBody"];

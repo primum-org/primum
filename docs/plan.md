@@ -1270,6 +1270,69 @@ control on the API there is · 5.4 the project on the board and the first edit o
     longer held, a trace kept across restarts.
   - Not tried: a real phone, a real board, a screen reader.
   - Next: packages and paired devices in the Board tab.
+- [x] **5.3b (3 of 3) Packages and paired devices.** The Board tab shows the packages the
+  board keeps by the name of their project and the start of their hash (the active one,
+  the staged one, the previous one), and the paired devices, this one marked. Activating
+  the staged package or going back to the previous one, and forgetting another device,
+  are asked for a second time, saying what follows: everything stops and every output
+  goes to its safe state before the project starts from the beginning; a forgotten
+  device must pair again with the board's code. Not in panic (the board refuses it, and
+  the buttons say so before) nor offline. An activation is waited for 30 s, not the 5 of
+  an order: it reads and checks the package again. While the tab is shown, the packages
+  are asked for again when a state says something new (another device may have
+  activated one), never on a beat and at most every 3 s. A board started with fixed options says that nothing
+  can be changed there. Uploading a package from the phone is left for 5.4, where the
+  project lives on the board (the owner's choice).
+  - Tried: its tests (Vitest for both sections, the waits, the refresh while shown). By
+    hand, not by a test of the repository, in a headless Chromium as a phone in Spanish
+    against a simulated service with pairing and two versions of `examples/shop-window`
+    given through the API: the confirmation and the activation (61 ms there), the
+    Activity tab telling of the new project, a rollback made from a second paired browser
+    seen at once on the first, the buttons disabled in panic with their note, the second
+    browser forgotten from the first and sent to pair again.
+  - Review, found by its owner: a device forgotten from another one was left on the tab
+    with "enter the code" and nowhere to enter it (the requests of both sections did not
+    go the way of `command()`); "X is running" stayed after another device went back;
+    with a sequence running the tab asked for the packages about five times a second (14
+    requests in the 3.5 s of *Welcome*). Fixed, each with a test that failed before: a
+    device the board no longer knows is sent to pair from both sections, as from any
+    order (`forgotten()` in `session.ts`); the notice is said only while what it named is
+    the active package; the packages are asked for at most every 3 s from new states,
+    and the last change is not missed (1 request in the same 3.5 s, measured in
+    Chromium). Also: what could not be asked for while out of reach is asked for again
+    when the board is back, instead of leaving "asking…" for good; the list of devices is
+    asked for again when the screen is seen again; the confirmation takes the focus and
+    gives it back when called off, and is labelled by its text; the text of forgetting
+    no longer promises what the board does not do (below).
+  - Second review, found by its owner on the Pi: a confirmation left open while another
+    device changed what it was about (activated the staged package, forgot the device)
+    went from the screen and still held every other button disabled. Fixed, with a test
+    for each section that failed before: the confirmation is called off when what it
+    names changes or goes. Also: a device found forgotten by a question nobody asked (the
+    packages asked for by themselves) is told only that it must pair again, not that an
+    order was lost; after a change the focus goes to the section's heading; the 3 s
+    between asks are counted on the clock that never jumps.
+  - Third review, found by its owner: with "go back to X" open, another device activated
+    a package, and pressing it took the board to a third project without a word
+    (`/api/package/rollback` names nothing: the board goes back to whatever is previous
+    by then). Going back is now asked for as an activation by the hash of the package
+    the confirmation named, which the board refuses (`package.not_stored`) when it is no
+    longer kept: tried against the simulated service. Forgetting a device that had
+    unpaired by itself said to ask for the list again and did not: a change the board
+    refuses now has the list, or the packages, asked for again. A confirmation that goes
+    by itself leaves the focus on the section's heading. Each with a test that failed
+    before.
+  - Noted for later, not done: a package stored from another device does not show while
+    the tab is open, since storing changes no state and nothing asks for the packages
+    again; it is the flow of 5.4 (stored from the laptop, activated from the phone), and
+    goes with the state carrying what the board keeps. Two versions of one project are told apart only by their
+    hash, which says nothing to a person; a "stored on…" date would (5.4). The WebSocket
+    of a device that is forgotten stays open and
+    goes on receiving the state (runtime, older than this block): forgetting should close
+    it. The state could carry the hash of the active package, so that the packages need
+    not be asked for apart (runtime, 5.4). A paired device is not told of a new pairing.
+  - Not tried: a real phone, a real board, an activation of a large show on a Pi.
+  - Block 5.3b is done. Next: 5.4, the project on the board and the first edit operations.
 
 ## Phase 6 · Hardware manager
 

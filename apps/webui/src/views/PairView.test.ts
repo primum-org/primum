@@ -101,3 +101,15 @@ test("pairing with a board that does not answer says it is out of reach, not tha
   expect(view.text()).not.toContain("did not answer");
   vi.useRealTimers();
 });
+
+test("a device sent here with no order given is told why, and not that an order was lost", async () => {
+  session.refused = "unpaired";
+  const router = createAppRouter();
+  await router.push("/pair");
+
+  const view = mount(PairView, { global: { plugins: [router] } });
+
+  expect(view.get('[role="status"]').text()).toBe("The board no longer knows this device. Pair it again to go on.");
+  expect(view.find('[role="alert"]').exists()).toBe(false);
+  session.refused = null;
+});

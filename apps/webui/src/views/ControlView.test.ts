@@ -3,7 +3,7 @@ import { afterEach, expect, test, vi } from "vitest";
 
 import AlertStrip from "@/components/AlertStrip.vue";
 import { COMMAND_TIMEOUT_MS } from "@/api/client";
-import { listen, session, stop } from "@/session";
+import { listen, PACKAGES_MIN_INTERVAL_MS, session, stop } from "@/session";
 import { board, event, json, output, state, variable } from "@/testing/board";
 import ControlView from "@/views/ControlView.vue";
 
@@ -21,7 +21,10 @@ class FakeSocket extends EventTarget {
 const SEQUENCE = { id: "show", name: "Show", running: false };
 const INPUT = { id: "pir", name: "Presence", active: true, lostEvents: 0 };
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 test("the screen lists what the board runs, and only the kinds there are", () => {
   board(state({ outputs: [output()], sequences: [SEQUENCE] }));
@@ -278,6 +281,7 @@ test("an order the board does not answer in time is said as that, and the connec
 });
 
 test("the alert of a package that does not run goes when the board runs one again", async () => {
+  vi.useFakeTimers();
   const problem = { code: "package.invalid", params: {} };
   const broken = { running: null, active: null, previous: null, staged: null, problem, fixed: false };
   const answers = [json(broken), json({ ...broken, problem: null })];
@@ -291,13 +295,14 @@ test("the alert of a package that does not run goes when the board runs one agai
 
   // Another device activates a package that runs: the board says its new state.
   FakeSocket.last?.dispatchEvent(new MessageEvent("message", { data: JSON.stringify(state({ outputs: [output()] })) }));
-  await flushPromises();
+  await vi.advanceTimersByTimeAsync(PACKAGES_MIN_INTERVAL_MS); // asked at most so often
 
   expect(alerts.text()).not.toContain("The active package is not running");
   stop();
 });
 
 test("the packages are not asked for again on a beat that says the same state", async () => {
+  vi.useFakeTimers();
   const problem = { code: "package.invalid", params: {} };
   const broken = { running: null, active: null, previous: null, staged: null, problem, fixed: false };
   const asked = board(state(), () => json(broken));
@@ -314,7 +319,7 @@ test("the packages are not asked for again on a beat that says the same state", 
   expect(asked).toHaveLength(1);
 
   say(state({ outputs: [output()] })); // something changed: perhaps the package
-  await flushPromises();
+  await vi.advanceTimersByTimeAsync(PACKAGES_MIN_INTERVAL_MS); // asked at most so often
   expect(asked.map((each) => each.path)).toEqual(["/api/package", "/api/package"]);
   stop();
 });
