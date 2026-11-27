@@ -12,6 +12,10 @@ import { t } from "@/i18n";
       <AppIcon name="u-board" />
       <span>{{ t("tabs.control") }}</span>
     </RouterLink>
+    <RouterLink class="tab" :to="{ name: 'activity' }">
+      <AppIcon name="u-book" />
+      <span>{{ t("tabs.activity") }}</span>
+    </RouterLink>
     <RouterLink class="tab" :to="{ name: 'settings' }">
       <AppIcon name="u-gear" />
       <span>{{ t("tabs.board") }}</span>

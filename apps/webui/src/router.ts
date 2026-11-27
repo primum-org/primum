@@ -4,6 +4,7 @@
 import { createRouter, createWebHashHistory, type Router } from "vue-router";
 
 import { mustPair, refreshPairing, session } from "@/session";
+import ActivityView from "@/views/ActivityView.vue";
 import ControlView from "@/views/ControlView.vue";
 import PairView from "@/views/PairView.vue";
 import SettingsView from "@/views/SettingsView.vue";
@@ -13,6 +14,7 @@ export function createAppRouter(): Router {
     history: createWebHashHistory(),
     routes: [
       { path: "/", name: "control", component: ControlView },
+      { path: "/activity", name: "activity", component: ActivityView },
       { path: "/settings", name: "settings", component: SettingsView },
       { path: "/pair", name: "pair", component: PairView },
     ],
