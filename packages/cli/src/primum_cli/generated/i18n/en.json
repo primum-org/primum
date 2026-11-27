@@ -961,7 +961,7 @@
     },
     "archive.unsafe_path": {
       "message": "The project file has a file whose name cannot be used: {path}.",
-      "hint": "Names cannot leave the project's folder, be links, end in a space or a dot, have any of \\ : * ? \" < > |, or be a device name of Windows such as CON or NUL. Rename it and save the project again."
+      "hint": "Names cannot leave the project's folder, be links, end in a space or a dot, be longer than 255 bytes, have any of \\ : * ? \" < > |, or be a device name of Windows such as CON, NUL or COM1. Rename it and save the project again."
     },
     "archive.duplicate_path": {
       "message": "The project file has two files that would land in one place: {path} is there twice, differs from another only in capitals or in how an accent is written, or is a file where a folder is.",

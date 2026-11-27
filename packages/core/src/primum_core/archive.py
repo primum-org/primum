@@ -35,11 +35,17 @@ FILE_MODE = (stat.S_IFREG | 0o644) << 16
 ENCRYPTED = 0x1
 FORBIDDEN_IN_A_NAME = frozenset('\\:*?"<>|')  # no Windows folder can hold them
 FIRST_PRINTABLE = " "
-# Devices to Windows, with any extension and in any case: CON, nul.vars, Com1.sec.
+FIRST_SURROGATE, LAST_SURROGATE = "\ud800", "\udfff"  # half a character: no UTF-8 for it
+MAX_NAME_BYTES = 255  # of a file or folder name in UTF-8: ext4 and APFS hold no more
+# Devices to Windows, with any extension, in any case and with spaces before the dot:
+# CON, nul.vars, Com1.sec, NUL .vars.
 DEVICE_NAMES = frozenset(
-    {"con", "prn", "aux", "nul"}
-    | {f"com{n}" for n in range(1, 10)}
-    | {f"lpt{n}" for n in range(1, 10)}
+    {"con", "prn", "aux", "nul", "conin$", "conout$"}
+    | {
+        f"{port}{n}"
+        for port in ("com", "lpt")
+        for n in (*"0123456789", "\u00b9", "\u00b2", "\u00b3")
+    }
 )
 
 
@@ -153,8 +159,10 @@ class _Taken:
 
 def _place(path: PurePosixPath) -> str:
     """Where a path lands on a disk that tells neither capitals apart (Windows, macOS) nor
-    the two ways of writing an accent (macOS): ``Señal.vars`` is one file however written."""
-    return unicodedata.normalize("NFC", path.as_posix()).casefold()
+    the two ways of writing an accent (macOS): ``Señal.vars`` is one file however written.
+    Capitals one by one, as those disks compare them: ``casefold`` would make ``Straße``
+    and ``Strasse`` one, and no disk does."""
+    return unicodedata.normalize("NFC", path.as_posix()).lower()
 
 
 def _safe_path(entry: zipfile.ZipInfo) -> PurePosixPath:
@@ -180,9 +188,19 @@ def _is_safe_name(name: str) -> bool:
 def _is_a_name(part: str) -> bool:
     if part in {"", ".", ".."} or part != part.strip() or part.endswith("."):
         return False
-    if part.split(".")[0].casefold() in DEVICE_NAMES:
+    if part.split(".")[0].rstrip(" ").lower() in DEVICE_NAMES:
         return False
-    return not any(char in FORBIDDEN_IN_A_NAME or char < FIRST_PRINTABLE for char in part)
+    if any(_is_forbidden(char) for char in part):
+        return False
+    return len(part.encode()) <= MAX_NAME_BYTES
+
+
+def _is_forbidden(char: str) -> bool:
+    return (
+        char in FORBIDDEN_IN_A_NAME
+        or char < FIRST_PRINTABLE
+        or FIRST_SURROGATE <= char <= LAST_SURROGATE
+    )
 
 
 def _read(archive: zipfile.ZipFile, entry: zipfile.ZipInfo, left: int) -> bytes:

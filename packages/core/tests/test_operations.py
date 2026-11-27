@@ -220,6 +220,16 @@ def test_an_id_that_two_variables_have_is_refused_and_changes_neither() -> None:
     assert found == [(CoreErrorCode.ID_DUPLICATE, {"id": VISITS}, None)]
 
 
+def test_a_huge_limit_in_an_issue_is_not_written_out_as_hundreds_of_digits() -> None:
+    operation = {"op": "set_variable", "variable": BRIGHTNESS, "min": 1e300}
+
+    result = apply_operation(_project(), operation)
+
+    (issue,) = result.issues
+    assert issue.params["min"] == 1e300
+    assert type(issue.params["min"]) is float
+
+
 def test_the_limits_of_an_issue_are_written_as_the_person_wrote_them() -> None:
     result = apply_operation(_project(), {"op": "set_variable", "variable": BRIGHTNESS, "min": 200})
 
@@ -502,3 +512,63 @@ def test_an_operation_may_leave_the_project_with_a_problem_outside_its_file() ->
     files = _applied({"op": "set_project", "timeZone": "Mars/Olympus"})
 
     assert _document(files, MANIFEST)["timeZone"] == "Mars/Olympus"
+
+
+@pytest.mark.parametrize(
+    ("change", "code"),
+    [
+        ({"min": 100, "max": 0}, CoreErrorCode.VARIABLE_LIMITS_INVALID),
+        ({"step": 0}, CoreErrorCode.VARIABLE_STEP_INVALID),
+    ],
+    ids=["limits the wrong way round", "a step of nothing"],
+)
+def test_a_variable_with_a_field_the_schema_does_not_know_still_has_its_values_checked(
+    change: dict[str, object], code: CoreErrorCode
+) -> None:
+    """The schema refused the variable, so its values went unchecked: a project from a newer
+    Primum, with a field this one does not know, took any limits."""
+    files = _with_visits(unit="%")
+
+    found = _refused({"op": "set_variable", "variable": VISITS, **change}, files)
+
+    assert [found_code for found_code, _, _ in found] == [code]
+
+
+def test_a_variable_with_a_field_of_the_wrong_type_still_has_its_other_values_checked() -> None:
+    files = _with_visits(min="zero")
+
+    found = _refused({"op": "set_variable", "variable": VISITS, "step": 0}, files)
+
+    expected = (CoreErrorCode.VARIABLE_STEP_INVALID, {"name": "visits", "step": 0}, "/variables/2")
+    assert found == [expected]
+
+
+def test_a_variable_with_a_field_the_schema_does_not_know_can_be_changed() -> None:
+    files = _with_visits(unit="%")
+
+    after = _applied({"op": "set_variable", "variable": VISITS, "max": 9}, files)
+
+    assert _variable(after, VARS, 2)["unit"] == "%"
+
+
+@pytest.mark.parametrize(
+    ("variables", "expected"),
+    [
+        ({}, (CoreErrorCode.SCHEMA_EXPECTED_LIST, {"field": "variables"}, "/variables")),
+        (None, (CoreErrorCode.SCHEMA_MISSING_FIELD, {"field": "variables"}, "")),
+    ],
+    ids=["an object", "missing"],
+)
+def test_a_variable_not_found_comes_with_the_problem_of_a_file_whose_variables_are_no_list(
+    variables: object, expected: tuple[CoreErrorCode, dict[str, object], str]
+) -> None:
+    files = _project()
+    document = _document(files, INNER_VARS)
+    del document["variables"]
+    if variables is not None:
+        document["variables"] = variables
+    files[INNER_VARS] = json.dumps(document).encode()
+
+    found = _refused({"op": "set_variable", "variable": VISITS, "initial": 1}, files)
+
+    assert found == [(CoreErrorCode.OPERATION_UNKNOWN_VARIABLE, {"id": VISITS}, None), expected]

@@ -41,13 +41,17 @@ the operation changed.
 2. **What it names is not there.** `operation.unknown_variable`, with the `id`: no `.vars`
    file has that variable. Files are looked in as the JSON they hold, whatever problems they
    have; a `.vars` file that is not a JSON object cannot be looked in, and its problem comes
-   with `operation.unknown_variable`. An id that two variables have names neither
+   with `operation.unknown_variable`, as does one whose `variables` is missing or no list. An
+   id that two variables have names neither
    (`id.duplicate`): nothing is changed until the project has it once. A project without a
    manifest, or with one that is not a JSON object, takes no `set_project` (its problem).
 3. **The object it changes would have a problem of its own that it did not have before**: a
    name too long, a minimum above the maximum, an initial value outside the limits, a step of
    0. The issues are the ones `primum validate` gives about that object, with their place in
-   the file: for `set_project` the manifest, for `set_variable` the variable alone.
+   the file: for `set_project` the manifest, for `set_variable` the variable alone. A field
+   the schema finds fault with (one it does not know, as a newer Primum may write, or one of
+   the wrong type) does not stop the checks of its values: they are made on the variable
+   without that field.
 4. **The file would keep a number JSON does not have** (`NaN`, `1e999` written in it by
    hand): there is nothing to write it back as. The issues say where those numbers are; an
    operation that replaces them is taken.
@@ -78,6 +82,7 @@ operation changes it.
 
 ## Not here yet
 
-Undoing (operations are pure, so it is keeping the files of before); who may apply one and
+Taking away a field the schema does not know: `clear` takes only the fields an `op` may
+clear, so such a field stays until a new operation, or a hand, removes it. Undoing (operations are pure, so it is keeping the files of before); who may apply one and
 on which revision of the project (the board's API, block 5.4b); operations on files,
 elements, sequences and automations (5.5 to 5.7).

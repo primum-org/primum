@@ -1366,6 +1366,25 @@ control on the API there is · 5.4 the project on the board and the first edit o
     changes nothing gives back the files it was given; a misspelled field is kept, not
     dropped, when its object is written; `90.0` is written `90`. Each with a test that
     failed before.
+  - After a third review: a variable with a field its schema finds fault with (`"unit"`,
+    as a newer Primum may write, or `"min": "zero"`) had its values unchecked, so it took
+    limits the wrong way round; they are now checked on the variable without that field. A
+    name longer than 255 bytes, half a character in a name, and `COM0`, `LPT0`, `COM¹` to
+    `LPT³`, `CONIN$`, `CONOUT$` and `NUL .vars` are unsafe paths. `Straße` and `Strasse`
+    are two names (capitals compared letter by letter, not with `casefold`). A `.vars` file
+    whose `variables` is no list comes with `operation.unknown_variable`. `1e300` stays a
+    float in an issue. Each with a test that failed before.
+  - Noted for 5.4b: the limit of 2000 files is counted after the zip library has read the
+    whole list of entries: on the Pi, 200,000 empty entries (19 MB) take 3.4 s and 120 MB
+    to refuse, 600,000 (57 MB) 10.8 s and 347 MB. The API that takes a `.primum` caps its
+    size first, as `deployed.py` does for packages (8 MB, about 1.5 s), or reads the size
+    of the zip's list before handing it to the library.
+  - Noted for later: a field the schema does not know (from a newer Primum, or a
+    misspelling) cannot be taken away by an operation, since `clear` takes only the fields
+    an `op` may clear; it needs an operation of its own (5.5). A project made with a newer
+    Primum that adds optional fields, as this block adds `label` and `step`, reads on an
+    older board with those fields as problems: decide what an older version does with them
+    before the first release.
   - Noted for later, not done: an `integer` above 2^53 is taken, from a file or an
     operation, since only what no float holds is refused; JavaScript (the web UI) and an
     ESP32 lose its precision: give integers a range in their schema, with the "limits of

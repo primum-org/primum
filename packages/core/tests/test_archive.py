@@ -145,6 +145,15 @@ def test_a_mistake_of_ours_while_reading_is_not_taken_for_a_damaged_archive(
         "COM1.vars",
         "aux/x.vars",
         "scenes/Lpt9.backup.sec",
+        "COM0.vars",
+        "lpt0",
+        "CONIN$",
+        "conout$.vars",
+        "COM\u00b9.vars",
+        "LPT\u00b3.sec",
+        "NUL .vars",
+        "x" * 251 + ".vars",
+        "scenes/" + "\u00e9" * 128 + ".sec",
     ],
 )
 def test_an_archive_with_a_path_that_is_not_safe_everywhere_is_refused(name: str) -> None:
@@ -171,6 +180,28 @@ def test_an_archive_with_two_names_that_are_one_file_on_windows_is_refused() -> 
     content = _zip({"shop.vars": b"{}", "Shop.vars": b"{}"})
 
     assert _refusal(content) == (CoreErrorCode.ARCHIVE_DUPLICATE_PATH, {"path": "Shop.vars"})
+
+
+def test_names_that_only_a_full_case_folding_makes_one_are_read_as_two() -> None:
+    """``casefold`` makes ``ß`` into ``ss``, which no file system does."""
+    content = _zip({"Stra\u00dfe.vars": b"1", "Strasse.vars": b"2"})
+
+    assert read_archive(content).value is not None
+
+
+def test_a_name_of_255_bytes_is_read() -> None:
+    name = "x" * 250 + ".vars"
+
+    assert read_archive(_zip({name: b"{}"})).value == {PurePosixPath(name): b"{}"}
+
+
+def test_a_project_with_half_a_character_in_a_path_is_not_written() -> None:
+    """A folder on Linux can hold such a name; the zip library raised on it."""
+    name = "luz\udcff.vars"
+
+    found = _writing_refusal({PurePosixPath(name): b"{}"})
+
+    assert found == [(CoreErrorCode.ARCHIVE_UNSAFE_PATH, {"path": name})]
 
 
 def test_an_archive_with_one_name_written_in_the_two_ways_of_an_accent_is_refused() -> None:
@@ -297,6 +328,9 @@ NAME_PARTS = (
     "a:b",
     "tab\t",
     "scenes",
+    "Stra\u00dfe",
+    "STRASSE",
+    "n" * 255,
 )
 
 

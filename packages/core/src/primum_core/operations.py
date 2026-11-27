@@ -202,6 +202,9 @@ def _variable_target(files: Files, variable: UUID) -> _Target | tuple[Issue, ...
         if isinstance(document, Issue):
             unsearched.append(document)
             continue
+        if not is_array(document.get(VARIABLES_FIELD)):
+            unsearched += _variables_problem(path, document)
+            continue
         for index in _indices_with_id(document.get(VARIABLES_FIELD), variable):
             steps: tuple[Step, ...] = (VARIABLES_FIELD, index)
             issues_of = _variable_issues(path, steps)
@@ -211,6 +214,12 @@ def _variable_target(files: Files, variable: UUID) -> _Target | tuple[Issue, ...
     if len(found) > 1:
         return (Issue(CoreErrorCode.ID_DUPLICATE, {"id": str(variable)}),)
     return found[0]
+
+
+def _variables_problem(path: PurePosixPath, document: JsonObject) -> tuple[Issue, ...]:
+    """Why a ``.vars`` file has no list of variables to look in, as reading it says."""
+    issues = validate(VARIABLES_SCHEMA, document, Location(path, file_id=file_id(document)))
+    return tuple(issue for issue in issues if issue.params.get("field") == VARIABLES_FIELD)
 
 
 def _object(path: PurePosixPath, content: bytes) -> Document | Issue:
@@ -244,19 +253,41 @@ def _is_id(value: object, wanted: UUID) -> bool:
 def _variable_issues(path: PurePosixPath, steps: tuple[Step, ...]) -> IssuesOf:
     """The problems of the variable at ``steps``, on its own: the ones ``primum validate``
     gives about it, whatever the rest of its file has. A problem elsewhere in the file does
-    not hide this variable's, nor does it count against an operation on it."""
+    not hide this variable's, nor does it count against an operation on it.
+
+    A field the schema finds fault with (one it does not know, as a newer Primum writes, or
+    one of the wrong type) does not hide the rest either: the values are checked on the
+    variable without it, as long as what is left is a variable."""
 
     def issues_of(document: JsonObject) -> frozenset[Issue]:
         location = Location(path, file_id=file_id(document))
         variable = _at(document, steps)
-        malformed = validate_definition(
-            VARIABLES_SCHEMA, VARIABLE_DEFINITION, variable, location, steps
-        )
-        if malformed:
-            return frozenset(malformed)
-        return frozenset(check_variable(parse_variable(as_object(variable)), steps, location))
+        malformed = frozenset(_validated_variable(variable, location, steps))
+        rest = _without_faulty_fields(variable, malformed, steps)
+        if rest is None or _validated_variable(rest, location, steps):
+            return malformed
+        return malformed | frozenset(check_variable(parse_variable(rest), steps, location))
 
     return issues_of
+
+
+def _validated_variable(
+    variable: object, location: Location, steps: tuple[Step, ...]
+) -> tuple[Issue, ...]:
+    return validate_definition(VARIABLES_SCHEMA, VARIABLE_DEFINITION, variable, location, steps)
+
+
+def _without_faulty_fields(
+    variable: object, issues: frozenset[Issue], steps: tuple[Step, ...]
+) -> JsonObject | None:
+    """The variable without the fields that ``issues`` point at, or ``None`` if it is no
+    object."""
+    if not is_object(variable):
+        return None
+    faulty = {issue.location.pointer for issue in issues if issue.location}
+    return {
+        name: value for name, value in variable.items() if pointer((*steps, name)) not in faulty
+    }
 
 
 def _definition(schema: str, definition: str) -> JsonObject:

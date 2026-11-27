@@ -14,6 +14,7 @@ from primum_core.pointers import Step, field_name, pointer
 type ValueType = Literal["number", "integer", "boolean", "text"]
 type Value = float | bool | str
 
+EXACT_WHOLE_NUMBERS = 2**53  # a float holds every whole number up to here, and not beyond
 NUMERIC: frozenset[str] = frozenset({"number", "integer"})
 EXPECTED: dict[str, CoreErrorCode] = {
     "number": CoreErrorCode.VALUE_EXPECTED_NUMBER,
@@ -51,5 +52,7 @@ def check_value(
 
 def as_written(number: float) -> float:
     """A number as a person wrote it, for the params of an issue: the model reads every limit
-    as a float, and ``50`` must not be shown as ``50.0``."""
-    return int(number) if float(number).is_integer() else number
+    as a float, and ``50`` must not be shown as ``50.0``. Only while a float holds every whole
+    number exactly: ``1e300`` stays ``1e300``, not three hundred digits."""
+    whole = float(number).is_integer() and abs(number) <= EXACT_WHOLE_NUMBERS
+    return int(number) if whole else number

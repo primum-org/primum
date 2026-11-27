@@ -212,12 +212,17 @@ A whole project is saved or shared as one `.primum` file: a zip of the folder, w
   (`archive.too_many_files`) and 64 MB unpacked, whatever the sizes it declares
   (`archive.too_large`). Bytes that are no zip, or a damaged one, are `archive.unreadable`.
   A path that would leave the folder (`..`, `/…`, `C:`), a link, an encrypted entry, or a
-  name that not every system can hold (`\ : * ? " < > |`, a control character, a space or a
-  dot at the end, a device of Windows such as `CON`, `nul.vars` or `COM1.sec`) is
-  `archive.unsafe_path`. Two entries that would land in one place on some disk are
-  `archive.duplicate_path`: the same path twice, two that differ only in capitals or in how
-  an accent is written (composed or not), a file where another entry needs a folder. Any of
-  these refuses the whole file.
+  name that not every system can hold (`\ : * ? " < > |`, a control character, half a
+  character, a space or a dot at the end, more than 255 bytes in UTF-8, a device of Windows
+  such as `CON`, `nul.vars`, `COM0.sec`, `LPT¹` or `CONIN$`) is `archive.unsafe_path`. Two
+  entries that would land in one place on some disk are `archive.duplicate_path`: the same
+  path twice, two that differ only in capitals (letter by letter, as disks compare them:
+  `Straße` and `Strasse` are two) or in how an accent is written (composed or not), a file
+  where another entry needs a folder. Any of these refuses the whole file.
+- The limit of files is counted once the zip library has read the zip's whole list of
+  entries, so an archive of many empty entries costs time and memory before it is refused
+  (on a Pi 4, 3.4 s and 120 MB for 200,000): whoever takes archives from outside caps their
+  size first.
 - Reading never raises on bytes it is given: whatever is wrong with the zip is one of the
   issues above.
 - **Never written if it could not be read back**: a project whose paths or sizes reading
