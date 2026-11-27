@@ -1279,8 +1279,8 @@ control on the API there is · 5.4 the project on the board and the first edit o
   device must pair again with the board's code. Not in panic (the board refuses it, and
   the buttons say so before) nor offline. An activation is waited for 30 s, not the 5 of
   an order: it reads and checks the package again. While the tab is shown, the packages
-  are asked for again with every state that says something new (another device may have
-  activated one), never on a beat. A board started with fixed options says that nothing
+  are asked for again when a state says something new (another device may have
+  activated one), never on a beat and at most every 3 s. A board started with fixed options says that nothing
   can be changed there. Uploading a package from the phone is left for 5.4, where the
   project lives on the board (the owner's choice).
   - Tried: its tests (Vitest for both sections, the waits, the refresh while shown). By
@@ -1290,6 +1290,24 @@ control on the API there is · 5.4 the project on the board and the first edit o
     Activity tab telling of the new project, a rollback made from a second paired browser
     seen at once on the first, the buttons disabled in panic with their note, the second
     browser forgotten from the first and sent to pair again.
+  - Review, found by its owner: a device forgotten from another one was left on the tab
+    with "enter the code" and nowhere to enter it (the requests of both sections did not
+    go the way of `command()`); "X is running" stayed after another device went back;
+    with a sequence running the tab asked for the packages about five times a second (14
+    requests in the 3.5 s of *Welcome*). Fixed, each with a test that failed before: a
+    device the board no longer knows is sent to pair from both sections, as from any
+    order (`forgotten()` in `session.ts`); the notice is said only while what it named is
+    the active package; the packages are asked for at most every 3 s from new states,
+    and the last change is not missed (1 request in the same 3.5 s, measured in
+    Chromium). Also: what could not be asked for while out of reach is asked for again
+    when the board is back, instead of leaving "asking…" for good; the list of devices is
+    asked for again when the screen is seen again; the confirmation takes the focus and
+    gives it back when called off, and is labelled by its text; the text of forgetting
+    no longer promises what the board does not do (below).
+  - Noted for later, not done: the WebSocket of a device that is forgotten stays open and
+    goes on receiving the state (runtime, older than this block): forgetting should close
+    it. The state could carry the hash of the active package, so that the packages need
+    not be asked for apart (runtime, 5.4). A paired device is not told of a new pairing.
   - Not tried: a real phone, a real board, an activation of a large show on a Pi.
   - Block 5.3b is done. Next: 5.4, the project on the board and the first edit operations.
 

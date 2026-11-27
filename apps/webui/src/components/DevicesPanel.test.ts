@@ -2,7 +2,7 @@ import { enableAutoUnmount, flushPromises, mount } from "@vue/test-utils";
 import { afterEach, expect, test, vi } from "vitest";
 
 import DevicesPanel from "@/components/DevicesPanel.vue";
-import { session } from "@/session";
+import { mustPair, session } from "@/session";
 import { board, json, state } from "@/testing/board";
 
 const THIS = { id: "1", name: "Joan's phone", current: true };
@@ -36,7 +36,7 @@ test("forgetting another device asks first, saying what it means, then asks the 
 
   await view.findAll("li")[1]?.get("button").trigger("click");
   expect(asked).toHaveLength(1);
-  expect(view.get(".confirm").text()).toContain("Tablet will no longer reach the board until it pairs again");
+  expect(view.get(".confirm").text()).toContain("Tablet will have to pair again with the board's code");
 
   await view.get(".confirm .button-primary").trigger("click");
   await flushPromises();
@@ -87,4 +87,49 @@ test("out of reach says nothing here, and the list is asked for again when the b
   await flushPromises();
 
   expect(view.findAll("li")).toHaveLength(1);
+});
+
+test("a device the board forgot is sent to pair again from the list too", async () => {
+  boardWith(
+    json([THIS, TABLET]),
+    json({ code: "pairing.required", params: {} }, 401),
+    json({ required: true, device: null }),
+  );
+  const view = mount(DevicesPanel);
+  await flushPromises();
+
+  await view.findAll("li")[1]?.get("button").trigger("click");
+  await view.get(".confirm .button-primary").trigger("click");
+  await flushPromises();
+
+  expect(session.refused).toBe("forgotten");
+  expect(mustPair()).toBe(true);
+});
+
+test("the confirmation takes the focus, and gives it back when called off", async () => {
+  boardWith(json([THIS, TABLET]));
+  const view = mount(DevicesPanel, { attachTo: document.body });
+  await flushPromises();
+  const forget = view.findAll("li")[1]?.get("button");
+
+  await forget?.trigger("click");
+  await flushPromises();
+  expect(document.activeElement).toBe(view.get(".confirm .button-primary").element);
+  expect(view.get(".confirm").attributes("aria-labelledby")).toBe(view.get(".confirm p").attributes("id"));
+
+  await view.findAll(".confirm button")[1]?.trigger("click");
+  await flushPromises();
+  expect(document.activeElement).toBe(forget?.element);
+});
+
+test("the list is asked for again when the screen is seen again: a device may have paired meanwhile", async () => {
+  const asked = boardWith(json([THIS]), json([THIS, TABLET]));
+  const view = mount(DevicesPanel);
+  await flushPromises();
+
+  document.dispatchEvent(new Event("visibilitychange"));
+  await flushPromises();
+
+  expect(asked).toHaveLength(2);
+  expect(view.findAll("li")).toHaveLength(2);
 });

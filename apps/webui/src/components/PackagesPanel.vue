@@ -3,15 +3,15 @@
 // given to it to be activated, and the one before. Activating one, or going back, stops
 // everything that runs and puts every output in its safe state first: it is asked for
 // twice, the second time saying so. Not in panic, which the board refuses, nor offline.
-import { computed, onUnmounted, ref } from "vue";
+import { computed, nextTick, onUnmounted, ref, watch } from "vue";
 
-import { api } from "@/api/client";
+import { api, ApiError } from "@/api/client";
 import type { PackageBody } from "@/api/types";
 import AppIcon from "@/components/AppIcon.vue";
 import ProblemNotice from "@/components/ProblemNotice.vue";
 import { t } from "@/i18n";
 import { problemOfOrder, type Problem } from "@/problem";
-import { session, showPackages } from "@/session";
+import { forgotten, refreshPackages, session, showPackages } from "@/session";
 
 type Change = "activate" | "rollback";
 
@@ -24,21 +24,45 @@ const packages = computed(() => session.packages);
 const confirming = ref<Change | null>(null);
 const working = ref(false);
 const problem = ref<Problem | null>(null);
-// The project that runs after the last change made here.
-const done = ref<string | null>(null);
+// The package the last change made here activated: said to run for as long as it is the
+// active one, and no longer once another device has activated another.
+const done = ref<PackageBody | null>(null);
+const running = computed(() =>
+  done.value !== null && packages.value?.active?.hash === done.value.hash ? done.value : null,
+);
 const able = computed(() => session.online && session.state?.panic !== true && !working.value);
+// The confirmation's button, which takes the focus, and the one that opened it, which
+// gets it back: the one pressed is disabled meanwhile, and a disabled button loses it.
+const confirmButton = ref<HTMLButtonElement | null>(null);
+let opener: HTMLElement | null = null;
 
 onUnmounted(showPackages());
+// What could not be asked for while the board was out of reach is asked for once it is back.
+watch(
+  () => session.online,
+  (online) => {
+    if (online && session.packages === null) void refreshPackages();
+  },
+);
 
 const projectOf = (kept: PackageBody): string => kept.project ?? t("packages.unreadable");
 const shortHash = (kept: PackageBody): string => kept.hash.replace(HASH_PREFIX, "").slice(0, HASH_SHOWN);
 const target = (change: Change): PackageBody | null =>
   (change === "activate" ? packages.value?.staged : packages.value?.previous) ?? null;
 
-function ask(change: Change): void {
+async function ask(change: Change, event: Event): Promise<void> {
   problem.value = null;
   done.value = null;
+  opener = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
   confirming.value = change;
+  await nextTick();
+  confirmButton.value?.focus();
+}
+
+async function callOff(): Promise<void> {
+  confirming.value = null;
+  await nextTick();
+  opener?.focus();
 }
 
 async function make(change: Change): Promise<void> {
@@ -47,9 +71,10 @@ async function make(change: Change): Promise<void> {
   working.value = true;
   try {
     session.packages = change === "activate" ? await api.activatePackage(kept.hash) : await api.rollbackPackage();
-    done.value = projectOf(kept);
+    done.value = kept;
   } catch (failure) {
-    problem.value = problemOfOrder(failure);
+    if (failure instanceof ApiError && failure.unpaired) await forgotten();
+    else problem.value = problemOfOrder(failure);
   } finally {
     working.value = false;
     confirming.value = null;
@@ -61,9 +86,9 @@ async function make(change: Change): Promise<void> {
   <section class="list" aria-labelledby="packages-heading">
     <h2 id="packages-heading">{{ t("packages.heading") }}</h2>
     <ProblemNotice v-if="problem" :problem="problem" />
-    <p v-if="done" class="notice notice-success" role="status">
+    <p v-if="running" class="notice notice-success" role="status">
       <AppIcon name="s-ok" />
-      <span class="notice-text">{{ t("packages.done", { project: done }) }}</span>
+      <span class="notice-text">{{ t("packages.done", { project: projectOf(running) }) }}</span>
     </p>
 
     <p v-if="packages === null" class="secondary">{{ t("packages.unknown") }}</p>
@@ -98,18 +123,24 @@ async function make(change: Change): Promise<void> {
         <div v-if="packages.staged" class="row-controls">
           <button
             class="button" type="button" :disabled="!able || confirming !== null"
-            :aria-label="t('packages.activate_of', { project: projectOf(packages.staged) })" @click="ask('activate')"
+            :aria-label="t('packages.activate_of', { project: projectOf(packages.staged) })" @click="ask('activate', $event)"
           >
             {{ t("packages.activate") }}
           </button>
         </div>
-        <div v-if="confirming === 'activate' && packages.staged" class="row-note confirm" role="group">
-          <p>{{ t("packages.confirm", { project: projectOf(packages.staged) }) }}</p>
+        <div
+          v-if="confirming === 'activate' && packages.staged" class="row-note confirm" role="group"
+          aria-labelledby="packages-confirm"
+        >
+          <p id="packages-confirm">{{ t("packages.confirm", { project: projectOf(packages.staged) }) }}</p>
           <div class="confirm-actions">
-            <button class="button button-primary" type="button" :disabled="!able" @click="make('activate')">
+            <button
+              ref="confirmButton" class="button button-primary" type="button" :disabled="!able"
+              @click="make('activate')"
+            >
               {{ working ? t("packages.working") : t("packages.activate_of", { project: projectOf(packages.staged) }) }}
             </button>
-            <button class="button" type="button" :disabled="working" @click="confirming = null">
+            <button class="button" type="button" :disabled="working" @click="callOff">
               {{ t("confirm.cancel") }}
             </button>
           </div>
@@ -129,18 +160,24 @@ async function make(change: Change): Promise<void> {
         <div v-if="packages.previous" class="row-controls">
           <button
             class="button" type="button" :disabled="!able || confirming !== null"
-            :aria-label="t('packages.rollback_of', { project: projectOf(packages.previous) })" @click="ask('rollback')"
+            :aria-label="t('packages.rollback_of', { project: projectOf(packages.previous) })" @click="ask('rollback', $event)"
           >
             {{ t("packages.rollback") }}
           </button>
         </div>
-        <div v-if="confirming === 'rollback' && packages.previous" class="row-note confirm" role="group">
-          <p>{{ t("packages.confirm", { project: projectOf(packages.previous) }) }}</p>
+        <div
+          v-if="confirming === 'rollback' && packages.previous" class="row-note confirm" role="group"
+          aria-labelledby="packages-confirm"
+        >
+          <p id="packages-confirm">{{ t("packages.confirm", { project: projectOf(packages.previous) }) }}</p>
           <div class="confirm-actions">
-            <button class="button button-primary" type="button" :disabled="!able" @click="make('rollback')">
+            <button
+              ref="confirmButton" class="button button-primary" type="button" :disabled="!able"
+              @click="make('rollback')"
+            >
               {{ working ? t("packages.working") : t("packages.rollback_of", { project: projectOf(packages.previous) }) }}
             </button>
-            <button class="button" type="button" :disabled="working" @click="confirming = null">
+            <button class="button" type="button" :disabled="working" @click="callOff">
               {{ t("confirm.cancel") }}
             </button>
           </div>

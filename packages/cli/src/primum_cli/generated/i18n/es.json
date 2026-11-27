@@ -145,7 +145,7 @@
     "devices.this": "Este dispositivo",
     "devices.forget": "Olvidar",
     "devices.forget_of": "Olvidar {name}",
-    "devices.confirm": "{name} dejará de llegar a la placa hasta que se empareje de nuevo con el código de la placa."
+    "devices.confirm": "{name} tendrá que emparejarse de nuevo con el código de la placa para usarla."
   },
   "cli": {
     "severity.error": "error",

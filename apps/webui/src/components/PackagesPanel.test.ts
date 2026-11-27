@@ -4,8 +4,8 @@ import { afterEach, expect, test, vi } from "vitest";
 import { COMMAND_TIMEOUT_MS } from "@/api/client";
 import type { PackagesBody } from "@/api/types";
 import PackagesPanel from "@/components/PackagesPanel.vue";
-import { session } from "@/session";
-import { board, json, state } from "@/testing/board";
+import { mustPair, session } from "@/session";
+import { board, json, output, state } from "@/testing/board";
 
 const SHOP = { hash: "sha256:aaaaaaaaaaaaaaaaaaaa", project: "Shop window" };
 const SHOP2 = { hash: "sha256:bbbbbbbbbbbbbbbbbbbb", project: "Shop window" };
@@ -144,8 +144,9 @@ test("a board started with fixed options says that nothing can be changed here",
 });
 
 test("while shown, the packages are asked for again when the state says something new, not on a beat", async () => {
+  vi.useFakeTimers();
   const asked = boardWith(json(kept()), json(kept({ active: LIGHTS })));
-  const { listen, stop } = await import("@/session");
+  const { listen, stop, PACKAGES_MIN_INTERVAL_MS } = await import("@/session");
   class FakeSocket extends EventTarget {
     static last: FakeSocket | null = null;
     constructor() {
@@ -169,12 +170,94 @@ test("while shown, the packages are asked for again when the state says somethin
   expect(asked).toHaveLength(before);
 
   say(state({ sequences: [{ id: "s", name: "Show", running: false }] })); // another device activated something
-  await flushPromises();
+  await vi.advanceTimersByTimeAsync(PACKAGES_MIN_INTERVAL_MS);
   expect(asked).toHaveLength(before + 1);
 
   view.unmount();
   say(state({ sequences: [] }));
-  await flushPromises();
+  await vi.advanceTimersByTimeAsync(PACKAGES_MIN_INTERVAL_MS);
   expect(asked).toHaveLength(before + 1); // not shown any more
   stop();
+});
+
+test("a device the board forgot is sent to pair again, not left with a code it has nowhere to give", async () => {
+  const unpaired = { code: "pairing.required", params: {} };
+  boardWith(json(kept()), json(unpaired, 401), json({ required: true, device: null }));
+  const view = mount(PackagesPanel);
+  await flushPromises();
+
+  await view.get(".package-previous .row-controls button").trigger("click");
+  await view.get(".confirm .button-primary").trigger("click");
+  await flushPromises();
+
+  expect(session.refused).toBe("forgotten");
+  expect(mustPair()).toBe(true); // the pairing screen takes over (main.ts)
+  expect(view.find("[role=alert]").exists()).toBe(false);
+});
+
+test("what was said to run is no longer said once something else is active", async () => {
+  boardWith(json(kept()), json(kept({ active: SHOP2, running: SHOP2, previous: SHOP, staged: null })));
+  const view = mount(PackagesPanel);
+  await flushPromises();
+  await view.get(".package-staged .row-controls button").trigger("click");
+  await view.get(".confirm .button-primary").trigger("click");
+  await flushPromises();
+  expect(view.find(".notice-success").exists()).toBe(true);
+
+  session.packages = kept({ active: SHOP, running: SHOP, previous: SHOP2, staged: null }); // gone back from elsewhere
+  await view.vm.$nextTick();
+
+  expect(view.find(".notice-success").exists()).toBe(false);
+});
+
+test("the packages are asked for once every few seconds at most while things keep changing", async () => {
+  vi.useFakeTimers();
+  const asked = boardWith();
+  const { listen, stop, PACKAGES_MIN_INTERVAL_MS } = await import("@/session");
+  class FakeSocket extends EventTarget {
+    static last: FakeSocket | null = null;
+    constructor() {
+      super();
+      FakeSocket.last = this;
+    }
+    close(): void {}
+  }
+  vi.stubGlobal("WebSocket", FakeSocket);
+  listen();
+  const say = (level: number) =>
+    FakeSocket.last?.dispatchEvent(
+      new MessageEvent("message", { data: JSON.stringify(state({ outputs: [output({ level })] })) }),
+    );
+  say(0);
+  mount(PackagesPanel);
+  await vi.advanceTimersByTimeAsync(0);
+  const before = asked.length;
+
+  // A sequence running: the state changes ten times a second for a second.
+  for (let step = 1; step <= 10; step++) {
+    say(step);
+    await vi.advanceTimersByTimeAsync(100);
+  }
+  expect(asked.length - before).toBeLessThanOrEqual(1);
+
+  await vi.advanceTimersByTimeAsync(PACKAGES_MIN_INTERVAL_MS);
+  expect(asked.length - before).toBe(1); // the last change is not missed
+  stop();
+});
+
+test("packages that could not be asked for are asked again when the connection is back", async () => {
+  board(state(), () => {
+    throw new TypeError("Failed to fetch");
+  });
+  const view = mount(PackagesPanel);
+  await flushPromises();
+  expect(view.text()).toContain("Asking the board for its packages");
+
+  vi.stubGlobal("fetch", async () => json(kept()));
+  session.online = false;
+  await flushPromises();
+  session.online = true;
+  await flushPromises();
+
+  expect(view.text()).toContain("Evening lights");
 });
