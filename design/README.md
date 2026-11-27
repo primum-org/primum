@@ -15,13 +15,14 @@ rules of 0007 still hold).
 | `brandbook.es.html` | The full brandbook (in Spanish, a self-contained page; open it in a browser): concept, logo, color, type, grid and shape, icons, components, screens, voice, tokens | Only to sync it with the source |
 | `tokens/tokens.json` | **Design tokens: the single source** of colors, fonts, sizes, radii, spacing, shadows and motion | Yes |
 | `tokens/tokens.css` | CSS custom properties generated from `tokens.json` (`just gen`) | **Never** (generated) |
-| `logo/` | `primum-favicon.svg` (the 16 px app icon: navy square, white ring, blue astro, the same in light and dark), and the symbol at 48 px and its redrawn 16 px version (no axis, 6 px astro), in light, dark and mono (`currentColor`; the astro has `class="astro"` so the UI can color it) | Only from the source |
+| `app-icon/` | `favicon.svg`, the 16 px app icon (navy square, white ring, blue astro, the same in light and dark). The web UI serves this folder as is, at its root | Only from the source |
+| `logo/` | The symbol at 48 px and its redrawn 16 px version (no axis, 6 px astro), in light, dark and mono (`currentColor`; the astro has `class="astro"` so the UI can color it) | Only from the source |
 | `icons/` | 56 icons on a 24 px grid, `currentColor`, drawn in the Plano style (all shown in the brandbook, §006) | Only with the brandbook |
-| `fonts/` | Geist, Geist Mono and Pixelify Sans as variable woff2 (Latin + Latin Extended), `fonts.css` with their `@font-face`, and their SIL OFL 1.1 licenses | Only to update the fonts |
+| `fonts/` | Geist, Geist Mono and Pixelify Sans as variable woff2 (Latin + Latin Extended), `fonts.css` (Geist and Geist Mono) and `pixel.css` (Pixelify Sans, apart: only what shows large figures loads it) with their `@font-face`, and their SIL OFL 1.1 licenses | Only to update the fonts |
 
 ## Using the tokens
 
-- Load `fonts/fonts.css` before `tokens/tokens.css`: it declares the families the tokens name,
+- Load `fonts/fonts.css` (and `fonts/pixel.css` only if the pixel face is shown) before `tokens/tokens.css`: it declares the families the tokens name,
   from the bundled files, so nothing is fetched from the Internet.
 
 - Load `tokens/tokens.css`. The theme follows `prefers-color-scheme` unless
@@ -49,8 +50,9 @@ rules of 0007 still hold).
   `offline` (local mode) is normal, not an alarm. An AI proposal always has a dashed border.
   `running` shares the signal blue.
 - **Surfaces and rules:** `surface.base` (paper), `surface.raised` (cards, bars), `surface.sunken`
-  (hover, switch tracks), `surface.overlay`. Borders are `border.default` (rules, dividers, grid)
-  and `border.strong` (fields, controls). Shadows are 1 px rings, never soft.
+  (hover, switch tracks), `surface.overlay`. Borders are `border.default` (rules, dividers, grid),
+  `border.strong` (stronger rules, disabled controls) and `border.control`, the outline of a
+  control (field, switch track, slider rail): at least 3:1 on every surface, as WCAG asks. Shadows are 1 px rings, never soft.
 - **Editor tracks** (`color-track-1` … `12`) are used only for tracks, and each track also shows
   its number, name, element icon and a hatch on the heel of its blocks.
 - **Type:** Geist (`--font-family-ui`, also `--font-family-display`) for everything; titles in
@@ -68,8 +70,8 @@ rules of 0007 still hold).
 - **Panic in dark mode:** its word is `text.inverse` (navy) on the coral `semantic.danger`, not
   the white the brandbook draws: white on that coral is about 3:1, below the 4.5:1 for text;
   navy is about 6:1.
-- **Disabled:** dashed border and secondary text, never opacity, for buttons, fields, switches
-  and sliders.
+- **Disabled:** never opacity. Buttons, fields and switches get a dashed border and secondary
+  text; a slider, which has no border, turns its fill and thumb to `text.secondary`.
 - **Motion:** `--motion-fast|base|slow` (100 / 180 / 320 ms), linear or stepped; striped bars
   for progress; respect `prefers-reduced-motion`.
 - **Icons:** 24 px grid, 1.5 px stroke, butt caps, mitred joins, one solid **2 × 2 pixel** per
@@ -97,7 +99,7 @@ rules of 0007 still hold).
 
 - Logotype (symbol + "Primum") outlined to curves: the brandbook sets it live in Geist.
 - App icon set (1024 → 180 px: navy square, white ring, blue astro), as described in the
-  brandbook (§2). The 16 px one exists: `logo/primum-favicon.svg`, the web UI's favicon.
+  brandbook (§2). The 16 px one exists: `app-icon/favicon.svg`, the web UI's favicon.
 - Tokens for font weights, line heights and letter spacing: the brandbook gives them per size
   (display 56/1.0 … xs 12/1.4); the web UI writes the few it uses in its own CSS, with a note.
 - Icons for the project file types (`.sec`, `.auto`, `.evt`, `.sched`, `.vars`, `.hw`) and for the

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Primum Brandbook</title>
 <link href="fonts/fonts.css" rel="stylesheet">
+<link href="fonts/pixel.css" rel="stylesheet">
 <style>
 /* VOICE  trabajo: un sistema de marca técnico, preciso y sereno, con la voz de la referencia pedida
    IDEA   un plano de ingeniería / hoja de especificación: retícula de filetes, bandas numeradas con etiqueta mono, márgenes rayados
@@ -14,10 +15,10 @@
    LAYOUT marco central de 1240 px con márgenes rayados; título arriba, la app debajo a todo el ancho; en móvil se apila */
 :root{color-scheme:light dark;
 --bg:light-dark(#fbfcfe,#0a0e1c);--raised:light-dark(#ffffff,#10162a);--sunk:light-dark(#f2f4f8,#070a15);
---line:light-dark(#e3e7ee,#222a44);--line2:light-dark(#c9cfda,#36405f);
---ink:light-dark(#1b2240,#eef2fb);--text:light-dark(#2f3446,#d3d9e8);--muted:light-dark(#5e667e,#929bb6);--faint:light-dark(#9aa1b4,#5b6483);
+--line:light-dark(#e3e7ee,#222a44);--line2:light-dark(#c9cfda,#36405f);--ctl:#7a8299;
+--ink:light-dark(#1b2240,#eef2fb);--text:light-dark(#2f3446,#d3d9e8);--muted:light-dark(#5e667e,#929bb6);--faint:light-dark(#9aa1b4,#5e667e);
 --sig:light-dark(#0a5ce6,#4c8dff);--sigink:light-dark(#ffffff,#06102a);--sigtint:light-dark(#eaf1fe,#122550);
---bar:light-dark(#1b2240,#1a2240);--barink:#eef2fb;
+--bar:#1b2240;--barink:#eef2fb;
 --danger:light-dark(#d7263d,#ff5a6b);--warn:light-dark(#b85c00,#f29a3d);--ok:light-dark(#16834a,#3dc27a);--run:var(--sig);
 --off:light-dark(#6b7285,#8c93a8);--safe:light-dark(#0e7c86,#3cc4ce);--ai:light-dark(#7443d6,#a98bff);
 --t1:light-dark(#3b4cca,#6f7dff);--t2:light-dark(#0f7b6c,#3fbfa9);--t3:light-dark(#a3214f,#e0668f);--t4:light-dark(#8a6a00,#d1b14a);--t5:light-dark(#6a3fb5,#a888ec);--t6:light-dark(#1e5a8c,#69a9dd);
@@ -109,16 +110,16 @@ p{margin:0 0 12px;max-width:66ch}
 .badge svg{width:12px;height:12px}
 .dot{width:7px;height:7px;background:currentColor;display:inline-block;flex:none}
 .b-ok{color:var(--ok)}.b-run{color:var(--run)}.b-warn{color:var(--warn)}.b-danger{color:var(--danger)}.b-off{color:var(--off)}.b-safe{color:var(--safe)}.b-ai{color:var(--ai);border-style:dashed}
-.sw{width:40px;height:22px;border:1px solid var(--line2);background:var(--sunk);position:relative;cursor:pointer;padding:0;flex:none}
+.sw{width:40px;height:22px;border:1px solid var(--ctl);background:var(--sunk);position:relative;cursor:pointer;padding:0;flex:none}
 .sw::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;background:var(--faint);transition:left .15s}
 .sw[aria-checked=true]{background:var(--sig);border-color:var(--sig)}.sw[aria-checked=true]::after{left:21px;background:#fff}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent}
-input[type=range]::-webkit-slider-runnable-track{height:4px;background:linear-gradient(90deg,var(--sig) var(--v,60%),var(--line2) var(--v,60%))}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:20px;background:var(--ink);margin-top:-8px;border:2px solid var(--raised)}
-input[type=range]::-moz-range-track{height:4px;background:var(--line2)}input[type=range]::-moz-range-progress{height:4px;background:var(--sig)}
-input[type=range]::-moz-range-thumb{width:14px;height:20px;background:var(--ink);border:2px solid var(--raised);border-radius:0}
+input[type=range]::-webkit-slider-runnable-track{height:4px;background:linear-gradient(90deg,var(--sig) var(--v,60%),var(--ctl) var(--v,60%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:20px;background:var(--ink);margin-top:-8px;border:2px solid var(--bg)}
+input[type=range]::-moz-range-track{height:4px;background:var(--ctl)}input[type=range]::-moz-range-progress{height:4px;background:var(--sig)}
+input[type=range]::-moz-range-thumb{width:14px;height:20px;background:var(--ink);border:2px solid var(--bg);border-radius:0}
 .field{display:flex;flex-direction:column;gap:6px}.field label{font:500 12px var(--mono);text-transform:uppercase;color:var(--muted)}
-.field input[type=text]{height:40px;border:1px solid var(--line2);background:var(--raised);color:var(--ink);font:16px var(--sans);padding:0 10px;border-radius:0}
+.field input[type=text]{height:40px;border:1px solid var(--ctl);background:var(--raised);color:var(--ink);font:16px var(--sans);padding:0 10px;border-radius:0}
 .field.err input{border:2px solid var(--danger)}.field .msg{font-size:13px;color:var(--danger);display:flex;gap:6px;align-items:center}
 .prog{height:6px;background:var(--line);position:relative;overflow:hidden}.prog i{position:absolute;inset:0 auto 0 0;background:var(--sig)}
 .prog.stripe i{background:repeating-linear-gradient(90deg,var(--sig) 0 6px,transparent 6px 8px)}
@@ -437,7 +438,7 @@ footer{padding:28px max(3vw,16px);display:flex;justify-content:space-between;gap
         <tr><td>Geist Mono</td><td class="m">geist-mono-latin · -latin-ext</td><td class="m">100–900</td></tr>
         <tr><td>Pixelify Sans</td><td class="m">pixelify-sans-latin · -latin-ext</td><td class="m">400–700</td></tr>
       </tbody></table></div>
-      <p style="margin-top:12px;font-size:14px"><b>Fuentes empaquetadas:</b> en <span class="mono">design/fonts/</span>, con <span class="mono">fonts.css</span> (los <span class="mono">@font-face</span>) y las licencias OFL. Subconjuntos latín y latín extendido (castellano y catalán), unos 100 KB en total. La web de la placa y este brandbook las cargan de ahí: nada se pide a Internet.</p>
+      <p style="margin-top:12px;font-size:14px"><b>Fuentes empaquetadas:</b> en <span class="mono">design/fonts/</span>, con <span class="mono">fonts.css</span> (Geist y Geist Mono, que carga la web de la placa), <span class="mono">pixel.css</span> (la pixel, aparte: solo la carga quien muestra cifras grandes) y las licencias OFL. Subconjuntos latín y latín extendido (castellano y catalán), unos 100 KB en total. La web de la placa y este brandbook las cargan de ahí: nada se pide a Internet.</p>
     </div>
   </div>
 </section>
@@ -447,7 +448,7 @@ footer{padding:28px max(3vw,16px);display:flex;justify-content:space-between;gap
   <div class="g3">
     <div class="cell"><div class="dots" style="height:120px;border:1px solid var(--line);margin-bottom:12px"></div><h3>Retícula de puntos</h3><p class="muted" style="font-size:14px">Fondo de 16 px para lienzos: editor, diagramas de placas, estados vacíos.</p></div>
     <div class="cell"><div style="height:120px;border:1px solid var(--line);margin-bottom:12px;background:var(--hatch)"></div><h3>Rayado a 45°</h3><p class="muted" style="font-size:14px">Márgenes, zonas no editables y el talón de los bloques de pista.</p></div>
-    <div class="cell"><div style="height:120px;margin-bottom:12px;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line2);border-left:1px solid var(--line2)"><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2)"></i><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2)"></i><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);background:var(--sigtint)"></i><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2)"></i></div><h3>Filetes de 1 px</h3><p class="muted" style="font-size:14px">Separan en lugar de sombras. Las celdas comparten borde.</p></div>
+    <div class="cell"><div style="height:120px;margin-bottom:12px;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line2);border-left:1px solid var(--line2)"><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2)"></i><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2)"></i><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);background:var(--sigtint)"></i><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2)"></i></div><h3>Filetes de 1 px</h3><p class="muted" style="font-size:14px">Separan en lugar de sombras. Las celdas comparten borde. El contorno de un control (campo, interruptor, raíl) es más oscuro, <span class="mono">#7A8299</span>, para llegar a 3:1 sobre el fondo.</p></div>
   </div>
   <div class="g4" style="margin-top:24px">
     <div class="cell"><span class="cap muted">Radio</span><p style="font-size:14px;margin-top:6px"><b class="mono">0 px</b> en todo. Solo los puntos de estado son cuadrados de 7 px; el pánico lleva chaflán octogonal.</p></div>
@@ -678,7 +679,9 @@ footer{padding:28px max(3vw,16px);display:flex;justify-content:space-between;gap
   --color-brand-secondary: #1b2240; /* tinta marina */
   --color-surface-base: #fbfcfe;    /* oscuro #0a0e1c */
   --color-surface-raised: #ffffff;  /* oscuro #10162a */
-  --color-border: #e3e7ee;          /* oscuro #222a44 */
+  --color-border-default: #e3e7ee;  /* oscuro #222a44 */
+  --color-border-strong: #c9cfda;   /* oscuro #36405f */
+  --color-border-control: #7a8299;  /* igual en oscuro: 3:1 o más */
   --color-text-primary: #1b2240;    /* oscuro #eef2fb */
   --color-text-secondary: #5e667e;  /* oscuro #929bb6 */
   --color-semantic-danger: #d7263d;  --color-semantic-warning: #b85c00;

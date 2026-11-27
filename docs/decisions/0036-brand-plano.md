@@ -37,4 +37,7 @@ boards, pins and scenes) and is calmer in the dense screens to come (multi-track
   2 × 2 pixel where the part turns, acts or is measured) and the brandbook shows all of them.
 - The fonts are bundled in `design/fonts/` (variable woff2, Latin + Latin Extended, SIL OFL 1.1,
   about 100 KB): the web UI and the brandbook page load them from there and never from the
-  Internet. Variable files keep every weight the brand uses in two files per family.
+  Internet. Variable files keep every weight the brand uses in two files per family. The
+  pixel face has its own `pixel.css`: the web UI shows no large figures yet and does not load it.
+- Control outlines use `color.border.control`, at least 3:1 on every surface (WCAG 1.4.11):
+  the brandbook's lighter rule is kept for decorative lines only.
