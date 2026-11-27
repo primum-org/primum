@@ -3,12 +3,13 @@
 Some objects take different fields depending on one of them: an element on a GPIO needs a
 ``pin`` while an I2C device needs a ``bus`` and an ``address``; an event from an element needs
 the element; an automation action that starts a sequence names it; only a numeric variable has
-limits; an argument of a clip is a value or the name of one. A missing field is
+limits and a step; an argument of a clip is a value or the name of one. A missing field is
 ``schema.missing_field`` and a field that does not apply to the case
 is ``schema.unexpected_field``, both pointing at it.
 
-Constants and variables also carry a value of their declared type, and a variable's initial
-value lies within its limits (``value.expected_*``, ``variable.*``).
+Constants and variables also carry a value of their declared type, a variable's initial
+value lies within its limits and its step is one its type can take (``value.expected_*``,
+``variable.*``).
 """
 
 from collections.abc import Iterator, Mapping
@@ -27,7 +28,7 @@ from primum_core.generated.model import (
 )
 from primum_core.pointers import Step, field_name, pointer
 from primum_core.references import LocatedContent
-from primum_core.values import NUMERIC, check_value
+from primum_core.values import NUMERIC, as_written, check_value
 
 
 @dataclass(frozen=True)
@@ -127,21 +128,35 @@ def _variables_issues(content: Variables, location: Location) -> Iterator[Issue]
         if issue := check_value(constant.value, constant.type, steps, location):
             yield issue
     for index, variable in enumerate(content.variables):
-        yield from _variable_issues(variable, ("variables", index), location)
+        yield from check_variable(variable, ("variables", index), location)
 
 
-def _variable_issues(
+def check_variable(
     variable: Variable, steps: tuple[Step, ...], location: Location
 ) -> Iterator[Issue]:
+    """What a schema cannot say of one variable, found at ``steps`` in its file: limits and a
+    step only on a number, its initial value of its type and within its limits, its step one
+    its type can take."""
     at = replace(location, pointer=pointer(steps))
     if variable.type not in NUMERIC:
-        limits = {"min": variable.min is not None, "max": variable.max is not None}
-        yield from _check(_case(unexpected="min max"), limits, steps, location)
+        of_numbers = {
+            "min": variable.min is not None,
+            "max": variable.max is not None,
+            "step": variable.step is not None,
+        }
+        yield from _check(_case(unexpected="min max step"), of_numbers, steps, location)
+    elif variable.step is not None and not _is_a_step(variable.step, variable.type):
+        params = {"name": variable.name, "step": as_written(variable.step)}
+        yield Issue(CoreErrorCode.VARIABLE_STEP_INVALID, params, at)
     if issue := check_value(variable.initial, variable.type, (*steps, "initial"), location):
         yield issue
         return
     if variable.min is not None and variable.max is not None and variable.min > variable.max:
-        params = {"name": variable.name, "min": variable.min, "max": variable.max}
+        params = {
+            "name": variable.name,
+            "min": as_written(variable.min),
+            "max": as_written(variable.max),
+        }
         yield Issue(CoreErrorCode.VARIABLE_LIMITS_INVALID, params, at)
         return
     initial = variable.initial
@@ -151,6 +166,11 @@ def _variable_issues(
         if below or above:
             params = {"name": variable.name, "initial": initial}
             yield Issue(CoreErrorCode.VARIABLE_INITIAL_OUT_OF_RANGE, params, at)
+
+
+def _is_a_step(step: float, value_type: str) -> bool:
+    """More than nothing, and whole for an integer, which no fraction can be added to."""
+    return step > 0 and (value_type != "integer" or float(step).is_integer())
 
 
 def _element_fields(element: Element) -> Mapping[str, bool]:

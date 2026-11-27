@@ -142,7 +142,7 @@ def _read[T](
     document = decode(content, location)
     if isinstance(document, Issue):
         return Parsed(None, (document,))
-    location = Location(path, file_id=_file_id(document))
+    location = Location(path, file_id=file_id(document))
     issues = validate(schema, document, location)
     if issues:
         return Parsed(None, issues)
@@ -155,12 +155,12 @@ def decode(content: bytes, location: Location) -> object:
     """The JSON document in ``content``, or the ``Issue`` that prevents reading it: UTF-8, no
     repeated keys, numbers as JSON means them, and only text that can be written again."""
     document = _loaded(content, location)
-    if not isinstance(document, Issue) and _has_half_a_character(document):
+    if not isinstance(document, Issue) and has_half_a_character(document):
         return Issue(CoreErrorCode.FILE_INVALID_TEXT, location=location)
     return document
 
 
-def _has_half_a_character(value: object) -> bool:
+def has_half_a_character(value: object) -> bool:
     """Whether a text anywhere in ``value``, a key included, has a surrogate without its pair.
 
     JSON lets one be written (``"\\ud83d"``) and Python reads it, but it is no character:
@@ -170,9 +170,9 @@ def _has_half_a_character(value: object) -> bool:
         return HALF_A_CHARACTER.search(value) is not None
     if is_object(value):
         return any(
-            _has_half_a_character(key) or _has_half_a_character(item) for key, item in value.items()
+            has_half_a_character(key) or has_half_a_character(item) for key, item in value.items()
         )
-    return is_array(value) and any(_has_half_a_character(item) for item in value)
+    return is_array(value) and any(has_half_a_character(item) for item in value)
 
 
 def _loaded(content: bytes, location: Location) -> object:
@@ -231,7 +231,7 @@ def _object_without_repeated_keys(pairs: list[tuple[str, object]]) -> dict[str, 
     return document
 
 
-def _file_id(document: object) -> UUID | None:
+def file_id(document: object) -> UUID | None:
     """The file's id, if it has a valid one, so issues can point at the file by id."""
     if not is_object(document):
         return None

@@ -43,6 +43,7 @@ class CoreErrorCode(StrEnum):
     VALUE_EXPECTED_TEXT = "value.expected_text"  # field
     VARIABLE_LIMITS_INVALID = "variable.limits_invalid"  # name, min, max
     VARIABLE_INITIAL_OUT_OF_RANGE = "variable.initial_out_of_range"  # name, initial
+    VARIABLE_STEP_INVALID = "variable.step_invalid"  # name, step
     VARIABLE_NOT_NUMERIC = "variable.not_numeric"  # name
     VARIABLE_SET_OUT_OF_RANGE = "variable.set_out_of_range"  # name, value
     # A condition (decision 0028): what cannot be read, and what does not fit.
@@ -163,6 +164,16 @@ class CoreErrorCode(StrEnum):
     PACKAGE_NO_BOARD = "package.no_board"
     PACKAGE_SEVERAL_BOARDS = "package.several_boards"  # boards
     PACKAGE_HASH_MISMATCH = "package.hash_mismatch"
+    # A .primum file that is not taken (docs/specs/workspace.md).
+    ARCHIVE_UNREADABLE = "archive.unreadable"
+    ARCHIVE_TOO_MANY_FILES = "archive.too_many_files"  # max
+    ARCHIVE_TOO_LARGE = "archive.too_large"  # max_mb
+    ARCHIVE_UNSAFE_PATH = "archive.unsafe_path"  # path
+    ARCHIVE_DUPLICATE_PATH = "archive.duplicate_path"  # path
+    # An operation that cannot be applied to the project (docs/specs/operations.md).
+    OPERATION_INVALID_TEXT = "operation.invalid_text"
+    OPERATION_SET_AND_CLEARED = "operation.set_and_cleared"  # field
+    OPERATION_UNKNOWN_VARIABLE = "operation.unknown_variable"  # id
 
 
 class Severity(StrEnum):

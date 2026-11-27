@@ -48,8 +48,22 @@ def validate(schema: str, document: object, location: Location) -> tuple[Issue, 
 
     ``location`` names the file; each issue points inside it.
     """
+    return _validated(_validator(schema), document, location, ())
+
+
+def validate_definition(
+    schema: str, definition: str, part: object, location: Location, at: tuple[Step, ...]
+) -> tuple[Issue, ...]:
+    """Every structural problem of ``part``, an object of the ``$defs`` of ``schemas/<schema>``
+    found at ``at`` in its file: the issues validating the whole file gives about it."""
+    return _validated(_definition_validator(schema, definition), part, location, at)
+
+
+def _validated(
+    validator: Validator, document: object, location: Location, at: tuple[Step, ...]
+) -> tuple[Issue, ...]:
     try:
-        _validator(schema)(document)
+        validator(document)
     except fastjsonschema.JsonSchemaValuesException as found:
         errors = found.errors
     except fastjsonschema.JsonSchemaValueException as found:
@@ -57,15 +71,24 @@ def validate(schema: str, document: object, location: Location) -> tuple[Issue, 
     else:
         return ()
     return tuple(
-        issue for error in errors for issue in _issues(_failure(error, document), location)
+        issue for error in errors for issue in _issues(_failure(error, document, at), location)
     )
 
 
 @cache
 def _validator(schema: str) -> Validator:
+    return _compiled(SCHEMAS[schema])
+
+
+@cache
+def _definition_validator(schema: str, definition: str) -> Validator:
+    return _compiled({"$ref": f"{schema}#/$defs/{definition}"})
+
+
+def _compiled(schema: Mapping[str, object]) -> Validator:
     # Every error, not only the first; and never fill in defaults: the document is not changed.
     return fastjsonschema.compile(
-        SCHEMAS[schema],
+        schema,
         handlers={"": _referenced_schema},
         use_default=False,
         fast_fail=False,
@@ -77,10 +100,13 @@ def _referenced_schema(uri: str) -> Mapping[str, object]:
     return SCHEMAS[uri]
 
 
-def _failure(error: fastjsonschema.JsonSchemaValueException, document: object) -> _Failure:
+def _failure(
+    error: fastjsonschema.JsonSchemaValueException, document: object, at: tuple[Step, ...]
+) -> _Failure:
     return _Failure(
         rule=error.rule,
-        steps=_typed_steps(error.path[1:], document),  # the first step is the document itself
+        # The first step is the document itself; ``at`` is where it is in its file.
+        steps=(*at, *_typed_steps(error.path[1:], document)),
         value=error.value,
         schema=error.definition,
     )

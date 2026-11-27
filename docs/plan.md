@@ -1333,6 +1333,71 @@ control on the API there is · 5.4 the project on the board and the first edit o
     not be asked for apart (runtime, 5.4). A paired device is not told of a new pairing.
   - Not tried: a real phone, a real board, an activation of a large show on a Pi.
   - Block 5.3b is done. Next: 5.4, the project on the board and the first edit operations.
+- [ ] **5.4 The project on the board and the first edit operations**, in three pull requests:
+  a, `core`; b, the runtime keeps a project and its API; c, the web UI.
+  - **a, `core`: code done** (decision 0037, `docs/specs/operations.md`).
+    `apply_operation` takes the project's files and an operation
+    (`schemas/operation.schema.json`) and gives back the files, one of them new, or the
+    issues that refuse it. Two operations: `set_project` (name, description, time zone) and
+    `set_variable` (initial, limits, persistent, setting, and the new `label` and `step`).
+    An operation is refused if it is malformed, names what is not there, or gives the file
+    it changes a problem of its own it did not have; the project may be left with problems
+    elsewhere, as one being built is. `primum_core.archive` writes and reads the `.primum`
+    file in memory, the one module of `core` that may import `io`: deterministic when
+    written, with limits and safe paths when read. The time zone's pattern moved to
+    `common.schema.json`.
+  - After review: a damaged zip is always `archive.unreadable` (the zip library raised a
+    `ValueError` or a `UnicodeDecodeError` on some, and whatever it raises is now taken at
+    the calls to it and nowhere else); a number that is none in an operation (`10**400`,
+    `NaN`, an infinity) is refused as the operation's, where the integer raised and the
+    others were blamed on the file; Windows device names (`CON`, `nul.vars`) are unsafe
+    paths; entries that land in one place on some disk are duplicates (an accent written
+    two ways, a file where a folder is); an id two variables have is refused
+    (`id.duplicate`) instead of changing the first; whole limits and steps are shown as
+    `50`, not `50.0`. Each with a test that failed before.
+  - After a second review: a variable is found in the JSON of its file, whatever problems
+    the file has, and only the problems of the object an operation changes count against
+    it: a `.vars` file with `"min": "zero"` in one variable said that every variable in it
+    did not exist, the fix included (`set_project` already edited a manifest that read,
+    and now edits one that does not validate too). A `.vars` file that is not JSON comes
+    with `operation.unknown_variable`. `write_archive` refuses what `read_archive` would
+    (`Lights.vars` beside `lights.vars`, `CON.vars`, the limits), with every issue, and a
+    test checks that whatever is written reads back as the same files. An operation that
+    changes nothing gives back the files it was given; a misspelled field is kept, not
+    dropped, when its object is written; `90.0` is written `90`. Each with a test that
+    failed before.
+  - After a third review: a variable with a field its schema finds fault with (`"unit"`,
+    as a newer Primum may write, or `"min": "zero"`) had its values unchecked, so it took
+    limits the wrong way round; they are now checked on the variable without that field. A
+    name longer than 255 bytes, half a character in a name, and `COM0`, `LPT0`, `COM¹` to
+    `LPT³`, `CONIN$`, `CONOUT$` and `NUL .vars` are unsafe paths. `Straße` and `Strasse`
+    are two names (capitals compared letter by letter, not with `casefold`). A `.vars` file
+    whose `variables` is no list comes with `operation.unknown_variable`. `1e300` stays a
+    float in an issue. Each with a test that failed before.
+  - Noted for 5.4b: the limit of 2000 files is counted after the zip library has read the
+    whole list of entries: on the Pi, 200,000 empty entries (19 MB) take 3.4 s and 120 MB
+    to refuse, 600,000 (57 MB) 10.8 s and 347 MB. The API that takes a `.primum` caps its
+    size first, as `deployed.py` does for packages (8 MB, about 1.5 s), or reads the size
+    of the zip's list before handing it to the library.
+  - Noted for later: a field the schema does not know (from a newer Primum, or a
+    misspelling) cannot be taken away by an operation, since `clear` takes only the fields
+    an `op` may clear; it needs an operation of its own (5.5). A project made with a newer
+    Primum that adds optional fields, as this block adds `label` and `step`, reads on an
+    older board with those fields as problems: decide what an older version does with them
+    before the first release.
+  - Noted for later, not done: an `integer` above 2^53 is taken, from a file or an
+    operation, since only what no float holds is refused; JavaScript (the web UI) and an
+    ESP32 lose its precision: give integers a range in their schema, with the "limits of
+    an `integer` variable against its type" left from phase 2.
+    `set_project` takes a time zone no board knows, since only
+    the project's loader has the list: the API of 5.4b must check it or show the problem.
+    The same `50.0` in the issues of reading a package (`primum_core.package`).
+    `label` and `step` do not reach the package, the API or the
+    phone (5.4b, 5.4c); a `.primum` zipped by hand from outside its folder (everything under
+    one folder, `__MACOSX/`) is read as it is, so its manifest is missing: decide whether to
+    take it (5.4b); the limit of 64 MB when projects carry audio; undo; renaming a variable
+    and changing its type, which touch whoever uses it (5.5); the CLI does not read or write
+    `.primum` yet.
 
 ## Phase 6 · Hardware manager
 

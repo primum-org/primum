@@ -200,5 +200,34 @@ and AI assistants should rely on the codes and params, not on the text. Exit sta
 ## The `.primum` file
 
 A whole project is saved or shared as one `.primum` file: a zip of the folder, with
-`project.json` at its root. Internal files are never shared on their own. Writing and reading
-it comes with the UI (phase 5).
+`project.json` at its root. Internal files are never shared on their own.
+
+`core` writes and reads it in memory (`primum_core.archive`, decision 0037):
+
+- **Written without the day or the machine in it**: files in order of path, compressed, with
+  no date of their own (1980-01-01, the first a zip holds) and as plain files. The same
+  project gives the same bytes wherever the same zlib compresses it; another build of zlib
+  may pack it otherwise, so two archives are compared by the files in them, not byte by byte.
+- **Read with care**, since the file may come from anywhere. At most 2000 files
+  (`archive.too_many_files`) and 64 MB unpacked, whatever the sizes it declares
+  (`archive.too_large`). Bytes that are no zip, or a damaged one, are `archive.unreadable`.
+  A path that would leave the folder (`..`, `/…`, `C:`), a link, an encrypted entry, or a
+  name that not every system can hold (`\ : * ? " < > |`, a control character, half a
+  character, a space or a dot at the end, more than 255 bytes in UTF-8, a device of Windows
+  such as `CON`, `nul.vars`, `COM0.sec`, `LPT¹` or `CONIN$`) is `archive.unsafe_path`. Two
+  entries that would land in one place on some disk are `archive.duplicate_path`: the same
+  path twice, two that differ only in capitals (letter by letter, as disks compare them:
+  `Straße` and `Strasse` are two) or in how an accent is written (composed or not), a file
+  where another entry needs a folder. Any of these refuses the whole file.
+- The limit of files is counted once the zip library has read the zip's whole list of
+  entries, so an archive of many empty entries costs time and memory before it is refused
+  (on a Pi 4, 3.4 s and 120 MB for 200,000): whoever takes archives from outside caps their
+  size first.
+- Reading never raises on bytes it is given: whatever is wrong with the zip is one of the
+  issues above.
+- **Never written if it could not be read back**: a project whose paths or sizes reading
+  would refuse (`Lights.vars` beside `lights.vars`, which a Linux folder holds; `CON.vars`;
+  more than the limits) is not written, and every issue comes back at once, each path that
+  needs renaming among them.
+- Folders listed in the zip are skipped: a project is its files. What the files say, and
+  whether `project.json` is there, is for the project's loader.

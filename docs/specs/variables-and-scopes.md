@@ -12,7 +12,7 @@ A `.vars` file holds constants and variables for the folder it is in.
 | | Constant | Variable |
 |---|---|---|
 | Changes while running | never: resolved when the project is compiled | yes, through atomic operations (set, increment) |
-| Fields | `name`, `type`, `value` | `name`, `type`, `initial`, `min`/`max` (numeric only), `persistent`, `setting` |
+| Fields | `name`, `type`, `value` | `name`, `type`, `initial`, `label`, `min`/`max`/`step` (numeric only), `persistent`, `setting` |
 | Set by an automation | no (`name.not_a_variable`) | yes |
 
 - Types: `number`, `integer`, `boolean`, `text`. A value is of its declared type: `2` is an
@@ -23,6 +23,10 @@ A `.vars` file holds constants and variables for the folder it is in.
 - Limits: only a numeric variable has `min` and `max` (`schema.unexpected_field` otherwise);
   `min` is not above `max` (`variable.limits_invalid`); `initial` lies within them, limits
   included (`variable.initial_out_of_range`).
+- `label` is how the phone UI calls a variable, instead of its `name`, which is what conditions
+  write. `step` is how much the UI changes a number at a time: only on a numeric variable,
+  above 0, and whole for an integer (`variable.step_invalid`). Neither reaches the package
+  yet (block 5.4b).
 - A value an automation sets lies within the variable's limits
   (`variable.set_out_of_range`, with `name` and `value`, at the value). An increment cannot
   be judged here: the engine holds every assignment to the limits while running (phase 4).

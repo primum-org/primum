@@ -427,6 +427,12 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
       "type": "string",
       "maxLength": 2000
     },
+    "timeZone": {
+      "description": "A time zone by its IANA name (Europe/Madrid).",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$",
+      "maxLength": 64
+    },
     "reference": {
       "description": "The id of another file of the project, or of something defined in one (an element, a parameter). Never a path.",
       "type": "string",
@@ -841,6 +847,47 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
           }
         }
       }
+    }
+  }
+}
+"""
+    ),
+    "operation.schema.json": json.loads(
+        """
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "operation.schema.json",
+  "title": "Operation",
+  "description": "One edit of a project (docs/specs/operations.md). Not a file: the web UI, the MCP server and Primum Studio send it, and core applies it. Which fields go with each op is checked by core.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["op"],
+  "properties": {
+    "op": {
+      "description": "set_project changes the manifest; set_variable changes one variable, named by its id.",
+      "enum": ["set_project", "set_variable"]
+    },
+    "variable": { "$ref": "common.schema.json#/$defs/reference" },
+    "name": { "$ref": "common.schema.json#/$defs/name" },
+    "description": { "$ref": "common.schema.json#/$defs/description" },
+    "timeZone": { "$ref": "common.schema.json#/$defs/timeZone" },
+    "label": { "$ref": "common.schema.json#/$defs/name" },
+    "initial": { "$ref": "common.schema.json#/$defs/value" },
+    "min": { "type": "number" },
+    "max": { "type": "number" },
+    "step": { "type": "number" },
+    "persistent": { "type": "boolean" },
+    "setting": { "type": "boolean" },
+    "clear": {
+      "description": "Optional fields to take away. A field is given a value or cleared, not both.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/clearable" },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "clearable": {
+      "enum": ["description", "timeZone", "label", "min", "max", "step"]
     }
   }
 }
@@ -1421,10 +1468,8 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
     "name": { "$ref": "common.schema.json#/$defs/name" },
     "description": { "$ref": "common.schema.json#/$defs/description" },
     "timeZone": {
-      "description": "The time zone the times of its schedules are in, by its IANA name (Europe/Madrid). Needed by a project with schedules.",
-      "type": "string",
-      "pattern": "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$",
-      "maxLength": 64
+      "description": "The time zone the times of its schedules are in. Needed by a project with schedules.",
+      "$ref": "common.schema.json#/$defs/timeZone"
     }
   }
 }
@@ -1864,10 +1909,18 @@ SCHEMAS: Final[Mapping[str, Mapping[str, object]]] = {
         "initial": {
           "$ref": "common.schema.json#/$defs/value"
         },
+        "label": {
+          "description": "How the phone UI calls it, instead of its name.",
+          "$ref": "common.schema.json#/$defs/name"
+        },
         "min": {
           "type": "number"
         },
         "max": {
+          "type": "number"
+        },
+        "step": {
+          "description": "How much the phone UI changes a number at a time: more than 0, and whole for an integer.",
           "type": "number"
         },
         "persistent": {

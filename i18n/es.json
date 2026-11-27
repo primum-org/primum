@@ -531,6 +531,10 @@
       "message": "El valor inicial de {name} ({initial}) está fuera de sus límites.",
       "hint": "Mantenlo entre el mínimo y el máximo, o cámbialos."
     },
+    "variable.step_invalid": {
+      "message": "El paso de {name} ({step}) no es uno que pueda tomar.",
+      "hint": "Usa un paso mayor que 0, y entero si la variable es un entero."
+    },
     "variable.not_numeric": {
       "message": "{name} no es un número, así que no se puede incrementar.",
       "hint": "Fija su valor en lugar de incrementarlo, o convierte {name} en número."
@@ -942,6 +946,38 @@
     "package.hash_mismatch": {
       "message": "El paquete no coincide con su hash: está incompleto o se cambió después de construirlo.",
       "hint": "Constrúyelo de nuevo con primum build."
+    },
+    "archive.unreadable": {
+      "message": "Este no es un archivo de proyecto que Primum pueda abrir: está dañado o no es un archivo .primum.",
+      "hint": "Guarda el proyecto de nuevo desde Primum, o consigue el archivo otra vez."
+    },
+    "archive.too_many_files": {
+      "message": "El archivo de proyecto contiene más de {max} archivos.",
+      "hint": "Comprueba que es un proyecto de Primum y no una copia de otra cosa."
+    },
+    "archive.too_large": {
+      "message": "El archivo de proyecto ocupa más de {max_mb} MB al abrirlo.",
+      "hint": "Saca del proyecto lo que no necesite."
+    },
+    "archive.unsafe_path": {
+      "message": "El archivo de proyecto tiene un archivo cuyo nombre no se puede usar: {path}.",
+      "hint": "Los nombres no pueden salir de la carpeta del proyecto, ser enlaces, acabar en espacio o punto, ocupar más de 255 bytes, llevar ninguno de \\ : * ? \" < > |, ni ser un nombre de dispositivo de Windows como CON, NUL o COM1. Cámbiale el nombre y guarda el proyecto de nuevo."
+    },
+    "archive.duplicate_path": {
+      "message": "El archivo de proyecto tiene dos archivos que irían al mismo sitio: {path} está dos veces, solo se distingue de otro por las mayúsculas o por cómo se escribe un acento, o es un archivo donde hay una carpeta.",
+      "hint": "Cambia el nombre de uno y guarda el proyecto de nuevo."
+    },
+    "operation.invalid_text": {
+      "message": "El cambio tiene medio carácter: un sustituto sin su pareja.",
+      "hint": "Escribe el texto de nuevo."
+    },
+    "operation.set_and_cleared": {
+      "message": "El cambio da un valor a {field} y a la vez lo quita.",
+      "hint": "Haz una de las dos cosas."
+    },
+    "operation.unknown_variable": {
+      "message": "El proyecto no tiene ninguna variable {id} que se pueda cambiar.",
+      "hint": "Puede que se haya borrado, o que su archivo no se pueda leer. Carga el proyecto de nuevo."
     }
   }
 }

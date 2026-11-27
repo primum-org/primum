@@ -20,6 +20,8 @@ _DRIVER_PARAMETER_TYPE: Final[tuple[Literal["number", "integer", "boolean", "tex
 _EVENT_SOURCE: Final[tuple[Literal["element", "ui", "api"], ...]] = ("element", "ui", "api")
 _EVENT_TRIGGER: Final[tuple[Literal["on", "off"], ...]] = ("on", "off")
 _ELEMENT_TYPE: Final[tuple[Literal["digital_output", "digital_input", "pwm_output", "i2c_device"], ...]] = ("digital_output", "digital_input", "pwm_output", "i2c_device")
+_OPERATION_OP: Final[tuple[Literal["set_project", "set_variable"], ...]] = ("set_project", "set_variable")
+_OPERATION_CLEAR: Final[tuple[Literal["description", "timeZone", "label", "min", "max", "step"], ...]] = ("description", "timeZone", "label", "min", "max", "step")
 _PACKAGE_VARIABLE_TYPE: Final[tuple[Literal["number", "integer", "boolean", "text"], ...]] = ("number", "integer", "boolean", "text")
 _PACKAGE_SEQUENCE_WHEN_DONE: Final[tuple[Literal["end", "hold"], ...]] = ("end", "hold")
 _PACKAGE_SEQUENCE_WHEN_STARTED_AGAIN: Final[tuple[Literal["restart", "ignore"], ...]] = ("restart", "ignore")
@@ -237,6 +239,25 @@ class Element:
     bus: str | None = None
     address: int | None = None
     config: tuple[NamedValue, ...] = ()
+
+
+@dataclass(frozen=True, kw_only=True, slots=True)
+class Operation:
+    """One edit of a project (docs/specs/operations.md). Not a file: the web UI, the MCP server and Primum Studio send it, and core applies it. Which fields go with each op is checked by core."""
+
+    op: Literal["set_project", "set_variable"]
+    variable: UUID | None = None
+    name: str | None = None
+    description: str | None = None
+    time_zone: str | None = None
+    label: str | None = None
+    initial: float | bool | str | None = None
+    min: float | None = None
+    max: float | None = None
+    step: float | None = None
+    persistent: bool | None = None
+    setting: bool | None = None
+    clear: tuple[Literal["description", "timeZone", "label", "min", "max", "step"], ...] = ()
 
 
 @dataclass(frozen=True, kw_only=True, slots=True)
@@ -555,8 +576,10 @@ class Variable:
     name: str
     type: Literal["number", "integer", "boolean", "text"]
     initial: float | bool | str
+    label: str | None = None
     min: float | None = None
     max: float | None = None
+    step: float | None = None
     persistent: bool = False
     setting: bool = False
 
@@ -765,6 +788,25 @@ def parse_element(data: JsonObject) -> Element:
         bus=as_str(data["bus"]) if "bus" in data else None,
         address=as_int(data["address"]) if "address" in data else None,
         config=tuple(parse_named_value(as_object(item)) for item in as_list(data["config"])) if "config" in data else (),
+    )
+
+
+def parse_operation(data: JsonObject) -> Operation:
+    """Build a ``Operation`` from a document that passed its schema."""
+    return Operation(
+        op=as_choice(data["op"], _OPERATION_OP),
+        variable=as_uuid(data["variable"]) if "variable" in data else None,
+        name=as_str(data["name"]) if "name" in data else None,
+        description=as_str(data["description"]) if "description" in data else None,
+        time_zone=as_str(data["timeZone"]) if "timeZone" in data else None,
+        label=as_str(data["label"]) if "label" in data else None,
+        initial=as_scalar(data["initial"]) if "initial" in data else None,
+        min=as_float(data["min"]) if "min" in data else None,
+        max=as_float(data["max"]) if "max" in data else None,
+        step=as_float(data["step"]) if "step" in data else None,
+        persistent=as_bool(data["persistent"]) if "persistent" in data else None,
+        setting=as_bool(data["setting"]) if "setting" in data else None,
+        clear=tuple(as_choice(item, _OPERATION_CLEAR) for item in as_list(data["clear"])) if "clear" in data else (),
     )
 
 
@@ -1073,8 +1115,10 @@ def parse_variable(data: JsonObject) -> Variable:
         name=as_str(data["name"]),
         type=as_choice(data["type"], _VARIABLE_TYPE),
         initial=as_scalar(data["initial"]),
+        label=as_str(data["label"]) if "label" in data else None,
         min=as_float(data["min"]) if "min" in data else None,
         max=as_float(data["max"]) if "max" in data else None,
+        step=as_float(data["step"]) if "step" in data else None,
         persistent=as_bool(data["persistent"]) if "persistent" in data else False,
         setting=as_bool(data["setting"]) if "setting" in data else False,
     )

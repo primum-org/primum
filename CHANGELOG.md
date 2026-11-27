@@ -160,6 +160,14 @@ All notable changes to this project are documented here. The format follows
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.
+- Editing a project, in `primum-core`: an operation (a small JSON document) changes the
+  project's name, description or time zone, or a variable's initial value, limits and whether
+  it is kept or shown as a setting. An edit that would break the file it changes is refused
+  with the same messages as `primum validate`. No screen uses it yet.
+- A variable can have a `label`, the name the phone shows for it, and a `step`, how much it
+  changes at a time. The phone does not use them yet.
+- The `.primum` file: `primum-core` writes a whole project as one file, the same bytes every
+  time, and reads one back, refusing files that are too large or carry unsafe paths.
 
 ### Changed
 

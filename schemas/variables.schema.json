@@ -98,10 +98,18 @@
         "initial": {
           "$ref": "common.schema.json#/$defs/value"
         },
+        "label": {
+          "description": "How the phone UI calls it, instead of its name.",
+          "$ref": "common.schema.json#/$defs/name"
+        },
         "min": {
           "type": "number"
         },
         "max": {
+          "type": "number"
+        },
+        "step": {
+          "description": "How much the phone UI changes a number at a time: more than 0, and whole for an integer.",
           "type": "number"
         },
         "persistent": {
