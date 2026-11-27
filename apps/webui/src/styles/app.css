@@ -129,6 +129,15 @@ main {
   cursor: pointer;
 }
 .button:hover { background: var(--color-surface-sunken); }
+/* The main action of a screen, one at most: a solid block of the signal blue. */
+.button-primary {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+}
+.button-primary:hover {
+  background: color-mix(in srgb, var(--color-brand-primary) 85%, var(--color-text-primary));
+}
 /* Disabled: a dashed border, as in the brandbook. */
 .button:disabled {
   cursor: not-allowed;
@@ -150,8 +159,8 @@ main {
 }
 .field-value { width: calc(var(--space-7) * 4); text-align: end; }
 .field:disabled { cursor: not-allowed; border-style: dashed; color: var(--color-text-secondary); }
-/* The pairing code: large figures go in the pixel face. */
-.field-code { font-family: var(--font-family-pixel); width: calc(var(--space-7) * 4); }
+/* The pixel face is for large figures only: at field size its 3, 8 and 9 look alike. */
+.field-code { font-family: var(--font-family-mono); width: calc(var(--space-7) * 4); }
 .form .button { margin-top: var(--space-2); }
 
 /* What is not as it should be, above the content of every screen. */
@@ -198,10 +207,40 @@ main {
 .level-slider {
   flex: 1;
   min-height: var(--size-touch-target);
-  accent-color: var(--color-brand-primary);
+  appearance: none;
+  background: transparent;
   touch-action: pan-y;
+  /* What is filled, from the value: set by the component. */
+  --fill-color: var(--color-brand-primary);
 }
-.level-slider:disabled { cursor: not-allowed; opacity: 0.45; }
+/* Square, as everything in the brand: a thin track filled in blue up to a block of ink. */
+.level-slider::-webkit-slider-runnable-track {
+  height: var(--space-1);
+  background: linear-gradient(
+    to right, var(--fill-color) var(--fill), var(--color-border-strong) var(--fill)
+  );
+}
+.level-slider::-moz-range-track { height: var(--space-1); background: var(--color-border-strong); }
+.level-slider::-moz-range-progress { height: var(--space-1); background: var(--fill-color); }
+.level-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: var(--space-4);
+  height: var(--size-icon-24);
+  margin-top: calc((var(--space-1) - var(--size-icon-24)) / 2);
+  border: var(--size-rule-strong) solid var(--color-surface-raised);
+  border-radius: var(--radius-sm);
+  background: var(--color-text-primary);
+}
+.level-slider::-moz-range-thumb {
+  width: var(--space-4);
+  height: var(--size-icon-24);
+  border: var(--size-rule-strong) solid var(--color-surface-raised);
+  border-radius: var(--radius-sm);
+  background: var(--color-text-primary);
+}
+.level-slider:disabled { cursor: not-allowed; --fill-color: var(--color-text-secondary); }
+.level-slider:disabled::-webkit-slider-thumb { background: var(--color-text-secondary); }
+.level-slider:disabled::-moz-range-thumb { background: var(--color-text-secondary); }
 .level-value { min-width: calc(var(--space-7) * 2); text-align: end; font-family: var(--font-family-mono); }
 
 .switch {
@@ -243,13 +282,15 @@ main {
   background: var(--color-text-inverse);
 }
 .switch-state { min-width: calc(var(--space-7) * 3); text-align: start; }
-.switch:disabled { cursor: not-allowed; opacity: 0.45; }
+.switch:disabled { cursor: not-allowed; color: var(--color-text-secondary); }
 /* Offline the last state may be stale: "mixed" puts the thumb in the middle, neither on nor off. */
 .switch[aria-pressed="mixed"] .switch-thumb {
   transform: translateX(calc((var(--switch-width) - var(--size-control-sm)) / 2));
   background: var(--color-text-secondary);
 }
-.switch:disabled .switch-track { border-style: dashed; }
+.switch:disabled .switch-track { border-style: dashed; background: transparent; }
+.switch:disabled[aria-pressed="true"] .switch-track { border-color: var(--color-text-secondary); }
+.switch:disabled[aria-pressed="true"] .switch-thumb { background: var(--color-text-secondary); }
 
 /* Panic: anchored above the tabs, 72 px, octagonal chamfer, never disabled. */
 .panic-area {

@@ -15,7 +15,7 @@ rules of 0007 still hold).
 | `brandbook.es.html` | The full brandbook (in Spanish, a self-contained page; open it in a browser): concept, logo, color, type, grid and shape, icons, components, screens, voice, tokens | Only to sync it with the source |
 | `tokens/tokens.json` | **Design tokens: the single source** of colors, fonts, sizes, radii, spacing, shadows and motion | Yes |
 | `tokens/tokens.css` | CSS custom properties generated from `tokens.json` (`just gen`) | **Never** (generated) |
-| `logo/` | The symbol at 48 px and its redrawn 16 px version (no axis, 6 px astro), in light, dark and mono (`currentColor`; the astro has `class="astro"` so the UI can color it) | Only from the source |
+| `logo/` | `primum-favicon.svg` (the 16 px app icon: navy square, white ring, blue astro, the same in light and dark), and the symbol at 48 px and its redrawn 16 px version (no axis, 6 px astro), in light, dark and mono (`currentColor`; the astro has `class="astro"` so the UI can color it) | Only from the source |
 | `icons/` | 56 icons on a 24 px grid, `currentColor`, drawn in the Plano style (all shown in the brandbook, §006) | Only with the brandbook |
 | `fonts/` | Geist, Geist Mono and Pixelify Sans as variable woff2 (Latin + Latin Extended), `fonts.css` with their `@font-face`, and their SIL OFL 1.1 licenses | Only to update the fonts |
 
@@ -65,6 +65,11 @@ rules of 0007 still hold).
   touch.
 - **Buttons:** primary is a solid blue block; secondary a 1 px ink rule; tertiary an underlined
   mono link with ↗; panic red with the chamfer, never disabled; disabled has a dashed border.
+- **Panic in dark mode:** its word is `text.inverse` (navy) on the coral `semantic.danger`, not
+  the white the brandbook draws: white on that coral is about 3:1, below the 4.5:1 for text;
+  navy is about 6:1.
+- **Disabled:** dashed border and secondary text, never opacity, for buttons, fields, switches
+  and sliders.
 - **Motion:** `--motion-fast|base|slow` (100 / 180 / 320 ms), linear or stepped; striped bars
   for progress; respect `prefers-reduced-motion`.
 - **Icons:** 24 px grid, 1.5 px stroke, butt caps, mitred joins, one solid **2 × 2 pixel** per
@@ -91,8 +96,8 @@ rules of 0007 still hold).
 ## Still to produce
 
 - Logotype (symbol + "Primum") outlined to curves: the brandbook sets it live in Geist.
-- App icon set (1024 → 16 px: navy square, white ring, blue astro) and favicon files, as
-  described in the brandbook (§2). The web UI uses the 16 px symbol as its favicon.
+- App icon set (1024 → 180 px: navy square, white ring, blue astro), as described in the
+  brandbook (§2). The 16 px one exists: `logo/primum-favicon.svg`, the web UI's favicon.
 - Tokens for font weights, line heights and letter spacing: the brandbook gives them per size
   (display 56/1.0 … xs 12/1.4); the web UI writes the few it uses in its own CSS, with a note.
 - Icons for the project file types (`.sec`, `.auto`, `.evt`, `.sched`, `.vars`, `.hw`) and for the
