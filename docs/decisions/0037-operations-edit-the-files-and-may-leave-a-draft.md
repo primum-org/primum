@@ -27,7 +27,7 @@ where the `.primum` file (the zip of a project, `specs/workspace.md`) is read an
 - **The `.primum` file is read and written in `core`** (`primum_core.archive`), in memory.
   `just arch` forbids `io` in `core` because it is how files and streams are reached; this
   one module may import it, for `BytesIO` alone. Bytes in, bytes out, with fixed dates: it
-  stays pure and deterministic. Reading has limits (2000 files, 64 MB unpacked) and refuses
+  stays pure, and deterministic for a given zlib. Reading has limits (2000 files, 64 MB unpacked) and refuses
   paths that leave the folder, links, and names two systems would read differently.
 
 ## Alternatives considered

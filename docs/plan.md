@@ -1346,7 +1346,19 @@ control on the API there is · 5.4 the project on the board and the first edit o
     file in memory, the one module of `core` that may import `io`: deterministic when
     written, with limits and safe paths when read. The time zone's pattern moved to
     `common.schema.json`.
-  - Noted for later, not done: `label` and `step` do not reach the package, the API or the
+  - After review: a damaged zip is always `archive.unreadable` (the zip library raised a
+    `ValueError` or a `UnicodeDecodeError` on some, and whatever it raises is now taken at
+    the calls to it and nowhere else); a number that is none in an operation (`10**400`,
+    `NaN`, an infinity) is refused as the operation's, where the integer raised and the
+    others were blamed on the file; Windows device names (`CON`, `nul.vars`) are unsafe
+    paths; entries that land in one place on some disk are duplicates (an accent written
+    two ways, a file where a folder is); an id two variables have is refused
+    (`id.duplicate`) instead of changing the first; whole limits and steps are shown as
+    `50`, not `50.0`. Each with a test that failed before.
+  - Noted for later, not done: `set_project` takes a time zone no board knows, since only
+    the project's loader has the list: the API of 5.4b must check it or show the problem.
+    The same `50.0` in the issues of reading a package (`primum_core.package`).
+    `label` and `step` do not reach the package, the API or the
     phone (5.4b, 5.4c); a `.primum` zipped by hand from outside its folder (everything under
     one folder, `__MACOSX/`) is read as it is, so its manifest is missing: decide whether to
     take it (5.4b); the limit of 64 MB when projects carry audio; undo; renaming a variable

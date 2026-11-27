@@ -4,17 +4,19 @@ A project is saved, shared and sent to a board as one file. Here it is bytes in,
 and back: nothing is read from or written to a disk, the zip is made and read in memory
 (decision 0037 says why ``io`` is allowed in this module alone).
 
-Writing is deterministic: the same files give the same bytes, whatever the machine and the
-day, so two copies of a project can be compared. Reading trusts nothing: an archive comes from
+Writing does not depend on the day, the machine's settings or the order the files come in:
+the same files give the same bytes wherever the same zlib compresses them. Reading trusts
+nothing: an archive comes from
 a phone, a mail or the Internet. It has limits of size and number, and a path that would leave
 the project's folder, or that two systems would read differently, refuses the whole archive.
 What the files say is for ``load_workspace``.
 """
 
 import stat
+import unicodedata
 import zipfile
-import zlib
-from collections.abc import Iterator, Mapping
+from collections.abc import Generator, Iterator, Mapping
+from contextlib import contextmanager
 from io import BytesIO
 from pathlib import PurePosixPath
 
@@ -33,6 +35,12 @@ FILE_MODE = (stat.S_IFREG | 0o644) << 16
 ENCRYPTED = 0x1
 FORBIDDEN_IN_A_NAME = frozenset('\\:*?"<>|')  # no Windows folder can hold them
 FIRST_PRINTABLE = " "
+# Devices to Windows, with any extension and in any case: CON, nul.vars, Com1.sec.
+DEVICE_NAMES = frozenset(
+    {"con", "prn", "aux", "nul"}
+    | {f"com{n}" for n in range(1, 10)}
+    | {f"lpt{n}" for n in range(1, 10)}
+)
 
 
 class _RefusedError(Exception):
@@ -63,31 +71,64 @@ def _entry(path: PurePosixPath) -> zipfile.ZipInfo:
 def read_archive(content: bytes) -> Parsed[Files]:
     """The files of a ``.primum`` file, by path, or the issue that refuses it."""
     try:
-        with zipfile.ZipFile(BytesIO(content)) as archive:
-            return Parsed(dict(_files(archive)))
+        return Parsed(dict(_files(content)))
     except _RefusedError as refused:
         return Parsed(None, (refused.issue,))
-    # Not a zip, cut short, a checksum that fails, a compression Python does not have.
-    except (zipfile.BadZipFile, zlib.error, EOFError, NotImplementedError):
-        return Parsed(None, (Issue(CoreErrorCode.ARCHIVE_UNREADABLE),))
 
 
-def _files(archive: zipfile.ZipFile) -> Iterator[tuple[PurePosixPath, bytes]]:
-    entries = [entry for entry in archive.infolist() if not entry.is_dir()]
+@contextmanager
+def _unpacking() -> Generator[None]:
+    """Whatever the zip library raises on bytes that are not a sound zip becomes
+    ``archive.unreadable``. It raises many things (a damaged zip is a ``ValueError`` from a
+    seek, a ``UnicodeDecodeError`` from a name, a ``zlib.error``...) and what it raises changes
+    with its version, so none is named. Only calls to the library go in here: a mistake of
+    ours must not be taken for a damaged file."""
+    try:
+        yield
+    except _RefusedError:
+        raise
+    except Exception as damaged:
+        raise _RefusedError(Issue(CoreErrorCode.ARCHIVE_UNREADABLE)) from damaged
+
+
+def _files(content: bytes) -> Iterator[tuple[PurePosixPath, bytes]]:
+    with _unpacking():
+        archive = zipfile.ZipFile(BytesIO(content))
+        entries = [entry for entry in archive.infolist() if not entry.is_dir()]
     if len(entries) > MAX_FILES:
         raise _RefusedError(Issue(CoreErrorCode.ARCHIVE_TOO_MANY_FILES, {"max": MAX_FILES}))
-    seen: set[str] = set()
+    taken = _Taken()
     left = MAX_BYTES
     for entry in entries:
         path = _safe_path(entry)
-        folded = path.as_posix().casefold()  # Shop.vars and shop.vars are one file on Windows
-        if folded in seen:
-            params = {"path": entry.filename}
-            raise _RefusedError(Issue(CoreErrorCode.ARCHIVE_DUPLICATE_PATH, params))
-        seen.add(folded)
-        data = _read(archive, entry, left)
+        taken.add(path, entry.filename)
+        with _unpacking():
+            data = _read(archive, entry, left)
         left -= len(data)
         yield path, data
+
+
+class _Taken:
+    """The places the files read so far take on a disk, on any system: a second file cannot
+    go where one is, nor where a folder is, nor inside what is a file."""
+
+    def __init__(self) -> None:
+        self._files: set[str] = set()
+        self._folders: set[str] = set()
+
+    def add(self, path: PurePosixPath, name: str) -> None:
+        place = _place(path)
+        above = {_place(parent) for parent in path.parents[:-1]}
+        if place in self._files | self._folders or above & self._files:
+            raise _RefusedError(Issue(CoreErrorCode.ARCHIVE_DUPLICATE_PATH, {"path": name}))
+        self._files.add(place)
+        self._folders |= above
+
+
+def _place(path: PurePosixPath) -> str:
+    """Where a path lands on a disk that tells neither capitals apart (Windows, macOS) nor
+    the two ways of writing an accent (macOS): ``Señal.vars`` is one file however written."""
+    return unicodedata.normalize("NFC", path.as_posix()).casefold()
 
 
 def _safe_path(entry: zipfile.ZipInfo) -> PurePosixPath:
@@ -104,6 +145,8 @@ def _safe_path(entry: zipfile.ZipInfo) -> PurePosixPath:
 
 def _is_a_name(part: str) -> bool:
     if part in {"", ".", ".."} or part != part.strip() or part.endswith("."):
+        return False
+    if part.split(".")[0].casefold() in DEVICE_NAMES:
         return False
     return not any(char in FORBIDDEN_IN_A_NAME or char < FIRST_PRINTABLE for char in part)
 

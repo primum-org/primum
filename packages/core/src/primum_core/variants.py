@@ -28,7 +28,7 @@ from primum_core.generated.model import (
 )
 from primum_core.pointers import Step, field_name, pointer
 from primum_core.references import LocatedContent
-from primum_core.values import NUMERIC, check_value
+from primum_core.values import NUMERIC, as_written, check_value
 
 
 @dataclass(frozen=True)
@@ -143,13 +143,17 @@ def _variable_issues(
         }
         yield from _check(_case(unexpected="min max step"), of_numbers, steps, location)
     elif variable.step is not None and not _is_a_step(variable.step, variable.type):
-        params = {"name": variable.name, "step": variable.step}
+        params = {"name": variable.name, "step": as_written(variable.step)}
         yield Issue(CoreErrorCode.VARIABLE_STEP_INVALID, params, at)
     if issue := check_value(variable.initial, variable.type, (*steps, "initial"), location):
         yield issue
         return
     if variable.min is not None and variable.max is not None and variable.min > variable.max:
-        params = {"name": variable.name, "min": variable.min, "max": variable.max}
+        params = {
+            "name": variable.name,
+            "min": as_written(variable.min),
+            "max": as_written(variable.max),
+        }
         yield Issue(CoreErrorCode.VARIABLE_LIMITS_INVALID, params, at)
         return
     initial = variable.initial

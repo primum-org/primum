@@ -13,6 +13,7 @@ being built is, and ``load_workspace`` lists them.
 """
 
 import json
+import math
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import PurePosixPath
@@ -26,9 +27,9 @@ from primum_core.formats import (
     read_manifest,
     read_project_file,
 )
-from primum_core.generated.model import Variables, parse_operation
+from primum_core.generated.model import Variable, Variables, parse_operation
 from primum_core.generated.schemas import SCHEMAS
-from primum_core.json_values import JsonObject, as_list, as_object
+from primum_core.json_values import JsonObject, as_list, as_object, is_object
 from primum_core.pointers import Step, field_name
 from primum_core.references import LocatedContent
 from primum_core.schema_validation import validate
@@ -102,6 +103,10 @@ def _operation_issues(operation: object) -> Iterator[Issue]:
     if has_half_a_character(operation):
         yield Issue(CoreErrorCode.OPERATION_INVALID_TEXT)
         return
+    not_numbers = tuple(_not_a_number_issues(operation))
+    if not_numbers:
+        yield from not_numbers
+        return
     malformed = validate(OPERATION_SCHEMA, operation, NOWHERE)
     if malformed:
         yield from (replace(issue, location=None) for issue in malformed)
@@ -122,6 +127,25 @@ def _operation_issues(operation: object) -> Iterator[Issue]:
             yield Issue(CoreErrorCode.OPERATION_SET_AND_CLEARED, {"field": name})
 
 
+def _not_a_number_issues(operation: object) -> Iterator[Issue]:
+    """Numbers JSON does not have and no variable can hold: ``NaN``, an infinity, an integer
+    of hundreds of digits. Reading a file turns them away (``primum_core.formats``); an
+    operation arrives already decoded, by whoever calls, so they are turned away here, before
+    they reach a file and are blamed on it."""
+    if not is_object(operation):
+        return
+    for name, value in operation.items():
+        if isinstance(value, int | float) and not _is_finite(value):
+            yield Issue(CoreErrorCode.SCHEMA_EXPECTED_NUMBER, {"field": name})
+
+
+def _is_finite(value: float) -> bool:
+    try:
+        return math.isfinite(value)
+    except OverflowError:  # an integer too large for any float
+        return False
+
+
 def _target(files: Files, kind: _Kind, operation: JsonObject) -> _Target | tuple[Issue, ...]:
     """What ``operation`` changes, or the issues that say it cannot be found."""
     if kind.target is None:
@@ -139,19 +163,28 @@ def _manifest_target(files: Files) -> _Target | tuple[Issue, ...]:
 
 
 def _variable_target(files: Files, variable: UUID) -> _Target | tuple[Issue, ...]:
-    """The variable with that id, in the first file that has it. A ``.vars`` file that cannot
-    be read has no variables to change: it is fixed by hand, or replaced."""
+    """The variable with that id. A ``.vars`` file that cannot be read has no variables to
+    change: it is fixed by hand, or replaced. An id that two variables have names neither:
+    changing the first found could be changing the one the person is not looking at."""
     schema = as_object(as_object(SCHEMAS["variables.schema.json"]["$defs"])["variable"])
-    for path in sorted(files):
-        if path.suffix.lower() != VARIABLES_SUFFIX:
-            continue
-        content = read_project_file(path, files[path]).value
-        if not isinstance(content, Variables):
-            continue
-        for index, candidate in enumerate(content.variables):
-            if candidate.id == variable:
-                return _Target(path, ("variables", index), _field_order(schema))
-    return (Issue(CoreErrorCode.OPERATION_UNKNOWN_VARIABLE, {"id": str(variable)}),)
+    found = [
+        _Target(path, ("variables", index), _field_order(schema))
+        for path in sorted(files)
+        for index, candidate in enumerate(_variables(path, files[path]))
+        if candidate.id == variable
+    ]
+    if not found:
+        return (Issue(CoreErrorCode.OPERATION_UNKNOWN_VARIABLE, {"id": str(variable)}),)
+    if len(found) > 1:
+        return (Issue(CoreErrorCode.ID_DUPLICATE, {"id": str(variable)}),)
+    return found[0]
+
+
+def _variables(path: PurePosixPath, content: bytes) -> tuple[Variable, ...]:
+    if path.suffix.lower() != VARIABLES_SUFFIX:
+        return ()
+    read = read_project_file(path, content).value
+    return read.variables if isinstance(read, Variables) else ()
 
 
 def _field_order(schema: JsonObject) -> Sequence[str]:

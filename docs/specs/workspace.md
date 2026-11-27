@@ -204,15 +204,21 @@ A whole project is saved or shared as one `.primum` file: a zip of the folder, w
 
 `core` writes and reads it in memory (`primum_core.archive`, decision 0037):
 
-- **Written the same every time**: files in order of path, compressed, with no date of their
-  own (1980-01-01, the first a zip holds) and as plain files. The same project gives the same
-  bytes on any machine, any day.
+- **Written without the day or the machine in it**: files in order of path, compressed, with
+  no date of their own (1980-01-01, the first a zip holds) and as plain files. The same
+  project gives the same bytes wherever the same zlib compresses it; another build of zlib
+  may pack it otherwise, so two archives are compared by the files in them, not byte by byte.
 - **Read with care**, since the file may come from anywhere. At most 2000 files
   (`archive.too_many_files`) and 64 MB unpacked, whatever the sizes it declares
   (`archive.too_large`). Bytes that are no zip, or a damaged one, are `archive.unreadable`.
   A path that would leave the folder (`..`, `/…`, `C:`), a link, an encrypted entry, or a
   name that not every system can hold (`\ : * ? " < > |`, a control character, a space or a
-  dot at the end) is `archive.unsafe_path`; the same path twice, or two that differ only in
-  capitals, is `archive.duplicate_path`. Any of these refuses the whole file.
+  dot at the end, a device of Windows such as `CON`, `nul.vars` or `COM1.sec`) is
+  `archive.unsafe_path`. Two entries that would land in one place on some disk are
+  `archive.duplicate_path`: the same path twice, two that differ only in capitals or in how
+  an accent is written (composed or not), a file where another entry needs a folder. Any of
+  these refuses the whole file.
+- Reading never raises on bytes it is given: whatever is wrong with the zip is one of the
+  issues above.
 - Folders listed in the zip are skipped: a project is its files. What the files say, and
   whether `project.json` is there, is for the project's loader.

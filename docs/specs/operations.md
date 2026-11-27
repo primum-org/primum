@@ -34,10 +34,13 @@ the operation changed.
 1. **It is not an operation.** Its shape against the schema (`schema.*`, with the `field`),
    a field that belongs to another `op` (`schema.unexpected_field`), the id missing
    (`schema.missing_field`), a field both set and cleared (`operation.set_and_cleared`), a
-   text with half a character (`operation.invalid_text`). These issues have no location:
+   text with half a character (`operation.invalid_text`), a number that is none (`NaN`, an
+   infinity, an integer no variable can hold: `schema.expected_number`). These issues have no
+   location:
    they are about the operation, not about a file.
 2. **What it names is not there.** `operation.unknown_variable`, with the `id`: no `.vars`
-   file that can be read has that variable. A project without a manifest, or with one that
+   file that can be read has that variable. An id that two variables have names neither
+   (`id.duplicate`): nothing is changed until the project has it once. A project without a manifest, or with one that
    cannot be read, takes no `set_project` (the manifest's own issues).
 3. **The file it changes would have a problem of its own that it did not have before**: a
    name too long, a minimum above the maximum, an initial value outside the limits, a step of

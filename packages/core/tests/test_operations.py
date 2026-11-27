@@ -195,6 +195,38 @@ def test_an_operation_of_the_wrong_shape_is_refused_pointing_at_no_file(
     assert _refused(operation) == [expected]
 
 
+@pytest.mark.parametrize(
+    "number",
+    [10**400, -(10**400), float("nan"), float("inf")],
+    ids=["huge", "huge below zero", "nan", "infinity"],
+)
+def test_a_number_no_variable_can_hold_is_refused_as_the_operation_s_problem(
+    number: float,
+) -> None:
+    """They raised (an ``OverflowError`` for the integer) or were blamed on the file."""
+    found = _refused({"op": "set_variable", "variable": BRIGHTNESS, "max": number})
+
+    assert found == [(CoreErrorCode.SCHEMA_EXPECTED_NUMBER, {"field": "max"}, None)]
+
+
+def test_an_id_that_two_variables_have_is_refused_and_changes_neither() -> None:
+    files = _project()
+    twin = {"id": VISITS, "name": "twin", "type": "number", "initial": 0}
+    document = _document(files, VARS)
+    files[VARS] = json.dumps({**document, "variables": [twin]}).encode()
+
+    found = _refused({"op": "set_variable", "variable": VISITS, "initial": 1}, files)
+
+    assert found == [(CoreErrorCode.ID_DUPLICATE, {"id": VISITS}, None)]
+
+
+def test_the_limits_of_an_issue_are_written_as_the_person_wrote_them() -> None:
+    result = apply_operation(_project(), {"op": "set_variable", "variable": BRIGHTNESS, "min": 200})
+
+    (issue,) = result.issues
+    assert [type(issue.params[name]) for name in ("min", "max")] == [int, int]
+
+
 def test_a_field_of_another_op_is_refused() -> None:
     found = _refused({"op": "set_project", "name": "Window", "step": 2})
 

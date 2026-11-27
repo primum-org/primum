@@ -47,3 +47,9 @@ def check_value(
         {"field": field_name(steps)},
         replace(location, pointer=pointer(steps)),
     )
+
+
+def as_written(number: float) -> float:
+    """A number as a person wrote it, for the params of an issue: the model reads every limit
+    as a float, and ``50`` must not be shown as ``50.0``."""
+    return int(number) if float(number).is_integer() else number
