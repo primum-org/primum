@@ -31,10 +31,26 @@ test("a number with both limits is a slider, asked for on letting go, by the var
   expect(asked).toEqual([{ method: "PUT", path: "/api/variables/v1", body: { value: 35 } }]);
 });
 
-test("a number with decimals moves in hundredths of its range", () => {
-  const { view } = row(variable({ type: "number", value: 0.5, min: 0, max: 2 }));
+test("a number with decimals moves in round steps, so that round values are on the slider", () => {
+  const step = (min: number, max: number) =>
+    row(variable({ type: "number", value: min, min, max })).view.get(".level-slider").attributes("step");
 
-  expect(view.get(".level-slider").attributes("step")).toBe("0.02");
+  expect(step(0, 2)).toBe("0.02");
+  expect(step(15, 30)).toBe("0.2"); // a hundredth, 0.15, would miss 20 and 21
+  expect(step(0, 60)).toBe("1"); // and 0.6 would miss 1, 2 and 5
+  expect(step(0, 100)).toBe("1");
+});
+
+test("a whole number with more values than a slider can hold is typed, within its limits", async () => {
+  const { asked, view } = row(variable({ name: "delay_ms", value: 500, min: 0, max: 10000 }));
+  const field = view.get("input");
+
+  expect(view.find(".level-slider").exists()).toBe(false);
+  expect(field.attributes()).toMatchObject({ type: "number", min: "0", max: "10000", step: "1" });
+  await type(field, "1234");
+  await field.trigger("change");
+
+  expect(sent(asked)).toEqual([{ value: 1234 }]);
 });
 
 test("a number without both limits is typed, and sent when the field is left or Enter pressed", async () => {
@@ -49,7 +65,7 @@ test("a number without both limits is typed, and sent when the field is left or 
   expect(sent(asked)).toEqual([{ value: 40 }]);
 });
 
-test("an integer is never sent with decimals, nor a field left empty", async () => {
+test("an integer is never sent with decimals, nor a field left empty, and why is said", async () => {
   const { asked, view } = row(variable({ value: 12, min: null, max: null }));
   const field = view.get("input");
 
@@ -61,6 +77,7 @@ test("an integer is never sent with decimals, nor a field left empty", async () 
 
   expect(asked).toEqual([]);
   expect((field.element as HTMLInputElement).value).toBe("12"); // back to what the board has
+  expect(session.refused).toEqual({ code: "variable.value_invalid", params: { name: "brightness", type: "integer" } });
 });
 
 test("true or false is a switch", async () => {

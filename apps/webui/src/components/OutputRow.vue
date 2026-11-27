@@ -56,7 +56,7 @@ const reported = computed(() => Math.round(props.output.level));
 const levelText = (level: number): string => (session.online ? t("output.level", { level }) : "");
 // During a test, a new level is part of the test: it keeps the time it had left (the
 // shortest a test lasts, at least), instead of staying on for good.
-function askLevel(level: number): Promise<void> {
+function askLevel(level: number): Promise<boolean> {
   const left = testing.value ? Math.max(MIN_TEST_MS, Math.round(testLeftMs.value)) : null;
   return command(api.ask(props.output.id, "set", { level }, left));
 }

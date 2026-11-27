@@ -1205,9 +1205,24 @@ control on the API there is · 5.4 the project on the board and the first edit o
     Enter then leaving a field sends once, a value out of range is refused in words and
     the field goes back; with the service frozen and nobody touching, "no connection"
     after 4.8 s, and back when thawed; 7 s idle with the board there, no false alarm.
+  - Review, found by its owner: the slider of a number with decimals moved in hundredths
+    of its range, which missed round values (0.15 from 15 to 30: 20 shown at 19.95, and
+    never 21); with the beat, an active package that does not run had the app ask for the
+    packages every 2 s; a whole number with a wide range (0 to 10000) could not be set
+    with a finger, and could not be typed; a value that was no value of its type went back
+    without a word; firing an event said nothing when its automations showed nothing.
+    Fixed, each with a test that failed before: decimals move in a round step (1, 2 or 5
+    times a power of ten, at most 100 steps); the packages are asked for again only when
+    the state says something new; a whole number with more than 100 values is a field
+    within its limits; what is no value of its type is said as the board would; an event
+    the board took says "done" for 2 s. Also: the tab of the board's own matters is
+    *Board*, and the section of Control *Settings*, as the glossary calls them.
+  - Noted for later, not done: variables have no name to show, so a setting is shown by
+    its id (`delay_ms`); a `step` declared by the variable would let the project choose
+    its own.
   - Not tried: a real phone, leaving a real Wi-Fi's range, a finger on the sliders.
   - Next: the Activity tab (the trace, the state of automations and schedules), then
-    packages and paired devices in Settings.
+    packages and paired devices in the Board tab.
 
 ## Phase 6 · Hardware manager
 

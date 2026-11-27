@@ -16,7 +16,7 @@ const props = defineProps<{
   // What is shown next to the slider for a value; nothing while it is not to be trusted.
   text: (value: number) => string;
   // Ask the board for a value. Its answer comes back as a new `reported`.
-  ask: (value: number) => Promise<void>;
+  ask: (value: number) => Promise<unknown>;
 }>();
 
 // While a finger is on the slider, it is the person's: a state that arrives does not move it.

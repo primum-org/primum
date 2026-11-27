@@ -74,30 +74,38 @@ async function askPairing(): Promise<boolean> {
 // again: its first state is believed whatever its number.
 function take(state: StateBody, fresh = false): void {
   if (!fresh && session.state !== null && state.revision <= session.state.revision) return;
+  const changed = session.state === null || !sameState(state, session.state);
   session.state = state;
   session.stateAt = performance.now();
   // The alert of a package that does not run is asked for apart, and goes stale: a new
-  // state may be of a package another device has just activated.
-  if (session.packages?.problem) void askForPackages();
+  // state may be of a package another device has just activated. Not on a beat that says
+  // the same again: every 2 s, for as long as the package does not run, nobody asked for.
+  if (changed && session.packages?.problem) void askForPackages();
 }
 
-/** Ask the board to do something. Its answer is its new state; what it refuses is kept in
- * `session.refused` for the screen to say. A device the board no longer knows is sent to
- * pair again. Never raises for either: a button has nothing to do with a failure. */
-export async function command(asked: Promise<StateBody>): Promise<void> {
+// Whether two states say the same, whatever their numbers.
+const sameState = (one: StateBody, other: StateBody): boolean =>
+  JSON.stringify({ ...one, revision: 0 }) === JSON.stringify({ ...other, revision: 0 });
+
+/** Ask the board to do something, and say whether it did. Its answer is its new state;
+ * what it refuses is kept in `session.refused` for the screen to say. A device the board
+ * no longer knows is sent to pair again. Never raises for either: a button has nothing to
+ * do with a failure. */
+export async function command(asked: Promise<StateBody>): Promise<boolean> {
   try {
     take(await asked);
     session.refused = null;
     // The board answered: it is there, whatever the wait to try the connection again
     // says. Connect now, so that the screen stops saying it has none.
     if (!session.online) void connect();
+    return true;
   } catch (failure) {
     const problem = problemOfOrder(failure);
     if (failure instanceof ApiError && failure.unpaired) {
       // The pairing screen takes over, and says why: the order was not carried out.
       session.refused = "forgotten";
       await connect();
-      return;
+      return false;
     }
     // An order that did not get to the board is lost: nobody sends it again, and saying
     // "retrying" of it would be a lie. It is said as not sent until the board is back.
@@ -105,6 +113,7 @@ export async function command(asked: Promise<StateBody>): Promise<void> {
     // A board that does not answer is not to be taken for connected, whatever the
     // WebSocket says (nothing tells a frozen board from a quiet one): connect again.
     if (problem === "unanswered") void connect();
+    return false;
   }
 }
 
