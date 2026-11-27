@@ -85,11 +85,10 @@ export const api = {
   pair: (code: string, name: string) => request<PairedBody>("POST", "pairing", { code, name }),
   unpair: () => request<PairingBody>("DELETE", "pairing"),
   packages: () => request<PackagesBody>("GET", "package"),
-  /** Run a package the board keeps, by its hash: everything stops first. */
+  /** Run a package the board keeps, by its hash: the staged one, or the previous one to go
+   * back to it. Everything stops first. */
   activatePackage: (hash: string) =>
     request<PackagesBody>("POST", "package/activate", { hash }, ACTIVATION_TIMEOUT_MS),
-  /** Run again the package that ran before the active one: the two swap. */
-  rollbackPackage: () => request<PackagesBody>("POST", "package/rollback", undefined, ACTIVATION_TIMEOUT_MS),
   devices: () => request<DeviceBody[]>("GET", "pairing/devices"),
   /** Forget a paired device: its token is worth nothing from now on. Answers with those left. */
   forgetDevice: (device: string) => request<DeviceBody[]>("DELETE", `pairing/devices/${id(device)}`),

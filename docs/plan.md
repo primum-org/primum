@@ -1312,7 +1312,20 @@ control on the API there is · 5.4 the project on the board and the first edit o
     packages asked for by themselves) is told only that it must pair again, not that an
     order was lost; after a change the focus goes to the section's heading; the 3 s
     between asks are counted on the clock that never jumps.
-  - Noted for later, not done: two versions of one project are told apart only by their
+  - Third review, found by its owner: with "go back to X" open, another device activated
+    a package, and pressing it took the board to a third project without a word
+    (`/api/package/rollback` names nothing: the board goes back to whatever is previous
+    by then). Going back is now asked for as an activation by the hash of the package
+    the confirmation named, which the board refuses (`package.not_stored`) when it is no
+    longer kept: tried against the simulated service. Forgetting a device that had
+    unpaired by itself said to ask for the list again and did not: a change the board
+    refuses now has the list, or the packages, asked for again. A confirmation that goes
+    by itself leaves the focus on the section's heading. Each with a test that failed
+    before.
+  - Noted for later, not done: a package stored from another device does not show while
+    the tab is open, since storing changes no state and nothing asks for the packages
+    again; it is the flow of 5.4 (stored from the laptop, activated from the phone), and
+    goes with the state carrying what the board keeps. Two versions of one project are told apart only by their
     hash, which says nothing to a person; a "stored on…" date would (5.4). The WebSocket
     of a device that is forgotten stays open and
     goes on receiving the state (runtime, older than this block): forgetting should close

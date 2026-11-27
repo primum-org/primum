@@ -77,7 +77,9 @@ test("going back asks first too, and can be called off", async () => {
   await view.get(".package-previous .row-controls button").trigger("click");
   await view.get(".confirm .button-primary").trigger("click");
   await flushPromises();
-  expect(asked[1]).toEqual({ method: "POST", path: "/api/package/rollback", body: undefined });
+  // By the hash of the package the confirmation named, never "the previous one": another
+  // device may have activated something meanwhile, and the previous one would be another.
+  expect(asked[1]).toEqual({ method: "POST", path: "/api/package/activate", body: { hash: LIGHTS.hash } });
 });
 
 test("what the board refuses is said, and what was active stays", async () => {
@@ -284,4 +286,47 @@ test("after a change, the focus goes to the section, not nowhere", async () => {
   await flushPromises();
 
   expect(document.activeElement).toBe(view.get("h2").element);
+});
+
+test("a change the board refuses has the packages asked for again: what is shown may be old", async () => {
+  const gone = { code: "package.not_stored", params: {} };
+  const asked = boardWith(json(kept()), json(gone, 404), json(kept({ active: SHOP2, previous: SHOP, staged: null })));
+  const view = mount(PackagesPanel);
+  await flushPromises();
+
+  await view.get(".package-previous .row-controls button").trigger("click");
+  await view.get(".confirm .button-primary").trigger("click");
+  await flushPromises();
+
+  expect(asked.at(-1)).toMatchObject({ method: "GET", path: "/api/package" });
+  expect(view.find("[role=alert]").exists()).toBe(true);
+  expect(view.find(".package-active").text()).toContain("bbbbbbbbbbbb");
+});
+
+test("a confirmation that goes by itself leaves the focus on the section, not nowhere", async () => {
+  boardWith(json(kept()));
+  const view = mount(PackagesPanel, { attachTo: document.body });
+  await flushPromises();
+  await view.get(".package-staged .row-controls button").trigger("click");
+  await flushPromises();
+
+  session.packages = kept({ active: SHOP2, running: SHOP2, previous: SHOP, staged: null });
+  await flushPromises();
+
+  expect(document.activeElement).toBe(view.get("h2").element);
+});
+
+test("a confirmation called off gives the focus back to the button that opened it", async () => {
+  boardWith(json(kept()));
+  const view = mount(PackagesPanel, { attachTo: document.body });
+  await flushPromises();
+  const opener = view.get(".package-previous .row-controls button");
+
+  await opener.trigger("click");
+  await flushPromises();
+  expect(document.activeElement).toBe(view.get(".confirm .button-primary").element);
+  await view.findAll(".confirm button")[1]?.trigger("click");
+  await flushPromises();
+
+  expect(document.activeElement).toBe(opener.element);
 });

@@ -72,7 +72,12 @@ async function callOff(): Promise<void> {
 watch(
   () => (confirming.value === null ? null : (target(confirming.value)?.hash ?? null)),
   (hash, before) => {
-    if (!working.value && before !== null && hash !== before) confirming.value = null;
+    // Only under a confirmation that is still open: one the person closed, or that a
+    // change made here closed, has its own place for the focus.
+    if (working.value || confirming.value === null || before === null || hash === before) return;
+    confirming.value = null;
+    // Its buttons went with it: the focus goes to the section, as after a change.
+    void nextTick(() => heading.value?.focus());
   },
 );
 
@@ -81,11 +86,18 @@ async function make(change: Change): Promise<void> {
   if (kept === null) return;
   working.value = true;
   try {
-    session.packages = change === "activate" ? await api.activatePackage(kept.hash) : await api.rollbackPackage();
+    // Going back too is asked for by the hash of the package the confirmation named, not
+    // as "the previous one": another device may have activated something meanwhile, and
+    // the board's previous one would then be another project. Named, the board refuses it.
+    session.packages = await api.activatePackage(kept.hash);
     done.value = kept;
   } catch (failure) {
     if (failure instanceof ApiError && failure.unpaired) await forgotten();
-    else problem.value = problemOfOrder(failure);
+    else {
+      problem.value = problemOfOrder(failure);
+      // What the board refused may be refused because what is shown is old.
+      if (failure instanceof ApiError) void refreshPackages();
+    }
   } finally {
     working.value = false;
     confirming.value = null;

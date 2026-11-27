@@ -156,3 +156,34 @@ test("a device found forgotten by asking for the list, with no order given, is n
   expect(session.refused).toBe("unpaired");
   expect(mustPair()).toBe(true);
 });
+
+test("forgetting a device that is already gone has the list asked for again, and says why", async () => {
+  const asked = boardWith(
+    json([THIS, TABLET]),
+    json({ code: "pairing.device_unknown", params: { id: "2" } }, 404),
+    json([THIS]),
+  );
+  const view = mount(DevicesPanel, { attachTo: document.body });
+  await flushPromises();
+
+  await view.findAll("li")[1]?.get("button").trigger("click");
+  await view.get(".confirm .button-primary").trigger("click");
+  await flushPromises();
+
+  expect(asked.at(-1)).toMatchObject({ method: "GET", path: "/api/pairing/devices" });
+  expect(view.findAll("li")).toHaveLength(1);
+  expect(view.find("[role=alert]").exists()).toBe(true);
+});
+
+test("a confirmation that goes by itself leaves the focus on the section", async () => {
+  boardWith(json([THIS, TABLET]), json([THIS]));
+  const view = mount(DevicesPanel, { attachTo: document.body });
+  await flushPromises();
+  await view.findAll("li")[1]?.get("button").trigger("click");
+  await flushPromises();
+
+  document.dispatchEvent(new Event("visibilitychange"));
+  await flushPromises();
+
+  expect(document.activeElement).toBe(view.get("h2").element);
+});

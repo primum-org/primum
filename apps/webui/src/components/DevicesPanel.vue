@@ -24,8 +24,11 @@ const heading = ref<HTMLElement | null>(null);
 // The device to be forgotten may go from the list under an open confirmation (forgotten
 // from another device): the confirmation goes with it, and the other buttons are free.
 watch(devices, (listed) => {
-  if (!working.value && confirming.value !== null && !listed?.some((device) => device.id === confirming.value))
-    confirming.value = null;
+  if (working.value || confirming.value === null) return;
+  if (listed?.some((device) => device.id === confirming.value)) return;
+  confirming.value = null;
+  // Its buttons went with it: the focus goes to the section, as after a change.
+  void nextTick(() => heading.value?.focus());
 });
 
 const nameOf = (device: DeviceBody): string => device.name || t("device.unnamed");
@@ -84,7 +87,12 @@ async function forget(device: DeviceBody): Promise<void> {
     problem.value = null;
   } catch (failure) {
     if (failure instanceof ApiError && failure.unpaired) await forgotten();
-    else problem.value = problemOfOrder(failure);
+    else {
+      // What the board refused may be refused because the list is old (the device
+      // unpaired by itself meanwhile): asked for again, and then why is said.
+      if (failure instanceof ApiError) await load();
+      problem.value = problemOfOrder(failure);
+    }
   } finally {
     working.value = false;
     confirming.value = null;
