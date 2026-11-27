@@ -11,6 +11,10 @@ import { problemOfAsking, problemOfOrder, type Problem } from "@/problem";
 
 export const RECONNECT_MIN_MS = 1000;
 export const RECONNECT_MAX_MS = 10000;
+// A board that is there says its state again every 2 s when nothing changes. One that is
+// frozen, or out of the Wi-Fi's reach, closes nothing: three beats without a word and it
+// is taken for gone.
+export const SILENCE_MS = 6000;
 
 export const session = reactive({
   // null until the board has said it once.
@@ -35,6 +39,7 @@ export const session = reactive({
 let asking: Promise<boolean> | null = null;
 let socket: WebSocket | null = null;
 let retry: ReturnType<typeof setTimeout> | null = null;
+let silence: ReturnType<typeof setTimeout> | null = null;
 
 /** Whether the board asks for a pairing code that this device has not given. */
 export const mustPair = (): boolean =>
@@ -69,30 +74,38 @@ async function askPairing(): Promise<boolean> {
 // again: its first state is believed whatever its number.
 function take(state: StateBody, fresh = false): void {
   if (!fresh && session.state !== null && state.revision <= session.state.revision) return;
+  const changed = session.state === null || !sameState(state, session.state);
   session.state = state;
   session.stateAt = performance.now();
   // The alert of a package that does not run is asked for apart, and goes stale: a new
-  // state may be of a package another device has just activated.
-  if (session.packages?.problem) void askForPackages();
+  // state may be of a package another device has just activated. Not on a beat that says
+  // the same again: every 2 s, for as long as the package does not run, nobody asked for.
+  if (changed && session.packages?.problem) void askForPackages();
 }
 
-/** Ask the board to do something. Its answer is its new state; what it refuses is kept in
- * `session.refused` for the screen to say. A device the board no longer knows is sent to
- * pair again. Never raises for either: a button has nothing to do with a failure. */
-export async function command(asked: Promise<StateBody>): Promise<void> {
+// Whether two states say the same, whatever their numbers.
+const sameState = (one: StateBody, other: StateBody): boolean =>
+  JSON.stringify({ ...one, revision: 0 }) === JSON.stringify({ ...other, revision: 0 });
+
+/** Ask the board to do something, and say whether it did. Its answer is its new state;
+ * what it refuses is kept in `session.refused` for the screen to say. A device the board
+ * no longer knows is sent to pair again. Never raises for either: a button has nothing to
+ * do with a failure. */
+export async function command(asked: Promise<StateBody>): Promise<boolean> {
   try {
     take(await asked);
     session.refused = null;
     // The board answered: it is there, whatever the wait to try the connection again
     // says. Connect now, so that the screen stops saying it has none.
     if (!session.online) void connect();
+    return true;
   } catch (failure) {
     const problem = problemOfOrder(failure);
     if (failure instanceof ApiError && failure.unpaired) {
       // The pairing screen takes over, and says why: the order was not carried out.
       session.refused = "forgotten";
       await connect();
-      return;
+      return false;
     }
     // An order that did not get to the board is lost: nobody sends it again, and saying
     // "retrying" of it would be a lie. It is said as not sent until the board is back.
@@ -100,6 +113,7 @@ export async function command(asked: Promise<StateBody>): Promise<void> {
     // A board that does not answer is not to be taken for connected, whatever the
     // WebSocket says (nothing tells a frozen board from a quiet one): connect again.
     if (problem === "unanswered") void connect();
+    return false;
   }
 }
 
@@ -141,8 +155,11 @@ export async function connect(delay = RECONNECT_MIN_MS): Promise<void> {
 export function listen(delay = RECONNECT_MIN_MS): void {
   stop();
   let opened = false;
+  // Counted from now: a connection that opens and never says anything is given up too.
+  hear();
   const current = openStates(
     (state) => {
+      hear();
       if (!opened) void askForPackages();
       session.online = true;
       session.settled = true;
@@ -164,10 +181,22 @@ export function listen(delay = RECONNECT_MIN_MS): void {
   socket = current;
 }
 
+// The board said something, or is given this long to: silence past it means it is gone,
+// whatever the connection says, and it is looked for again.
+function hear(): void {
+  if (silence !== null) clearTimeout(silence);
+  silence = setTimeout(() => {
+    session.settled = true;
+    void connect();
+  }, SILENCE_MS);
+}
+
 /** Stop listening and trying, for good until `connect` or `listen` is called again. */
 export function stop(): void {
   if (retry !== null) clearTimeout(retry);
   retry = null;
+  if (silence !== null) clearTimeout(silence);
+  silence = null;
   const closing = socket;
   socket = null;
   closing?.close();

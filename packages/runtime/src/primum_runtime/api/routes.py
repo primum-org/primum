@@ -30,6 +30,9 @@ from primum_runtime.trace import Trace
 
 # Nothing here is seen or commanded but by a paired device, panic included.
 router = APIRouter(prefix="/api", dependencies=[Depends(paired)], responses=ERROR_RESPONSES)
+# How long the WebSocket of the state stays silent at most. Whoever listens takes three of
+# these without a word for a board that is gone (docs/specs/events.md).
+BEAT_S = 2.0
 
 
 def _deployment(request: Request) -> Deployment:
@@ -224,15 +227,16 @@ async def _wait_for_stop(stopping: Subscription) -> None:
 
 @router.websocket("/ws")
 async def state_updates(websocket: WebSocket) -> None:
-    """Send the current state on connect, then every new state, until either side closes."""
+    """Send the current state on connect, then every new state, until either side closes.
+    When nothing changes for ``BEAT_S``, the state is sent again: a board that is frozen
+    or out of reach closes nothing, and whoever listens can only tell by its silence."""
     deployment: Deployment = websocket.app.state.deployment
-    controller = deployment.controller
     broadcaster: StateBroadcaster = websocket.app.state.broadcaster
     await websocket.accept()
     # Subscribed before the current state is read, so no change falls in between.
     subscription = broadcaster.subscribe()
     tasks = {
-        asyncio.create_task(_send_states(websocket, controller.state(), subscription)),
+        asyncio.create_task(_send_states(websocket, deployment, subscription)),
         asyncio.create_task(_wait_for_disconnect(websocket)),
     }
     try:
@@ -245,12 +249,20 @@ async def state_updates(websocket: WebSocket) -> None:
         subscription.close()
 
 
-async def _send_states(websocket: WebSocket, current: State, subscription: Subscription) -> None:
-    state: State | None = current
+async def _send_states(
+    websocket: WebSocket, deployment: Deployment, subscription: Subscription
+) -> None:
+    beat_s: float = websocket.app.state.beat_s
+    state: State | None = deployment.controller.state()
     try:
         while state is not None:
             await websocket.send_json(StateBody.of(state).model_dump())
-            state = await subscription.next()
+            try:
+                state = await asyncio.wait_for(subscription.next(), beat_s)
+            except TimeoutError:
+                # Nothing changed: the state is said again. Asked of what runs now, which
+                # may be another controller than when this connection opened.
+                state = deployment.controller.state()
     except WebSocketDisconnect:
         return  # the client left while a state was being sent
     await websocket.close()  # the service is stopping

@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 
 from primum_runtime import deployed
 from primum_runtime.api import create_app
+from primum_runtime.api.routes import BEAT_S
 from primum_runtime.board import load_board
 from primum_runtime.config import parse_config
 from primum_runtime.deployed import DIRECTORY, MAX_BYTES, STATE_NAME, Deployed, Pointers
@@ -203,13 +204,13 @@ class _Board:
 
 @contextmanager
 def _service(
-    data_dir: Path, *options: str, fail: bool = False
+    data_dir: Path, *options: str, fail: bool = False, beat_s: float = BEAT_S
 ) -> Generator[tuple[TestClient, _Board]]:
     """A service that runs what is activated on it, keeping what it keeps in ``data_dir``.
     With ``fail``, the first HAL it asks for does not open."""
     config = parse_config(["--simulate", "--no-pairing", "--data-dir", str(data_dir), *options], {})
     board = _Board(fail)
-    with TestClient(create_app(config, open_hal=board.open)) as client:
+    with TestClient(create_app(config, open_hal=board.open, beat_s=beat_s)) as client:
         yield client, board
 
 
@@ -710,6 +711,21 @@ def test_a_service_whose_active_package_no_longer_reads_starts_empty_and_says_wh
     # Where the board keeps its files is not for a client: it is in the service's log.
     assert "path" not in packages["problem"]["params"]
     assert str(tmp_path) not in json.dumps(packages)
+
+
+def test_the_state_said_again_after_an_activation_is_of_what_runs_now(tmp_path: Path) -> None:
+    """What runs changes under an open WebSocket: the state it goes on saying is never
+    that of a controller that is gone."""
+    with (
+        _service(tmp_path, beat_s=0.01) as (client, _),
+        client.websocket_connect("/api/ws") as ws,
+    ):
+        assert ws.receive_json()["outputs"] == []
+        _give(client, FIRST)
+        seen = [ws.receive_json() for _ in range(6)]  # the change, then beats
+
+    assert [output["name"] for output in seen[-1]["outputs"]] == ["LED"]
+    assert len({state["revision"] for state in seen}) == 6
 
 
 def test_every_state_has_a_number_above_the_one_before_also_after_an_activation(

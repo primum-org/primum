@@ -137,6 +137,12 @@ All notable changes to this project are documented here. The format follows
   time the board's own alerts on every screen (an output that could not be confirmed off,
   lost changes of an input, values that could not be saved, a clock not yet set, an
   active package that is not running).
+- The web interface shows the project's settings (the variables it exposes: a slider, a
+  field or a switch, by type) and the events that can be fired by hand, and notices by
+  itself, within six seconds, a board that stopped answering or went out of the Wi-Fi's
+  reach. The WebSocket of the state says the state again every two seconds. Firing an
+  event says "done" for a moment. The tab of the board's own matters (pairing) is now
+  called *Board*.
 - The state of the API has a `revision`, which rises with every state reported: of two
   states that reach a client by different ways, the higher is the later.
 - Pairing: a board has a pairing code (`primum-pairing` shows it), and a phone or a program

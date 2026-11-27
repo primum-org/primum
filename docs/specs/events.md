@@ -211,6 +211,10 @@ running:
 | `inputs` | also `lostEvents` |
 | `revision` | A number above that of every state the service reported before, by the answer to a command or by the WebSocket, whatever package runs. Two states may cross on their way to a device: the one with the higher number is the later. It starts over when the service restarts |
 
+When nothing changes for 2 s, `/api/ws` sends the state again, with a new `revision`: a
+board that is frozen or out of reach closes nothing, and whoever listens can only tell by
+its silence. The web UI takes 6 s without a word for a board that is gone.
+
 | Request | Does | Refused |
 |---|---|---|
 | `POST /api/events/{id}/fire` | Makes the event happen: its automations act. Answers with the new state | `event.unknown` (404; also with no package); `event.not_fireable` (409: `id`, `name`) for an event of an element; `panic.active` (409) |

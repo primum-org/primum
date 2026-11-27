@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import { COMMAND_TIMEOUT_MS } from "@/api/client";
-import { connect, listen, mustPair, pair, RECONNECT_MIN_MS, session, stop, unpair } from "@/session";
+import { connect, listen, mustPair, pair, RECONNECT_MIN_MS, session, SILENCE_MS, stop, unpair } from "@/session";
 
 // A WebSocket the test drives: what was opened, and the board's side of each one.
 class FakeSocket extends EventTarget {
@@ -92,7 +92,7 @@ test("a board that answers with an error is asked again, and the error is said",
   expect(FakeSocket.opened).toHaveLength(1); // nothing to listen to yet
 
   vi.stubGlobal("fetch", answers(PAIRED));
-  await vi.advanceTimersByTimeAsync(RECONNECT_MIN_MS * 20);
+  await vi.advanceTimersByTimeAsync(RECONNECT_MIN_MS * 4); // the wait after the second failure
 
   expect(FakeSocket.opened).toHaveLength(2);
   expect(session.problem).toBeNull();
@@ -172,4 +172,41 @@ test("a board out of reach for long is still being asked, and said so", async ()
 
   expect(session.problem).toBe("offline");
   expect(session.online).toBe(false);
+});
+
+test("a board that goes silent without closing anything is taken for gone, and looked for again", async () => {
+  // Frozen, or out of the Wi-Fi's reach: the connection stays open and says nothing. A
+  // board that is there says its state again every two seconds.
+  vi.stubGlobal("fetch", answers(PAIRED));
+  listen();
+  last().send(STATE);
+  await vi.advanceTimersByTimeAsync(SILENCE_MS - 1);
+  expect(session.online).toBe(true);
+
+  await vi.advanceTimersByTimeAsync(1);
+
+  expect(session.online).toBe(false);
+  expect(session.settled).toBe(true);
+  expect(FakeSocket.opened).toHaveLength(2);
+});
+
+test("a board that goes on saying its state is never taken for gone", async () => {
+  listen();
+  for (let beats = 0; beats < 10; beats++) {
+    last().send(STATE);
+    await vi.advanceTimersByTimeAsync(SILENCE_MS - 1);
+  }
+
+  expect(session.online).toBe(true);
+  expect(FakeSocket.opened).toHaveLength(1);
+});
+
+test("a connection that opens and never says anything is given up too", async () => {
+  vi.stubGlobal("fetch", answers(PAIRED));
+  listen();
+
+  await vi.advanceTimersByTimeAsync(SILENCE_MS);
+
+  expect(session.settled).toBe(true);
+  expect(FakeSocket.opened).toHaveLength(2);
 });

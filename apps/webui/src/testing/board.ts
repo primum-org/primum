@@ -3,7 +3,7 @@
 import en from "@i18n/en.json";
 import { vi } from "vitest";
 
-import type { OutputState, StateBody } from "@/api/types";
+import type { EventState, OutputState, StateBody, VariableState } from "@/api/types";
 import { Catalog, useCatalog } from "@/i18n";
 import { session } from "@/session";
 
@@ -16,6 +16,25 @@ export const output = (over: Partial<OutputState> = {}): OutputState => ({
   remainingMs: null,
   restFailed: false,
   controlledBy: null,
+  ...over,
+});
+
+export const variable = (over: Partial<VariableState> = {}): VariableState => ({
+  id: "v1",
+  name: "brightness",
+  type: "integer",
+  value: 80,
+  min: 0,
+  max: 100,
+  setting: true,
+  persistent: false,
+  ...over,
+});
+
+export const event = (over: Partial<EventState> = {}): EventState => ({
+  id: "e1",
+  name: "Open the shop",
+  source: "ui",
   ...over,
 });
 

@@ -41,7 +41,7 @@
     "output.by_sequence": "La está mandando una secuencia.",
     "tabs.label": "Pantallas",
     "tabs.control": "Control",
-    "tabs.settings": "Ajustes",
+    "tabs.board": "Placa",
     "control.empty": "Nada que controlar: la placa no tiene ningún paquete en marcha, o su paquete no tiene elementos.",
     "device.not_needed": "Esta placa no pide emparejamiento.",
     "alert.package_not_running": "El paquete activo no está en marcha, así que no hay nada en marcha:",
@@ -53,7 +53,17 @@
     "panic.active_unconfirmed": "Pánico activo y no se aceptan órdenes, pero no se ha podido confirmar que todas las salidas estén apagadas.",
     "output.rest_failed": "No se ha podido confirmar que esté apagada. La placa lo sigue intentando.",
     "command.unanswered": "La placa no ha respondido: no se sabe si ha hecho lo que se le pidió. Mira lo que está haciendo. Si algo tiene que parar ya, córtale la alimentación.",
-    "command.forgotten": "La placa ya no conoce este dispositivo, así que no ha hecho lo que se le pidió. Vuelve a emparejarlo y da la orden otra vez."
+    "command.forgotten": "La placa ya no conoce este dispositivo, así que no ha hecho lo que se le pidió. Vuelve a emparejarlo y da la orden otra vez.",
+    "events.heading": "Eventos",
+    "event.fire": "Disparar",
+    "event.fire_of": "Hacer que ocurra {name} ahora",
+    "event.fired": "Hecho",
+    "variables.heading": "Ajustes",
+    "variable.true": "Sí",
+    "variable.false": "No",
+    "variable.toggle": "Cambiar {name}",
+    "variable.value_of": "Valor de {name}",
+    "variable.persistent": "Se conserva cuando la placa se reinicia."
   },
   "cli": {
     "severity.error": "error",

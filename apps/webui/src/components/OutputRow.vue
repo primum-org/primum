@@ -2,11 +2,12 @@
 // One output: its switch, its level if it takes one, a test that ends on its own, and who
 // commands it. The board is the only source of truth: the row shows the state it is given
 // and never guesses one. Offline that state may be stale, and the row says nothing.
-import { computed, ref, watch } from "vue";
+import { computed } from "vue";
 
 import { api } from "@/api/client";
 import type { OutputState } from "@/api/types";
 import AppIcon from "@/components/AppIcon.vue";
+import LevelSlider from "@/components/LevelSlider.vue";
 import { t } from "@/i18n";
 import { useNow } from "@/now";
 import { command, session } from "@/session";
@@ -51,66 +52,13 @@ const test = () => command(api.ask(props.output.id, "on", {}, TEST_MS));
 // --- Level ---
 const hasLevel = computed(() => props.output.actions.includes("set"));
 const reported = computed(() => Math.round(props.output.level));
-// While a finger is on the slider, it is the person's: a state that arrives does not move it.
-const held = ref(false);
-const shown = ref(reported.value);
-// The level asked for that the board has not answered yet: the person's, until it does.
-let asked: number | null = null;
-
-async function askFor(wanted: number, durationMs: number | null): Promise<void> {
-  asked = wanted;
-  await command(api.ask(props.output.id, "set", { level: wanted }, durationMs));
-  // Whatever came of it, the level the board reports; unless the person has moved on to
-  // another level meanwhile, which is theirs until it is answered in turn.
-  if (held.value || asked !== wanted) return;
-  asked = null;
-  shown.value = reported.value;
-}
-
-// The slider follows the level the board reports, unless a person has it: in their hand,
-// or just let go with a level asked for that the board has not answered yet. Letting go is
-// no reason to go back to the old level: the next key would start from it.
-watch(reported, () => {
-  if (held.value || asked !== null) return;
-  shown.value = reported.value;
-});
-// A slider taken from the person's hand (panic, the connection lost) lets go without
-// asking for anything, and shows what the board last said.
-watch(usable, (can) => {
-  if (can) return;
-  held.value = false;
-  asked = null;
-  shown.value = reported.value;
-});
-
-// Moving the slider only shows the number; the level is asked for once, on letting go: of
-// the pointer, of the key, or of the slider altogether.
-async function letGo(): Promise<void> {
-  if (!held.value || !usable.value) return;
-  held.value = false;
-  const wanted = shown.value;
-  if (wanted === reported.value) return;
-  // During a test, the new level is part of the test: it keeps the time it had left (the
-  // shortest a test lasts, at least), instead of staying on for good.
+// Offline the last level may be stale: no number, as a switch has no word.
+const levelText = (level: number): string => (session.online ? t("output.level", { level }) : "");
+// During a test, a new level is part of the test: it keeps the time it had left (the
+// shortest a test lasts, at least), instead of staying on for good.
+function askLevel(level: number): Promise<boolean> {
   const left = testing.value ? Math.max(MIN_TEST_MS, Math.round(testLeftMs.value)) : null;
-  await askFor(wanted, left);
-}
-
-// A touch the browser takes back (the page scrolled under the finger) chose no level: a
-// finger that lands on the track moves the slider before the browser knows it is a scroll.
-// Nothing is asked for, and the slider shows the level the board reports.
-function cancelled(): void {
-  held.value = false;
-  if (asked === null) shown.value = reported.value;
-}
-
-// Changed with nothing held (assistive technology sets a value at once): ask for it. Not
-// when it is the level the board already reports, nor the one just asked for (a browser
-// sends "change" after letting go too), nor when nobody may ask.
-function changed(): void {
-  if (held.value || !usable.value) return;
-  if (shown.value === reported.value || shown.value === asked) return;
-  void askFor(shown.value, null);
+  return command(api.ask(props.output.id, "set", { level }, left));
 }
 
 // --- Who commands it ---
@@ -158,14 +106,9 @@ const release = () => command(api.release(props.output.id));
     </div>
     <p v-else-if="by === 'sequence'" class="row-note secondary" role="status">{{ t("output.by_sequence") }}</p>
 
-    <div v-if="hasLevel" class="level">
-      <input
-        v-model.number="shown" class="level-slider" type="range" min="0" max="100" step="1"
-        :disabled="!usable" :aria-label="t('output.level_of', { name })"
-        @pointerdown="held = true" @keydown="held = true"
-        @pointerup="letGo" @pointercancel="cancelled" @keyup="letGo" @blur="letGo" @change="changed"
-      >
-      <output class="level-value">{{ session.online ? t("output.level", { level: shown }) : "" }}</output>
-    </div>
+    <LevelSlider
+      v-if="hasLevel" :reported="reported" :min="0" :max="100" :step="1" :disabled="!usable"
+      :label="t('output.level_of', { name })" :text="levelText" :ask="askLevel"
+    />
   </li>
 </template>

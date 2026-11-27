@@ -26,7 +26,7 @@ from primum_runtime.api.broadcast import StateBroadcaster
 from primum_runtime.api.deploy import Deployment, HalFactory, Parts
 from primum_runtime.api.errors import install_error_handlers
 from primum_runtime.api.pairing import router as pairing_router
-from primum_runtime.api.routes import router
+from primum_runtime.api.routes import BEAT_S, router
 from primum_runtime.config import RuntimeConfig
 from primum_runtime.control import Controller, Wall
 from primum_runtime.hal import Hal, create_hal
@@ -45,11 +45,13 @@ def create_app(
     open_hal: HalFactory | None = None,
     env: Mapping[str, str] | None = None,
     wall: Wall | None = None,
+    beat_s: float = BEAT_S,
 ) -> FastAPI:
     """The API for ``config``. ``open_hal`` replaces the HAL ``config`` asks for (tests): it
     is called for a new HAL each time what runs changes; ``env`` is where systemd says how
     to reach it (the process's environment unless given); ``wall`` replaces the system's
-    clock, for the schedules (tests).
+    clock, for the schedules (tests); ``beat_s`` is how long the WebSocket of the state
+    stays silent at most (tests make it short).
 
     ``app.state.stopped_safely`` becomes true once the HAL has closed without errors.
     ``app.state.deployment`` is what runs (``api.deploy``); its controller changes when a
@@ -114,6 +116,7 @@ def create_app(
         openapi_url=None,
     )
     app.state.stopped_safely = False
+    app.state.beat_s = beat_s
     app.state.pairing = Pairing(config.data_dir, time.monotonic) if config.pairing else None
     if not config.pairing:
         log.warning("pairing is off: whoever reaches this service commands it")

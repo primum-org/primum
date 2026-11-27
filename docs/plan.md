@@ -1190,6 +1190,39 @@ control on the API there is · 5.4 the project on the board and the first edit o
     synthetic pointer events), a screen reader.
   - Left for 5.3b: variables, firing events, the state of automations and schedules,
     packages, the trace, the list of paired devices.
+- [x] **5.3b (1 of 3) A heartbeat, the project's settings and events.** The WebSocket of
+  the state says the state again when nothing changed for 2 s (asked of what runs now,
+  with a new `revision`), and the web UI takes 6 s of silence for a board that is gone and
+  looks for it again: a screen nobody touches no longer shows the state of a frozen or
+  unreachable board as current. Control gets the events a person may fire (a button, no
+  confirmation, not in panic) and the variables the project exposes as settings: a slider
+  for a number with both limits, a field for one without or for a text, a switch for true
+  or false; sent on letting go or leaving the field, what the board refuses goes back to
+  what it has. The slider of the outputs became a component of its own, used by both.
+  - Tried: its tests (pytest for the beat, Vitest for the rest). By hand, not by a test
+    of the repository, in a headless Chromium against a simulated service running a copy
+    of `examples/shop-window` with more settings and an event: each kind of setting,
+    Enter then leaving a field sends once, a value out of range is refused in words and
+    the field goes back; with the service frozen and nobody touching, "no connection"
+    after 4.8 s, and back when thawed; 7 s idle with the board there, no false alarm.
+  - Review, found by its owner: the slider of a number with decimals moved in hundredths
+    of its range, which missed round values (0.15 from 15 to 30: 20 shown at 19.95, and
+    never 21); with the beat, an active package that does not run had the app ask for the
+    packages every 2 s; a whole number with a wide range (0 to 10000) could not be set
+    with a finger, and could not be typed; a value that was no value of its type went back
+    without a word; firing an event said nothing when its automations showed nothing.
+    Fixed, each with a test that failed before: decimals move in a round step (1, 2 or 5
+    times a power of ten, at most 100 steps); the packages are asked for again only when
+    the state says something new; a whole number with more than 100 values is a field
+    within its limits; what is no value of its type is said as the board would; an event
+    the board took says "done" for 2 s. Also: the tab of the board's own matters is
+    *Board*, and the section of Control *Settings*, as the glossary calls them.
+  - Noted for later, not done: variables have no name to show, so a setting is shown by
+    its id (`delay_ms`); a `step` declared by the variable would let the project choose
+    its own.
+  - Not tried: a real phone, leaving a real Wi-Fi's range, a finger on the sliders.
+  - Next: the Activity tab (the trace, the state of automations and schedules), then
+    packages and paired devices in the Board tab.
 
 ## Phase 6 · Hardware manager
 

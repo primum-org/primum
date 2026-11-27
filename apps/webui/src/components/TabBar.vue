@@ -14,7 +14,7 @@ import { t } from "@/i18n";
     </RouterLink>
     <RouterLink class="tab" :to="{ name: 'settings' }">
       <AppIcon name="u-gear" />
-      <span>{{ t("tabs.settings") }}</span>
+      <span>{{ t("tabs.board") }}</span>
     </RouterLink>
   </nav>
 </template>
