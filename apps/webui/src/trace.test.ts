@@ -46,7 +46,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   FakeSocket.opened = [];
   vi.stubGlobal("WebSocket", FakeSocket);
-  Object.assign(trace, { entries: [], run: null, gaps: [] });
+  Object.assign(trace, { entries: [], run: null });
   session.online = true;
 });
 
@@ -61,38 +61,38 @@ test("what the board sends is added after what is held, and nothing twice", () =
   takeTrace(body([entry(2), entry(3)]));
 
   expect(numbers()).toEqual([1, 2, 3]);
-  expect(trace.gaps).toEqual([]);
 });
 
 test("a trace of another run (the board restarted) replaces what was held", () => {
   takeTrace(body([entry(1), entry(2), entry(3)]));
-  takeTrace(body([entry(1)], "r2"));
+  expect(takeTrace(body([entry(1)], "r2"))).toBe(true); // whole: from its first entry
 
   expect(numbers()).toEqual([1]);
   expect(trace.run).toBe("r2");
 });
 
-test("entries the board dropped before they were asked for leave a mark where they were", () => {
-  takeTrace(body([entry(1), entry(2)]));
-  takeTrace(body([entry(9), entry(10)]));
+test("a board that restarted and went further than this device had is asked again from the start", async () => {
+  // 21 entries held; the board restarts out of sight and notes 35: asked for what follows
+  // 21, it sends 22 to 35 of the new trace, whose start this device must not miss.
+  takeTrace(body(Array.from({ length: 21 }, (_, index) => entry(index + 1))));
+  followTrace();
+  expect(last().url.searchParams.get("after")).toBe("21");
 
-  expect(trace.gaps).toEqual([9]);
+  last().send({ ...body(Array.from({ length: 14 }, (_, index) => entry(index + 22)), "r2"), first: 1 });
+  await vi.advanceTimersByTimeAsync(0);
+
+  expect(FakeSocket.opened).toHaveLength(2);
+  expect(last().url.searchParams.get("after")).toBe("0");
+  last().send(body(Array.from({ length: 35 }, (_, index) => entry(index + 1)), "r2"));
+  expect(numbers()).toEqual(Array.from({ length: 35 }, (_, index) => index + 1));
 });
 
-test("a first look at a trace that dropped its oldest entries misses nothing of this device's", () => {
-  takeTrace(body([entry(500), entry(501)]));
-
-  expect(trace.gaps).toEqual([]);
-});
-
-test("no more entries are kept than the board keeps, nor marks of what is no longer held", () => {
+test("no more entries are kept than the board keeps", () => {
   takeTrace(body([entry(1)]));
-  takeTrace(body([entry(3)])); // a gap before 3
   takeTrace(body(Array.from({ length: KEPT_ENTRIES }, (_, index) => entry(index + 4))));
 
   expect(trace.entries).toHaveLength(KEPT_ENTRIES);
   expect(trace.entries[0]?.number).toBe(4);
-  expect(trace.gaps).toEqual([]);
 });
 
 test("the trace is followed from the last entry held, and only while the board is there", async () => {
@@ -146,21 +146,13 @@ test("each chain is under the entry that started it, in the order it happened, t
     entry(6, { kind: "sequence.ended", params: { id: "s", name: "Show" } }),
   ];
 
-  const lines = traceLines(entries, []).map((line) =>
-    line.kind === "entry" ? [line.entry.number, line.depth] : ["gap", line.before],
-  );
+  const lines = traceLines(entries).map((line) => [line.entry.number, line.depth]);
 
   expect(lines).toEqual([[6, 0], [2, 0], [3, 1], [5, 2], [4, 1], [1, 0]]);
 });
 
 test("an entry whose cause is no longer held starts a chain of its own", () => {
-  const lines = traceLines([entry(7, { cause: 3 })], []);
+  const lines = traceLines([entry(7, { cause: 3 })]);
 
-  expect(lines).toEqual([{ kind: "entry", entry: entry(7, { cause: 3 }), depth: 0 }]);
-});
-
-test("the mark of missing entries goes between the chains it falls between", () => {
-  const lines = traceLines([entry(1), entry(2), entry(9), entry(10, { cause: 9 })], [9]);
-
-  expect(lines.map((line) => (line.kind === "entry" ? line.entry.number : "gap"))).toEqual([9, 10, "gap", 2, 1]);
+  expect(lines).toEqual([{ entry: entry(7, { cause: 3 }), depth: 0 }]);
 });

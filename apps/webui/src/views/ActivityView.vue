@@ -22,7 +22,7 @@ const automations = computed(() =>
   [...(session.state?.automations ?? [])].sort((one, other) => Number(other.problem !== null) - Number(one.problem !== null)),
 );
 const schedules = computed(() => session.state?.schedules ?? []);
-const lines = computed(() => traceLines(trace.entries, trace.gaps));
+const lines = computed(() => traceLines(trace.entries));
 
 const problemText = (problem: NonNullable<(typeof automations.value)[number]["problem"]>): string =>
   catalog().error(problem).message;
@@ -32,16 +32,43 @@ function scheduleWord(open: boolean | null): string {
   return open ? t("schedule.open") : t("schedule.closed");
 }
 
+// What a line shows, worked out once per entry: an entry never changes, and with a full
+// trace every new one would otherwise have the thousand before it said and dated again.
+interface Shown {
+  readonly text: string;
+  readonly when: string;
+  // For <time datetime>: the instant, or how long after the board started.
+  readonly datetime: string;
+  readonly problem: boolean;
+}
+const shown = new WeakMap<TraceEntry, Shown>();
+
+function show(entry: TraceEntry): Shown {
+  const known = shown.get(entry);
+  if (known !== undefined) return known;
+  const made = {
+    text: traceText(entry),
+    when: when(entry),
+    datetime: entry.time ?? `PT${entry.atMs / MS_PER_S}S`,
+    problem: isProblem(entry),
+  };
+  shown.set(entry, made);
+  return made;
+}
+
+// Made once: making one for every line cost tens of milliseconds a line.
+const formats = {
+  today: new Intl.DateTimeFormat(catalog().language, { timeStyle: "medium" }),
+  other: new Intl.DateTimeFormat(catalog().language, { dateStyle: "short", timeStyle: "medium" }),
+};
+
 // The time of day by this device's clock and language, with the day when it is not today;
 // on a board that does not know it, how long after the board started.
 function when(entry: TraceEntry): string {
   if (entry.time === null) return t("activity.since_start", { time: duration(entry.atMs) });
   const at = new Date(entry.time);
   const today = at.toDateString() === new Date().toDateString();
-  const options: Intl.DateTimeFormatOptions = today
-    ? { timeStyle: "medium" }
-    : { dateStyle: "short", timeStyle: "medium" };
-  return new Intl.DateTimeFormat(catalog().language, options).format(at);
+  return (today ? formats.today : formats.other).format(at);
 }
 
 function duration(ms: number): string {
@@ -88,20 +115,21 @@ onUnmounted(unfollowTrace);
 
   <section class="list" aria-labelledby="trace-heading">
     <h2 id="trace-heading">{{ t("activity.trace") }}</h2>
-    <p v-if="trace.run === null" class="secondary">{{ t("activity.trace_waiting") }}</p>
+    <template v-if="trace.run === null">
+      <p v-if="session.online" class="secondary">{{ t("activity.trace_waiting") }}</p>
+      <p v-else class="secondary">{{ t("activity.trace_offline") }}</p>
+    </template>
     <p v-else-if="lines.length === 0" class="secondary">{{ t("activity.trace_empty") }}</p>
     <ol v-else class="trace">
-      <template v-for="line in lines" :key="line.kind === 'entry' ? line.entry.number : `gap-${line.before}`">
-        <li
-          v-if="line.kind === 'entry'" class="trace-entry" :class="`depth-${Math.min(line.depth, MAX_DEPTH)}`"
-          :data-number="line.entry.number"
-        >
-          <AppIcon v-if="isProblem(line.entry)" name="s-warn" />
-          <p class="trace-text">{{ traceText(line.entry) }}</p>
-          <time class="trace-time secondary">{{ when(line.entry) }}</time>
-        </li>
-        <li v-else class="trace-gap secondary">{{ t("activity.gap") }}</li>
-      </template>
+      <!-- An entry and its depth never change: only new lines are made. -->
+      <li
+        v-for="line in lines" :key="line.entry.number" v-memo="[line.entry, line.depth]" class="trace-entry"
+        :class="`depth-${Math.min(line.depth, MAX_DEPTH)}`" :data-number="line.entry.number"
+      >
+        <AppIcon v-if="show(line.entry).problem" name="s-warn" />
+        <p class="trace-text">{{ show(line.entry).text }}</p>
+        <time class="trace-time secondary" :datetime="show(line.entry).datetime">{{ show(line.entry).when }}</time>
+      </li>
     </ol>
   </section>
 </template>

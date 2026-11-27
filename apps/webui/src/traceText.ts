@@ -6,6 +6,15 @@ import type { TraceEntry } from "@/api/types";
 import { catalog, t, type Param, type Params } from "@/i18n";
 
 const MS_PER_S = 1000;
+// An unfilled {placeholder}: the message of an error whose params the entry does not carry.
+const UNFILLED = /\{\w+\}/;
+// The actions every switchable output has, said in words. A driver's own (a "pulse") has no
+// words in the catalogs: it is named apart, never put inside a sentence of another language.
+const ACTIONS: Record<string, () => string> = {
+  on: () => t("trace.action.on"),
+  off: () => t("trace.action.off"),
+  set: () => t("trace.action.set"),
+};
 
 // What went wrong rather than what happened: these get the warning icon.
 const PROBLEMS = new Set([
@@ -32,7 +41,7 @@ export function traceText(entry: TraceEntry): string {
     case "package.activated":
       return params.rollback === true ? t("trace.package.activated_rollback", params) : t("trace.package.activated", params);
     case "package.refused":
-      return t("trace.package.refused", { problem: problemOf(params) });
+      return packageRefused(params);
     case "event.happened":
       return eventHappened(params);
     case "event.ignored":
@@ -45,7 +54,10 @@ export function traceText(entry: TraceEntry): string {
       return t("trace.automation.did_not_act", name);
     case "automation.failed":
       // The automation's own problem, as its row says it: it names the automation already.
-      return problemOf({ ...params, automation: params.name ?? "" });
+      return (
+        problemOf({ ...params, automation: params.name ?? "" }) ??
+        t("trace.automation.failed", { ...name, code: String(params.problem ?? "") })
+      );
     case "sequence.started":
       return params.restarted === true ? t("trace.sequence.started_again", name) : t("trace.sequence.started", name);
     case "sequence.stopped":
@@ -84,9 +96,21 @@ export function traceText(entry: TraceEntry): string {
   }
 }
 
-// The message of the error an entry carries the code of, with the entry's params as its own.
-const problemOf = (params: Params): string =>
-  catalog().error({ code: String(params.problem ?? ""), params }).message;
+// The message of the error an entry carries the code of, with the entry's params as its own;
+// null when it carries none, or not the params its message needs.
+function problemOf(params: Params): string | null {
+  if (typeof params.problem !== "string" || params.problem === "") return null;
+  const message = catalog().error({ code: params.problem, params }).message;
+  return UNFILLED.test(message) ? null : message;
+}
+
+function packageRefused(params: Params): string {
+  const problem = problemOf(params);
+  if (problem !== null) return t("trace.package.refused", { problem });
+  if (typeof params.problem === "string" && params.problem !== "")
+    return t("trace.package.refused_code", { code: params.problem });
+  return t("trace.package.refused_plain");
+}
 
 function eventHappened(params: Params): string {
   const name = { name: params.name ?? "" };
@@ -119,23 +143,29 @@ function sequenceStopped(params: Params): string {
 }
 
 function outputCommanded(params: Params): string {
-  const name = params.name ?? "";
-  const action = actionText(params.action);
-  const done =
-    typeof params.durationMs === "number"
-      ? t("trace.output.tested", { name, action, seconds: Math.round(params.durationMs / MS_PER_S) })
-      : t("trace.output.commanded", { name, action });
+  const done = commandText(params);
   return params.failed === true ? `${done} ${t("trace.output.refused")}` : done;
 }
 
-// The actions every switchable output has are said in words; the others are a driver's
-// own, and keep their name.
-function actionText(action: Param | undefined): string {
-  if (action === "on") return t("trace.action.on");
-  if (action === "off") return t("trace.action.off");
-  if (action === "set") return t("trace.action.set");
-  return String(action ?? "");
+function commandText(params: Params): string {
+  const name = params.name ?? "";
+  const words = ACTIONS[String(params.action)];
+  const tested = typeof params.durationMs === "number";
+  if (words === undefined) {
+    const action = String(params.action ?? "");
+    return tested
+      ? t("trace.output.tested_action", { name, action, seconds: seconds(Number(params.durationMs)) })
+      : t("trace.output.commanded_action", { name, action });
+  }
+  return tested
+    ? t("trace.output.tested", { name, action: words(), seconds: seconds(Number(params.durationMs)) })
+    : t("trace.output.commanded", { name, action: words() });
 }
+
+// A test lasts from a second to minutes over the API, but a program may ask for less: a
+// tenth of a second is kept, so that 300 ms is not said as "0 s".
+const seconds = (ms: number): string =>
+  new Intl.NumberFormat(catalog().language, { maximumFractionDigits: 1 }).format(ms / MS_PER_S);
 
 function valueText(value: Param | undefined): string {
   if (value === true) return t("variable.true");

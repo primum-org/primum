@@ -2,6 +2,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 import type { TraceEntry } from "@/api/types";
+import { session } from "@/session";
 import { board, state } from "@/testing/board";
 import { trace } from "@/trace";
 import ActivityView from "@/views/ActivityView.vue";
@@ -30,7 +31,7 @@ const entry = (number: number, over: Partial<TraceEntry> = {}): TraceEntry => ({
 beforeEach(() => {
   FakeSocket.opened = [];
   vi.stubGlobal("WebSocket", FakeSocket);
-  Object.assign(trace, { entries: [], run: null, gaps: [] });
+  Object.assign(trace, { entries: [], run: null });
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -103,17 +104,20 @@ test("the trace shows each chain under what started it, and when", () => {
   expect(lines.map((line) => line.attributes("data-number"))).toEqual(["1", "2"]);
   expect(lines[0]?.text()).toContain("Presence happened.");
   expect(lines[0]?.text()).toContain("2 min 5 s after the board started");
+  expect(lines[0]?.find("time").attributes("datetime")).toBe("PT125S");
   expect(lines[1]?.classes()).toContain("depth-1");
   expect(lines[1]?.find("time").text()).not.toBe("");
+  expect(lines[1]?.find("time").attributes("datetime")).toBe("2026-11-27T09:30:05+00:00");
 });
 
-test("missing entries are marked, and a trace with nothing says so", () => {
+test("a trace with nothing says so, and one not yet had says why", () => {
   board(state());
-  Object.assign(trace, { run: "r1", entries: [entry(1), entry(5)], gaps: [5] });
-  expect(mount(ActivityView).find(".trace-gap").text()).toContain("Some entries are missing here");
-
-  Object.assign(trace, { run: "r1", entries: [], gaps: [] });
+  Object.assign(trace, { run: "r1", entries: [] });
   expect(mount(ActivityView).text()).toContain("Nothing yet.");
+
+  Object.assign(trace, { run: null });
+  session.online = false;
+  expect(mount(ActivityView).text()).toContain("will show when the connection is back");
 });
 
 test("what went wrong has the warning icon", () => {

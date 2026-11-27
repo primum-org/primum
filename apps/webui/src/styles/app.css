@@ -216,8 +216,7 @@ main {
   list-style: none;
   border-top: var(--size-rule-md) solid var(--rule);
 }
-.trace-entry,
-.trace-gap {
+.trace-entry {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -230,7 +229,6 @@ main {
 .trace-time { flex-basis: 100%; font-family: var(--font-family-mono); }
 .trace-entry.depth-1 { padding-left: var(--space-6); }
 .trace-entry.depth-2 { padding-left: calc(var(--space-6) * 2); }
-.trace-gap { font-style: italic; }
 
 /* The level of an output that takes one: a row of its own under the switch. */
 .level {

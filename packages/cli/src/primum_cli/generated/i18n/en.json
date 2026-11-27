@@ -70,7 +70,6 @@
     "activity.trace": "What the board did",
     "activity.trace_empty": "Nothing yet.",
     "activity.trace_waiting": "Asking the board for what it did…",
-    "activity.gap": "Some entries are missing here: the board dropped them before this device asked for them.",
     "activity.since_start": "{time} after the board started",
     "automation.enabled": "On",
     "automation.disabled": "Off",
@@ -117,7 +116,13 @@
     "trace.time.unknown": "The board no longer knows the time.",
     "trace.variables.unsaved": "The values to keep could not be saved.",
     "trace.variables.saved": "The values to keep are saved again.",
-    "trace.unknown": "Something this app cannot describe yet ({kind})."
+    "trace.unknown": "Something this app cannot describe yet ({kind}).",
+    "trace.automation.failed": "{name} failed ({code}).",
+    "trace.package.refused_code": "A project could not be activated ({code}).",
+    "trace.package.refused_plain": "A project could not be activated.",
+    "trace.output.commanded_action": "{name} was given the action “{action}”, by hand.",
+    "trace.output.tested_action": "{name} was given the action “{action}”, as a test for {seconds} s.",
+    "activity.trace_offline": "What the board did will show when the connection is back."
   },
   "cli": {
     "severity.error": "error",

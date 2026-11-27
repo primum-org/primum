@@ -38,6 +38,11 @@ const EVERY_KIND: TraceEntry[] = [
   entry("variable.kept_value_dropped", { ...NAMED, problem: "variable.value_invalid" }),
   entry("output.commanded", { ...NAMED, action: "on" }),
   entry("output.commanded", { ...NAMED, action: "set", durationMs: 5000, failed: true }),
+  entry("output.commanded", { ...NAMED, action: "pulse" }),
+  entry("output.commanded", { ...NAMED, action: "pulse", durationMs: 1500 }),
+  entry("package.refused", { hash: "abc" }),
+  entry("package.refused", { hash: "abc", problem: "hal.pin_unavailable" }),
+  entry("automation.failed", { ...NAMED, problem: "hal.pin_unavailable" }),
   entry("output.released", NAMED),
   entry("output.test_ended", NAMED),
   entry("output.failed", NAMED),
@@ -88,6 +93,31 @@ test("in Spanish too", () => {
     "Welcome se paró: empezó otra secuencia de su grupo.",
   );
   expect(traceText(entry("output.commanded", { ...NAMED, action: "off" }))).toBe("Se mandó apagar Welcome, a mano.");
+});
+
+test("a refusal or a failure whose error cannot be said in full is said by its code, or plainly", () => {
+  // hal.pin_unavailable needs a pin the entry does not carry.
+  expect(traceText(entry("package.refused", { hash: "abc", problem: "hal.pin_unavailable" }))).toBe(
+    "A project could not be activated (hal.pin_unavailable).",
+  );
+  expect(traceText(entry("package.refused", { hash: "abc" }))).toBe("A project could not be activated.");
+  expect(traceText(entry("automation.failed", { ...NAMED, problem: "hal.pin_unavailable" }))).toBe(
+    "Welcome failed (hal.pin_unavailable).",
+  );
+});
+
+test("a test shorter than a second is not said as none", () => {
+  expect(traceText(entry("output.commanded", { ...NAMED, action: "on", durationMs: 300 }))).toBe(
+    "Welcome was told to turn on, as a test for 0.3 s.",
+  );
+});
+
+test("an action of a driver's own is named apart, not put inside a sentence", () => {
+  useCatalog(new Catalog("es", es));
+
+  expect(traceText(entry("output.commanded", { ...NAMED, action: "pulse" }))).toBe(
+    "Se mandó a Welcome la acción «pulse», a mano.",
+  );
 });
 
 test("a kind this app does not know yet is said as such, with its code", () => {

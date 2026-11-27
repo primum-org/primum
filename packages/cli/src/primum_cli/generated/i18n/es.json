@@ -70,7 +70,6 @@
     "activity.trace": "Qué ha hecho la placa",
     "activity.trace_empty": "Nada todavía.",
     "activity.trace_waiting": "Pidiendo a la placa lo que ha hecho…",
-    "activity.gap": "Aquí faltan entradas: la placa las descartó antes de que este dispositivo las pidiera.",
     "activity.since_start": "{time} tras el arranque de la placa",
     "automation.enabled": "Activa",
     "automation.disabled": "Desactivada",
@@ -117,7 +116,13 @@
     "trace.time.unknown": "La placa ha dejado de conocer la hora.",
     "trace.variables.unsaved": "No se pudieron guardar los valores que hay que conservar.",
     "trace.variables.saved": "Los valores que hay que conservar vuelven a estar guardados.",
-    "trace.unknown": "Algo que esta app aún no sabe describir ({kind})."
+    "trace.unknown": "Algo que esta app aún no sabe describir ({kind}).",
+    "trace.automation.failed": "{name} falló ({code}).",
+    "trace.package.refused_code": "No se pudo activar un proyecto ({code}).",
+    "trace.package.refused_plain": "No se pudo activar un proyecto.",
+    "trace.output.commanded_action": "Se mandó a {name} la acción «{action}», a mano.",
+    "trace.output.tested_action": "Se mandó a {name} la acción «{action}», como prueba de {seconds} s.",
+    "activity.trace_offline": "Lo que ha hecho la placa se verá cuando vuelva la conexión."
   },
   "cli": {
     "severity.error": "error",

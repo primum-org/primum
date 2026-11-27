@@ -2,23 +2,23 @@
 // the last entries in memory and sends each new one as it is noted; this device keeps what
 // it was sent, so that coming back to the screen asks only for what is new.
 
-import { reactive, watch, type WatchStopHandle } from "vue";
+import { markRaw, reactive, watch, type WatchStopHandle } from "vue";
 
 import { openTrace } from "@/api/client";
 import type { TraceBody, TraceEntry } from "@/api/types";
 import { RECONNECT_MAX_MS, RECONNECT_MIN_MS, session } from "@/session";
 
-// As many as the board keeps (docs/specs/trace.md): more would be of nothing it still has.
+// As many as the board keeps (docs/specs/trace.md). So no mark of entries the board dropped
+// before this device asked for them could ever be seen: a board that dropped some keeps
+// as many entries newer than all this device has, and they take the place of all it has.
 export const KEPT_ENTRIES = 1000;
 
 export const trace = reactive({
-  // Oldest first, as the board sends them.
-  entries: [] as TraceEntry[],
+  // Oldest first, as the board sends them. Replaced whole, never changed in place, and
+  // not made deeply reactive: a thousand entries, each a proxy, cost every new one.
+  entries: markRaw([]) as TraceEntry[],
   // The id of the trace they are of: another one means the board restarted.
   run: null as string | null,
-  // Entries before which some were noted and dropped by the board before this device
-  // asked for them: the screen says that something is missing there.
-  gaps: [] as number[],
 });
 
 let socket: WebSocket | null = null;
@@ -28,23 +28,22 @@ let stopWatching: WatchStopHandle | null = null;
 /** The number of the newest entry this device has; 0 for none. */
 const lastHeld = (): number => trace.entries.at(-1)?.number ?? 0;
 
-/** Take what the board sent. A body of another trace (the board restarted) replaces what
- * was held; one that starts past the entry after the last held says some were missed. */
-export function takeTrace(body: TraceBody): void {
+/** Take what the board sent; false when it must be asked again from the start. A body of
+ * another trace (the board restarted) replaces what was held. Asked for what follows an
+ * entry the new trace has already passed, the board sends only what follows it there: the
+ * start of the new trace is missing, and it is asked for from 0 (docs/specs/trace.md). */
+export function takeTrace(body: TraceBody): boolean {
   if (body.run !== trace.run) {
-    trace.entries = [];
-    trace.gaps = [];
-    trace.run = body.run;
+    trace.entries = markRaw([]);
+    const whole = body.entries.length === 0 ? body.first > body.last : body.entries[0]?.number === body.first;
+    // Not taken as the trace held: whatever comes next, of this run or another, is new.
+    trace.run = whole ? body.run : null;
+    if (!whole) return false;
   }
   const held = lastHeld();
   const fresh = body.entries.filter((entry) => entry.number > held);
-  const first = fresh[0];
-  if (held > 0 && first !== undefined && first.number > held + 1) trace.gaps.push(first.number);
-  if (fresh.length === 0) return;
-  const entries = [...trace.entries, ...fresh];
-  trace.entries = entries.slice(-KEPT_ENTRIES);
-  const oldest = trace.entries[0]?.number ?? 0;
-  trace.gaps = trace.gaps.filter((number) => number > oldest);
+  if (fresh.length > 0) trace.entries = markRaw([...trace.entries, ...fresh].slice(-KEPT_ENTRIES));
+  return true;
 }
 
 /** Follow the trace for as long as a screen shows it: from what is new since the last
@@ -74,7 +73,7 @@ function open(delay = RECONNECT_MIN_MS): void {
     lastHeld(),
     (body) => {
       opened = true;
-      takeTrace(body);
+      if (!takeTrace(body)) open(); // from 0, now that nothing is held
     },
     () => {
       if (socket !== current) return; // closed on purpose, or replaced
@@ -95,35 +94,29 @@ function close(): void {
   closing?.close();
 }
 
-/** A line of the trace on screen: an entry, as deep as the chain of causes that led to it,
- * or a mark where entries are missing. */
-export type TraceLine =
-  | { readonly kind: "entry"; readonly entry: TraceEntry; readonly depth: number }
-  | { readonly kind: "gap"; readonly before: number };
+/** A line of the trace on screen: an entry, as deep as the chain of causes that led to it. */
+export interface TraceLine {
+  readonly entry: TraceEntry;
+  readonly depth: number;
+}
 
 /** The entries as a person reads them: each chain that one entry started (an event, the
  * automations it concerned, what they did) together and in the order it happened, under
- * the entry that started it; the newest chain first. The marks of missing entries go
- * between the chains they fall between. */
-export function traceLines(entries: readonly TraceEntry[], gaps: readonly number[]): TraceLine[] {
+ * the entry that started it; the newest chain first. */
+export function traceLines(entries: readonly TraceEntry[]): TraceLine[] {
   const held = new Set(entries.map((entry) => entry.number));
   const children = new Map<number, TraceEntry[]>();
   const roots: TraceEntry[] = [];
   for (const entry of entries) {
     // A cause that is not held (dropped, or of before this device asked) starts nothing here.
     if (entry.cause === null || !held.has(entry.cause)) roots.push(entry);
-    else children.set(entry.cause, [...(children.get(entry.cause) ?? []), entry]);
+    else children.set(entry.cause, children.get(entry.cause) ?? []).get(entry.cause)?.push(entry);
   }
   const lines: TraceLine[] = [];
   const chain = (entry: TraceEntry, depth: number): void => {
-    lines.push({ kind: "entry", entry, depth });
+    lines.push({ entry, depth });
     for (const child of children.get(entry.number) ?? []) chain(child, depth + 1);
   };
-  const newestFirst = roots.reverse();
-  newestFirst.forEach((root, index) => {
-    chain(root, 0);
-    const below = newestFirst[index + 1]?.number ?? 0;
-    for (const gap of gaps) if (gap <= root.number && gap > below) lines.push({ kind: "gap", before: gap });
-  });
+  for (const root of roots.reverse()) chain(root, 0);
   return lines;
 }

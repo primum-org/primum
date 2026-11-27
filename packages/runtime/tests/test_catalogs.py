@@ -27,8 +27,6 @@ TECHNICAL_PARAMS = frozenset({"detail", "consumer", "fields"})
 PLACEHOLDER = re.compile(r"\{(\w+)\}")
 # How the web UI names its keys: t("key"), or t('key') inside an attribute of a template.
 UI_KEY_USES = (re.compile(r"""\bt\(["']([\w.]+)["']"""),)
-# Trace entries the web UI says with the message of the error they carry, which says it all.
-SAID_BY_THEIR_PROBLEM = frozenset({Kind.AUTOMATION_FAILED.value})
 
 type Catalog = dict[str, dict[str, object]]
 
@@ -127,8 +125,7 @@ def test_the_web_ui_has_a_sentence_for_every_kind_of_trace_entry() -> None:
     # One key per kind, or one per way of it ("trace.sequence.stopped_panic"): the web UI
     # says each entry in words, and a kind it has no words for only by its code.
     keys = set(_load(DEFAULT)["webui"])
-    said = {kind.value for kind in Kind if any(_says(key, kind) for key in keys)}
-    missing = {kind.value for kind in Kind} - said - SAID_BY_THEIR_PROBLEM
+    missing = {kind.value for kind in Kind if not any(_says(key, kind) for key in keys)}
     assert missing == set(), "kinds of trace entry the web UI has no sentence for"
 
 
