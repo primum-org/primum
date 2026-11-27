@@ -77,10 +77,24 @@ function take(state: StateBody, fresh = false): void {
   const changed = session.state === null || !sameState(state, session.state);
   session.state = state;
   session.stateAt = performance.now();
-  // The alert of a package that does not run is asked for apart, and goes stale: a new
-  // state may be of a package another device has just activated. Not on a beat that says
-  // the same again: every 2 s, for as long as the package does not run, nobody asked for.
-  if (changed && session.packages?.problem) void askForPackages();
+  // The packages are asked for apart, and go stale: a new state may be of a package another
+  // device has just activated. Asked again for the alert of a package that does not run,
+  // and while a screen shows them; not on a beat that says the same again: every 2 s, for
+  // as long as the package does not run, nobody asked for.
+  if (changed && (session.packages?.problem || packagesShown > 0)) void askForPackages();
+}
+
+// How many screens show the packages now.
+let packagesShown = 0;
+
+/** Keep `session.packages` fresh while a screen shows them: asked for now, and again with
+ * every state that says something new. Returns what to call when the screen goes. */
+export function showPackages(): () => void {
+  packagesShown += 1;
+  void askForPackages();
+  return () => {
+    packagesShown -= 1;
+  };
 }
 
 // Whether two states say the same, whatever their numbers.
@@ -206,12 +220,21 @@ export function stop(): void {
 // Whether the active package runs is not in the state. Not knowing it is no problem of its
 // own: the alert it would give is simply not shown. Asked once at a time.
 let askingPackages = false;
+let askAgain = false;
 
 async function askForPackages(): Promise<void> {
-  if (askingPackages) return;
+  // Asked while an answer is on its way: what changed meanwhile may not be in it.
+  if (askingPackages) {
+    askAgain = true;
+    return;
+  }
   askingPackages = true;
   session.packages = await api.packages().catch(() => null);
   askingPackages = false;
+  if (askAgain) {
+    askAgain = false;
+    await askForPackages();
+  }
 }
 
 function again(after: number, next: number): void {

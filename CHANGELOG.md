@@ -147,6 +147,10 @@ All notable changes to this project are documented here. The format follows
   words: each event with the automations it concerned and what they did, under it; and
   how each automation stands (on or off, its last failure) and whether each schedule's
   window is open.
+- The *Board* tab shows the projects the board keeps (the active one, the one ready to be
+  activated and the previous one), activates the ready one or goes back to the previous
+  one after saying that everything will stop first, and lists the paired devices, any of
+  which can be forgotten.
 - The state of the API has a `revision`, which rises with every state reported: of two
   states that reach a client by different ways, the higher is the later.
 - Pairing: a board has a pairing code (`primum-pairing` shows it), and a phone or a program

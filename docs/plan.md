@@ -1270,6 +1270,28 @@ control on the API there is · 5.4 the project on the board and the first edit o
     longer held, a trace kept across restarts.
   - Not tried: a real phone, a real board, a screen reader.
   - Next: packages and paired devices in the Board tab.
+- [x] **5.3b (3 of 3) Packages and paired devices.** The Board tab shows the packages the
+  board keeps by the name of their project and the start of their hash (the active one,
+  the staged one, the previous one), and the paired devices, this one marked. Activating
+  the staged package or going back to the previous one, and forgetting another device,
+  are asked for a second time, saying what follows: everything stops and every output
+  goes to its safe state before the project starts from the beginning; a forgotten
+  device must pair again with the board's code. Not in panic (the board refuses it, and
+  the buttons say so before) nor offline. An activation is waited for 30 s, not the 5 of
+  an order: it reads and checks the package again. While the tab is shown, the packages
+  are asked for again with every state that says something new (another device may have
+  activated one), never on a beat. A board started with fixed options says that nothing
+  can be changed there. Uploading a package from the phone is left for 5.4, where the
+  project lives on the board (the owner's choice).
+  - Tried: its tests (Vitest for both sections, the waits, the refresh while shown). By
+    hand, not by a test of the repository, in a headless Chromium as a phone in Spanish
+    against a simulated service with pairing and two versions of `examples/shop-window`
+    given through the API: the confirmation and the activation (61 ms there), the
+    Activity tab telling of the new project, a rollback made from a second paired browser
+    seen at once on the first, the buttons disabled in panic with their note, the second
+    browser forgotten from the first and sent to pair again.
+  - Not tried: a real phone, a real board, an activation of a large show on a Pi.
+  - Block 5.3b is done. Next: 5.4, the project on the board and the first edit operations.
 
 ## Phase 6 · Hardware manager
 
