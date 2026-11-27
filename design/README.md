@@ -16,9 +16,13 @@ rules of 0007 still hold).
 | `tokens/tokens.json` | **Design tokens: the single source** of colors, fonts, sizes, radii, spacing, shadows and motion | Yes |
 | `tokens/tokens.css` | CSS custom properties generated from `tokens.json` (`just gen`) | **Never** (generated) |
 | `logo/` | The symbol at 48 px and its redrawn 16 px version (no axis, 6 px astro), in light, dark and mono (`currentColor`; the astro has `class="astro"` so the UI can color it) | Only from the source |
-| `icons/` | 56 icons on a 24 px grid, `currentColor` | Only from the source |
+| `icons/` | 56 icons on a 24 px grid, `currentColor`, drawn in the Plano style (all shown in the brandbook, §006) | Only with the brandbook |
+| `fonts/` | Geist, Geist Mono and Pixelify Sans as variable woff2 (Latin + Latin Extended), `fonts.css` with their `@font-face`, and their SIL OFL 1.1 licenses | Only to update the fonts |
 
 ## Using the tokens
+
+- Load `fonts/fonts.css` before `tokens/tokens.css`: it declares the families the tokens name,
+  from the bundled files, so nothing is fetched from the Internet.
 
 - Load `tokens/tokens.css`. The theme follows `prefers-color-scheme` unless
   `<html data-theme="light|dark">` is set.
@@ -89,11 +93,7 @@ rules of 0007 still hold).
 - Logotype (symbol + "Primum") outlined to curves: the brandbook sets it live in Geist.
 - App icon set (1024 → 16 px: navy square, white ring, blue astro) and favicon files, as
   described in the brandbook (§2). The web UI uses the 16 px symbol as its favicon.
-- A full redraw of the 56 icons in the new style: they got the square 2 × 2 pivot, but the
-  brandbook draws only 24 of them.
 - Tokens for font weights, line heights and letter spacing: the brandbook gives them per size
   (display 56/1.0 … xs 12/1.4); the web UI writes the few it uses in its own CSS, with a note.
-- Font files (woff2, Latin + Latin Extended) bundled for offline use: phase 5. Until then the
-  UI falls back to the system's faces.
 - Icons for the project file types (`.sec`, `.auto`, `.evt`, `.sched`, `.vars`, `.hw`) and for the
   file explorer.

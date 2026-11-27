@@ -4,9 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Primum Brandbook</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&family=Pixelify+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link href="fonts/fonts.css" rel="stylesheet">
 <style>
 /* VOICE  trabajo: un sistema de marca técnico, preciso y sereno, con la voz de la referencia pedida
    IDEA   un plano de ingeniería / hoja de especificación: retícula de filetes, bandas numeradas con etiqueta mono, márgenes rayados
@@ -141,7 +139,8 @@ td.m{font-family:var(--mono);font-size:13px;white-space:nowrap}
 .icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}
 .icons div{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:18px 8px 10px;display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--raised);color:var(--ink)}
 .icons svg{width:28px;height:28px}.icons span{font:11px var(--mono);color:var(--muted);text-align:center}
-.ic{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:square;stroke-linejoin:miter}
+.ic{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:butt;stroke-linejoin:miter}
+.icons h4{grid-column:1/-1;margin:0;padding:10px 12px;font:500 12px var(--mono);text-transform:uppercase;color:var(--muted);background:var(--sunk);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
 /* phone */
 .phone{width:min(100%,340px);border:1px solid var(--line2);background:var(--bg);margin:0 auto;font-size:14px}
 .phone .st{display:flex;justify-content:space-between;padding:8px 14px;font:500 12px var(--mono);color:var(--ink)}
@@ -201,6 +200,62 @@ footer{padding:28px max(3vw,16px);display:flex;justify-content:space-between;gap
 <symbol id="i-ok" viewBox="0 0 24 24"><rect class="ic" x="4" y="4" width="16" height="16"/><path class="ic" d="M8 12l3 3 5-6"/></symbol>
 <symbol id="i-local" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="12" r="8"/><rect x="11" y="11" width="2" height="2" fill="currentColor"/></symbol>
 <symbol id="i-folder" viewBox="0 0 24 24"><path class="ic" d="M3 6h7l2 2h9v11H3z"/></symbol>
+<symbol id="ic-i-bulb" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M8.5 15.5A6 6 0 1 1 15.5 15.5V18h-7zM9.5 21h5"/><rect x="11" y="9" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-bus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 7h18M3 12h18M7 7v12M16 12v7"/><rect x="15" y="19" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-button" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M4 14h16v5H4zM8 14v-4h8v4"/><rect x="11" y="5" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-deploy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M4 14v6h16v-6"/></g></symbol>
+<symbol id="ic-i-dist" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 12h18M6 9l-3 3 3 3M18 9l3 3-3 3"/><rect x="11" y="6" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-dmx" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8"/><path d="M7.5 12h2.5M14 12h2.5"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-hub" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/><rect x="16.5" y="4" width="3" height="3"/><rect x="3.5" y="15" width="3" height="3"/></g></symbol>
+<symbol id="ic-i-led" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 15h18M6 15v-4M10 15v-4M14 15v-4M18 15v-4"/><rect x="9" y="8" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-motor" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="4" y="7" width="12" height="10"/><path d="M16 12h5"/><rect x="9" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-node" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="5" y="5" width="14" height="14"/><path d="M9 2.5v2.5M15 2.5v2.5M9 19v2.5M15 19v2.5"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-panic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M8.5 3h7L21 8.5v7L15.5 21h-7L3 15.5v-7zM7.5 16.5l9-9"/></g></symbol>
+<symbol id="ic-i-pause" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M8 5v14M16 5v14"/></g></symbol>
+<symbol id="ic-i-pausef" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M6 5h4v14H6zM14 5h4v14h-4z" fill="currentColor"/></g></symbol>
+<symbol id="ic-i-pir" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M5 9a10 10 0 0 1 14 0M8 12.5a5.5 5.5 0 0 1 8 0"/><rect x="11" y="16" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-play" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M7 5l11 7-11 7z"/><rect x="9" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-playf" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M7 5l11 7-11 7z" fill="currentColor"/></g></symbol>
+<symbol id="ic-i-radio" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 11v10M8 21h8M8 4.5a6.5 6.5 0 0 0 0 9M16 4.5a6.5 6.5 0 0 1 0 9"/><rect x="11" y="8" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-sat" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="6" y="9" width="12" height="10"/><path d="M12 9V4M9 4h6"/><rect x="11" y="13" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-servo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="3" y="10" width="13" height="8"/><path d="M8 10V6M4 6h15"/><rect x="7" y="13" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-speaker" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M4 9h4l5-4v14l-5-4H4zM16 9.5a3.5 3.5 0 0 1 0 5M18.5 6.5a7.5 7.5 0 0 1 0 11"/><rect x="5" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-stop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="6" y="6" width="12" height="12"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-temp" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M10 14.5V4h4v10.5a4 4 0 1 1-4 0z"/><rect x="11" y="16" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-test" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 13h4V7h5v10h5v-4h4"/><rect x="11" y="6" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-usb" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 3v15M9.5 5.5L12 3l2.5 2.5M12 14l-5-2.5V8M12 12l5-2.5V7"/><rect x="5.5" y="6" width="3" height="2"/><rect x="15.5" y="5" width="3" height="2"/><rect x="11" y="19" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-wifi" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 9a13 13 0 0 1 18 0M6.5 12.5a8 8 0 0 1 11 0M9.5 15.5a3.5 3.5 0 0 1 5 0"/><rect x="11" y="18" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="4" y="4" width="16" height="16"/><path d="M12 11v6"/><rect x="11" y="7" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-local" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-ok" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="4" y="4" width="16" height="16"/><path d="M8 12l3 3 5-6"/></g></symbol>
+<symbol id="ic-s-play" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8.5"/><path d="M10 8.5l5.5 3.5-5.5 3.5z"/></g></symbol>
+<symbol id="ic-s-ring" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8" stroke-dasharray="2.09 2.1"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-run" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 3.5v4h-4"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-safe" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-spark" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-warn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 4l9 16H3zM12 10v4"/><rect x="11" y="16" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-back" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M10 6l-6 6 6 6M4 12h16"/></g></symbol>
+<symbol id="ic-u-board" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="3" y="6" width="18" height="12"/><path d="M6 6V3.5M10 6V3.5M14 6V3.5M18 6V3.5"/><rect x="13" y="10" width="4" height="4"/><rect x="6" y="13" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-bolt" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M13.5 3L6 13.5h5.5L10.5 21 18 10.5h-5.5z"/></g></symbol>
+<symbol id="ic-u-book" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 5h7l2 2 2-2h7v13h-7l-2 2-2-2H3zM12 7v13"/></g></symbol>
+<symbol id="ic-u-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M5 12.5l4.5 4.5L19 7.5"/></g></symbol>
+<symbol id="ic-u-chev" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M9 6l6 6-6 6"/></g></symbol>
+<symbol id="ic-u-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5h4"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-code" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-dl" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M4 14v6h16v-6"/></g></symbol>
+<symbol id="ic-u-down" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M6 9l6 6 6-6"/></g></symbol>
+<symbol id="ic-u-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="5.5"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M5.99 5.99l2.12 2.12M15.89 15.89l2.12 2.12M5.99 18.01l2.12-2.12M15.89 8.11l2.12-2.12"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="5" y="11" width="14" height="9"/><path d="M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11"/><rect x="11" y="14" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-loop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M4 12V8h14M15 5l3 3-3 3M20 12v4H6M9 19l-3-3 3-3"/></g></symbol>
+<symbol id="ic-u-more" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="5" y="11" width="2" height="2" fill="currentColor" stroke="none"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/><rect x="17" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 5v14M5 12h14"/></g></symbol>
+<symbol id="ic-u-rule" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M4 6h5l6 12h5M4 18h5l2-4M15 6h5"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.2 15.2L20.5 20.5"/></g></symbol>
+<symbol id="ic-u-seq" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 6h18M3 12h18M3 18h18M6 4v4M14 10v4M9 16v4"/></g></symbol>
+<symbol id="ic-u-sim" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="3" y="4" width="18" height="12"/><path d="M8 20h8M12 16v4M10 7.5l4.5 2.5-4.5 2.5z"/></g></symbol>
+<symbol id="ic-u-skipb" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M6.5 5v14M18 5l-9 7 9 7z"/></g></symbol>
+<symbol id="ic-u-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="9" cy="8" r="3.5"/><path d="M3 20v-2.5A3.5 3.5 0 0 1 6.5 14h5a3.5 3.5 0 0 1 3.5 3.5V20M16 4.5a3.5 3.5 0 0 1 0 7M18 14a3.5 3.5 0 0 1 3 3.5V20"/></g></symbol>
+<symbol id="ic-u-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M6 6l12 12M18 6L6 18"/></g></symbol>
 </defs>
 </svg>
 
@@ -377,6 +432,12 @@ footer{padding:28px max(3vw,16px);display:flex;justify-content:space-between;gap
         <tr><td class="m">xs</td><td class="m">12/1.4</td><td>Etiquetas mono, regla de tiempo</td></tr>
       </tbody></table></div>
       <p style="margin-top:16px;font-size:14px"><b>Familias:</b> Geist y Geist Mono (SIL OFL 1.1) para todo; una pixel (Pixelify Sans, OFL, o la Geist Pixel si su licencia lo permite) solo para cifras grandes: código de emparejamiento, contadores, tiempo en el kiosco. Titulares en 500 con interletraje −3,5 %. Mayúsculas solo en etiquetas mono y botones. Todo se empaqueta en woff2 dentro de la placa para funcionar sin Internet.</p>
+      <div class="scroll" style="margin-top:16px"><table><thead><tr><th>Familia</th><th>Archivos (woff2 variable)</th><th>Pesos</th></tr></thead><tbody>
+        <tr><td>Geist</td><td class="m">geist-latin · geist-latin-ext</td><td class="m">100–900</td></tr>
+        <tr><td>Geist Mono</td><td class="m">geist-mono-latin · -latin-ext</td><td class="m">100–900</td></tr>
+        <tr><td>Pixelify Sans</td><td class="m">pixelify-sans-latin · -latin-ext</td><td class="m">400–700</td></tr>
+      </tbody></table></div>
+      <p style="margin-top:12px;font-size:14px"><b>Fuentes empaquetadas:</b> en <span class="mono">design/fonts/</span>, con <span class="mono">fonts.css</span> (los <span class="mono">@font-face</span>) y las licencias OFL. Subconjuntos latín y latín extendido (castellano y catalán), unos 100 KB en total. La web de la placa y este brandbook las cargan de ahí: nada se pide a Internet.</p>
     </div>
   </div>
 </section>
@@ -400,9 +461,70 @@ footer{padding:28px max(3vw,16px);display:flex;justify-content:space-between;gap
   <div class="lbl"><span>006 / Iconografía &gt;&gt;&gt;</span><span>//</span></div>
   <div class="g2" style="margin-bottom:20px">
     <h2>Trazo fino y un píxel macizo.</h2>
-    <p>Retícula de 24 px, trazo 1,5 px, remates rectos y uniones a inglete. Firma: un único <b>píxel macizo de 2 × 2</b> por icono, donde la pieza gira, actúa o se mide. Color <span class="mono">currentColor</span>. Tamaños 16, 20, 24 y 32.</p>
+    <div><p>Retícula de 24 px, trazo 1,5 px, remates rectos y uniones a inglete. Firma: un único <b>píxel macizo de 2 × 2</b> por icono, donde la pieza gira, actúa o se mide. Color <span class="mono">currentColor</span>. Tamaños 16, 20, 24 y 32. Los navegacionales (flechas, cerrar, añadir) no llevan píxel; los macizos (reproducir y pausa) lo son enteros.</p>
+    <p class="muted" style="font-size:14px">Juego completo: 56 iconos en <span class="mono">design/icons/</span>, con el nombre de archivo bajo cada uno.</p></div>
   </div>
-  <div class="icons" id="icons"></div>
+  <div class="icons" id="icons">
+<h4>i-* · Dominio: placas, elementos, acciones, conexiones · 25</h4>
+<div><svg><use href="#ic-i-hub"/></svg><span>Placa central<br>i-hub</span></div>
+<div><svg><use href="#ic-i-node"/></svg><span>Placa nodo<br>i-node</span></div>
+<div><svg><use href="#ic-i-sat"/></svg><span>Satélite<br>i-sat</span></div>
+<div><svg><use href="#ic-i-led"/></svg><span>Tira LED<br>i-led</span></div>
+<div><svg><use href="#ic-i-bulb"/></svg><span>Bombilla<br>i-bulb</span></div>
+<div><svg><use href="#ic-i-motor"/></svg><span>Motor<br>i-motor</span></div>
+<div><svg><use href="#ic-i-servo"/></svg><span>Servo<br>i-servo</span></div>
+<div><svg><use href="#ic-i-pir"/></svg><span>Sensor PIR<br>i-pir</span></div>
+<div><svg><use href="#ic-i-button"/></svg><span>Pulsador<br>i-button</span></div>
+<div><svg><use href="#ic-i-dist"/></svg><span>Distancia<br>i-dist</span></div>
+<div><svg><use href="#ic-i-temp"/></svg><span>Temperatura<br>i-temp</span></div>
+<div><svg><use href="#ic-i-speaker"/></svg><span>Altavoz<br>i-speaker</span></div>
+<div><svg><use href="#ic-i-dmx"/></svg><span>DMX<br>i-dmx</span></div>
+<div><svg><use href="#ic-i-play"/></svg><span>Reproducir<br>i-play</span></div>
+<div><svg><use href="#ic-i-playf"/></svg><span>Reproducir (macizo)<br>i-playf</span></div>
+<div><svg><use href="#ic-i-pause"/></svg><span>Pausa<br>i-pause</span></div>
+<div><svg><use href="#ic-i-pausef"/></svg><span>Pausa (maciza)<br>i-pausef</span></div>
+<div><svg><use href="#ic-i-stop"/></svg><span>Parar<br>i-stop</span></div>
+<div><svg><use href="#ic-i-panic"/></svg><span>Pánico<br>i-panic</span></div>
+<div><svg><use href="#ic-i-test"/></svg><span>Probar<br>i-test</span></div>
+<div><svg><use href="#ic-i-deploy"/></svg><span>Desplegar<br>i-deploy</span></div>
+<div><svg><use href="#ic-i-wifi"/></svg><span>Wi-Fi<br>i-wifi</span></div>
+<div><svg><use href="#ic-i-usb"/></svg><span>USB<br>i-usb</span></div>
+<div><svg><use href="#ic-i-radio"/></svg><span>Radio<br>i-radio</span></div>
+<div><svg><use href="#ic-i-bus"/></svg><span>Bus I²C<br>i-bus</span></div>
+<h4>s-* · Estado · 9</h4>
+<div><svg><use href="#ic-s-ok"/></svg><span>Hecho<br>s-ok</span></div>
+<div><svg><use href="#ic-s-run"/></svg><span>En ejecución<br>s-run</span></div>
+<div><svg><use href="#ic-s-play"/></svg><span>Reproduciendo<br>s-play</span></div>
+<div><svg><use href="#ic-s-ring"/></svg><span>Conectando<br>s-ring</span></div>
+<div><svg><use href="#ic-s-warn"/></svg><span>Aviso<br>s-warn</span></div>
+<div><svg><use href="#ic-s-info"/></svg><span>Información<br>s-info</span></div>
+<div><svg><use href="#ic-s-local"/></svg><span>Modo local<br>s-local</span></div>
+<div><svg><use href="#ic-s-safe"/></svg><span>Estado seguro<br>s-safe</span></div>
+<div><svg><use href="#ic-s-spark"/></svg><span>Propuesta IA<br>s-spark</span></div>
+<h4>u-* · Interfaz · 22</h4>
+<div><svg><use href="#ic-u-plus"/></svg><span>Añadir<br>u-plus</span></div>
+<div><svg><use href="#ic-u-x"/></svg><span>Cerrar<br>u-x</span></div>
+<div><svg><use href="#ic-u-check"/></svg><span>Marcar<br>u-check</span></div>
+<div><svg><use href="#ic-u-back"/></svg><span>Atrás<br>u-back</span></div>
+<div><svg><use href="#ic-u-chev"/></svg><span>Abrir<br>u-chev</span></div>
+<div><svg><use href="#ic-u-down"/></svg><span>Desplegar lista<br>u-down</span></div>
+<div><svg><use href="#ic-u-more"/></svg><span>Más<br>u-more</span></div>
+<div><svg><use href="#ic-u-search"/></svg><span>Buscar<br>u-search</span></div>
+<div><svg><use href="#ic-u-seq"/></svg><span>Secuencia<br>u-seq</span></div>
+<div><svg><use href="#ic-u-rule"/></svg><span>Automatización<br>u-rule</span></div>
+<div><svg><use href="#ic-u-clock"/></svg><span>Programación<br>u-clock</span></div>
+<div><svg><use href="#ic-u-board"/></svg><span>Placa<br>u-board</span></div>
+<div><svg><use href="#ic-u-sim"/></svg><span>Simulador<br>u-sim</span></div>
+<div><svg><use href="#ic-u-gear"/></svg><span>Ajustes<br>u-gear</span></div>
+<div><svg><use href="#ic-u-lock"/></svg><span>Bloqueo<br>u-lock</span></div>
+<div><svg><use href="#ic-u-users"/></svg><span>Usuarios<br>u-users</span></div>
+<div><svg><use href="#ic-u-book"/></svg><span>Documentación<br>u-book</span></div>
+<div><svg><use href="#ic-u-code"/></svg><span>Código<br>u-code</span></div>
+<div><svg><use href="#ic-u-dl"/></svg><span>Descargar<br>u-dl</span></div>
+<div><svg><use href="#ic-u-bolt"/></svg><span>Alimentación<br>u-bolt</span></div>
+<div><svg><use href="#ic-u-loop"/></svg><span>Repetir<br>u-loop</span></div>
+<div><svg><use href="#ic-u-skipb"/></svg><span>Al inicio<br>u-skipb</span></div>
+</div>
 </section>
 
 <section class="band" id="componentes">
@@ -567,7 +689,7 @@ footer{padding:28px max(3vw,16px);display:flex;justify-content:space-between;gap
 }</pre>
 </section>
 
-<footer><span>Primum · Brandbook v2 «Plano»</span><span>Borrador · 26 nov 2026</span></footer>
+<footer><span>Primum · Brandbook v2 «Plano»</span><span>27 nov 2026</span></footer>
 </div>
 
 <script>
@@ -583,8 +705,6 @@ const sem=[["danger","#D7263D","#FF5A6B","b-danger","i-panic","Pánico","Pánico
 $("#sem").innerHTML=sem.map(([t,l,d,b,i,w,m])=>`<tr><td data-l="Token" class="m">semantic.${t}</td><td data-l="Claro" class="m"><span class="sw8" style="background:${l}"></span> ${l}</td><td data-l="Oscuro" class="m"><span class="sw8" style="background:${d}"></span> ${d}</td><td data-l="Insignia"><span class="badge ${b}">${i?`<svg><use href="#${i}"/></svg>`:'<span class="dot"></span>'}${w}</span></td><td data-l="Significa">${m}</td></tr>`).join("");
 const tn=["Índigo","Pino","Granate","Bronce","Violeta","Petróleo","Ciruela","Turquesa","Salvia","Arcilla","Lavanda","Ocre"];
 $("#tracksw").innerHTML=tn.map((n,i)=>`<div style="background:var(--t${i+1});color:#fff;flex-direction:column;align-items:flex-start;padding:6px;justify-content:space-between;background-image:repeating-linear-gradient(${[135,45,90,0,135,90,45,135,0,90,45,135][i]}deg,rgba(255,255,255,.35) 0 1.5px,transparent 1.5px 5px);background-size:100% 14px;background-repeat:no-repeat;background-color:var(--t${i+1})"><span style="margin-top:14px">${String(i+1).padStart(2,"0")}</span><span style="font-size:10px">${n}</span></div>`).join("");
-const ic=[["play","Reproducir"],["pause","Pausa"],["stop","Parar"],["panic","Pánico"],["test","Probar"],["deploy","Desplegar"],["hub","Placa central"],["led","Tira LED"],["motor","Motor"],["sensor","Sensor"],["seq","Secuencia"],["auto","Automatización"],["clock","Programación"],["var","Variable"],["trace","Traza"],["box","Paquete"],["phone","Dispositivo"],["wifi","Wi-Fi"],["spark","Propuesta IA"],["safe","Estado seguro"],["warn","Aviso"],["ok","Hecho"],["local","Modo local"],["folder","Carpeta"]];
-$("#icons").innerHTML=ic.map(([k,n])=>`<div><svg><use href="#i-${k}"/></svg><span>${n}</span></div>`).join("");
 const days=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];let h='<span></span>'+Array.from({length:24},(_,i)=>`<span style="text-align:center;padding:4px 0;border-left:1px solid var(--line)">${i%6?"":i}</span>`).join("");
 days.forEach((d,j)=>{h+=`<span style="padding:6px;border-top:1px solid var(--line)">${d}</span>`;for(let i=0;i<24;i++){const on=(i>=10&&i<14)||(i>=17&&i<(j>4?22:21));const at=i===20;h+=`<span style="border-top:1px solid var(--line);border-left:1px solid var(--line);background:${on?"var(--sigtint)":"transparent"};position:relative">${at?'<i style="position:absolute;inset:4px 40% 4px auto;width:3px;background:var(--sig)"></i>':""}</span>`}});
 $("#sched").innerHTML=h;

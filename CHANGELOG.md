@@ -158,4 +158,6 @@ All notable changes to this project are documented here. The format follows
 - New brand "Plano" (brandbook v2) replaces "Brass automaton · compact": a new logo, cold white
   and navy with a single signal blue, Geist and Geist Mono, square corners everywhere. The web
   interface follows it: blue focus ring and current tab, uppercase mono buttons, labels and
-  tabs, square switches, dashed borders on what is disabled. The icons carry its square pivot.
+  tabs, square switches, dashed borders on what is disabled. The 56 icons are redrawn in its
+  style, and its fonts (Geist, Geist Mono, Pixelify Sans) come with the web interface, so they
+  show without Internet.

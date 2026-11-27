@@ -1101,7 +1101,8 @@ control on the API there is · 5.4 the project on the board and the first edit o
   - Not tried: `just pi-sync` and `just pi-watch` against a Pi, a real phone. `just ui-dev`
     was tried by hand in a headless Chromium (pairing, the WebSocket through its proxy, the
     link to the page). The CI steps that install pnpm ran with this pull request.
-  - Left for later: the fonts of the brand bundled for offline use (it shows the system's);
+  - Left for later: the fonts of the brand bundled for offline use (it shows the system's;
+    done with the brand "Plano", decision 0036);
     TypeScript types of the project's formats, from `schemas/` (5.4); tests in a browser
     that are part of the repository.
 - [x] **5.3a Daily control in the web UI; the page of phase 1 is gone.** Tabs at the bottom

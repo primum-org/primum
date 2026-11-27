@@ -1,3 +1,4 @@
+import "@design/fonts/fonts.css";
 import "@design/tokens/tokens.css";
 import "@/styles/app.css";
 

@@ -33,6 +33,8 @@ boards, pins and scenes) and is calmer in the dense screens to come (multi-track
 ## Consequences
 - Every UI follows the new rules in `design/README.md`: one action color, radius 0, mono
   uppercase labels and buttons, blue focus ring and current tab.
-- The 56 icons keep their drawings but carry the square 2 × 2 pivot; a full redraw is pending.
-- The brandbook page loads its fonts from Google Fonts when opened; the UI never does: the fonts
-  are to be bundled as woff2 for offline use (phase 5), and fall back to system faces meanwhile.
+- The 56 icons are redrawn in the new style (1.5 px stroke, butt caps, mitred joins, one solid
+  2 × 2 pixel where the part turns, acts or is measured) and the brandbook shows all of them.
+- The fonts are bundled in `design/fonts/` (variable woff2, Latin + Latin Extended, SIL OFL 1.1,
+  about 100 KB): the web UI and the brandbook page load them from there and never from the
+  Internet. Variable files keep every weight the brand uses in two files per family.
