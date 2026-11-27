@@ -155,12 +155,12 @@ def decode(content: bytes, location: Location) -> object:
     """The JSON document in ``content``, or the ``Issue`` that prevents reading it: UTF-8, no
     repeated keys, numbers as JSON means them, and only text that can be written again."""
     document = _loaded(content, location)
-    if not isinstance(document, Issue) and _has_half_a_character(document):
+    if not isinstance(document, Issue) and has_half_a_character(document):
         return Issue(CoreErrorCode.FILE_INVALID_TEXT, location=location)
     return document
 
 
-def _has_half_a_character(value: object) -> bool:
+def has_half_a_character(value: object) -> bool:
     """Whether a text anywhere in ``value``, a key included, has a surrogate without its pair.
 
     JSON lets one be written (``"\\ud83d"``) and Python reads it, but it is no character:
@@ -170,9 +170,9 @@ def _has_half_a_character(value: object) -> bool:
         return HALF_A_CHARACTER.search(value) is not None
     if is_object(value):
         return any(
-            _has_half_a_character(key) or _has_half_a_character(item) for key, item in value.items()
+            has_half_a_character(key) or has_half_a_character(item) for key, item in value.items()
         )
-    return is_array(value) and any(_has_half_a_character(item) for item in value)
+    return is_array(value) and any(has_half_a_character(item) for item in value)
 
 
 def _loaded(content: bytes, location: Location) -> object:

@@ -3,12 +3,13 @@
 Some objects take different fields depending on one of them: an element on a GPIO needs a
 ``pin`` while an I2C device needs a ``bus`` and an ``address``; an event from an element needs
 the element; an automation action that starts a sequence names it; only a numeric variable has
-limits; an argument of a clip is a value or the name of one. A missing field is
+limits and a step; an argument of a clip is a value or the name of one. A missing field is
 ``schema.missing_field`` and a field that does not apply to the case
 is ``schema.unexpected_field``, both pointing at it.
 
-Constants and variables also carry a value of their declared type, and a variable's initial
-value lies within its limits (``value.expected_*``, ``variable.*``).
+Constants and variables also carry a value of their declared type, a variable's initial
+value lies within its limits and its step is one its type can take (``value.expected_*``,
+``variable.*``).
 """
 
 from collections.abc import Iterator, Mapping
@@ -135,8 +136,15 @@ def _variable_issues(
 ) -> Iterator[Issue]:
     at = replace(location, pointer=pointer(steps))
     if variable.type not in NUMERIC:
-        limits = {"min": variable.min is not None, "max": variable.max is not None}
-        yield from _check(_case(unexpected="min max"), limits, steps, location)
+        of_numbers = {
+            "min": variable.min is not None,
+            "max": variable.max is not None,
+            "step": variable.step is not None,
+        }
+        yield from _check(_case(unexpected="min max step"), of_numbers, steps, location)
+    elif variable.step is not None and not _is_a_step(variable.step, variable.type):
+        params = {"name": variable.name, "step": variable.step}
+        yield Issue(CoreErrorCode.VARIABLE_STEP_INVALID, params, at)
     if issue := check_value(variable.initial, variable.type, (*steps, "initial"), location):
         yield issue
         return
@@ -151,6 +159,11 @@ def _variable_issues(
         if below or above:
             params = {"name": variable.name, "initial": initial}
             yield Issue(CoreErrorCode.VARIABLE_INITIAL_OUT_OF_RANGE, params, at)
+
+
+def _is_a_step(step: float, value_type: str) -> bool:
+    """More than nothing, and whole for an integer, which no fraction can be added to."""
+    return step > 0 and (value_type != "integer" or float(step).is_integer())
 
 
 def _element_fields(element: Element) -> Mapping[str, bool]:

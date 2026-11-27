@@ -200,5 +200,19 @@ and AI assistants should rely on the codes and params, not on the text. Exit sta
 ## The `.primum` file
 
 A whole project is saved or shared as one `.primum` file: a zip of the folder, with
-`project.json` at its root. Internal files are never shared on their own. Writing and reading
-it comes with the UI (phase 5).
+`project.json` at its root. Internal files are never shared on their own.
+
+`core` writes and reads it in memory (`primum_core.archive`, decision 0037):
+
+- **Written the same every time**: files in order of path, compressed, with no date of their
+  own (1980-01-01, the first a zip holds) and as plain files. The same project gives the same
+  bytes on any machine, any day.
+- **Read with care**, since the file may come from anywhere. At most 2000 files
+  (`archive.too_many_files`) and 64 MB unpacked, whatever the sizes it declares
+  (`archive.too_large`). Bytes that are no zip, or a damaged one, are `archive.unreadable`.
+  A path that would leave the folder (`..`, `/…`, `C:`), a link, an encrypted entry, or a
+  name that not every system can hold (`\ : * ? " < > |`, a control character, a space or a
+  dot at the end) is `archive.unsafe_path`; the same path twice, or two that differ only in
+  capitals, is `archive.duplicate_path`. Any of these refuses the whole file.
+- Folders listed in the zip are skipped: a project is its files. What the files say, and
+  whether `project.json` is there, is for the project's loader.

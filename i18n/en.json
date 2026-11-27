@@ -531,6 +531,10 @@
       "message": "The initial value of {name} ({initial}) is outside its limits.",
       "hint": "Keep it between the minimum and the maximum, or change them."
     },
+    "variable.step_invalid": {
+      "message": "The step of {name} ({step}) is not one it can take.",
+      "hint": "Use a step above 0, and a whole one for an integer."
+    },
     "variable.not_numeric": {
       "message": "{name} is not a number, so it cannot be incremented.",
       "hint": "Set its value instead, or make {name} a number."
@@ -942,6 +946,38 @@
     "package.hash_mismatch": {
       "message": "The package does not match its hash: it is incomplete or was changed after it was built.",
       "hint": "Build it again with primum build."
+    },
+    "archive.unreadable": {
+      "message": "This is not a project file Primum can open: it is damaged or it is not a .primum file.",
+      "hint": "Save the project again from Primum, or get the file again."
+    },
+    "archive.too_many_files": {
+      "message": "The project file holds more than {max} files.",
+      "hint": "Check that it is a Primum project and not a copy of something else."
+    },
+    "archive.too_large": {
+      "message": "The project file unpacks to more than {max_mb} MB.",
+      "hint": "Take out of the project what it does not need."
+    },
+    "archive.unsafe_path": {
+      "message": "The project file has a file whose name cannot be used: {path}.",
+      "hint": "Names cannot leave the project's folder, be links, end in a space or a dot, or have any of \\ : * ? \" < > |. Rename it and save the project again."
+    },
+    "archive.duplicate_path": {
+      "message": "The project file has {path} twice, or two names that differ only in capitals.",
+      "hint": "Rename one of them: on some systems they are the same file."
+    },
+    "operation.invalid_text": {
+      "message": "The change has half a character: a surrogate without its pair.",
+      "hint": "Write the text again."
+    },
+    "operation.set_and_cleared": {
+      "message": "The change gives {field} a value and takes it away at once.",
+      "hint": "Do one of the two."
+    },
+    "operation.unknown_variable": {
+      "message": "The project has no variable {id} that can be changed.",
+      "hint": "It may have been deleted, or its file cannot be read. Load the project again."
     }
   }
 }

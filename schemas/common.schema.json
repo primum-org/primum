@@ -20,6 +20,12 @@
       "type": "string",
       "maxLength": 2000
     },
+    "timeZone": {
+      "description": "A time zone by its IANA name (Europe/Madrid).",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_+-]*(/[A-Za-z0-9_+-]+)*$",
+      "maxLength": 64
+    },
     "reference": {
       "description": "The id of another file of the project, or of something defined in one (an element, a parameter). Never a path.",
       "type": "string",

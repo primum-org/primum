@@ -21,6 +21,7 @@ TypeScript types follow in phase 5.
 | `event.schema.json` | `.evt`: events from elements, the phone UI or the API |
 | `schedule.schema.json` | `.sched`: times of day and windows of time |
 | `automation.schema.json` | `.auto`: when, if, do |
+| `operation.schema.json` | One edit of a project (`docs/specs/operations.md`). Not a file: it has no `id`, `kind` or `schemaVersion` |
 | `package.schema.json` | A deployment package: a project compiled for one board (`docs/specs/deployment-package.md`). Built by `core`, never written by hand |
 
 ## The subset of JSON Schema we use

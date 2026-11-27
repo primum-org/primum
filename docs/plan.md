@@ -1333,6 +1333,25 @@ control on the API there is · 5.4 the project on the board and the first edit o
     not be asked for apart (runtime, 5.4). A paired device is not told of a new pairing.
   - Not tried: a real phone, a real board, an activation of a large show on a Pi.
   - Block 5.3b is done. Next: 5.4, the project on the board and the first edit operations.
+- [ ] **5.4 The project on the board and the first edit operations**, in three pull requests:
+  a, `core`; b, the runtime keeps a project and its API; c, the web UI.
+  - **a, `core`: code done** (decision 0037, `docs/specs/operations.md`).
+    `apply_operation` takes the project's files and an operation
+    (`schemas/operation.schema.json`) and gives back the files, one of them new, or the
+    issues that refuse it. Two operations: `set_project` (name, description, time zone) and
+    `set_variable` (initial, limits, persistent, setting, and the new `label` and `step`).
+    An operation is refused if it is malformed, names what is not there, or gives the file
+    it changes a problem of its own it did not have; the project may be left with problems
+    elsewhere, as one being built is. `primum_core.archive` writes and reads the `.primum`
+    file in memory, the one module of `core` that may import `io`: deterministic when
+    written, with limits and safe paths when read. The time zone's pattern moved to
+    `common.schema.json`.
+  - Noted for later, not done: `label` and `step` do not reach the package, the API or the
+    phone (5.4b, 5.4c); a `.primum` zipped by hand from outside its folder (everything under
+    one folder, `__MACOSX/`) is read as it is, so its manifest is missing: decide whether to
+    take it (5.4b); the limit of 64 MB when projects carry audio; undo; renaming a variable
+    and changing its type, which touch whoever uses it (5.5); the CLI does not read or write
+    `.primum` yet.
 
 ## Phase 6 · Hardware manager
 

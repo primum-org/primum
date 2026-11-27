@@ -44,6 +44,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0034](0034-a-device-is-paired-with-the-boards-code-and-nothing-is-open-without-it.md) | A device is paired with the board's code, and nothing is open without it | Accepted |
 | [0035](0035-the-web-ui-is-built-when-deployed-and-takes-its-types-from-the-api.md) | The web UI is built when it is deployed, and takes the API's types from its models | Accepted |
 | [0036](0036-brand-plano.md) | Brand "Plano" replaces "Brass automaton"; same token names | Accepted |
+| [0037](0037-operations-edit-the-files-and-may-leave-a-draft.md) | An operation edits the project's files and may leave a project with problems; the `.primum` file is read and written in `core` | Accepted |
 
 ## Template
 

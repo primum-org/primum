@@ -74,6 +74,44 @@ def test_only_a_numeric_variable_has_limits(project: Project, ids: Ids) -> None:
     ]
 
 
+def test_only_a_numeric_variable_has_a_step(project: Project, ids: Ids) -> None:
+    variables = [{"id": ids(11), "name": "mode", "type": "text", "initial": "a", "step": 1}]
+
+    assert _vars(project, ids, variables=variables) == [
+        (
+            CoreErrorCode.SCHEMA_UNEXPECTED_FIELD,
+            {"field": "variables[0].step"},
+            "shop.vars",
+            "/variables/0/step",
+        )
+    ]
+
+
+@pytest.mark.parametrize(("type_", "step"), [("number", 0), ("number", -0.5), ("integer", 0.5)])
+def test_a_step_its_variable_cannot_take_is_reported(
+    project: Project, ids: Ids, type_: str, step: float
+) -> None:
+    variables = [{"id": ids(11), "name": "n", "type": type_, "initial": 5, "step": step}]
+
+    assert _vars(project, ids, variables=variables) == [
+        (
+            CoreErrorCode.VARIABLE_STEP_INVALID,
+            {"name": "n", "step": step},
+            "shop.vars",
+            "/variables/0",
+        )
+    ]
+
+
+@pytest.mark.parametrize(("type_", "step"), [("number", 0.1), ("integer", 5), ("integer", 5.0)])
+def test_a_variable_with_a_label_and_a_step_of_its_type_is_valid(
+    project: Project, ids: Ids, type_: str, step: float
+) -> None:
+    variable = {"id": ids(11), "name": "n", "type": type_, "initial": 5, "step": step}
+
+    assert _vars(project, ids, variables=[{**variable, "label": "How many"}]) == []
+
+
 def test_limits_the_wrong_way_round_are_reported(project: Project, ids: Ids) -> None:
     variables = [{"id": ids(11), "name": "n", "type": "integer", "initial": 5, "min": 9, "max": 1}]
 

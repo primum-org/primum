@@ -157,6 +157,8 @@ type = "forbidden"
 source_modules = ["primum_core"]
 # uuid, datetime and pathlib stay allowed: parsing ids, dates and pure paths is pure.
 # Calls such as datetime.now() or uuid4() are not caught here: packages/core/tests/test_purity.py.
+# A .primum file is a zip made and read in memory, bytes in and bytes out: decision 0037.
+ignore_imports = ["primum_core.archive -> io"]
 forbidden_modules = [
     # hardware, network and storage
     "gpiod", "smbus2", "serial", "socket", "ssl", "http", "urllib", "sqlite3",
