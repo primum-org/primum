@@ -145,7 +145,8 @@
     "devices.this": "This device",
     "devices.forget": "Forget",
     "devices.forget_of": "Forget {name}",
-    "devices.confirm": "{name} will have to pair again with the board's code to use it."
+    "devices.confirm": "{name} will have to pair again with the board's code to use it.",
+    "pairing.forgotten": "The board no longer knows this device. Pair it again to go on."
   },
   "cli": {
     "severity.error": "error",

@@ -35,6 +35,7 @@ const able = computed(() => session.online && session.state?.panic !== true && !
 // gets it back: the one pressed is disabled meanwhile, and a disabled button loses it.
 const confirmButton = ref<HTMLButtonElement | null>(null);
 let opener: HTMLElement | null = null;
+const heading = ref<HTMLElement | null>(null);
 
 onUnmounted(showPackages());
 // What could not be asked for while the board was out of reach is asked for once it is back.
@@ -65,6 +66,16 @@ async function callOff(): Promise<void> {
   opener?.focus();
 }
 
+// What was to be confirmed may change under an open confirmation: another device
+// activates the staged package, or stages another. The confirmation goes with it, so that
+// it neither names what is no longer there nor holds the other buttons disabled.
+watch(
+  () => (confirming.value === null ? null : (target(confirming.value)?.hash ?? null)),
+  (hash, before) => {
+    if (!working.value && before !== null && hash !== before) confirming.value = null;
+  },
+);
+
 async function make(change: Change): Promise<void> {
   const kept = target(change);
   if (kept === null) return;
@@ -79,12 +90,15 @@ async function make(change: Change): Promise<void> {
     working.value = false;
     confirming.value = null;
   }
+  // The button that had the focus is gone with the confirmation: the section takes it.
+  await nextTick();
+  heading.value?.focus();
 }
 </script>
 
 <template>
   <section class="list" aria-labelledby="packages-heading">
-    <h2 id="packages-heading">{{ t("packages.heading") }}</h2>
+    <h2 id="packages-heading" ref="heading" tabindex="-1">{{ t("packages.heading") }}</h2>
     <ProblemNotice v-if="problem" :problem="problem" />
     <p v-if="running" class="notice notice-success" role="status">
       <AppIcon name="s-ok" />

@@ -133,3 +133,26 @@ test("the list is asked for again when the screen is seen again: a device may ha
   expect(asked).toHaveLength(2);
   expect(view.findAll("li")).toHaveLength(2);
 });
+
+test("a confirmation for a device that is no longer in the list goes, and leaves the others free", async () => {
+  const OTHER = { id: "4", name: "Laptop", current: false };
+  boardWith(json([THIS, TABLET, OTHER]), json([THIS, OTHER]));
+  const view = mount(DevicesPanel);
+  await flushPromises();
+  await view.findAll("li")[1]?.get("button").trigger("click");
+
+  document.dispatchEvent(new Event("visibilitychange")); // the list again: the tablet was forgotten elsewhere
+  await flushPromises();
+
+  expect(view.find(".confirm").exists()).toBe(false);
+  expect(view.findAll("li")[1]?.get("button").attributes("disabled")).toBeUndefined();
+});
+
+test("a device found forgotten by asking for the list, with no order given, is not told an order was lost", async () => {
+  boardWith(json({ code: "pairing.required", params: {} }, 401), json({ required: true, device: null }));
+  mount(DevicesPanel);
+  await flushPromises();
+
+  expect(session.refused).toBe("unpaired");
+  expect(mustPair()).toBe(true);
+});

@@ -43,8 +43,11 @@ async function submit(): Promise<void> {
   <section class="panel" aria-labelledby="pairing-heading">
     <h2 id="pairing-heading">{{ t("pairing.heading") }}</h2>
     <p class="secondary">{{ t("pairing.explain") }}</p>
-    <!-- Sent here by an order the board did not take from a device it no longer knows. -->
-    <ProblemNotice v-if="session.refused === 'forgotten'" problem="forgotten" />
+    <!-- Sent here by a board that no longer knows this device: by an order it did not take,
+         or by a question asked with no order given. -->
+    <ProblemNotice
+      v-if="session.refused === 'forgotten' || session.refused === 'unpaired'" :problem="session.refused"
+    />
     <ProblemNotice v-if="problem" :problem="problem" />
     <form class="form" @submit.prevent="submit">
       <label for="pairing-code">{{ t("pairing.code") }}</label>

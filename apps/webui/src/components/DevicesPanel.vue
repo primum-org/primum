@@ -19,6 +19,14 @@ const working = ref(false);
 // The confirmation's button takes the focus, and the one that opened it gets it back.
 const confirmButton = ref<HTMLButtonElement[]>([]);
 let opener: HTMLElement | null = null;
+const heading = ref<HTMLElement | null>(null);
+
+// The device to be forgotten may go from the list under an open confirmation (forgotten
+// from another device): the confirmation goes with it, and the other buttons are free.
+watch(devices, (listed) => {
+  if (!working.value && confirming.value !== null && !listed?.some((device) => device.id === confirming.value))
+    confirming.value = null;
+});
 
 const nameOf = (device: DeviceBody): string => device.name || t("device.unnamed");
 
@@ -28,7 +36,7 @@ async function load(): Promise<void> {
     problem.value = null;
   } catch (failure) {
     if (failure instanceof ApiError && failure.unpaired) {
-      await forgotten();
+      await forgotten(false);
       return;
     }
     // Out of reach is said above every screen already, and the list is asked for again
@@ -81,12 +89,15 @@ async function forget(device: DeviceBody): Promise<void> {
     working.value = false;
     confirming.value = null;
   }
+  // The button that had the focus is gone with the confirmation: the section takes it.
+  await nextTick();
+  heading.value?.focus();
 }
 </script>
 
 <template>
   <section class="list" aria-labelledby="devices-heading">
-    <h2 id="devices-heading">{{ t("devices.heading") }}</h2>
+    <h2 id="devices-heading" ref="heading" tabindex="-1">{{ t("devices.heading") }}</h2>
     <ProblemNotice v-if="problem" :problem="problem" />
     <ul v-if="devices">
       <li v-for="device in devices" :key="device.id" class="row">

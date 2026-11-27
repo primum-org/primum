@@ -94,7 +94,8 @@ let packagesLater: ReturnType<typeof setTimeout> | null = null;
 // meanwhile, so that the last one is not missed.
 function askForPackagesSoon(): void {
   if (packagesLater !== null) return;
-  const wait = packagesAskedAt + PACKAGES_MIN_INTERVAL_MS - Date.now();
+  // By the clock that never jumps: a phone whose time is set back would wait for long.
+  const wait = packagesAskedAt + PACKAGES_MIN_INTERVAL_MS - performance.now();
   if (wait <= 0) {
     void askForPackages();
     return;
@@ -123,9 +124,10 @@ const sameState = (one: StateBody, other: StateBody): boolean =>
   JSON.stringify({ ...one, revision: 0 }) === JSON.stringify({ ...other, revision: 0 });
 
 /** The board no longer knows this device: the pairing screen takes over (main.ts), and
- * says why: what was asked was not done. */
-export async function forgotten(): Promise<void> {
-  session.refused = "forgotten";
+ * says why. Found by an order, what was asked was not done, and is said so; found by a
+ * question asked by itself (`ordered` false), nobody asked for anything. */
+export async function forgotten(ordered = true): Promise<void> {
+  session.refused = ordered ? "forgotten" : "unpaired";
   await connect();
 }
 
@@ -261,11 +263,11 @@ async function askForPackages(): Promise<void> {
     return;
   }
   askingPackages = true;
-  packagesAskedAt = Date.now();
+  packagesAskedAt = performance.now();
   try {
     session.packages = await api.packages();
   } catch (failure) {
-    if (failure instanceof ApiError && failure.unpaired) await forgotten();
+    if (failure instanceof ApiError && failure.unpaired) await forgotten(false);
   } finally {
     askingPackages = false;
   }

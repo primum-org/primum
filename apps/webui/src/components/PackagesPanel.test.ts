@@ -261,3 +261,27 @@ test("packages that could not be asked for are asked again when the connection i
 
   expect(view.text()).toContain("Evening lights");
 });
+
+test("a confirmation whose package another device changed meanwhile goes, and leaves the other buttons free", async () => {
+  boardWith(json(kept()));
+  const view = mount(PackagesPanel);
+  await flushPromises();
+  await view.get(".package-staged .row-controls button").trigger("click");
+
+  session.packages = kept({ active: SHOP2, running: SHOP2, previous: SHOP, staged: null }); // activated from elsewhere
+  await flushPromises();
+
+  expect(view.find(".confirm").exists()).toBe(false);
+  expect(view.get(".package-previous .row-controls button").attributes("disabled")).toBeUndefined();
+});
+
+test("after a change, the focus goes to the section, not nowhere", async () => {
+  boardWith(json(kept()), json(kept({ active: SHOP2, running: SHOP2, previous: SHOP, staged: null })));
+  const view = mount(PackagesPanel, { attachTo: document.body });
+  await flushPromises();
+  await view.get(".package-staged .row-controls button").trigger("click");
+  await view.get(".confirm .button-primary").trigger("click");
+  await flushPromises();
+
+  expect(document.activeElement).toBe(view.get("h2").element);
+});

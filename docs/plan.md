@@ -1304,7 +1304,17 @@ control on the API there is · 5.4 the project on the board and the first edit o
     asked for again when the screen is seen again; the confirmation takes the focus and
     gives it back when called off, and is labelled by its text; the text of forgetting
     no longer promises what the board does not do (below).
-  - Noted for later, not done: the WebSocket of a device that is forgotten stays open and
+  - Second review, found by its owner on the Pi: a confirmation left open while another
+    device changed what it was about (activated the staged package, forgot the device)
+    went from the screen and still held every other button disabled. Fixed, with a test
+    for each section that failed before: the confirmation is called off when what it
+    names changes or goes. Also: a device found forgotten by a question nobody asked (the
+    packages asked for by themselves) is told only that it must pair again, not that an
+    order was lost; after a change the focus goes to the section's heading; the 3 s
+    between asks are counted on the clock that never jumps.
+  - Noted for later, not done: two versions of one project are told apart only by their
+    hash, which says nothing to a person; a "stored on…" date would (5.4). The WebSocket
+    of a device that is forgotten stays open and
     goes on receiving the state (runtime, older than this block): forgetting should close
     it. The state could carry the hash of the active package, so that the packages need
     not be asked for apart (runtime, 5.4). A paired device is not told of a new pairing.

@@ -36,6 +36,10 @@ const technical = computed(() => (error.value ? catalog().technical(error.value)
     <AppIcon name="s-warn" />
     <span class="notice-text">{{ t("command.unanswered") }}</span>
   </p>
+  <p v-else-if="problem === 'unpaired'" class="notice notice-warning" role="status">
+    <AppIcon name="s-warn" />
+    <span class="notice-text">{{ t("pairing.forgotten") }}</span>
+  </p>
   <p v-else-if="problem === 'forgotten'" class="notice notice-danger" role="alert">
     <AppIcon name="s-warn" />
     <span class="notice-text">{{ t("command.forgotten") }}</span>
