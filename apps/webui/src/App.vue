@@ -15,7 +15,7 @@ const paired = computed(() => route.name !== undefined && route.name !== "pair")
 <template>
   <header class="bar">
     <AppIcon name="primum-mark-mono" class="icon-logo" />
-    <h1>{{ t("app.title") }}</h1>
+    <h1 class="logotype">{{ t("app.title") }}</h1>
   </header>
   <main>
     <AlertStrip v-if="paired" />

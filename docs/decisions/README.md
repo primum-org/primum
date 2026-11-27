@@ -14,7 +14,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0004](0004-project-workspace-and-file-types.md) | A project is a workspace of files with internal extensions; `.primum` to save it | Accepted |
 | [0005](0005-variable-scopes.md) | Variables are scoped by folder; redefinition is an error | Accepted |
 | [0006](0006-events-and-output-arbitration.md) | Events come from outside only; outputs are arbitrated by priority layers | Accepted |
-| [0007](0007-brand-and-design-tokens.md) | Brand "Brass automaton · compact"; design tokens are the single source | Accepted |
+| [0007](0007-brand-and-design-tokens.md) | Brand "Brass automaton · compact"; design tokens are the single source | Accepted; the brand superseded by 0036 |
 | [0008](0008-json-schema-as-the-source-of-formats.md) | Hand-written JSON Schema is the source of every format | Accepted |
 | [0009](0009-error-codes-and-message-catalogs.md) | Errors are codes with parameters; text lives in translation catalogs | Accepted |
 | [0010](0010-hal-from-phase-1-and-gpiod.md) | The HAL exists from phase 1; gpiod is a Linux-only dependency behind it | Accepted |
@@ -43,6 +43,7 @@ A decision is never edited to say something else: write a new one that supersede
 | [0033](0033-packages-are-stored-then-activated-and-the-one-before-is-kept.md) | A package is stored, then activated; the one before is kept to be put back | Accepted |
 | [0034](0034-a-device-is-paired-with-the-boards-code-and-nothing-is-open-without-it.md) | A device is paired with the board's code, and nothing is open without it | Accepted |
 | [0035](0035-the-web-ui-is-built-when-deployed-and-takes-its-types-from-the-api.md) | The web UI is built when it is deployed, and takes the API's types from its models | Accepted |
+| [0036](0036-brand-plano.md) | Brand "Plano" replaces "Brass automaton"; same token names | Accepted |
 
 ## Template
 

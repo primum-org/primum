@@ -1,22 +1,21 @@
 # Design
 
-Primum's brand and design system. Chosen style: **Brass automaton · compact**
-(*Autómata de latón · compacto*): the *Primum Mobile* desk planetarium — ivory paper and ink in
-light mode, ebony and brass in dark mode — with near-square corners, 1 px rules instead of soft
-shadows and desktop density. Touch surfaces (local web on a phone, kiosk, welcome wizards) keep
-large controls. See [decision 0007](../docs/decisions/0007-brand-and-design-tokens.md).
-
-Source: the Claude Design system <https://claude.ai/artifact/4qZ3u7SrWZZ6gg3gTmyWV4>
-(also the live identity and interface sheets in light and dark).
+Primum's brand and design system. Chosen style: **Plano** (brandbook v2): a technical drawing
+that moves — cold white paper and navy ink in light mode, deep navy in dark mode, a single
+signal blue for what can be pressed or is running, 1 px rules instead of shadows, square corners
+everywhere, numbered mono labels and a dot grid for canvases. Touch surfaces (local web on a
+phone, kiosk, welcome wizards) keep large controls. See
+[decision 0036](../docs/decisions/0036-brand-plano.md), which supersedes 0007's brand (the token
+rules of 0007 still hold).
 
 ## Contents
 
 | Path | What | Edit? |
 |---|---|---|
-| `brandbook.es.md` | The full brandbook (in Spanish, as exported): concept, logo, color, type, icons, illustration, components, screens, voice, tokens | Only to sync it with the source |
+| `brandbook.es.html` | The full brandbook (in Spanish, a self-contained page; open it in a browser): concept, logo, color, type, grid and shape, icons, components, screens, voice, tokens | Only to sync it with the source |
 | `tokens/tokens.json` | **Design tokens: the single source** of colors, fonts, sizes, radii, spacing, shadows and motion | Yes |
 | `tokens/tokens.css` | CSS custom properties generated from `tokens.json` (`just gen`) | **Never** (generated) |
-| `logo/` | The symbol at 48 px and its redrawn 16 px version, in light, dark and mono (`currentColor`) | Only from the source |
+| `logo/` | The symbol at 48 px and its redrawn 16 px version (no axis, 6 px astro), in light, dark and mono (`currentColor`; the astro has `class="astro"` so the UI can color it) | Only from the source |
 | `icons/` | 56 icons on a 24 px grid, `currentColor` | Only from the source |
 
 ## Using the tokens
@@ -38,31 +37,41 @@ Source: the Claude Design system <https://claude.ai/artifact/4qZ3u7SrWZZ6gg3gTmy
 
 ## Rules that the UI must keep
 
+- **One action color.** `brand.primary` (signal blue) marks the main action, focus, the current
+  tab and "running". `brand.secondary` is the navy ink of titles, the logo and strong text.
+  `brand.accent` is the pale blue tint behind a highlighted row. Everything else is ink and rules.
 - **Reserved semantic colors** (`danger`, `warning`, `success`, `running`, `offline`, `safe`,
   `proposal`) are used only for their meaning, and always with an icon **and** a word.
   `offline` (local mode) is normal, not an alarm. An AI proposal always has a dashed border.
-  Brass never signals a state.
+  `running` shares the signal blue.
+- **Surfaces and rules:** `surface.base` (paper), `surface.raised` (cards, bars), `surface.sunken`
+  (hover, switch tracks), `surface.overlay`. Borders are `border.default` (rules, dividers, grid)
+  and `border.strong` (fields, controls). Shadows are 1 px rings, never soft.
 - **Editor tracks** (`color-track-1` … `12`) are used only for tracks, and each track also shows
-  its number, name, element icon and its own pattern (dark-mode tracks are close to the limit for
-  color-blind users).
-- **Type:** Fraunces (`--font-family-display`) for titles only, never below 18–19 px, never on
-  buttons or fields; Instrument Sans (`--font-family-ui`) for the whole interface; DM Mono
-  (`--font-family-mono`) for pins, times, networks and addresses (`Primum-7F3A`, `primum.local`).
-  All three are SIL OFL 1.1.
-- **Shape:** `--radius-sm` (0) blocks, alerts, chips · `--radius-md` (2 px) buttons, fields,
-  badges, cards · `--radius-lg` (3 px) large panels, modals · `--radius-full` only for status
-  dots, switches and the logo's astro. The panic button keeps its octagonal chamfer.
-- **Density:** desktop controls 32–36 px; inside a `.touch` container nothing is below 44 px,
-  transport controls are 64 px and panic 72 px. Brass focus ring: 2 px on desktop, 3 px on touch.
-- **Motion:** `--motion-fast|base|slow`; respect `prefers-reduced-motion`.
-- **Icons:** 24 px grid, 1.5 px stroke, butt caps, mitred joins, one solid pivot per icon,
-  `currentColor`. Sizes 16, 20, 24, 32. Nothing borrowed from third-party board brands.
-- **Logo:** never recolor it with a state color, rotate it, add gears or gradients, or reset the
-  name in another typeface.
+  its number, name, element icon and a hatch on the heel of its blocks.
+- **Type:** Geist (`--font-family-ui`, also `--font-family-display`) for everything; titles in
+  500 with −3.5 % letter spacing. Geist Mono (`--font-family-mono`) for pins, times, networks and
+  addresses (`Primum-7F3A`, `primum.local`) and for uppercase labels and buttons. A pixel face
+  (`--font-family-pixel`, Pixelify Sans) only for large figures: pairing code, counters, kiosk
+  time. Uppercase only in mono labels and buttons. All are SIL OFL 1.1.
+- **Shape:** radius 0 everywhere (`--radius-sm|md|lg`). Status dots are 7 px squares; the panic
+  button keeps its octagonal chamfer. `--radius-full` is no longer used by the UI.
+- **Density:** desktop controls 28–36 px, rows 40; inside a `.touch` container nothing is below
+  44 px, transport controls are 64 px and panic 72 px. Blue focus ring: 2 px on desktop, 3 px on
+  touch.
+- **Buttons:** primary is a solid blue block; secondary a 1 px ink rule; tertiary an underlined
+  mono link with ↗; panic red with the chamfer, never disabled; disabled has a dashed border.
+- **Motion:** `--motion-fast|base|slow` (100 / 180 / 320 ms), linear or stepped; striped bars
+  for progress; respect `prefers-reduced-motion`.
+- **Icons:** 24 px grid, 1.5 px stroke, butt caps, mitred joins, one solid **2 × 2 pixel** per
+  icon where the part turns, acts or is measured, `currentColor`. Sizes 16, 20, 24, 32.
+- **Logo:** symbol (thick ring, thin axis pointing to 1:30, square pivot, square astro in signal
+  blue with an air gap) + "Primum" in Geist 600, −4.5 %. Products add their name in Geist 300
+  grey. Never rotate it, tint it with a state color, reset the name in another typeface, or add
+  shadows or gradients. Minimum: logotype 88 px wide, symbol 16 px.
 - **Voice:** clear, calm and precise: what happened, why, what to do. No emoji: states use an icon
   and a word. UI languages are English and Spanish only
-  ([decision 0003](../docs/decisions/0003-languages.md)); the Catalan examples in the brandbook
-  are not used.
+  ([decision 0003](../docs/decisions/0003-languages.md)).
 
 ## Icon groups
 
@@ -77,10 +86,14 @@ Source: the Claude Design system <https://claude.ai/artifact/4qZ3u7SrWZZ6gg3gTmy
 
 ## Still to produce
 
-- Logotype (symbol + "Primum") outlined to curves: the sheets set it live in Fraunces.
-- App icon set (1024 → 16 px) and favicon, as described in the brandbook (§2).
-- Tokens for font weights and line height: the brandbook gives none, and the page and the
-  web UI write theirs (1.4; 500 and 600) in their own CSS, with a note.
-- Font files (woff2, Latin + Latin Extended) bundled for offline use: phase 5.
+- Logotype (symbol + "Primum") outlined to curves: the brandbook sets it live in Geist.
+- App icon set (1024 → 16 px: navy square, white ring, blue astro) and favicon files, as
+  described in the brandbook (§2). The web UI uses the 16 px symbol as its favicon.
+- A full redraw of the 56 icons in the new style: they got the square 2 × 2 pivot, but the
+  brandbook draws only 24 of them.
+- Tokens for font weights, line heights and letter spacing: the brandbook gives them per size
+  (display 56/1.0 … xs 12/1.4); the web UI writes the few it uses in its own CSS, with a note.
+- Font files (woff2, Latin + Latin Extended) bundled for offline use: phase 5. Until then the
+  UI falls back to the system's faces.
 - Icons for the project file types (`.sec`, `.auto`, `.evt`, `.sched`, `.vars`, `.hw`) and for the
   file explorer.

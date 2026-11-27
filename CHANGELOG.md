@@ -152,3 +152,10 @@ All notable changes to this project are documented here. The format follows
 - Error messages in English and Spanish (`i18n/`) for every error the runtime can return, each
   with a hint on what to do: unavailable or invalid pins, GPIO permissions, panic active, and
   invalid requests, unknown paths and methods of the API.
+
+### Changed
+
+- New brand "Plano" (brandbook v2) replaces "Brass automaton · compact": a new logo, cold white
+  and navy with a single signal blue, Geist and Geist Mono, square corners everywhere. The web
+  interface follows it: blue focus ring and current tab, uppercase mono buttons, labels and
+  tabs, square switches, dashed borders on what is disabled. The icons carry its square pivot.
