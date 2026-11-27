@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Primum Brandbook</title>
+<link href="fonts/fonts.css" rel="stylesheet">
+<link href="fonts/pixel.css" rel="stylesheet">
+<style>
+/* VOICE  trabajo: un sistema de marca técnico, preciso y sereno, con la voz de la referencia pedida
+   IDEA   un plano de ingeniería / hoja de especificación: retícula de filetes, bandas numeradas con etiqueta mono, márgenes rayados
+   PICTURE la propia app de Primum (editor de línea de tiempo) dibujada a tamaño real bajo el título
+   COLOUR papel blanco frío, tinta azul marino, un único azul señal; estados reservados; noche = marino profundo
+   TYPE   Geist (titulares y UI) + Geist Mono (etiquetas, pines, tiempos) + pixel para cifras grandes
+   LAYOUT marco central de 1240 px con márgenes rayados; título arriba, la app debajo a todo el ancho; en móvil se apila */
+:root{color-scheme:light dark;
+--bg:light-dark(#fbfcfe,#0a0e1c);--raised:light-dark(#ffffff,#10162a);--sunk:light-dark(#f2f4f8,#070a15);
+--line:light-dark(#e3e7ee,#222a44);--line2:light-dark(#c9cfda,#36405f);--ctl:#7a8299;
+--ink:light-dark(#1b2240,#eef2fb);--text:light-dark(#2f3446,#d3d9e8);--muted:light-dark(#5e667e,#929bb6);--faint:light-dark(#9aa1b4,#5e667e);
+--sig:light-dark(#0a5ce6,#4c8dff);--sigink:light-dark(#ffffff,#06102a);--sigtint:light-dark(#eaf1fe,#122550);
+--bar:#1b2240;--barink:#eef2fb;
+--danger:light-dark(#d7263d,#ff5a6b);--warn:light-dark(#b85c00,#f29a3d);--ok:light-dark(#16834a,#3dc27a);--run:var(--sig);
+--off:light-dark(#6b7285,#8c93a8);--safe:light-dark(#0e7c86,#3cc4ce);--ai:light-dark(#7443d6,#a98bff);
+--t1:light-dark(#3b4cca,#6f7dff);--t2:light-dark(#0f7b6c,#3fbfa9);--t3:light-dark(#a3214f,#e0668f);--t4:light-dark(#8a6a00,#d1b14a);--t5:light-dark(#6a3fb5,#a888ec);--t6:light-dark(#1e5a8c,#69a9dd);
+--t7:light-dark(#b0478e,#e38cc8);--t8:light-dark(#1c93a8,#5fd6ea);--t9:light-dark(#5c9a3b,#9fd57f);--t10:light-dark(#d0715a,#f4a68f);--t11:light-dark(#8c86d6,#b8b4f2);--t12:light-dark(#c08a00,#e8c65a);
+--sans:"Geist",ui-sans-serif,system-ui,"Helvetica Neue",Arial,sans-serif;--mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;--pix:"Pixelify Sans","Geist Mono",monospace;
+--hatch:repeating-linear-gradient(135deg,var(--line) 0 1px,transparent 1px 7px)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html{scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 var(--sans);overflow-x:clip;-webkit-font-smoothing:antialiased}
+body::before,body::after{content:"";position:fixed;top:0;bottom:0;width:max(0px,calc((100vw - 1240px)/2));background:var(--hatch);z-index:-1}
+body::before{left:0}body::after{right:0}
+.wrap{max-width:1240px;margin:0 auto;border-inline:1px solid var(--line);background:var(--bg)}
+a{color:var(--sig)}
+h1,h2,h3{color:var(--ink);font-weight:500;letter-spacing:-.035em;line-height:1.05;margin:0;text-wrap:balance}
+h1{font-size:clamp(40px,6vw,68px)}h2{font-size:clamp(30px,4vw,48px)}h3{font-size:20px;letter-spacing:-.02em;line-height:1.2}
+p{margin:0 0 12px;max-width:66ch}
+.mono{font-family:var(--mono)}.cap{font-family:var(--mono);font-size:13px;text-transform:uppercase;letter-spacing:.02em;font-weight:500}
+.muted{color:var(--muted)}
+/* nav */
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:10px max(3vw,16px);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .links{display:flex;gap:4px;overflow-x:auto;margin-left:auto;scrollbar-width:none}
+.top .links a{flex:none;font:500 12px var(--mono);text-transform:uppercase;color:var(--muted);text-decoration:none;padding:8px 8px}
+.top .links a:hover{color:var(--sig)}
+.logo{display:inline-flex;align-items:center;gap:8px;color:var(--ink);font:600 20px var(--sans);letter-spacing:-.045em;text-decoration:none;flex:none}
+.logo svg{width:28px;height:28px}.logo small{font-weight:300;color:var(--muted);letter-spacing:-.02em}
+/* bands */
+.band{padding:clamp(28px,4vw,56px) max(3vw,16px);border-bottom:1px solid var(--line)}
+.lbl{display:flex;justify-content:space-between;align-items:center;background:var(--bar);color:var(--barink);font:500 13px var(--mono);text-transform:uppercase;padding:7px 12px;margin-bottom:28px}
+.lbl span:last-child{opacity:.6}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line)}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line)}
+.cell{padding:20px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--raised)}
+.lead{font-size:19px;color:var(--text);max-width:60ch}
+.dots{background-image:radial-gradient(var(--line2) 1px,transparent 1.2px);background-size:16px 16px}
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:32px;align-items:end;padding-bottom:28px}
+.hero .meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--line)}
+.hero .meta div{padding:12px 14px;border-right:1px solid var(--line)}.hero .meta div:last-child{border:0}
+.hero .meta b{display:block;font:400 34px var(--pix);color:var(--ink);line-height:1.1}
+.hero .meta span{font:500 12px var(--mono);text-transform:uppercase;color:var(--muted)}
+.prompt{font:500 14px var(--mono);color:var(--muted);text-transform:uppercase;margin:14px 0 18px}
+.prompt i{font-style:normal;color:var(--sig)}
+/* app mock */
+.app{border:1px solid var(--line2);background:var(--raised);font-size:13px;color:var(--text);overflow:hidden}
+.appbar{display:flex;align-items:center;gap:10px;padding:0 10px;height:44px;border-bottom:1px solid var(--line)}
+.appbar .sp{flex:1}
+.appgrid{display:grid;grid-template-columns:180px minmax(0,1fr) 230px;min-height:400px}
+.side{border-right:1px solid var(--line);padding:10px 0;background:var(--bg)}
+.side a{display:flex;align-items:center;gap:9px;padding:7px 14px;color:var(--muted);text-decoration:none;font-size:13px}
+.side a.on{color:var(--ink);background:var(--sigtint);box-shadow:inset 2px 0 0 var(--sig)}
+.side svg{width:16px;height:16px;flex:none}
+.side .sec{font:500 11px var(--mono);text-transform:uppercase;color:var(--faint);padding:12px 14px 4px}
+.ed{display:flex;flex-direction:column}
+.edhead{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.edhead h4{margin:0;font-size:15px;font-weight:500;color:var(--ink);letter-spacing:-.02em}
+.tl{position:relative;flex:1;overflow:hidden}
+.ruler{display:grid;grid-template-columns:120px minmax(0,1fr);border-bottom:1px solid var(--line);height:26px}
+.ruler .ticks{position:relative;background:repeating-linear-gradient(90deg,var(--line2) 0 1px,transparent 1px 10%);font:11px var(--mono);color:var(--muted)}
+.ruler .ticks span{position:absolute;top:5px;transform:translateX(4px)}
+.trk{display:grid;grid-template-columns:120px minmax(0,1fr);height:40px;border-bottom:1px solid var(--line)}
+.trk .nm{display:flex;align-items:center;gap:6px;padding:0 10px;border-right:1px solid var(--line);font-size:12px;color:var(--ink);white-space:nowrap;overflow:hidden}
+.trk .nm b{font:500 11px var(--mono);color:var(--muted);font-weight:500}
+.lane{position:relative}
+.clip{position:absolute;top:6px;bottom:6px;color:#fff;font:500 11px var(--mono);display:flex;align-items:center;padding-left:12px;white-space:nowrap;overflow:hidden;background:var(--c);border:1px solid color-mix(in srgb,var(--c) 70%,#000)}
+.clip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 1.5px,transparent 1.5px 4px)}
+.clip.ai{background:color-mix(in srgb,var(--ai) 10%,var(--raised));color:var(--ai);border:1.5px dashed var(--ai)}
+.clip.ai::before{display:none}
+.head{position:absolute;top:0;bottom:0;left:calc(120px + 31%);width:1px;background:var(--sig);z-index:3}
+.head::before{content:"";position:absolute;top:0;left:-5px;width:11px;height:11px;background:var(--sig)}
+@media(prefers-reduced-motion:no-preference){.head.anim{animation:play 14s linear infinite}}
+@keyframes play{from{left:120px}to{left:100%}}
+.transport{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--line)}
+.insp{border-left:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:12px;background:var(--bg)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:12px}.kv dt{color:var(--muted)}.kv dd{margin:0;font-family:var(--mono);color:var(--ink);text-align:right}
+/* components */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;font:500 13px var(--mono);text-transform:uppercase;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer;border-radius:0;white-space:nowrap}
+.btn svg{width:16px;height:16px}
+.btn:hover{background:var(--sunk)}
+.btn:focus-visible,.sw:focus-visible,input:focus-visible{outline:2px solid var(--sig);outline-offset:2px}
+.btn.pri{background:var(--sig);border-color:var(--sig);color:var(--sigink)}.btn.pri:hover{background:color-mix(in srgb,var(--sig) 85%,#000)}
+.btn.big{height:52px;padding:0 28px;font-size:15px}
+.btn.sm{height:28px;padding:0 10px;font-size:11px}
+.btn.ghost{border-color:transparent;color:var(--sig);text-decoration:underline;text-underline-offset:3px;padding:0 4px}
+.btn.panic{background:var(--danger);border-color:var(--danger);color:#fff;clip-path:polygon(8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px),0 8px);letter-spacing:.06em}
+.btn.dis{border-style:dashed;color:var(--faint);border-color:var(--line2);cursor:not-allowed}
+.badge{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;font:500 11px var(--mono);text-transform:uppercase;border:1px solid currentColor;background:color-mix(in srgb,currentColor 8%,transparent);white-space:nowrap}
+.badge svg{width:12px;height:12px}
+.dot{width:7px;height:7px;background:currentColor;display:inline-block;flex:none}
+.b-ok{color:var(--ok)}.b-run{color:var(--run)}.b-warn{color:var(--warn)}.b-danger{color:var(--danger)}.b-off{color:var(--off)}.b-safe{color:var(--safe)}.b-ai{color:var(--ai);border-style:dashed}
+.sw{width:40px;height:22px;border:1px solid var(--ctl);background:var(--sunk);position:relative;cursor:pointer;padding:0;flex:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;background:var(--faint);transition:left .15s}
+.sw[aria-checked=true]{background:var(--sig);border-color:var(--sig)}.sw[aria-checked=true]::after{left:21px;background:#fff}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:4px;background:linear-gradient(90deg,var(--sig) var(--v,60%),var(--ctl) var(--v,60%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:20px;background:var(--ink);margin-top:-8px;border:2px solid var(--bg)}
+input[type=range]::-moz-range-track{height:4px;background:var(--ctl)}input[type=range]::-moz-range-progress{height:4px;background:var(--sig)}
+input[type=range]::-moz-range-thumb{width:14px;height:20px;background:var(--ink);border:2px solid var(--bg);border-radius:0}
+.field{display:flex;flex-direction:column;gap:6px}.field label{font:500 12px var(--mono);text-transform:uppercase;color:var(--muted)}
+.field input[type=text]{height:40px;border:1px solid var(--ctl);background:var(--raised);color:var(--ink);font:16px var(--sans);padding:0 10px;border-radius:0}
+.field.err input{border:2px solid var(--danger)}.field .msg{font-size:13px;color:var(--danger);display:flex;gap:6px;align-items:center}
+.prog{height:6px;background:var(--line);position:relative;overflow:hidden}.prog i{position:absolute;inset:0 auto 0 0;background:var(--sig)}
+.prog.stripe i{background:repeating-linear-gradient(90deg,var(--sig) 0 6px,transparent 6px 8px)}
+/* tables */
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{font:500 12px var(--mono);text-transform:uppercase;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line2);white-space:nowrap}
+td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.m{font-family:var(--mono);font-size:13px;white-space:nowrap}
+.sw8{display:inline-block;width:22px;height:22px;vertical-align:middle;border:1px solid color-mix(in srgb,currentColor 25%,transparent)}
+/* colour */
+.chip{border:1px solid var(--line);background:var(--raised)}
+.chip .s{height:96px;display:flex;align-items:flex-end;padding:10px;font:500 12px var(--mono);text-transform:uppercase}
+.chip .t{padding:10px 12px;font-size:13px}.chip .t b{display:block;color:var(--ink);font-weight:500}.chip .t code{font:12px var(--mono);color:var(--muted)}
+.ramp{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));border:1px solid var(--line)}
+.ramp div{height:84px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;font:500 11px var(--mono)}
+/* icons */
+.icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.icons div{border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:18px 8px 10px;display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--raised);color:var(--ink)}
+.icons svg{width:28px;height:28px}.icons span{font:11px var(--mono);color:var(--muted);text-align:center}
+.ic{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:butt;stroke-linejoin:miter}
+.icons h4{grid-column:1/-1;margin:0;padding:10px 12px;font:500 12px var(--mono);text-transform:uppercase;color:var(--muted);background:var(--sunk);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+/* phone */
+.phone{width:min(100%,340px);border:1px solid var(--line2);background:var(--bg);margin:0 auto;font-size:14px}
+.phone .st{display:flex;justify-content:space-between;padding:8px 14px;font:500 12px var(--mono);color:var(--ink)}
+.prow{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line);background:var(--raised);min-height:56px}
+.prow .n{flex:1}.prow .n b{display:block;color:var(--ink);font-weight:500}.prow .n small{font:12px var(--mono);color:var(--muted)}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}
+.tabs span{text-align:center;padding:10px 0 12px;font:500 11px var(--mono);text-transform:uppercase;color:var(--muted)}.tabs span.on{color:var(--sig);box-shadow:inset 0 2px 0 var(--sig)}
+/* rule */
+.rule{border:1px solid var(--line);background:var(--raised)}
+.rule .r{display:grid;grid-template-columns:90px minmax(0,1fr);border-bottom:1px solid var(--line)}
+.rule .r:last-child{border:0}
+.rule .k{background:var(--bar);color:var(--barink);font:500 12px var(--mono);display:flex;align-items:center;justify-content:center}
+.rule .v{padding:12px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tok{font:13px var(--mono);border:1px solid var(--line2);padding:3px 8px;background:var(--bg);color:var(--ink);white-space:nowrap}
+/* trace */
+.log{font:13px/1.7 var(--mono);background:var(--sunk);border:1px solid var(--line);padding:14px 16px;overflow-x:auto;white-space:pre;color:var(--text)}
+.log .t{color:var(--faint)}.log .e{color:var(--sig)}.log .w{color:var(--warn)}.log .k{color:var(--ink)}
+/* type */
+.spec{display:grid;grid-template-columns:110px minmax(0,1fr);gap:16px;align-items:baseline;padding:14px 0;border-bottom:1px solid var(--line)}
+.spec .cap{color:var(--muted);font-size:12px}
+.dont{position:relative}.dont::after{content:"";position:absolute;inset:0;background:linear-gradient(to top right,transparent calc(50% - 1px),var(--danger) 50%,transparent calc(50% + 1px))}
+.voice td:first-child{width:28%}
+pre{margin:0;background:var(--sunk);border:1px solid var(--line);padding:16px;font:13px/1.6 var(--mono);color:var(--text);overflow-x:auto}
+.copy{float:right}
+footer{padding:28px max(3vw,16px);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;background:var(--bar);color:var(--barink);font:12px var(--mono);text-transform:uppercase}
+@media(max-width:1000px){.appgrid{grid-template-columns:150px minmax(0,1fr)}.insp{display:none}}
+@media(max-width:900px){.hero{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:1fr}}
+@media(max-width:700px){.g2{grid-template-columns:1fr}.appgrid{grid-template-columns:1fr}.side{display:none}.ramp{grid-template-columns:repeat(6,minmax(0,1fr))}.trk,.ruler{grid-template-columns:84px minmax(0,1fr)}.head{left:calc(84px + 31%)}.appbar .hide{display:none}.top .links{display:none}}
+@media(max-width:600px){table{font-size:13px}th,td{padding:8px 6px}.stack thead{display:none}.stack tr{display:grid;padding-block:8px;border-bottom:1px solid var(--line)}.stack td{display:flex;justify-content:space-between;gap:12px;border:0;padding:3px 0;text-align:right}.stack td::before{content:attr(data-l);font:500 11px var(--mono);text-transform:uppercase;color:var(--muted);text-align:left}.spec{grid-template-columns:1fr;gap:4px}.g4{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<symbol id="mark" viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="none" stroke="var(--ink)" stroke-width="2.6"/><path d="M16 16L22 10" stroke="var(--ink)" stroke-width="1.6"/><rect x="14.5" y="14.5" width="3" height="3" fill="var(--ink)"/><rect x="20" y="4.4" width="7.6" height="7.6" fill="var(--sig)" stroke="var(--bg)" stroke-width="2"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path class="ic" d="M7 5l11 7-11 7z"/><rect x="9" y="11" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path class="ic" d="M8 5v14M16 5v14"/></symbol>
+<symbol id="i-stop" viewBox="0 0 24 24"><rect class="ic" x="6" y="6" width="12" height="12"/><rect x="11" y="11" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-panic" viewBox="0 0 24 24"><path class="ic" d="M8.5 3h7L21 8.5v7L15.5 21h-7L3 15.5v-7z M7.5 16.5l9-9"/></symbol>
+<symbol id="i-test" viewBox="0 0 24 24"><path class="ic" d="M3 13h4V7h5v10h5v-4h4"/><rect x="11" y="6" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-deploy" viewBox="0 0 24 24"><path class="ic" d="M12 15V4M7.5 8.5L12 4l4.5 4.5M4 14v6h16v-6"/></symbol>
+<symbol id="i-hub" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="12" r="8"/><rect x="10.5" y="10.5" width="3" height="3" fill="currentColor"/><rect class="ic" x="16.5" y="4" width="3" height="3"/><rect class="ic" x="3.5" y="15" width="3" height="3"/></symbol>
+<symbol id="i-led" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 4.5v3M12 3.5v4M17 4.5v3"/><rect x="3" y="10.75" width="18" height="7.5"/><rect x="6" y="13.5" width="2" height="2" fill="currentColor" stroke="none"/><rect x="11" y="13.5" width="2" height="2" fill="currentColor" stroke="none"/><rect x="16" y="13.5" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="i-motor" viewBox="0 0 24 24"><rect class="ic" x="4" y="7" width="12" height="10"/><path class="ic" d="M16 12h5"/><rect x="9" y="11" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-sensor" viewBox="0 0 24 24"><path class="ic" d="M5 9a10 10 0 0 1 14 0M8 12.5a5.5 5.5 0 0 1 8 0"/><rect x="11" y="16" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-seq" viewBox="0 0 24 24"><path class="ic" d="M3 6h18M3 12h18M3 18h18M6 4v4M14 10v4M9 16v4"/></symbol>
+<symbol id="i-auto" viewBox="0 0 24 24"><path class="ic" d="M4 6h5l6 12h5M4 18h5l2-4M15 6h5"/><rect x="11" y="11" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-var" viewBox="0 0 24 24"><path class="ic" d="M4 7h16M4 17h16M8 4v16"/><rect x="13" y="11" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="12" r="8.5"/><path class="ic" d="M12 7v5h4"/><rect x="11" y="11" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-trace" viewBox="0 0 24 24"><path class="ic" d="M4 5h6M4 12h10M4 19h14M14 5l2 2-2 2"/><rect x="18" y="11" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path class="ic" d="M4 7l8-3 8 3v10l-8 3-8-3zM4 7l8 3 8-3M12 10v10"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><rect class="ic" x="7" y="3" width="10" height="18"/><rect x="11" y="17" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-wifi" viewBox="0 0 24 24"><path class="ic" d="M3 9a13 13 0 0 1 18 0M6.5 12.5a8 8 0 0 1 11 0M9.5 15.5a3.5 3.5 0 0 1 5 0"/><rect x="11" y="18" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24"><path class="ic" d="M12 3v6M12 15v6M3 12h6M15 12h6"/><rect x="11" y="11" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-safe" viewBox="0 0 24 24"><path class="ic" d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/><rect x="11" y="11" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><path class="ic" d="M12 4l9 16H3zM12 10v4"/><rect x="11" y="16" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-ok" viewBox="0 0 24 24"><rect class="ic" x="4" y="4" width="16" height="16"/><path class="ic" d="M8 12l3 3 5-6"/></symbol>
+<symbol id="i-local" viewBox="0 0 24 24"><circle class="ic" cx="12" cy="12" r="8"/><rect x="11" y="11" width="2" height="2" fill="currentColor"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path class="ic" d="M3 6h7l2 2h9v11H3z"/></symbol>
+<symbol id="ic-i-bulb" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M8.5 15.5A6 6 0 1 1 15.5 15.5V18h-7zM9.5 21h5"/><rect x="11" y="9" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-bus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 7h18M3 12h18M7 7v12M16 12v7"/><rect x="15" y="19" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-button" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M4 14h16v5H4zM8 14v-4h8v4"/><rect x="11" y="5" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-deploy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M4 14v6h16v-6"/></g></symbol>
+<symbol id="ic-i-dist" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 12h18M6 9l-3 3 3 3M18 9l3 3-3 3"/><rect x="11" y="6" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-dmx" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8"/><path d="M7.5 12h2.5M14 12h2.5"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-hub" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/><rect x="16.5" y="4" width="3" height="3"/><rect x="3.5" y="15" width="3" height="3"/></g></symbol>
+<symbol id="ic-i-led" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M7 4.5v3M12 3.5v4M17 4.5v3"/><rect x="3" y="10.75" width="18" height="7.5"/><rect x="6" y="13.5" width="2" height="2" fill="currentColor" stroke="none"/><rect x="11" y="13.5" width="2" height="2" fill="currentColor" stroke="none"/><rect x="16" y="13.5" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-motor" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="4" y="7" width="12" height="10"/><path d="M16 12h5"/><rect x="9" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-node" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="5" y="5" width="14" height="14"/><path d="M9 2.5v2.5M15 2.5v2.5M9 19v2.5M15 19v2.5"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-panic" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M8.5 3h7L21 8.5v7L15.5 21h-7L3 15.5v-7zM7.5 16.5l9-9"/></g></symbol>
+<symbol id="ic-i-pause" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M8 5v14M16 5v14"/></g></symbol>
+<symbol id="ic-i-pausef" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M6 5h4v14H6zM14 5h4v14h-4z" fill="currentColor"/></g></symbol>
+<symbol id="ic-i-pir" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M5 9a10 10 0 0 1 14 0M8 12.5a5.5 5.5 0 0 1 8 0"/><rect x="11" y="16" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-play" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M7 5l11 7-11 7z"/><rect x="9" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-playf" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M7 5l11 7-11 7z" fill="currentColor"/></g></symbol>
+<symbol id="ic-i-radio" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 11v10M8 21h8M8 4.5a6.5 6.5 0 0 0 0 9M16 4.5a6.5 6.5 0 0 1 0 9"/><rect x="11" y="8" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-sat" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="6" y="9" width="12" height="10"/><path d="M12 9V4M9 4h6"/><rect x="11" y="13" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-servo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="3" y="10" width="13" height="8"/><path d="M8 10V6M4 6h15"/><rect x="7" y="13" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-speaker" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M4 9h4l5-4v14l-5-4H4zM16 9.5a3.5 3.5 0 0 1 0 5M18.5 6.5a7.5 7.5 0 0 1 0 11"/><rect x="5" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-stop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="6" y="6" width="12" height="12"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-temp" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M10 14.5V4h4v10.5a4 4 0 1 1-4 0z"/><rect x="11" y="16" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-test" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 13h4V7h5v10h5v-4h4"/><rect x="11" y="6" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-usb" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 3v15M9.5 5.5L12 3l2.5 2.5M12 14l-5-2.5V8M12 12l5-2.5V7"/><rect x="5.5" y="6" width="3" height="2"/><rect x="15.5" y="5" width="3" height="2"/><rect x="11" y="19" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-i-wifi" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 9a13 13 0 0 1 18 0M6.5 12.5a8 8 0 0 1 11 0M9.5 15.5a3.5 3.5 0 0 1 5 0"/><rect x="11" y="18" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="4" y="4" width="16" height="16"/><path d="M12 11v6"/><rect x="11" y="7" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-local" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-ok" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="4" y="4" width="16" height="16"/><path d="M8 12l3 3 5-6"/></g></symbol>
+<symbol id="ic-s-play" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8.5"/><path d="M10 8.5l5.5 3.5-5.5 3.5z"/></g></symbol>
+<symbol id="ic-s-ring" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8" stroke-dasharray="2.09 2.1"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-run" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 3.5v4h-4"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-safe" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-spark" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-s-warn" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 4l9 16H3zM12 10v4"/><rect x="11" y="16" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-back" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M10 6l-6 6 6 6M4 12h16"/></g></symbol>
+<symbol id="ic-u-board" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="3" y="6" width="18" height="12"/><path d="M6 6V3.5M10 6V3.5M14 6V3.5M18 6V3.5"/><rect x="13" y="10" width="4" height="4"/><rect x="6" y="13" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-bolt" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M13.5 3L6 13.5h5.5L10.5 21 18 10.5h-5.5z"/></g></symbol>
+<symbol id="ic-u-book" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 5h7l2 2 2-2h7v13h-7l-2 2-2-2H3zM12 7v13"/></g></symbol>
+<symbol id="ic-u-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M5 12.5l4.5 4.5L19 7.5"/></g></symbol>
+<symbol id="ic-u-chev" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M9 6l6 6-6 6"/></g></symbol>
+<symbol id="ic-u-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5h4"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-code" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-dl" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M4 14v6h16v-6"/></g></symbol>
+<symbol id="ic-u-down" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M6 9l6 6 6-6"/></g></symbol>
+<symbol id="ic-u-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="12" cy="12" r="5.5"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M5.99 5.99l2.12 2.12M15.89 15.89l2.12 2.12M5.99 18.01l2.12-2.12M15.89 8.11l2.12-2.12"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="5" y="11" width="14" height="9"/><path d="M8.5 11V7.5a3.5 3.5 0 0 1 7 0V11"/><rect x="11" y="14" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-loop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M4 12V8h14M15 5l3 3-3 3M20 12v4H6M9 19l-3-3 3-3"/></g></symbol>
+<symbol id="ic-u-more" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="5" y="11" width="2" height="2" fill="currentColor" stroke="none"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/><rect x="17" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M12 5v14M5 12h14"/></g></symbol>
+<symbol id="ic-u-rule" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M4 6h5l6 12h5M4 18h5l2-4M15 6h5"/><rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none"/></g></symbol>
+<symbol id="ic-u-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.2 15.2L20.5 20.5"/></g></symbol>
+<symbol id="ic-u-seq" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M3 6h18M3 12h18M3 18h18M6 4v4M14 10v4M9 16v4"/></g></symbol>
+<symbol id="ic-u-sim" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><rect x="3" y="4" width="18" height="12"/><path d="M8 20h8M12 16v4M10 7.5l4.5 2.5-4.5 2.5z"/></g></symbol>
+<symbol id="ic-u-skipb" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M6.5 5v14M18 5l-9 7 9 7z"/></g></symbol>
+<symbol id="ic-u-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><circle cx="9" cy="8" r="3.5"/><path d="M3 20v-2.5A3.5 3.5 0 0 1 6.5 14h5a3.5 3.5 0 0 1 3.5 3.5V20M16 4.5a3.5 3.5 0 0 1 0 7M18 14a3.5 3.5 0 0 1 3 3.5V20"/></g></symbol>
+<symbol id="ic-u-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter"><path d="M6 6l12 12M18 6L6 18"/></g></symbol>
+</defs>
+</svg>
+
+<div class="wrap">
+<header class="top">
+  <a class="logo" href="#portada"><svg><use href="#mark"/></svg>Primum</a>
+  <nav class="links" aria-label="Secciones">
+    <a href="#concepto">001 Concepto</a><a href="#logo">002 Logo</a><a href="#color">003 Color</a><a href="#tipo">004 Tipografía</a><a href="#forma">005 Forma</a><a href="#iconos">006 Iconos</a><a href="#componentes">007 Componentes</a><a href="#pantallas">008 Pantallas</a><a href="#voz">009 Voz</a><a href="#tokens">010 Tokens</a>
+  </nav>
+</header>
+
+<section class="band" id="portada">
+  <div class="hero">
+    <div>
+      <h1>Primum. Del pin a la escena, sin escribir código.</h1>
+      <p class="prompt">&gt;&gt;&gt; Brandbook v2 · <i>dirección «Plano»</i></p>
+      <p class="lead">Sistema de marca de la plataforma: la web local que controla cada día la placa (Raspberry Pi), las secuencias, automatizaciones, variables, eventos, la traza, los paquetes de despliegue y los dispositivos emparejados.</p>
+    </div>
+    <div class="meta">
+      <div><b>0px</b><span>Radio</span></div>
+      <div><b>1</b><span>Color de acción</span></div>
+      <div><b>7</b><span>Estados reservados</span></div>
+    </div>
+  </div>
+
+  <div class="app" role="img" aria-label="Editor de secuencias de Primum en escritorio">
+    <div class="appbar">
+      <span class="logo" style="font-size:16px"><svg style="width:22px;height:22px"><use href="#mark"/></svg>Primum</span>
+      <span class="muted mono hide" style="font-size:12px">/ belen-2026 / secuencias / anunciacion.sec</span>
+      <span class="sp"></span>
+      <span class="badge b-ok hide"><span class="dot"></span>primum.local</span>
+      <span class="badge b-off hide"><svg><use href="#i-local"/></svg>Modo local</span>
+      <button class="btn pri sm" type="button"><svg><use href="#i-deploy"/></svg>Desplegar</button>
+      <button class="btn panic sm" type="button"><svg><use href="#i-panic"/></svg>Pánico</button>
+    </div>
+    <div class="appgrid">
+      <nav class="side">
+        <div class="sec">Hoy</div>
+        <a href="#pantallas"><svg><use href="#i-play"/></svg>Control</a>
+        <a href="#pantallas"><svg><use href="#i-trace"/></svg>Actividad</a>
+        <div class="sec">Proyecto</div>
+        <a href="#pantallas"><svg><use href="#i-folder"/></svg>Archivos</a>
+        <a href="#pantallas"><svg><use href="#i-hub"/></svg>Elementos</a>
+        <a class="on" href="#pantallas"><svg><use href="#i-seq"/></svg>Secuencias</a>
+        <a href="#pantallas"><svg><use href="#i-auto"/></svg>Automatizaciones</a>
+        <a href="#pantallas"><svg><use href="#i-clock"/></svg>Programaciones</a>
+        <a href="#pantallas"><svg><use href="#i-var"/></svg>Variables</a>
+        <div class="sec">Placa</div>
+        <a href="#pantallas"><svg><use href="#i-box"/></svg>Paquetes</a>
+        <a href="#pantallas"><svg><use href="#i-phone"/></svg>Dispositivos</a>
+      </nav>
+      <div class="ed">
+        <div class="edhead"><h4>Anunciación</h4><span class="badge b-run"><span class="dot"></span>Reproduciendo</span><span class="sp" style="flex:1"></span><span class="mono muted" style="font-size:12px">00:18.40 / 01:00</span></div>
+        <div class="tl" id="tl">
+          <div class="ruler"><div></div><div class="ticks"><span style="left:0">0:00</span><span style="left:20%">0:12</span><span style="left:40%">0:24</span><span style="left:60%">0:36</span><span style="left:80%">0:48</span></div></div>
+          <div id="tracks"></div>
+          <div class="head anim"></div>
+        </div>
+        <div class="transport">
+          <button class="btn sm" type="button" aria-label="Reproducir"><svg><use href="#i-play"/></svg></button>
+          <button class="btn sm" type="button" aria-label="Pausa"><svg><use href="#i-pause"/></svg></button>
+          <button class="btn sm" type="button" aria-label="Parar"><svg><use href="#i-stop"/></svg></button>
+          <span class="mono muted" style="font-size:12px;margin-left:auto">Vista previa simulada</span>
+        </div>
+      </div>
+      <aside class="insp">
+        <span class="cap muted">Inspector · Clip</span>
+        <h3 style="font-size:17px">Fundido · Cielo</h3>
+        <dl class="kv"><dt>Elemento</dt><dd>cielo-led</dd><dt>Pin</dt><dd>GPIO 18 · PWM0</dd><dt>Inicio</dt><dd>00:06.00</dd><dt>Duración</dt><dd>00:14.00</dd><dt>Nivel</dt><dd>0 → 80 %</dd><dt>Capa</dt><dd>1</dd></dl>
+        <div class="rule" style="border-style:dashed;border-color:var(--ai);padding:10px;background:color-mix(in srgb,var(--ai) 6%,var(--raised))">
+          <span class="badge b-ai"><svg><use href="#i-spark"/></svg>Propuesta</span>
+          <p style="font-size:12px;margin:8px 0">Añadir «Estrella · Parpadeo» de 0:30 a 0:42 en la pista 4.</p>
+          <div style="display:flex;gap:6px"><button class="btn sm" type="button">Descartar</button><button class="btn pri sm" type="button">Aceptar</button></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <p class="muted mono" style="font-size:12px;margin-top:10px">Contenido de ejemplo: proyecto «belen-2026».</p>
+</section>
+
+<section class="band" id="concepto">
+  <div class="lbl"><span>001 / Concepto &gt;&gt;&gt;</span><span>//</span></div>
+  <div class="g2">
+    <div>
+      <h2>Una hoja de especificación que se mueve.</h2>
+      <p class="lead" style="margin-top:16px">Primum coordina placas, pines y escenas. La marca se comporta como un plano técnico bien hecho: retícula visible, filetes de un píxel, etiquetas en mono numeradas y un único azul que marca lo que se puede pulsar o lo que está vivo.</p>
+      <p>El nombre viene del <em>Primum Mobile</em>, la esfera exterior que pone en movimiento a las demás: el papel de la placa central, que coordina sin actuar. El símbolo conserva esa esfera, ahora dibujada como en un plano.</p>
+    </div>
+    <div class="g4" style="grid-template-columns:repeat(2,minmax(0,1fr));align-self:start">
+      <div class="cell"><span class="cap" style="color:var(--sig)">01</span><h3 style="margin:8px 0 6px">Preciso</h3><p class="muted" style="font-size:14px">Cada dato con su unidad. Pines, tiempos y direcciones en mono, tal cual.</p></div>
+      <div class="cell"><span class="cap" style="color:var(--sig)">02</span><h3 style="margin:8px 0 6px">Sereno</h3><p class="muted" style="font-size:14px">Mucho blanco, pocos colores. El color aparece solo cuando significa algo.</p></div>
+      <div class="cell"><span class="cap" style="color:var(--sig)">03</span><h3 style="margin:8px 0 6px">Honesto</h3><p class="muted" style="font-size:14px">Dice lo que la placa hizo y lo que no. La seguridad no se adorna.</p></div>
+      <div class="cell"><span class="cap" style="color:var(--sig)">04</span><h3 style="margin:8px 0 6px">Local</h3><p class="muted" style="font-size:14px">Funciona sin Internet. «Modo local» es lo normal, no una alarma.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="logo">
+  <div class="lbl"><span>002 / Logotipo &gt;&gt;&gt;</span><span>//</span></div>
+  <div class="g2">
+    <div class="dots" style="border:1px solid var(--line);display:grid;place-items:center;min-height:320px;position:relative">
+      <svg viewBox="0 0 32 32" style="width:200px;height:200px;overflow:visible">
+        <circle cx="16" cy="16" r="11" fill="none" stroke="var(--line2)" stroke-width=".1" stroke-dasharray=".6 .6"/>
+        <path d="M0 16H32M16 0V32" stroke="var(--line2)" stroke-width=".08"/>
+        <use href="#mark"/>
+        <text x="27.6" y="3.6" font-family="Geist Mono" font-size="1.4" fill="var(--sig)">astro</text>
+        <text x="17.6" y="20" font-family="Geist Mono" font-size="1.4" fill="var(--muted)">pivote</text>
+        <text x="2" y="30" font-family="Geist Mono" font-size="1.4" fill="var(--muted)">esfera · trazo 2,6/32</text>
+      </svg>
+    </div>
+    <div>
+      <h3>Símbolo: la esfera, el eje y el astro.</h3>
+      <p style="margin-top:8px">Un anillo grueso (la esfera exterior), un eje fino desde el pivote central y un <b>astro cuadrado</b> en azul señal, separado del anillo por un hueco de aire. El cuadrado es el «píxel» que conecta la esfera clásica con el lenguaje digital del sistema. El eje apunta siempre a la 1:30 y no se gira.</p>
+      <p><b>Logotipo:</b> símbolo + «Primum» en Geist 600, interletraje −4,5 %. Los productos añaden su nombre en Geist 300 gris, sin espacio de marca propio.</p>
+      <div style="display:grid;gap:0;border:1px solid var(--line);margin-top:16px">
+        <div style="padding:18px;border-bottom:1px solid var(--line)"><span class="logo" style="font-size:28px"><svg style="width:36px;height:36px"><use href="#mark"/></svg>Primum</span></div>
+        <div style="padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:28px;flex-wrap:wrap">
+          <span class="logo"><svg><use href="#mark"/></svg>Primum<small>OS</small></span>
+          <span class="logo"><svg><use href="#mark"/></svg>Primum<small>Studio</small></span>
+          <span class="logo"><svg><use href="#mark"/></svg>Primum<small>Cloud</small></span>
+        </div>
+        <div style="padding:18px;background:#0a0e1c;color-scheme:dark"><span class="logo" style="font-size:24px;color:#eef2fb"><svg style="width:30px;height:30px;--ink:#eef2fb;--bg:#0a0e1c;--sig:#4c8dff"><use href="#mark"/></svg>Primum</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="g4" style="margin-top:24px">
+    <div class="cell"><span class="cap muted">Tamaño mínimo</span><p style="margin-top:8px;font-size:14px">Logotipo 88 px de ancho (20 mm). Símbolo 16 px: a ese tamaño se quita el eje y el astro pasa a 6 px.</p><div style="display:flex;gap:14px;align-items:end"><svg style="width:16px;height:16px"><use href="#mark"/></svg><svg style="width:24px;height:24px"><use href="#mark"/></svg><svg style="width:40px;height:40px"><use href="#mark"/></svg></div></div>
+    <div class="cell"><span class="cap muted">Zona de respeto</span><p style="margin-top:8px;font-size:14px">x = lado del astro en los cuatro lados. En etiquetas de placa puede bajar a ½ x.</p></div>
+    <div class="cell"><span class="cap muted">Icono de app</span><p style="margin-top:8px;font-size:14px">Cuadrado de esquinas rectas en marino, anillo blanco, astro azul. Igual en claro y oscuro. Favicon = símbolo de 16 px.</p><svg style="width:48px;height:48px;background:#1b2240;--ink:#fff;--bg:#1b2240;--sig:#4c8dff;padding:6px"><use href="#mark"/></svg></div>
+    <div class="cell"><span class="cap muted">Usos incorrectos</span>
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+        <span class="dont" style="padding:6px"><svg style="width:32px;height:32px;transform:rotate(90deg)"><use href="#mark"/></svg></span>
+        <span class="dont" style="padding:6px"><svg style="width:32px;height:32px;--sig:var(--danger)"><use href="#mark"/></svg></span>
+        <span class="dont" style="padding:6px;font:italic 600 20px Georgia,serif;color:var(--ink)">Primum</span>
+      </div>
+      <p style="font-size:13px;margin-top:8px" class="muted">No girar, no teñir con un color de estado, no recomponer el nombre en otra letra, sin sombras ni degradados.</p></div>
+  </div>
+</section>
+
+<section class="band" id="color">
+  <div class="lbl"><span>003 / Color &gt;&gt;&gt;</span><span>//</span></div>
+  <div class="g2" style="margin-bottom:24px">
+    <h2>Blanco frío, tinta marina y un solo azul.</h2>
+    <p class="lead">El azul señal es la acción principal y el estado «en ejecución»: lo que se puede pulsar o lo que se mueve ahora. Todo lo demás es tinta y filete. Los demás colores son estados reservados y siempre van con icono y palabra.</p>
+  </div>
+  <div class="g4" id="brandchips" style="border:0;gap:16px"></div>
+  <h3 style="margin:32px 0 12px">Neutros</h3>
+  <div class="ramp" id="ramp"></div>
+  <h3 style="margin:32px 0 12px">Estados reservados</h3>
+  <div class="scroll"><table class="stack"><thead><tr><th>Token</th><th>Claro</th><th>Oscuro</th><th>Insignia</th><th>Significa</th></tr></thead><tbody id="sem"></tbody></table></div>
+  <h3 style="margin:32px 0 6px">Pistas del editor: 12 tintas</h3>
+  <p class="muted" style="font-size:14px">Cada pista lleva color, número, el icono de su elemento y un rayado en el talón del bloque, para leerse con cualquier tipo de daltonismo. Nunca se usan para estados.</p>
+  <div class="ramp" id="tracksw"></div>
+</section>
+
+<section class="band" id="tipo">
+  <div class="lbl"><span>004 / Tipografía &gt;&gt;&gt;</span><span>//</span></div>
+  <div class="g2">
+    <div>
+      <div class="spec"><span class="cap">Geist 500</span><span style="font-size:clamp(34px,5vw,56px);color:var(--ink);letter-spacing:-.04em;line-height:1">Escenas en minutos</span></div>
+      <div class="spec"><span class="cap">Geist 400</span><span style="font-size:17px">Conecta un elemento, dile en qué pin está y pruébalo. Primum avisa si el pin está ocupado y sugiere otro libre.</span></div>
+      <div class="spec"><span class="cap">Geist Mono</span><span class="mono" style="font-size:15px;color:var(--ink)">GPIO 18 · 00:12.40 · primum.local · Primum-7F3A</span></div>
+      <div class="spec"><span class="cap">Mono · etiqueta</span><span class="cap" style="color:var(--ink)">&gt;&gt;&gt; Desplegando · 3 de 3 placas</span></div>
+      <div class="spec"><span class="cap">Pixel</span><span style="font:400 clamp(48px,7vw,80px)/1 var(--pix);color:var(--sig)">482 913</span></div>
+    </div>
+    <div>
+      <div class="scroll"><table><thead><tr><th>Token</th><th>Tamaño</th><th>Uso</th></tr></thead><tbody>
+        <tr><td class="m">display</td><td class="m">56/1.0</td><td>Portadas y web pública</td></tr>
+        <tr><td class="m">3xl</td><td class="m">40/1.05</td><td>Título de pantalla</td></tr>
+        <tr><td class="m">2xl</td><td class="m">28/1.1</td><td>Título de sección</td></tr>
+        <tr><td class="m">xl</td><td class="m">20/1.2</td><td>Diálogos, tarjetas</td></tr>
+        <tr><td class="m">md</td><td class="m">16/1.5</td><td>Cuerpo y todo lo táctil</td></tr>
+        <tr><td class="m">sm</td><td class="m">14/1.45</td><td>UI densa de escritorio</td></tr>
+        <tr><td class="m">xs</td><td class="m">12/1.4</td><td>Etiquetas mono, regla de tiempo</td></tr>
+      </tbody></table></div>
+      <p style="margin-top:16px;font-size:14px"><b>Familias:</b> Geist y Geist Mono (SIL OFL 1.1) para todo; una pixel (Pixelify Sans, OFL, o la Geist Pixel si su licencia lo permite) solo para cifras grandes: código de emparejamiento, contadores, tiempo en el kiosco. Titulares en 500 con interletraje −3,5 %. Mayúsculas solo en etiquetas mono y botones. Todo se empaqueta en woff2 dentro de la placa para funcionar sin Internet.</p>
+      <div class="scroll" style="margin-top:16px"><table><thead><tr><th>Familia</th><th>Archivos (woff2 variable)</th><th>Pesos</th></tr></thead><tbody>
+        <tr><td>Geist</td><td class="m">geist-latin · geist-latin-ext</td><td class="m">100–900</td></tr>
+        <tr><td>Geist Mono</td><td class="m">geist-mono-latin · -latin-ext</td><td class="m">100–900</td></tr>
+        <tr><td>Pixelify Sans</td><td class="m">pixelify-sans-latin · -latin-ext</td><td class="m">400–700</td></tr>
+      </tbody></table></div>
+      <p style="margin-top:12px;font-size:14px"><b>Fuentes empaquetadas:</b> en <span class="mono">design/fonts/</span>, con <span class="mono">fonts.css</span> (Geist y Geist Mono, que carga la web de la placa), <span class="mono">pixel.css</span> (la pixel, aparte: solo la carga quien muestra cifras grandes) y las licencias OFL. Subconjuntos latín y latín extendido (castellano y catalán), unos 100 KB en total. La web de la placa y este brandbook las cargan de ahí: nada se pide a Internet.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="forma">
+  <div class="lbl"><span>005 / Retícula, forma y espacio &gt;&gt;&gt;</span><span>//</span></div>
+  <div class="g3">
+    <div class="cell"><div class="dots" style="height:120px;border:1px solid var(--line);margin-bottom:12px"></div><h3>Retícula de puntos</h3><p class="muted" style="font-size:14px">Fondo de 16 px para lienzos: editor, diagramas de placas, estados vacíos.</p></div>
+    <div class="cell"><div style="height:120px;border:1px solid var(--line);margin-bottom:12px;background:var(--hatch)"></div><h3>Rayado a 45°</h3><p class="muted" style="font-size:14px">Márgenes, zonas no editables y el talón de los bloques de pista.</p></div>
+    <div class="cell"><div style="height:120px;margin-bottom:12px;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line2);border-left:1px solid var(--line2)"><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2)"></i><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2)"></i><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);background:var(--sigtint)"></i><i style="border-right:1px solid var(--line2);border-bottom:1px solid var(--line2)"></i></div><h3>Filetes de 1 px</h3><p class="muted" style="font-size:14px">Separan en lugar de sombras. Las celdas comparten borde. El contorno de un control (campo, interruptor, raíl) es más oscuro, <span class="mono">#7A8299</span>, para llegar a 3:1 sobre el fondo.</p></div>
+  </div>
+  <div class="g4" style="margin-top:24px">
+    <div class="cell"><span class="cap muted">Radio</span><p style="font-size:14px;margin-top:6px"><b class="mono">0 px</b> en todo. Solo los puntos de estado son cuadrados de 7 px; el pánico lleva chaflán octogonal.</p></div>
+    <div class="cell"><span class="cap muted">Espaciado</span><p style="font-size:14px;margin-top:6px" class="mono">4 · 8 · 12 · 16 · 24 · 32 · 48 · 64</p></div>
+    <div class="cell"><span class="cap muted">Densidad</span><p style="font-size:14px;margin-top:6px">Escritorio: controles 28–36 px, filas 40. Táctil: nada bajo 44 px, transporte 64, pánico 72.</p></div>
+    <div class="cell"><span class="cap muted">Movimiento</span><p style="font-size:14px;margin-top:6px">100 / 180 / 320 ms, lineal o en pasos. Barras rayadas para el progreso. Se apaga con reducir movimiento.</p></div>
+  </div>
+</section>
+
+<section class="band" id="iconos">
+  <div class="lbl"><span>006 / Iconografía &gt;&gt;&gt;</span><span>//</span></div>
+  <div class="g2" style="margin-bottom:20px">
+    <h2>Trazo fino y un píxel macizo.</h2>
+    <div><p>Retícula de 24 px, trazo 1,5 px, remates rectos y uniones a inglete. Firma: un único <b>píxel macizo de 2 × 2</b> por icono, donde la pieza gira, actúa o se mide. Color <span class="mono">currentColor</span>. Tamaños 16, 20, 24 y 32. Los navegacionales (flechas, cerrar, añadir) no llevan píxel; los macizos (reproducir y pausa) lo son enteros.</p>
+    <p class="muted" style="font-size:14px">Juego completo: 56 iconos en <span class="mono">design/icons/</span>, con el nombre de archivo bajo cada uno.</p></div>
+  </div>
+  <div class="icons" id="icons">
+<h4>i-* · Dominio: placas, elementos, acciones, conexiones · 25</h4>
+<div><svg><use href="#ic-i-hub"/></svg><span>Placa central<br>i-hub</span></div>
+<div><svg><use href="#ic-i-node"/></svg><span>Placa nodo<br>i-node</span></div>
+<div><svg><use href="#ic-i-sat"/></svg><span>Satélite<br>i-sat</span></div>
+<div><svg><use href="#ic-i-led"/></svg><span>Tira LED<br>i-led</span></div>
+<div><svg><use href="#ic-i-bulb"/></svg><span>Bombilla<br>i-bulb</span></div>
+<div><svg><use href="#ic-i-motor"/></svg><span>Motor<br>i-motor</span></div>
+<div><svg><use href="#ic-i-servo"/></svg><span>Servo<br>i-servo</span></div>
+<div><svg><use href="#ic-i-pir"/></svg><span>Sensor PIR<br>i-pir</span></div>
+<div><svg><use href="#ic-i-button"/></svg><span>Pulsador<br>i-button</span></div>
+<div><svg><use href="#ic-i-dist"/></svg><span>Distancia<br>i-dist</span></div>
+<div><svg><use href="#ic-i-temp"/></svg><span>Temperatura<br>i-temp</span></div>
+<div><svg><use href="#ic-i-speaker"/></svg><span>Altavoz<br>i-speaker</span></div>
+<div><svg><use href="#ic-i-dmx"/></svg><span>DMX<br>i-dmx</span></div>
+<div><svg><use href="#ic-i-play"/></svg><span>Reproducir<br>i-play</span></div>
+<div><svg><use href="#ic-i-playf"/></svg><span>Reproducir (macizo)<br>i-playf</span></div>
+<div><svg><use href="#ic-i-pause"/></svg><span>Pausa<br>i-pause</span></div>
+<div><svg><use href="#ic-i-pausef"/></svg><span>Pausa (maciza)<br>i-pausef</span></div>
+<div><svg><use href="#ic-i-stop"/></svg><span>Parar<br>i-stop</span></div>
+<div><svg><use href="#ic-i-panic"/></svg><span>Pánico<br>i-panic</span></div>
+<div><svg><use href="#ic-i-test"/></svg><span>Probar<br>i-test</span></div>
+<div><svg><use href="#ic-i-deploy"/></svg><span>Desplegar<br>i-deploy</span></div>
+<div><svg><use href="#ic-i-wifi"/></svg><span>Wi-Fi<br>i-wifi</span></div>
+<div><svg><use href="#ic-i-usb"/></svg><span>USB<br>i-usb</span></div>
+<div><svg><use href="#ic-i-radio"/></svg><span>Radio<br>i-radio</span></div>
+<div><svg><use href="#ic-i-bus"/></svg><span>Bus I²C<br>i-bus</span></div>
+<h4>s-* · Estado · 9</h4>
+<div><svg><use href="#ic-s-ok"/></svg><span>Hecho<br>s-ok</span></div>
+<div><svg><use href="#ic-s-run"/></svg><span>En ejecución<br>s-run</span></div>
+<div><svg><use href="#ic-s-play"/></svg><span>Reproduciendo<br>s-play</span></div>
+<div><svg><use href="#ic-s-ring"/></svg><span>Conectando<br>s-ring</span></div>
+<div><svg><use href="#ic-s-warn"/></svg><span>Aviso<br>s-warn</span></div>
+<div><svg><use href="#ic-s-info"/></svg><span>Información<br>s-info</span></div>
+<div><svg><use href="#ic-s-local"/></svg><span>Modo local<br>s-local</span></div>
+<div><svg><use href="#ic-s-safe"/></svg><span>Estado seguro<br>s-safe</span></div>
+<div><svg><use href="#ic-s-spark"/></svg><span>Propuesta IA<br>s-spark</span></div>
+<h4>u-* · Interfaz · 22</h4>
+<div><svg><use href="#ic-u-plus"/></svg><span>Añadir<br>u-plus</span></div>
+<div><svg><use href="#ic-u-x"/></svg><span>Cerrar<br>u-x</span></div>
+<div><svg><use href="#ic-u-check"/></svg><span>Marcar<br>u-check</span></div>
+<div><svg><use href="#ic-u-back"/></svg><span>Atrás<br>u-back</span></div>
+<div><svg><use href="#ic-u-chev"/></svg><span>Abrir<br>u-chev</span></div>
+<div><svg><use href="#ic-u-down"/></svg><span>Desplegar lista<br>u-down</span></div>
+<div><svg><use href="#ic-u-more"/></svg><span>Más<br>u-more</span></div>
+<div><svg><use href="#ic-u-search"/></svg><span>Buscar<br>u-search</span></div>
+<div><svg><use href="#ic-u-seq"/></svg><span>Secuencia<br>u-seq</span></div>
+<div><svg><use href="#ic-u-rule"/></svg><span>Automatización<br>u-rule</span></div>
+<div><svg><use href="#ic-u-clock"/></svg><span>Programación<br>u-clock</span></div>
+<div><svg><use href="#ic-u-board"/></svg><span>Placa<br>u-board</span></div>
+<div><svg><use href="#ic-u-sim"/></svg><span>Simulador<br>u-sim</span></div>
+<div><svg><use href="#ic-u-gear"/></svg><span>Ajustes<br>u-gear</span></div>
+<div><svg><use href="#ic-u-lock"/></svg><span>Bloqueo<br>u-lock</span></div>
+<div><svg><use href="#ic-u-users"/></svg><span>Usuarios<br>u-users</span></div>
+<div><svg><use href="#ic-u-book"/></svg><span>Documentación<br>u-book</span></div>
+<div><svg><use href="#ic-u-code"/></svg><span>Código<br>u-code</span></div>
+<div><svg><use href="#ic-u-dl"/></svg><span>Descargar<br>u-dl</span></div>
+<div><svg><use href="#ic-u-bolt"/></svg><span>Alimentación<br>u-bolt</span></div>
+<div><svg><use href="#ic-u-loop"/></svg><span>Repetir<br>u-loop</span></div>
+<div><svg><use href="#ic-u-skipb"/></svg><span>Al inicio<br>u-skipb</span></div>
+</div>
+</section>
+
+<section class="band" id="componentes">
+  <div class="lbl"><span>007 / Componentes &gt;&gt;&gt;</span><span>//</span></div>
+  <div class="g2">
+    <div>
+      <h3>Botones</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 8px;align-items:center">
+        <button class="btn pri big" type="button">Desplegar proyecto</button>
+        <button class="btn" type="button"><svg><use href="#i-test"/></svg>Probar</button>
+        <button class="btn ghost" type="button">Ver la traza ↗</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <button class="btn panic big" type="button"><svg><use href="#i-panic"/></svg>Pánico</button>
+        <button class="btn dis" type="button" aria-disabled="true">Activar</button>
+        <button class="btn sm" type="button">Soltar</button>
+      </div>
+      <p class="muted" style="font-size:14px;margin-top:10px">Principal: bloque azul macizo. Secundario: filete de tinta. Terciario: enlace mono subrayado con ↗. Pánico: rojo, chaflán octogonal, nunca deshabilitado. Deshabilitado: borde discontinuo.</p>
+
+      <h3 style="margin-top:28px">Insignias de estado</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+        <span class="badge b-ok"><svg><use href="#i-ok"/></svg>Conectado</span>
+        <span class="badge b-run"><span class="dot"></span>Reproduciendo</span>
+        <span class="badge b-warn"><svg><use href="#i-warn"/></svg>Aviso</span>
+        <span class="badge b-danger"><svg><use href="#i-panic"/></svg>Pánico activo</span>
+        <span class="badge b-off"><svg><use href="#i-local"/></svg>Modo local</span>
+        <span class="badge b-safe"><svg><use href="#i-safe"/></svg>Estado seguro</span>
+        <span class="badge b-ai"><svg><use href="#i-spark"/></svg>Propuesta</span>
+      </div>
+
+      <h3 style="margin-top:28px">Progreso</h3>
+      <div style="margin-top:12px;display:grid;gap:8px">
+        <div class="mono" style="font-size:12px;display:flex;justify-content:space-between;text-transform:uppercase"><span>Progreso &gt;&gt;&gt; <span class="muted">validando paquete…</span></span><span>79%</span></div>
+        <div class="prog stripe"><i style="width:79%"></i></div>
+      </div>
+    </div>
+    <div>
+      <h3>Controles</h3>
+      <div style="border:1px solid var(--line);margin-top:14px">
+        <div class="prow"><svg style="width:22px;height:22px;color:var(--t1)"><use href="#i-led"/></svg><div class="n"><b>Cielo</b><small>GPIO 18 · PWM</small></div><input id="lvl" type="range" min="0" max="100" value="60" style="width:110px" aria-label="Nivel del cielo"><span class="mono" id="lvlv" style="width:3.2em;text-align:right">60 %</span></div>
+        <div class="prow"><svg style="width:22px;height:22px;color:var(--t2)"><use href="#i-motor"/></svg><div class="n"><b>Noria</b><small>GPIO 23 · Relé · <span style="color:var(--sig)">la controla «Anunciación»</span></small></div><button class="sw" role="switch" aria-checked="true" aria-label="Noria"></button></div>
+        <div class="prow"><svg style="width:22px;height:22px;color:var(--t8)"><use href="#i-sensor"/></svg><div class="n"><b>Presencia</b><small>GPIO 4 · Entrada</small></div><span class="badge b-run"><span class="dot"></span>Detecta</span></div>
+        <div class="prow"><svg style="width:22px;height:22px;color:var(--t3)"><use href="#i-led"/></svg><div class="n"><b>Estrella</b><small>GPIO 12 · <span id="cd">Prueba · 0:08</span></small></div><button class="btn sm" type="button" id="testbtn"><svg><use href="#i-test"/></svg>Probar</button></div>
+      </div>
+      <div class="g2" style="margin-top:20px;gap:16px">
+        <div class="field"><label for="f1">Nombre del elemento</label><input id="f1" type="text" value="Cascada"></div>
+        <div class="field err"><label for="f2">Pin</label><input id="f2" type="text" value="GPIO 18"><span class="msg"><svg style="width:14px;height:14px"><use href="#i-warn"/></svg>Lo usa «Cielo». GPIO 13 está libre.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="pantallas">
+  <div class="lbl"><span>008 / Pantallas de la plataforma &gt;&gt;&gt;</span><span>//</span></div>
+  <p class="lead" style="margin-bottom:24px">Cómo se aplica el sistema a cada funcionalidad del plan: control diario, automatizaciones y programaciones, variables y ajustes, eventos, actividad, paquetes y dispositivos emparejados. El editor de línea de tiempo está en la portada.</p>
+  <div class="g2" style="grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:32px">
+    <div>
+      <div class="phone" aria-label="Control diario en el móvil">
+        <div class="st"><span>20:31</span><span>primum.local</span></div>
+        <div style="padding:10px 14px 14px"><span class="cap muted" style="font-size:11px">Control</span><h3 style="font-size:24px;margin-top:2px">Belén 2026</h3>
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><span class="badge b-ok"><span class="dot"></span>Placa lista</span><span class="badge b-off"><svg><use href="#i-local"/></svg>Modo local</span></div></div>
+        <div class="prow" style="background:var(--sigtint)"><svg style="width:22px;height:22px;color:var(--sig)"><use href="#i-play"/></svg><div class="n"><b>Anunciación</b><small>00:18 / 01:00</small></div><button class="btn sm pri" type="button" style="height:44px;width:44px;padding:0" aria-label="Pausa"><svg><use href="#i-pause"/></svg></button></div>
+        <div class="prow"><svg style="width:22px;height:22px"><use href="#i-seq"/></svg><div class="n"><b>Noche</b><small>Secuencia · 03:00</small></div><button class="btn sm" type="button" style="height:44px;width:44px;padding:0" aria-label="Reproducir"><svg><use href="#i-play"/></svg></button></div>
+        <div class="prow"><svg style="width:22px;height:22px;color:var(--t1)"><use href="#i-var"/></svg><div class="n"><b>Brillo general</b><small>Ajuste · 0–100 %</small></div><span class="mono">75 %</span></div>
+        <div class="prow"><svg style="width:22px;height:22px;color:var(--t8)"><use href="#i-spark"/></svg><div class="n"><b>Botón de visitas</b><small>Evento</small></div><button class="btn sm" type="button" style="height:44px">Disparar</button></div>
+        <div style="padding:14px;border-top:1px solid var(--line)"><button class="btn panic" type="button" style="width:100%;height:64px;font-size:16px"><svg><use href="#i-panic"/></svg>Pánico</button></div>
+        <div class="tabs"><span class="on">Control</span><span>Actividad</span><span>Ajustes</span></div>
+      </div>
+      <p class="muted" style="font-size:13px;text-align:center;margin-top:8px">Móvil, densidad táctil</p>
+    </div>
+    <div style="display:grid;gap:28px">
+      <div>
+        <h3 style="margin-bottom:10px">Automatización: cuando · si · hacer</h3>
+        <div class="rule">
+          <div class="r"><span class="k">CUANDO</span><div class="v"><svg style="width:18px;height:18px;color:var(--t8)"><use href="#i-sensor"/></svg><span class="tok">presencia</span> detecta</div></div>
+          <div class="r"><span class="k">SI</span><div class="v"><span class="tok">horario.visitas</span> está dentro <span class="muted">y</span> <span class="tok">brillo &gt; 20</span></div></div>
+          <div class="r"><span class="k">HACER</span><div class="v">Iniciar <span class="tok" style="border-color:var(--sig);color:var(--sig)">anunciacion.sec</span> · capa 2</div></div>
+        </div>
+      </div>
+      <div>
+        <h3 style="margin-bottom:10px">Programación</h3>
+        <div class="scroll"><div style="display:grid;grid-template-columns:52px repeat(24,minmax(14px,1fr));min-width:480px;font:11px var(--mono);color:var(--muted);border:1px solid var(--line)" id="sched"></div></div>
+      </div>
+      <div>
+        <h3 style="margin-bottom:10px">Actividad (traza)</h3>
+<div class="log"><span class="t">20:30:00.004</span>  <span class="e">programación</span>  <span class="k">horario.visitas</span> abre ventana
+<span class="t">20:30:12.418</span>  <span class="e">evento</span>        <span class="k">presencia</span> → detecta
+<span class="t">20:30:12.419</span>  <span class="e">automatización</span> <span class="k">recibir-visitas</span> · condiciones OK
+<span class="t">20:30:12.421</span>  <span class="e">secuencia</span>     <span class="k">anunciacion.sec</span> inicia · capa 2
+<span class="t">20:30:13.002</span>  <span class="w">aviso</span>         <span class="k">noria</span> ya la controla «noche» · gana la capa 2</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-top:32px">
+    <div class="cell">
+      <h3>Paquetes de despliegue</h3>
+      <table style="margin-top:10px;font-size:13px"><tbody>
+        <tr><td><b>v14</b><br><span class="mono muted" style="font-size:11px">sha 9f3a…c21e</span></td><td><span class="badge b-ok">Activo</span></td></tr>
+        <tr><td><b>v13</b><br><span class="mono muted" style="font-size:11px">sha 41b0…7d02</span></td><td><button class="btn sm" type="button">Volver a esta</button></td></tr>
+        <tr><td><b>v15</b><br><span class="mono muted" style="font-size:11px">validado · guardado</span></td><td><button class="btn sm pri" type="button">Activar</button></td></tr>
+      </tbody></table>
+    </div>
+    <div class="cell">
+      <h3>Emparejar dispositivo</h3>
+      <p class="muted" style="font-size:14px;margin:6px 0 10px">Escribe el código que muestra la placa.</p>
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">
+        <span style="border:1px solid var(--line2);text-align:center;font:400 30px/48px var(--pix);color:var(--ink)">4</span><span style="border:1px solid var(--line2);text-align:center;font:400 30px/48px var(--pix);color:var(--ink)">8</span><span style="border:1px solid var(--line2);text-align:center;font:400 30px/48px var(--pix);color:var(--ink)">2</span><span style="border:2px solid var(--sig);text-align:center;font:400 30px/46px var(--pix);color:var(--ink)">9</span><span style="border:1px dashed var(--line2)"></span><span style="border:1px dashed var(--line2)"></span>
+      </div>
+      <div style="margin-top:14px;font-size:13px;display:grid;gap:6px"><div style="display:flex;justify-content:space-between"><span>iPhone de Joan</span><span class="mono muted">hoy</span></div><div style="display:flex;justify-content:space-between"><span>Portátil taller</span><span class="mono muted">hace 3 d</span></div></div>
+    </div>
+    <div class="cell">
+      <h3>Variables y ajustes</h3>
+      <table style="margin-top:10px;font-size:13px"><thead><tr><th>Nombre</th><th>Tipo</th><th style="text-align:right">Valor</th></tr></thead><tbody>
+        <tr><td class="m">brillo</td><td>número</td><td class="m" style="text-align:right">75</td></tr>
+        <tr><td class="m">visitas_hoy</td><td>entero · guarda</td><td class="m" style="text-align:right">128</td></tr>
+        <tr><td class="m">modo_noche</td><td>sí/no</td><td class="m" style="text-align:right">no</td></tr>
+        <tr><td class="m">MAX_NORIA</td><td>constante</td><td class="m" style="text-align:right">90 s</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="voz">
+  <div class="lbl"><span>009 / Voz y tono &gt;&gt;&gt;</span><span>//</span></div>
+  <div class="g2" style="margin-bottom:20px">
+    <h2>Qué pasó, por qué y qué hacer.</h2>
+    <div><p>Frases cortas y verbos concretos. «Placa», no «nodo MCU». Los nombres técnicos van en mono y tal cual. Sin emoji: los estados llevan icono y palabra. Los titulares de marketing son directos y comparan dos tiempos («Escenas en minutos, no en semanas»). Idiomas de la interfaz: castellano e inglés.</p></div>
+  </div>
+  <div class="scroll"><table class="stack voice"><thead><tr><th>Momento</th><th>Castellano</th><th>English</th></tr></thead><tbody>
+    <tr><td data-l="Momento">Bienvenida</td><td data-l="Castellano">Conecta tu primera placa y dale vida a la escena.</td><td data-l="English">Connect your first board and bring the scene to life.</td></tr>
+    <tr><td data-l="Momento">Pin ocupado</td><td data-l="Castellano">Este pin ya lo usa «Cielo». GPIO 13 está libre.</td><td data-l="English">“Sky” already uses this pin. GPIO 13 is free.</td></tr>
+    <tr><td data-l="Momento">Motor detenido</td><td data-l="Castellano">La noria superó su tiempo máximo y se ha parado. Mira que nada la bloquee antes de rearmarla.</td><td data-l="English">The wheel ran past its maximum time and stopped. Check nothing blocks it before re-arming.</td></tr>
+    <tr><td data-l="Momento">Sin respuesta</td><td data-l="Castellano">La placa no respondió. No sabemos si lo hizo: mira la escena.</td><td data-l="English">The board didn't answer. We don't know if it did it: check the scene.</td></tr>
+    <tr><td data-l="Momento">Despliegue</td><td data-l="Castellano">Listo: «Anunciación» ya está en la placa. La versión anterior se guarda.</td><td data-l="English">Done: “Annunciation” is on the board. The previous version is kept.</td></tr>
+  </tbody></table></div>
+</section>
+
+<section class="band" id="tokens">
+  <div class="lbl"><span>010 / Tokens &gt;&gt;&gt;</span><span>//</span></div>
+  <p style="margin-bottom:12px">Mismos nombres de token que el sistema actual (<span class="mono">design/tokens/tokens.json</span>), con valores nuevos. Adoptarlo es cambiar ese archivo y regenerar el CSS.</p>
+  <button class="btn sm copy" type="button" id="copy">Copiar</button>
+<pre id="code">:root {
+  --font-family-ui: "Geist", system-ui, sans-serif;
+  --font-family-mono: "Geist Mono", ui-monospace, monospace;
+  --font-family-display: "Geist", system-ui, sans-serif;
+  --font-family-pixel: "Pixelify Sans", "Geist Mono", monospace;
+  --radius-sm: 0px; --radius-md: 0px; --radius-lg: 0px;
+  --size-rule-md: 1px;
+  --color-brand-primary: #0a5ce6;   /* oscuro #4c8dff */
+  --color-brand-secondary: #1b2240; /* tinta marina */
+  --color-surface-base: #fbfcfe;    /* oscuro #0a0e1c */
+  --color-surface-raised: #ffffff;  /* oscuro #10162a */
+  --color-border-default: #e3e7ee;  /* oscuro #222a44 */
+  --color-border-strong: #c9cfda;   /* oscuro #36405f */
+  --color-border-control: #7a8299;  /* igual en oscuro: 3:1 o más */
+  --color-text-primary: #1b2240;    /* oscuro #eef2fb */
+  --color-text-secondary: #5e667e;  /* oscuro #929bb6 */
+  --color-semantic-danger: #d7263d;  --color-semantic-warning: #b85c00;
+  --color-semantic-success: #16834a; --color-semantic-running: #0a5ce6;
+  --color-semantic-offline: #6b7285; --color-semantic-safe: #0e7c86;
+  --color-semantic-proposal: #7443d6;
+  --motion-fast: 100ms; --motion-base: 180ms; --motion-slow: 320ms;
+}</pre>
+</section>
+
+<footer><span>Primum · Brandbook v2 «Plano»</span><span>27 nov 2026</span></footer>
+</div>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+const tr=[["Cielo","led",1,[[0,8,"Encender"],[10,34,"Fundido 0→80 %"],[60,22,"Mantener"]]],["Noria","motor",2,[[14,40,"Girar · 50 %"]]],["Ángel","led",3,[[30,12,"Parpadeo"],[46,18,"Fundido"]]],["Estrella","led",4,[[4,18,"Ola"],[48,12,"Propuesta",1]]],["Agua","motor",5,[[22,56,"Bomba on"]]]];
+$("#tracks").innerHTML=tr.map(([n,ic,c,cl])=>`<div class="trk"><div class="nm"><b>${String(c).padStart(2,"0")}</b><svg style="width:14px;height:14px;color:var(--t${c})"><use href="#i-${ic}"/></svg>${n}</div><div class="lane">${cl.map(([l,w,t,ai])=>`<div class="clip${ai?" ai":""}" style="--c:var(--t${c});left:${l}%;width:${w}%">${t}</div>`).join("")}</div></div>`).join("");
+const brand=[["Azul señal","--sig","#0A5CE6 · #4C8DFF","Acción principal, en ejecución, foco",1],["Tinta marina","--ink","#1B2240 · #EEF2FB","Titulares, barras de etiqueta, texto fuerte",1],["Papel","--bg","#FBFCFE · #0A0E1C","Fondo de la app y de la web",0],["Filete","--line","#E3E7EE · #222A44","Bordes, retícula, divisores",0]];
+$("#brandchips").innerHTML=brand.map(([n,v,h,u,inv])=>`<div class="chip"><div class="s" style="background:var(${v});color:${inv?"var(--bg)":"var(--ink)"};${inv?"":"border-bottom:1px solid var(--line)"}">${v}</div><div class="t"><b>${n}</b><code>${h}</code><div class="muted" style="margin-top:4px">${u}</div></div></div>`).join("");
+const neu=["#ffffff","#fbfcfe","#f2f4f8","#e3e7ee","#c9cfda","#9aa1b4","#7a8299","#5e667e","#3e4560","#2f3446","#1b2240","#0a0e1c"];
+$("#ramp").innerHTML=neu.map((c,i)=>`<div style="background:${c};color:${i<6?"#1b2240":"#eef2fb"}">${[0,50,100,200,300,400,500,600,700,800,900,950][i]}</div>`).join("");
+const sem=[["danger","#D7263D","#FF5A6B","b-danger","i-panic","Pánico","Pánico, peligro, fallo que para algo"],["warning","#B85C00","#F29A3D","b-warn","i-warn","Aviso","Algo necesita atención pero sigue"],["success","#16834A","#3DC27A","b-ok","i-ok","Conectado","Conectado, hecho, validado"],["running","#0A5CE6","#4C8DFF","b-run","","Reproduciendo","Se está moviendo ahora (comparte el azul)"],["offline","#6B7285","#8C93A8","b-off","i-local","Modo local","Sin nube: lo normal, sereno"],["safe","#0E7C86","#3CC4CE","b-safe","i-safe","Estado seguro","Salidas en su estado seguro"],["proposal","#7443D6","#A98BFF","b-ai","i-spark","Propuesta","Lo propone la IA; borde discontinuo"]];
+$("#sem").innerHTML=sem.map(([t,l,d,b,i,w,m])=>`<tr><td data-l="Token" class="m">semantic.${t}</td><td data-l="Claro" class="m"><span class="sw8" style="background:${l}"></span> ${l}</td><td data-l="Oscuro" class="m"><span class="sw8" style="background:${d}"></span> ${d}</td><td data-l="Insignia"><span class="badge ${b}">${i?`<svg><use href="#${i}"/></svg>`:'<span class="dot"></span>'}${w}</span></td><td data-l="Significa">${m}</td></tr>`).join("");
+const tn=["Índigo","Pino","Granate","Bronce","Violeta","Petróleo","Ciruela","Turquesa","Salvia","Arcilla","Lavanda","Ocre"];
+$("#tracksw").innerHTML=tn.map((n,i)=>`<div style="background:var(--t${i+1});color:#fff;flex-direction:column;align-items:flex-start;padding:6px;justify-content:space-between;background-image:repeating-linear-gradient(${[135,45,90,0,135,90,45,135,0,90,45,135][i]}deg,rgba(255,255,255,.35) 0 1.5px,transparent 1.5px 5px);background-size:100% 14px;background-repeat:no-repeat;background-color:var(--t${i+1})"><span style="margin-top:14px">${String(i+1).padStart(2,"0")}</span><span style="font-size:10px">${n}</span></div>`).join("");
+const days=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];let h='<span></span>'+Array.from({length:24},(_,i)=>`<span style="text-align:center;padding:4px 0;border-left:1px solid var(--line)">${i%6?"":i}</span>`).join("");
+days.forEach((d,j)=>{h+=`<span style="padding:6px;border-top:1px solid var(--line)">${d}</span>`;for(let i=0;i<24;i++){const on=(i>=10&&i<14)||(i>=17&&i<(j>4?22:21));const at=i===20;h+=`<span style="border-top:1px solid var(--line);border-left:1px solid var(--line);background:${on?"var(--sigtint)":"transparent"};position:relative">${at?'<i style="position:absolute;inset:4px 40% 4px auto;width:3px;background:var(--sig)"></i>':""}</span>`}});
+$("#sched").innerHTML=h;
+const lvl=$("#lvl");lvl.addEventListener("input",()=>{$("#lvlv").textContent=lvl.value+" %";lvl.style.setProperty("--v",lvl.value+"%")});
+document.querySelectorAll(".sw").forEach(b=>b.addEventListener("click",()=>b.setAttribute("aria-checked",b.getAttribute("aria-checked")!=="true")));
+let t=8,timer=null;const cd=$("#cd");
+$("#testbtn").addEventListener("click",()=>{clearInterval(timer);t=8;cd.textContent="Prueba · 0:0"+t;timer=setInterval(()=>{t--;cd.textContent=t>0?"Prueba · 0:0"+t:"Prueba terminada";if(t<=0)clearInterval(timer)},1000)});
+$("#copy").addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("#code").textContent);$("#copy").textContent="Copiado"}catch(e){$("#copy").textContent="Selecciona y copia"}});
+}
+</script>
+</body>
+</html>

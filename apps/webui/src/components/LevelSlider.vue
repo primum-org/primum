@@ -57,6 +57,11 @@ watch(
   },
 );
 
+// How far along the track a value is, for the blue fill (Firefox draws it on its own).
+function fill(value: number): number {
+  return props.max === props.min ? 0 : ((value - props.min) / (props.max - props.min)) * 100;
+}
+
 // Moving the slider only shows the number; the value is asked for on letting go.
 async function letGo(): Promise<void> {
   if (!held.value || props.disabled) return;
@@ -86,7 +91,7 @@ function changed(): void {
   <div class="level">
     <input
       v-model.number="shown" class="level-slider" type="range" :min="min" :max="max" :step="step"
-      :disabled="disabled" :aria-label="label"
+      :disabled="disabled" :aria-label="label" :style="{ '--fill': `${fill(shown)}%` }"
       @pointerdown="held = true" @keydown="held = true"
       @pointerup="letGo" @pointercancel="cancelled" @keyup="letGo" @blur="letGo" @change="changed"
     >

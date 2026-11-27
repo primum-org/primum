@@ -11,6 +11,8 @@ export default defineConfig({
   // Built with relative addresses: the service decides where the app goes.
   base: "./",
   plugins: [vue()],
+  // The brand's app icons (the favicon), served and copied as they are, at the app's root.
+  publicDir: root("../../design/app-icon"),
   resolve: {
     alias: {
       "@": root("./src"),

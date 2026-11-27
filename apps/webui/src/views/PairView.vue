@@ -55,7 +55,7 @@ async function submit(): Promise<void> {
       >
       <label for="pairing-name">{{ t("pairing.name") }}</label>
       <input id="pairing-name" v-model="name" class="field" type="text" :maxlength="MAX_NAME">
-      <button class="button" type="submit" :disabled="busy">{{ t("pairing.submit") }}</button>
+      <button class="button button-primary" type="submit" :disabled="busy">{{ t("pairing.submit") }}</button>
     </form>
   </section>
 </template>

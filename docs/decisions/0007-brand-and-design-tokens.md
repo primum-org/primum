@@ -1,6 +1,6 @@
 # 0007. Brand: "Brass automaton · compact", with design tokens as the single source
 
-- Status: Accepted
+- Status: Accepted; the brand is superseded by [0036](0036-brand-plano.md), the token rules stay
 - Date: 2026-10-28
 
 ## Context
