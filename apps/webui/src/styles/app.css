@@ -206,6 +206,29 @@ main {
 .row-state.active { font-weight: 600; }
 /* What a row says under its controls: a test under way, who commands it. */
 .row-note { flex-basis: 100%; padding-bottom: var(--space-2); }
+/* What went wrong with a row (an automation that failed): its icon and its words. */
+.row-problem { display: flex; align-items: flex-start; gap: var(--space-2); }
+
+/* The trace: one line each, the chain an entry started indented under it. */
+.trace {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--size-rule-md) solid var(--rule);
+}
+.trace-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: var(--size-rule-md) solid var(--rule);
+}
+.trace-entry > .icon { align-self: center; width: var(--size-icon-16); height: var(--size-icon-16); }
+.trace-text { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
+.trace-time { flex-basis: 100%; font-family: var(--font-family-mono); }
+.trace-entry.depth-1 { padding-left: var(--space-6); }
+.trace-entry.depth-2 { padding-left: calc(var(--space-6) * 2); }
 
 /* The level of an output that takes one: a row of its own under the switch. */
 .level {

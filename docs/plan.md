@@ -1225,6 +1225,51 @@ control on the API there is · 5.4 the project on the board and the first edit o
   - Not tried: a real phone, leaving a real Wi-Fi's range, a finger on the sliders.
   - Next: the Activity tab (the trace, the state of automations and schedules), then
     packages and paired devices in the Board tab.
+- [x] **5.3b (2 of 3) The Activity tab.** What the board did and why, live and in words,
+  and how its automations and schedules stand; nothing in it is changed (that is 5.7).
+  The trace is followed by its WebSocket while the tab is shown, from the last entry this
+  device has: coming back to the tab asks only for what is new, a board that restarted
+  (another `run`) replaces what was held and is asked again from 0 when what it sent
+  lacks its start, and the trace is let go while the board is out of reach (the state's
+  beat says so) and asked for again when it is back. Each chain an
+  entry started (an event, the automations it concerned, what they did) is shown under it
+  in the order it happened, the newest chain first, indented two levels at most. Every
+  kind has a sentence in English and Spanish, by its params (who stopped a sequence, the
+  source of an event, a test, a rollback); a failed automation is said by its own error;
+  a kind the app does not know yet by its code. The time is that of day, by the phone's
+  clock and language, or how long after the board started when the board does not know
+  it. Automations list the failing ones first, with why; schedules say open, closed or
+  time unknown.
+  - Tried: its tests (Vitest for the trace and its texts, the screen; pytest holds a
+    sentence for every kind of `trace.Kind`). By hand, not by a test of the repository, in
+    a headless Chromium as a phone in Spanish against a simulated service running a copy
+    of `examples/shop-window` with an event fired from the app: the chain "fired, acted,
+    variable, sequence started" under its event; a second firing from elsewhere arriving
+    live; tabs left and come back to without an entry twice; the service restarted under
+    the open screen, and its new trace in place of the old one; and restarted while the
+    tab was not shown, with a new trace longer than what was held: back on the tab, the
+    new trace from its first entry.
+  - Review, found by its owner: after a restart out of sight the start of the new trace
+    was lost without a word (asked for what follows entry 21, a board that had noted 35
+    sends 22 to 35), with entries shown as starting chains they did not start; the mark
+    of entries the board dropped could never be seen (a board that dropped some keeps
+    1000 entries newer than all the device has, and the device keeps 1000); with a full
+    trace every new entry took about 100 ms (an `Intl.DateTimeFormat` made for every line
+    at every repaint, and every line made again); `package.refused` and
+    `automation.failed` could say "Unexpected error ()" or an unfilled `{pin}`. Fixed,
+    each with a test that failed before where a test can show it: a body of another run
+    that does not start at its `first` is asked for again from 0; the mark is gone; lines
+    are said and dated once per entry with formatters made once, and only new lines are
+    made (`v-memo`); measured in Chromium with 1000 lines, a firing (four entries) shows
+    in 8 to 26 ms with no long task, from 140 to 206 ms before; an error that cannot be
+    said in full is said by its code, and none plainly. Also: offline with no trace yet
+    the tab says the trace will come with the connection, a test under a second keeps a
+    tenth (0.3 s), `<time>` has its `datetime`, and an action of a driver's own is named
+    apart instead of inside a Spanish sentence.
+  - Not done: filters (only problems, by element), the cause of an entry that is no
+    longer held, a trace kept across restarts.
+  - Not tried: a real phone, a real board, a screen reader.
+  - Next: packages and paired devices in the Board tab.
 
 ## Phase 6 · Hardware manager
 

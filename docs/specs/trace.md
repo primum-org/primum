@@ -63,7 +63,9 @@ a sequence started by an automation names that automation's entry.
   then the sequences that stopped and started.
 - A sequence restarted in the very millisecond it started is not noted again.
 
-New kinds may be added; whoever reads the trace ignores the ones it does not know. In the
+New kinds may be added; whoever reads the trace ignores the ones it does not know. The web
+UI says each kind in words (`trace.<kind>` in the catalogs, a test holds them to this
+table), and one it does not know yet by its code. In the
 code they are one enumeration (`primum_runtime.trace.Kind`), and a test holds this table to
 it.
 
@@ -102,5 +104,4 @@ kept above the last entry it has.
 
 ## Not yet
 
-- Texts for the kinds in the catalogs, and the trace on a page: the UI of phase 5.
 - A trace kept across restarts.

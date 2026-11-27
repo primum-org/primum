@@ -15,6 +15,7 @@ import pytest
 
 from primum_core.errors import CoreErrorCode
 from primum_runtime.errors import ErrorCode
+from primum_runtime.trace import Kind
 
 ROOT = Path(__file__).resolve().parents[3]
 CATALOGS = ROOT / "i18n"
@@ -118,6 +119,18 @@ def test_the_web_ui_uses_every_one_of_its_keys_and_only_keys_that_exist() -> Non
 
     assert used - webui == set(), "keys used by the web UI but missing in the catalogs"
     assert webui - used == set(), "keys in the catalogs that the web UI does not use"
+
+
+def test_the_web_ui_has_a_sentence_for_every_kind_of_trace_entry() -> None:
+    # One key per kind, or one per way of it ("trace.sequence.stopped_panic"): the web UI
+    # says each entry in words, and a kind it has no words for only by its code.
+    keys = set(_load(DEFAULT)["webui"])
+    missing = {kind.value for kind in Kind if not any(_says(key, kind) for key in keys)}
+    assert missing == set(), "kinds of trace entry the web UI has no sentence for"
+
+
+def _says(key: str, kind: Kind) -> bool:
+    return key == f"trace.{kind.value}" or key.startswith(f"trace.{kind.value}_")
 
 
 @pytest.mark.parametrize("language", LANGUAGES)

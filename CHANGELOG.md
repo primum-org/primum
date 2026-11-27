@@ -143,6 +143,10 @@ All notable changes to this project are documented here. The format follows
   reach. The WebSocket of the state says the state again every two seconds. Firing an
   event says "done" for a moment. The tab of the board's own matters (pairing) is now
   called *Board*.
+- An *Activity* tab in the web interface says what the board did and why, live and in
+  words: each event with the automations it concerned and what they did, under it; and
+  how each automation stands (on or off, its last failure) and whether each schedule's
+  window is open.
 - The state of the API has a `revision`, which rises with every state reported: of two
   states that reach a client by different ways, the higher is the later.
 - Pairing: a board has a pairing code (`primum-pairing` shows it), and a phone or a program

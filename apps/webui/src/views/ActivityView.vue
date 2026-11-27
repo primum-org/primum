@@ -1,0 +1,135 @@
+<script setup lang="ts">
+// What the board did and why, and how its automations and schedules stand: the state says
+// how things are, the trace how they got there. Nothing here is changed: editing
+// automations and schedules is the editor's (block 5.7).
+import { computed, onMounted, onUnmounted } from "vue";
+
+import type { TraceEntry } from "@/api/types";
+import AppIcon from "@/components/AppIcon.vue";
+import { catalog, t } from "@/i18n";
+import { session } from "@/session";
+import { followTrace, trace, traceLines, unfollowTrace } from "@/trace";
+import { isProblem, traceText } from "@/traceText";
+
+const MS_PER_S = 1000;
+const S_PER_MIN = 60;
+const MIN_PER_H = 60;
+// Indented no deeper than this: a phone has no room for more, and the order still says it.
+const MAX_DEPTH = 2;
+
+// The ones that failed first: what a person comes here to find.
+const automations = computed(() =>
+  [...(session.state?.automations ?? [])].sort((one, other) => Number(other.problem !== null) - Number(one.problem !== null)),
+);
+const schedules = computed(() => session.state?.schedules ?? []);
+const lines = computed(() => traceLines(trace.entries));
+
+const problemText = (problem: NonNullable<(typeof automations.value)[number]["problem"]>): string =>
+  catalog().error(problem).message;
+
+function scheduleWord(open: boolean | null): string {
+  if (open === null) return t("schedule.time_unknown");
+  return open ? t("schedule.open") : t("schedule.closed");
+}
+
+// What a line shows, worked out once per entry: an entry never changes, and with a full
+// trace every new one would otherwise have the thousand before it said and dated again.
+interface Shown {
+  readonly text: string;
+  readonly when: string;
+  // For <time datetime>: the instant, or how long after the board started.
+  readonly datetime: string;
+  readonly problem: boolean;
+}
+const shown = new WeakMap<TraceEntry, Shown>();
+
+function show(entry: TraceEntry): Shown {
+  const known = shown.get(entry);
+  if (known !== undefined) return known;
+  const made = {
+    text: traceText(entry),
+    when: when(entry),
+    datetime: entry.time ?? `PT${entry.atMs / MS_PER_S}S`,
+    problem: isProblem(entry),
+  };
+  shown.set(entry, made);
+  return made;
+}
+
+// Made once: making one for every line cost tens of milliseconds a line.
+const formats = {
+  today: new Intl.DateTimeFormat(catalog().language, { timeStyle: "medium" }),
+  other: new Intl.DateTimeFormat(catalog().language, { dateStyle: "short", timeStyle: "medium" }),
+};
+
+// The time of day by this device's clock and language, with the day when it is not today;
+// on a board that does not know it, how long after the board started.
+function when(entry: TraceEntry): string {
+  if (entry.time === null) return t("activity.since_start", { time: duration(entry.atMs) });
+  const at = new Date(entry.time);
+  const today = at.toDateString() === new Date().toDateString();
+  return (today ? formats.today : formats.other).format(at);
+}
+
+function duration(ms: number): string {
+  const seconds = Math.floor(ms / MS_PER_S);
+  const minutes = Math.floor(seconds / S_PER_MIN);
+  const hours = Math.floor(minutes / MIN_PER_H);
+  if (hours > 0) return `${hours} h ${minutes % MIN_PER_H} min`;
+  if (minutes > 0) return `${minutes} min ${seconds % S_PER_MIN} s`;
+  return `${seconds} s`;
+}
+
+onMounted(followTrace);
+onUnmounted(unfollowTrace);
+</script>
+
+<template>
+  <section v-if="automations.length > 0" class="list" aria-labelledby="automations-heading">
+    <h2 id="automations-heading">{{ t("activity.automations") }}</h2>
+    <ul>
+      <li v-for="automation in automations" :key="automation.id" class="row">
+        <AppIcon name="u-rule" />
+        <span class="row-name">{{ automation.name }}</span>
+        <span class="row-state secondary">
+          {{ automation.enabled ? t("automation.enabled") : t("automation.disabled") }}
+        </span>
+        <p v-if="automation.problem" class="row-note row-problem">
+          <AppIcon name="s-warn" />
+          <span>{{ problemText(automation.problem) }}</span>
+        </p>
+      </li>
+    </ul>
+  </section>
+
+  <section v-if="schedules.length > 0" class="list" aria-labelledby="schedules-heading">
+    <h2 id="schedules-heading">{{ t("activity.schedules") }}</h2>
+    <ul>
+      <li v-for="schedule in schedules" :key="schedule.id" class="row">
+        <AppIcon name="u-clock" />
+        <span class="row-name">{{ schedule.name }}</span>
+        <span class="row-state" :class="{ active: schedule.open === true }">{{ scheduleWord(schedule.open) }}</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="list" aria-labelledby="trace-heading">
+    <h2 id="trace-heading">{{ t("activity.trace") }}</h2>
+    <template v-if="trace.run === null">
+      <p v-if="session.online" class="secondary">{{ t("activity.trace_waiting") }}</p>
+      <p v-else class="secondary">{{ t("activity.trace_offline") }}</p>
+    </template>
+    <p v-else-if="lines.length === 0" class="secondary">{{ t("activity.trace_empty") }}</p>
+    <ol v-else class="trace">
+      <!-- An entry and its depth never change: only new lines are made. -->
+      <li
+        v-for="line in lines" :key="line.entry.number" v-memo="[line.entry, line.depth]" class="trace-entry"
+        :class="`depth-${Math.min(line.depth, MAX_DEPTH)}`" :data-number="line.entry.number"
+      >
+        <AppIcon v-if="show(line.entry).problem" name="s-warn" />
+        <p class="trace-text">{{ show(line.entry).text }}</p>
+        <time class="trace-time secondary" :datetime="show(line.entry).datetime">{{ show(line.entry).when }}</time>
+      </li>
+    </ol>
+  </section>
+</template>

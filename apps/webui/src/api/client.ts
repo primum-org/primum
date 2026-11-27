@@ -1,6 +1,7 @@
-// The one place that talks to the board: requests, and the WebSocket of its state.
+// The one place that talks to the board: requests, and the WebSockets of its state and its
+// trace.
 
-import type { ErrorBody, PackagesBody, PairedBody, PairingBody, StateBody } from "@/api/types";
+import type { ErrorBody, PackagesBody, PairedBody, PairingBody, StateBody, TraceBody } from "@/api/types";
 
 // The status of a request from a device that is not paired with the board.
 const UNPAIRED = 401;
@@ -92,11 +93,22 @@ export const api = {
 
 /** The WebSocket of the board's state: the current one on connect, then every new one. */
 export function openStates(onState: (state: StateBody) => void, onClose: () => void): WebSocket {
-  const address = url("ws");
+  return openSocket(url("ws"), onState, onClose);
+}
+
+/** The WebSocket of the board's trace: what it keeps above entry `after` on connect (also
+ * when that is nothing), then each new entry or entries as they are noted. */
+export function openTrace(after: number, onBody: (body: TraceBody) => void, onClose: () => void): WebSocket {
+  const address = url("trace/ws");
+  address.searchParams.set("after", String(after));
+  return openSocket(address, onBody, onClose);
+}
+
+function openSocket<T>(address: URL, onMessage: (body: T) => void, onClose: () => void): WebSocket {
   address.protocol = address.protocol === "https:" ? "wss:" : "ws:";
   const socket = new WebSocket(address);
   socket.addEventListener("message", (event: MessageEvent<string>) => {
-    onState(JSON.parse(event.data) as StateBody);
+    onMessage(JSON.parse(event.data) as T);
   });
   socket.addEventListener("close", onClose);
   return socket;
