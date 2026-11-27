@@ -51,13 +51,36 @@ class _RefusedError(Exception):
         self.issue = issue
 
 
-def write_archive(files: Files) -> bytes:
-    """The ``.primum`` file of a project: its files, by path, in one zip."""
+def write_archive(files: Files) -> Parsed[bytes]:
+    """The ``.primum`` file of a project: its files, by path, in one zip. A project that
+    ``read_archive`` could not read back is not written: every issue that says why comes back
+    instead (a folder that reads on Linux may hold ``Lights.vars`` and ``lights.vars``)."""
+    issues = _writing_issues(files)
+    if issues:
+        return Parsed(None, issues)
     content = BytesIO()
     with zipfile.ZipFile(content, "w") as archive:
         for path in sorted(files):
             archive.writestr(_entry(path), files[path])
-    return content.getvalue()
+    return Parsed(content.getvalue())
+
+
+def _writing_issues(files: Files) -> tuple[Issue, ...]:
+    """What reading the archive of ``files`` would refuse, all of it: who writes it has every
+    file to rename at once."""
+    issues: list[Issue] = []
+    if len(files) > MAX_FILES:
+        issues.append(Issue(CoreErrorCode.ARCHIVE_TOO_MANY_FILES, {"max": MAX_FILES}))
+    if sum(len(content) for content in files.values()) > MAX_BYTES:
+        issues.append(_too_large())
+    taken = _Taken()
+    for path in sorted(files):
+        name = path.as_posix()
+        if not _is_safe_name(name):
+            issues.append(_unsafe(name))
+        elif issue := taken.add(path, name):
+            issues.append(issue)
+    return tuple(issues)
 
 
 def _entry(path: PurePosixPath) -> zipfile.ZipInfo:
@@ -101,7 +124,8 @@ def _files(content: bytes) -> Iterator[tuple[PurePosixPath, bytes]]:
     left = MAX_BYTES
     for entry in entries:
         path = _safe_path(entry)
-        taken.add(path, entry.filename)
+        if issue := taken.add(path, entry.filename):
+            raise _RefusedError(issue)
         with _unpacking():
             data = _read(archive, entry, left)
         left -= len(data)
@@ -116,13 +140,15 @@ class _Taken:
         self._files: set[str] = set()
         self._folders: set[str] = set()
 
-    def add(self, path: PurePosixPath, name: str) -> None:
+    def add(self, path: PurePosixPath, name: str) -> Issue | None:
+        """Take the place of ``path``, or say why it is taken already."""
         place = _place(path)
         above = {_place(parent) for parent in path.parents[:-1]}
         if place in self._files | self._folders or above & self._files:
-            raise _RefusedError(Issue(CoreErrorCode.ARCHIVE_DUPLICATE_PATH, {"path": name}))
+            return Issue(CoreErrorCode.ARCHIVE_DUPLICATE_PATH, {"path": name})
         self._files.add(place)
         self._folders |= above
+        return None
 
 
 def _place(path: PurePosixPath) -> str:
@@ -135,12 +161,20 @@ def _safe_path(entry: zipfile.ZipInfo) -> PurePosixPath:
     """The path of an entry inside the project's folder, on any system: relative, with no
     ``..``, no name a Windows folder cannot hold, and a plain file, not a link."""
     name = entry.filename
-    parts = name.split("/")
     # No type at all is what a program that knows nothing of Unix writes: a plain file.
     plain = stat.S_IFMT(entry.external_attr >> 16) in {stat.S_IFREG, 0}
-    if not plain or entry.flag_bits & ENCRYPTED or not all(_is_a_name(part) for part in parts):
-        raise _RefusedError(Issue(CoreErrorCode.ARCHIVE_UNSAFE_PATH, {"path": name}))
-    return PurePosixPath(*parts)
+    if not plain or entry.flag_bits & ENCRYPTED or not _is_safe_name(name):
+        raise _RefusedError(_unsafe(name))
+    return PurePosixPath(*name.split("/"))
+
+
+def _unsafe(name: str) -> Issue:
+    return Issue(CoreErrorCode.ARCHIVE_UNSAFE_PATH, {"path": name})
+
+
+def _is_safe_name(name: str) -> bool:
+    """Whether every part of a path, ``/`` between them, is a name any system can hold."""
+    return all(_is_a_name(part) for part in name.split("/"))
 
 
 def _is_a_name(part: str) -> bool:
@@ -157,6 +191,9 @@ def _read(archive: zipfile.ZipFile, entry: zipfile.ZipInfo, left: int) -> bytes:
     with archive.open(entry) as packed:
         data = packed.read(left + 1)
     if len(data) > left:
-        params = {"max_mb": MAX_BYTES // BYTES_PER_MB}
-        raise _RefusedError(Issue(CoreErrorCode.ARCHIVE_TOO_LARGE, params))
+        raise _RefusedError(_too_large())
     return data
+
+
+def _too_large() -> Issue:
+    return Issue(CoreErrorCode.ARCHIVE_TOO_LARGE, {"max_mb": MAX_BYTES // BYTES_PER_MB})

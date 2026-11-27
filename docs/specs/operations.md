@@ -35,28 +35,44 @@ the operation changed.
    a field that belongs to another `op` (`schema.unexpected_field`), the id missing
    (`schema.missing_field`), a field both set and cleared (`operation.set_and_cleared`), a
    text with half a character (`operation.invalid_text`), a number that is none (`NaN`, an
-   infinity, an integer no variable can hold: `schema.expected_number`). These issues have no
-   location:
-   they are about the operation, not about a file.
+   infinity, an integer too large for any float: `schema.expected_number`). These issues have
+   no location: they are about the operation, not about a file. An integer a float holds but
+   not exactly (above 2^53) is taken, as reading a file takes it; see the plan.
 2. **What it names is not there.** `operation.unknown_variable`, with the `id`: no `.vars`
-   file that can be read has that variable. An id that two variables have names neither
-   (`id.duplicate`): nothing is changed until the project has it once. A project without a manifest, or with one that
-   cannot be read, takes no `set_project` (the manifest's own issues).
-3. **The file it changes would have a problem of its own that it did not have before**: a
+   file has that variable. Files are looked in as the JSON they hold, whatever problems they
+   have; a `.vars` file that is not a JSON object cannot be looked in, and its problem comes
+   with `operation.unknown_variable`. An id that two variables have names neither
+   (`id.duplicate`): nothing is changed until the project has it once. A project without a
+   manifest, or with one that is not a JSON object, takes no `set_project` (its problem).
+3. **The object it changes would have a problem of its own that it did not have before**: a
    name too long, a minimum above the maximum, an initial value outside the limits, a step of
-   0. The issues are the ones `primum validate` gives, with their place in the file.
+   0. The issues are the ones `primum validate` gives about that object, with their place in
+   the file: for `set_project` the manifest, for `set_variable` the variable alone.
+4. **The file would keep a number JSON does not have** (`NaN`, `1e999` written in it by
+   hand): there is nothing to write it back as. The issues say where those numbers are; an
+   operation that replaces them is taken.
 
 ## What does not refuse it
 
 A project being built has problems: an element with no pin yet, a schedule before the project
 has a time zone. So an operation is **not** refused for what it means to the rest of the
-project, nor for problems the file already had. The project that comes back may be invalid;
-`load_workspace` lists its problems, and only building a package asks for none.
+project, nor for problems the file already had, nor for the problems of other objects of its
+file: a variable is changed, or fixed, while another of its file has a field of the wrong
+type, and a fix that lets a file validate is not blamed for what then shows elsewhere in it.
+This is what lets a project uploaded with problems be fixed on the board. The project that
+comes back may be invalid; `load_workspace` lists its problems, and only building a package
+asks for none.
+
+An operation that changes nothing (every field it gives already has that value, or it gives
+none) gives back the files it was given, the same objects: whoever keeps revisions of a
+project sees no change.
 
 ## How a changed file is written
 
 UTF-8, two spaces of indentation, a line end at the end, and the fields of the changed object
-in the order of its schema, so a file reads the same whoever edited it. A file that was
+in the order of its schema, so a file reads the same whoever edited it; a field its schema
+does not know (a misspelling) is kept, after the others, as a problem to show. A whole number
+given with a fraction (`90.0`) is written as reading a file takes it, `90`. A file that was
 written by hand in another style is written again whole in this one the first time an
 operation changes it.
 

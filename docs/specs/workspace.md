@@ -220,5 +220,9 @@ A whole project is saved or shared as one `.primum` file: a zip of the folder, w
   these refuses the whole file.
 - Reading never raises on bytes it is given: whatever is wrong with the zip is one of the
   issues above.
+- **Never written if it could not be read back**: a project whose paths or sizes reading
+  would refuse (`Lights.vars` beside `lights.vars`, which a Linux folder holds; `CON.vars`;
+  more than the limits) is not written, and every issue comes back at once, each path that
+  needs renaming among them.
 - Folders listed in the zip are skipped: a project is its files. What the files say, and
   whether `project.json` is there, is for the project's loader.

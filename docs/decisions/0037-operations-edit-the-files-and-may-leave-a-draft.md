@@ -19,15 +19,17 @@ where the `.primum` file (the zip of a project, `specs/workspace.md`) is read an
   automation's action). What goes with each `op` is checked by `core`. It names things by
   id, never by path.
 - **The changed file is edited as the JSON document it is**, not through the generated
-  dataclasses, which only read. It is written again whole, in one style.
+  dataclasses, which only read, and found in it as JSON, so a file that does not validate is
+  edited too. It is written again whole, in one style; an operation that changes nothing
+  gives back the files it was given.
 - **A project may be left with problems.** An operation is refused only if it is malformed,
-  names something that is not there, or would give the file it changes a problem of its own
-  that it did not have. What it means for the rest of the project is listed by
+  names something that is not there, or would give the object it changes a problem of its
+  own that it did not have (the variable, not its whole file). What it means for the rest of the project is listed by
   `load_workspace`, and only building a package requires a valid project.
 - **The `.primum` file is read and written in `core`** (`primum_core.archive`), in memory.
   `just arch` forbids `io` in `core` because it is how files and streams are reached; this
   one module may import it, for `BytesIO` alone. Bytes in, bytes out, with fixed dates: it
-  stays pure, and deterministic for a given zlib. Reading has limits (2000 files, 64 MB unpacked) and refuses
+  stays pure, and deterministic for a given zlib. What reading would refuse is not written. Reading has limits (2000 files, 64 MB unpacked) and refuses
   paths that leave the folder, links, and names two systems would read differently.
 
 ## Alternatives considered

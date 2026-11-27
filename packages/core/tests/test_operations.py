@@ -259,13 +259,136 @@ def test_set_variable_with_an_id_that_is_not_in_the_project_is_refused() -> None
     assert found == [(CoreErrorCode.OPERATION_UNKNOWN_VARIABLE, {"id": missing}, None)]
 
 
-def test_set_variable_does_not_find_a_variable_in_a_file_that_cannot_be_read() -> None:
+def test_a_variable_not_found_comes_with_the_problem_of_the_file_it_could_not_look_in() -> None:
     files = _project()
     files[INNER_VARS] = b"{ not json"
 
     found = _refused({"op": "set_variable", "variable": VISITS, "initial": 1}, files)
 
-    assert found == [(CoreErrorCode.OPERATION_UNKNOWN_VARIABLE, {"id": VISITS}, None)]
+    assert found == [
+        (CoreErrorCode.OPERATION_UNKNOWN_VARIABLE, {"id": VISITS}, None),
+        (CoreErrorCode.FILE_INVALID_JSON, {"line": 1, "column": 3}, ""),
+    ]
+
+
+def _with_visits(**fields: object) -> Files:
+    """The project with ``visits`` in ``shop.vars``, beside ``brightness``, as ``fields``
+    say: a file with a problem, as one uploaded from elsewhere may be."""
+    files = _project()
+    visits = {"id": VISITS, "name": "visits", "type": "number", "initial": 0, **fields}
+    document = _document(files, VARS)
+    variables = [*as_list(document["variables"]), visits]
+    files[VARS] = json.dumps({**document, "variables": variables}, indent=4).encode()
+    del files[INNER_VARS]
+    return files
+
+
+def test_an_operation_fixes_a_variable_whose_file_does_not_validate() -> None:
+    """The file did not read, so it was taken for one with no variables: unknown_variable."""
+    files = _with_visits(min="zero")
+
+    after = _applied({"op": "set_variable", "variable": VISITS, "min": 0}, files)
+
+    assert _variable(after, VARS, 2)["min"] == 0
+
+
+def test_another_variable_of_a_file_that_does_not_validate_can_be_changed() -> None:
+    files = _with_visits(min="zero")
+
+    after = _applied({"op": "set_variable", "variable": BRIGHTNESS, "label": "Light"}, files)
+
+    assert _variable(after, VARS, 0)["label"] == "Light"
+    assert _variable(after, VARS, 2)["min"] == "zero"
+
+
+def test_a_problem_elsewhere_in_the_file_does_not_hide_the_one_an_operation_gives() -> None:
+    files = _with_visits(min="zero")
+
+    found = _refused({"op": "set_variable", "variable": BRIGHTNESS, "min": 200}, files)
+
+    assert found == [
+        (
+            CoreErrorCode.VARIABLE_LIMITS_INVALID,
+            {"name": "brightness", "min": 200, "max": 100},
+            "/variables/0",
+        )
+    ]
+
+
+def test_a_fix_that_lets_the_file_validate_is_not_blamed_for_its_other_problems() -> None:
+    files = _with_visits(min="zero")
+    document = _document(files, VARS)
+    loud = {**_variable(files, VARS, 0), "initial": 500}
+    others = as_list(document["variables"])[1:]
+    files[VARS] = json.dumps({**document, "variables": [loud, *others]}).encode()
+
+    after = _applied({"op": "set_variable", "variable": VISITS, "min": 0}, files)
+
+    assert _variable(after, VARS, 2)["min"] == 0
+
+
+def test_a_field_the_schema_does_not_know_is_kept_when_its_variable_is_changed() -> None:
+    files = _with_visits(mni=0)
+
+    after = _applied({"op": "set_variable", "variable": VISITS, "label": "Visits"}, files)
+
+    assert list(_variable(after, VARS, 2)) == ["id", "name", "type", "initial", "label", "mni"]
+
+
+def test_a_number_json_does_not_have_is_replaced_by_an_operation_on_it() -> None:
+    files = _with_visits(max=float("nan"))
+
+    after = _applied({"op": "set_variable", "variable": VISITS, "max": 9}, files)
+
+    assert _variable(after, VARS, 2)["max"] == 9
+
+
+def test_a_file_left_with_a_number_json_does_not_have_is_not_written() -> None:
+    files = _with_visits(max=float("inf"))
+
+    found = _refused({"op": "set_variable", "variable": BRIGHTNESS, "label": "Light"}, files)
+
+    expected = (
+        CoreErrorCode.SCHEMA_EXPECTED_NUMBER,
+        {"field": "variables[2].max"},
+        "/variables/2/max",
+    )
+    assert found == [expected]
+
+
+def test_an_operation_that_changes_nothing_gives_back_the_files_it_was_given() -> None:
+    files = _with_visits(persistent=True)
+
+    result = apply_operation(files, {"op": "set_variable", "variable": VISITS, "persistent": True})
+
+    assert result.value is files
+
+
+def test_an_operation_with_no_field_gives_back_the_files_it_was_given() -> None:
+    files = _with_visits()
+
+    result = apply_operation(files, {"op": "set_variable", "variable": VISITS})
+
+    assert result.value is files
+
+
+def test_a_true_where_a_one_was_is_not_taken_for_no_change() -> None:
+    files = _with_visits(initial=1)
+
+    found = _refused({"op": "set_variable", "variable": VISITS, "initial": True}, files)
+
+    expected = (
+        CoreErrorCode.VALUE_EXPECTED_NUMBER,
+        {"field": "variables[2].initial"},
+        "/variables/2/initial",
+    )
+    assert found == [expected]
+
+
+def test_a_whole_number_given_with_a_fraction_is_written_as_reading_takes_it() -> None:
+    files = _applied({"op": "set_variable", "variable": BRIGHTNESS, "max": 90.0})
+
+    assert type(_variable(files, VARS, 0)["max"]) is int
 
 
 def test_set_project_without_a_manifest_is_refused() -> None:
@@ -277,13 +400,29 @@ def test_set_project_without_a_manifest_is_refused() -> None:
     assert found == [(CoreErrorCode.PROJECT_MANIFEST_MISSING, {}, "")]
 
 
-def test_set_project_on_a_manifest_that_cannot_be_read_is_refused_with_its_problem() -> None:
+def test_set_project_gives_a_name_to_a_manifest_that_had_none() -> None:
     files = _project()
     files[MANIFEST] = _file("project", PROJECT)
 
-    found = _refused({"op": "set_project", "name": "Window"}, files)
+    after = _applied({"op": "set_project", "name": "Window"}, files)
 
-    assert found == [(CoreErrorCode.SCHEMA_MISSING_FIELD, {"field": "name"}, "")]
+    assert _document(after, MANIFEST)["name"] == "Window"
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        (b"{ not json", (CoreErrorCode.FILE_INVALID_JSON, {"line": 1, "column": 3}, "")),
+        (b"[]", (CoreErrorCode.FILE_NOT_AN_OBJECT, NO_PARAMS, "")),
+    ],
+)
+def test_set_project_on_a_manifest_that_is_no_json_object_is_refused_with_its_problem(
+    content: bytes, expected: tuple[CoreErrorCode, dict[str, object], str]
+) -> None:
+    files = _project()
+    files[MANIFEST] = content
+
+    assert _refused({"op": "set_project", "name": "Window"}, files) == [expected]
 
 
 @pytest.mark.parametrize(

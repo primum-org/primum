@@ -1355,7 +1355,22 @@ control on the API there is · 5.4 the project on the board and the first edit o
     two ways, a file where a folder is); an id two variables have is refused
     (`id.duplicate`) instead of changing the first; whole limits and steps are shown as
     `50`, not `50.0`. Each with a test that failed before.
-  - Noted for later, not done: `set_project` takes a time zone no board knows, since only
+  - After a second review: a variable is found in the JSON of its file, whatever problems
+    the file has, and only the problems of the object an operation changes count against
+    it: a `.vars` file with `"min": "zero"` in one variable said that every variable in it
+    did not exist, the fix included (`set_project` already edited a manifest that read,
+    and now edits one that does not validate too). A `.vars` file that is not JSON comes
+    with `operation.unknown_variable`. `write_archive` refuses what `read_archive` would
+    (`Lights.vars` beside `lights.vars`, `CON.vars`, the limits), with every issue, and a
+    test checks that whatever is written reads back as the same files. An operation that
+    changes nothing gives back the files it was given; a misspelled field is kept, not
+    dropped, when its object is written; `90.0` is written `90`. Each with a test that
+    failed before.
+  - Noted for later, not done: an `integer` above 2^53 is taken, from a file or an
+    operation, since only what no float holds is refused; JavaScript (the web UI) and an
+    ESP32 lose its precision: give integers a range in their schema, with the "limits of
+    an `integer` variable against its type" left from phase 2.
+    `set_project` takes a time zone no board knows, since only
     the project's loader has the list: the API of 5.4b must check it or show the problem.
     The same `50.0` in the issues of reading a package (`primum_core.package`).
     `label` and `step` do not reach the package, the API or the

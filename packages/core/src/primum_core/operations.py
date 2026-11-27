@@ -6,15 +6,18 @@ applied here (``docs/specs/operations.md``, decision 0037). A project is its fil
 come back are new; the ones given are never changed.
 
 An operation is refused when it is not one (its shape, the fields of its ``op``), when what it
-names is not in the project, or when the file it changes would have a problem of its own that
-it did not have before: a name too long, a minimum above the maximum. What the change means
-for the rest of the project is not judged here: a project may be left with problems, as one
-being built is, and ``load_workspace`` lists them.
+names is not in the project, or when the object it changes would have a problem of its own
+that it did not have before: a name too long, a minimum above the maximum. What the change
+means for the rest of the project is not judged here: a project may be left with problems, as
+one being built is, and ``load_workspace`` lists them.
+
+A file is edited as the JSON document it is, so a file with problems can be edited too: an
+uploaded project that does not validate is fixed with the same operations.
 """
 
 import json
 import math
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import PurePosixPath
 from uuid import UUID
@@ -23,23 +26,29 @@ from primum_core.errors import CoreErrorCode, Issue, Location
 from primum_core.formats import (
     Parsed,
     decode,
+    file_id,
     has_half_a_character,
     read_manifest,
-    read_project_file,
 )
-from primum_core.generated.model import Variable, Variables, parse_operation
+from primum_core.generated.model import parse_operation, parse_variable
 from primum_core.generated.schemas import SCHEMAS
-from primum_core.json_values import JsonObject, as_list, as_object, is_object
-from primum_core.pointers import Step, field_name
-from primum_core.references import LocatedContent
-from primum_core.schema_validation import validate
-from primum_core.variants import check_variants
+from primum_core.json_values import JsonObject, as_list, as_object, is_array, is_object
+from primum_core.pointers import Step, field_name, pointer
+from primum_core.schema_validation import validate, validate_definition
+from primum_core.variants import check_variable
 from primum_core.workspace import MANIFEST
 
 type Files = Mapping[PurePosixPath, bytes]
+type Document = dict[str, object]
+type IssuesOf = Callable[[JsonObject], frozenset[Issue]]
 
 OPERATION_SCHEMA = "operation.schema.json"
+PROJECT_SCHEMA = "project.schema.json"
+VARIABLES_SCHEMA = "variables.schema.json"
+VARIABLE_DEFINITION = "variable"
 VARIABLES_SUFFIX = ".vars"
+VARIABLES_FIELD = "variables"
+ID_FIELD = "id"
 OP_FIELD = "op"
 CLEAR_FIELD = "clear"
 INDENT = 2
@@ -71,17 +80,22 @@ KINDS: Mapping[str, _Kind] = {
 
 @dataclass(frozen=True)
 class _Target:
-    """The object an operation changes: its file, where it is inside it, and the order its
-    fields are written in (the one of its schema)."""
+    """The object an operation changes: its file, decoded, and the schema of the file, where
+    it is inside it, the order its fields are written in (the one of its schema) and the
+    problems it has on its own."""
 
     path: PurePosixPath
+    document: Document
+    schema: str
     steps: tuple[Step, ...]
     field_order: Sequence[str]
+    issues_of: IssuesOf
 
 
 def apply_operation(files: Files, operation: object) -> Parsed[Files]:
     """The project's files with ``operation`` (a decoded JSON document) applied, or the issues
-    that refuse it. Only the file it changes is new; it is written again whole."""
+    that refuse it. Only the file it changes is new; it is written again whole. An operation
+    that changes nothing gives back the files it was given."""
     issues = tuple(_operation_issues(operation))
     if issues:
         return Parsed(None, issues)
@@ -90,12 +104,16 @@ def apply_operation(files: Files, operation: object) -> Parsed[Files]:
     target = _target(files, kind, document)
     if not isinstance(target, _Target):
         return Parsed(None, target)
-    before = files[target.path]
-    after = _written(_changed(decode(before, NOWHERE), target, kind, document))
-    added = _own_issues(target.path, after) - _own_issues(target.path, before)
+    before = target.document
+    after = as_object(_changed(before, target.steps, target.field_order, kind, document))
+    if not _holds_only_json(after):
+        return Parsed(None, _unwritable(target, after))
+    if _holds_only_json(before) and _dumped(before) == _dumped(after):
+        return Parsed(files)
+    added = target.issues_of(after) - target.issues_of(before)
     if added:
         return Parsed(None, tuple(sorted(added, key=_by_place)))
-    return Parsed({**files, target.path: after})
+    return Parsed({**files, target.path: _written(after)})
 
 
 def _operation_issues(operation: object) -> Iterator[Issue]:
@@ -128,10 +146,10 @@ def _operation_issues(operation: object) -> Iterator[Issue]:
 
 
 def _not_a_number_issues(operation: object) -> Iterator[Issue]:
-    """Numbers JSON does not have and no variable can hold: ``NaN``, an infinity, an integer
-    of hundreds of digits. Reading a file turns them away (``primum_core.formats``); an
-    operation arrives already decoded, by whoever calls, so they are turned away here, before
-    they reach a file and are blamed on it."""
+    """Numbers JSON does not have and no float can hold: ``NaN``, an infinity, an integer of
+    hundreds of digits. Reading a file turns them away (``primum_core.formats``); an operation
+    arrives already decoded, by whoever calls, so they are turned away here, before they reach
+    a file and are blamed on it."""
     if not is_object(operation):
         return
     for name, value in operation.items():
@@ -154,82 +172,188 @@ def _target(files: Files, kind: _Kind, operation: JsonObject) -> _Target | tuple
 
 
 def _manifest_target(files: Files) -> _Target | tuple[Issue, ...]:
+    """The manifest, if it is a JSON object: one that does not validate can still be fixed."""
     if MANIFEST not in files:
         return (Issue(CoreErrorCode.PROJECT_MANIFEST_MISSING, {}, Location(MANIFEST)),)
-    unreadable = read_manifest(MANIFEST, files[MANIFEST]).issues
-    if unreadable:
-        return unreadable
-    return _Target(MANIFEST, (), _field_order(SCHEMAS["project.schema.json"]))
+    document = _object(MANIFEST, files[MANIFEST])
+    if isinstance(document, Issue):
+        return (document,)
+    order = _field_order(SCHEMAS[PROJECT_SCHEMA])
+    return _Target(MANIFEST, document, PROJECT_SCHEMA, (), order, _manifest_issues)
+
+
+def _manifest_issues(document: JsonObject) -> frozenset[Issue]:
+    return frozenset(read_manifest(MANIFEST, _written(document)).issues)
 
 
 def _variable_target(files: Files, variable: UUID) -> _Target | tuple[Issue, ...]:
-    """The variable with that id. A ``.vars`` file that cannot be read has no variables to
-    change: it is fixed by hand, or replaced. An id that two variables have names neither:
-    changing the first found could be changing the one the person is not looking at."""
-    schema = as_object(as_object(SCHEMAS["variables.schema.json"]["$defs"])["variable"])
-    found = [
-        _Target(path, ("variables", index), _field_order(schema))
-        for path in sorted(files)
-        for index, candidate in enumerate(_variables(path, files[path]))
-        if candidate.id == variable
-    ]
+    """The variable with that id, looked for in the JSON of every ``.vars`` file, whatever
+    problems the file has. A file that is not a JSON object cannot be looked in: when the
+    variable is not found, its problem comes with the answer. An id that two variables have
+    names neither: changing the first found could be changing the one the person is not
+    looking at."""
+    order = _field_order(_definition(VARIABLES_SCHEMA, VARIABLE_DEFINITION))
+    found: list[_Target] = []
+    unsearched: list[Issue] = []
+    for path in sorted(files):
+        if path.suffix.lower() != VARIABLES_SUFFIX:
+            continue
+        document = _object(path, files[path])
+        if isinstance(document, Issue):
+            unsearched.append(document)
+            continue
+        for index in _indices_with_id(document.get(VARIABLES_FIELD), variable):
+            steps: tuple[Step, ...] = (VARIABLES_FIELD, index)
+            issues_of = _variable_issues(path, steps)
+            found.append(_Target(path, document, VARIABLES_SCHEMA, steps, order, issues_of))
     if not found:
-        return (Issue(CoreErrorCode.OPERATION_UNKNOWN_VARIABLE, {"id": str(variable)}),)
+        return (Issue(CoreErrorCode.OPERATION_UNKNOWN_VARIABLE, {"id": str(variable)}), *unsearched)
     if len(found) > 1:
         return (Issue(CoreErrorCode.ID_DUPLICATE, {"id": str(variable)}),)
     return found[0]
 
 
-def _variables(path: PurePosixPath, content: bytes) -> tuple[Variable, ...]:
-    if path.suffix.lower() != VARIABLES_SUFFIX:
-        return ()
-    read = read_project_file(path, content).value
-    return read.variables if isinstance(read, Variables) else ()
+def _object(path: PurePosixPath, content: bytes) -> Document | Issue:
+    """The JSON object a file holds, or the issue that says it holds none."""
+    location = Location(path)
+    document = decode(content, location)
+    if isinstance(document, Issue):
+        return document
+    if not is_object(document):
+        return Issue(CoreErrorCode.FILE_NOT_AN_OBJECT, location=location)
+    return document
+
+
+def _indices_with_id(items: object, wanted: UUID) -> Iterator[int]:
+    if not is_array(items):
+        return
+    for index, item in enumerate(items):
+        if is_object(item) and _is_id(item.get(ID_FIELD), wanted):
+            yield index
+
+
+def _is_id(value: object, wanted: UUID) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        return UUID(value) == wanted
+    except ValueError:
+        return False
+
+
+def _variable_issues(path: PurePosixPath, steps: tuple[Step, ...]) -> IssuesOf:
+    """The problems of the variable at ``steps``, on its own: the ones ``primum validate``
+    gives about it, whatever the rest of its file has. A problem elsewhere in the file does
+    not hide this variable's, nor does it count against an operation on it."""
+
+    def issues_of(document: JsonObject) -> frozenset[Issue]:
+        location = Location(path, file_id=file_id(document))
+        variable = _at(document, steps)
+        malformed = validate_definition(
+            VARIABLES_SCHEMA, VARIABLE_DEFINITION, variable, location, steps
+        )
+        if malformed:
+            return frozenset(malformed)
+        return frozenset(check_variable(parse_variable(as_object(variable)), steps, location))
+
+    return issues_of
+
+
+def _definition(schema: str, definition: str) -> JsonObject:
+    return as_object(as_object(SCHEMAS[schema]["$defs"])[definition])
 
 
 def _field_order(schema: JsonObject) -> Sequence[str]:
     return tuple(as_object(schema["properties"]))
 
 
-def _changed(document: object, target: _Target, kind: _Kind, operation: JsonObject) -> object:
-    """``document`` with the object at the target's place changed as ``operation`` says."""
-    if not target.steps:
-        return _edited(as_object(document), target.field_order, kind, operation)
-    step, *rest = target.steps
-    inner = replace(target, steps=tuple(rest))
+def _at(document: object, steps: tuple[Step, ...]) -> object:
+    for step in steps:
+        document = as_list(document)[step] if isinstance(step, int) else as_object(document)[step]
+    return document
+
+
+def _changed(
+    document: object,
+    steps: tuple[Step, ...],
+    order: Sequence[str],
+    kind: _Kind,
+    operation: JsonObject,
+) -> object:
+    """``document`` with the object at ``steps`` changed as ``operation`` says."""
+    if not steps:
+        return _edited(as_object(document), order, kind, operation)
+    step, *rest = steps
     if isinstance(step, int):
         items = as_list(document)
-        changed = _changed(items[step], inner, kind, operation)
+        changed = _changed(items[step], tuple(rest), order, kind, operation)
         return [*items[:step], changed, *items[step + 1 :]]
     fields = as_object(document)
-    return {**fields, step: _changed(fields[step], inner, kind, operation)}
+    return {**fields, step: _changed(fields[step], tuple(rest), order, kind, operation)}
 
 
 def _edited(
     fields: JsonObject, order: Sequence[str], kind: _Kind, operation: JsonObject
 ) -> JsonObject:
     """The fields the operation sets, set, and the ones it clears, gone; written in the order
-    of the schema, so a file reads the same whoever edited it."""
+    of the schema, so a file reads the same whoever edited it. A field the schema does not
+    know (a misspelling) is kept, after the others: it is a problem to show, not to lose."""
     cleared = as_list(operation.get(CLEAR_FIELD, []))
-    set_ = {name: value for name, value in operation.items() if name in kind.settable}
+    set_ = {
+        name: _as_json_means(value) for name, value in operation.items() if name in kind.settable
+    }
     merged = {**fields, **set_}
-    return {name: merged[name] for name in order if name in merged and name not in cleared}
+    known = [name for name in order if name in merged]
+    unknown = [name for name in merged if name not in order]
+    return {name: merged[name] for name in (*known, *unknown) if name not in cleared}
 
 
-def _written(document: object) -> bytes:
+def _as_json_means(value: object) -> object:
+    """A number as reading a file takes it: ``2.0`` is the integer ``2`` (``formats``)."""
+    return int(value) if isinstance(value, float) and value.is_integer() else value
+
+
+def _holds_only_json(value: object) -> bool:
+    """Whether ``value`` can be written as JSON. Reading a file keeps a number JSON does not
+    have (``NaN``, ``1e999``) as a marker, so that its schema reports it; there is no text to
+    write it back as."""
+    if is_object(value):
+        return all(_holds_only_json(item) for item in value.values())
+    if is_array(value):
+        return all(_holds_only_json(item) for item in value)
+    return value is None or isinstance(value, str | int | float | bool)
+
+
+def _unwritable(target: _Target, after: JsonObject) -> tuple[Issue, ...]:
+    """Why a file left with a number JSON does not have cannot be written again: what its
+    schema says where those numbers are. An operation that replaces them is taken."""
+    location = Location(target.path, file_id=file_id(after))
+    issues = validate(target.schema, after, location)
+    places = {pointer(steps) for steps in _not_json_at(after, ())}
+    there = tuple(issue for issue in issues if issue.location and issue.location.pointer in places)
+    return tuple(sorted(there or issues, key=_by_place))
+
+
+def _not_json_at(value: object, steps: tuple[Step, ...]) -> Iterator[tuple[Step, ...]]:
+    if is_object(value):
+        for name, item in value.items():
+            yield from _not_json_at(item, (*steps, name))
+    elif is_array(value):
+        for index, item in enumerate(value):
+            yield from _not_json_at(item, (*steps, index))
+    elif not _holds_only_json(value):
+        yield steps
+
+
+def _dumped(document: JsonObject) -> str:
+    """A document as text that does not depend on the order of its fields: two documents with
+    the same text say the same, ``1``, ``1.0`` and ``true`` told apart."""
+    return json.dumps(document, sort_keys=True, ensure_ascii=False)
+
+
+def _written(document: JsonObject) -> bytes:
     """A file as Primum writes it: UTF-8, two spaces, a line end at the end."""
     return (json.dumps(document, indent=INDENT, ensure_ascii=False) + "\n").encode()
-
-
-def _own_issues(path: PurePosixPath, content: bytes) -> frozenset[Issue]:
-    """The problems a file has on its own, whatever the rest of the project says."""
-    if path == MANIFEST:
-        return frozenset(read_manifest(path, content).issues)
-    parsed = read_project_file(path, content)
-    if parsed.value is None:
-        return frozenset(parsed.issues)
-    location = Location(path, file_id=parsed.value.id)
-    return frozenset(check_variants(LocatedContent(parsed.value, location)))
 
 
 def _by_place(issue: Issue) -> tuple[str, str]:

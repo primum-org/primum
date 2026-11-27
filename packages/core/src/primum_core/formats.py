@@ -142,7 +142,7 @@ def _read[T](
     document = decode(content, location)
     if isinstance(document, Issue):
         return Parsed(None, (document,))
-    location = Location(path, file_id=_file_id(document))
+    location = Location(path, file_id=file_id(document))
     issues = validate(schema, document, location)
     if issues:
         return Parsed(None, issues)
@@ -231,7 +231,7 @@ def _object_without_repeated_keys(pairs: list[tuple[str, object]]) -> dict[str, 
     return document
 
 
-def _file_id(document: object) -> UUID | None:
+def file_id(document: object) -> UUID | None:
     """The file's id, if it has a valid one, so issues can point at the file by id."""
     if not is_object(document):
         return None

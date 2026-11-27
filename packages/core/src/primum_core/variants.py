@@ -128,12 +128,15 @@ def _variables_issues(content: Variables, location: Location) -> Iterator[Issue]
         if issue := check_value(constant.value, constant.type, steps, location):
             yield issue
     for index, variable in enumerate(content.variables):
-        yield from _variable_issues(variable, ("variables", index), location)
+        yield from check_variable(variable, ("variables", index), location)
 
 
-def _variable_issues(
+def check_variable(
     variable: Variable, steps: tuple[Step, ...], location: Location
 ) -> Iterator[Issue]:
+    """What a schema cannot say of one variable, found at ``steps`` in its file: limits and a
+    step only on a number, its initial value of its type and within its limits, its step one
+    its type can take."""
     at = replace(location, pointer=pointer(steps))
     if variable.type not in NUMERIC:
         of_numbers = {
